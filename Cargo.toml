@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "services/*",
+    "shared/*",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+
+[workspace.dependencies]
+# Tokio is the async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Axum is the web framework
+axum = "0.7"
+
+# Serde is for serialization and deserialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# SQLx is for database access
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "json", "uuid"] }
+
+# For logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# For handling configuration
+config = "0.14"
+
+# For handling errors
+anyhow = "1.0"
+thiserror = "1.0"
