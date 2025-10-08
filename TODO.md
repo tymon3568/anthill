@@ -10,22 +10,64 @@
 
 ## Phase 1: Thiết Lập Cơ Sở Hạ Tầng & Workspace
 
-### 1.1 Thiết Lập Môi Trường Phát Triển
+### 1.1 Thiết Lập Môi Trường Phát Triển (P0 - Critical)
 - [x] ✅ Tạo thư mục dự án và khởi tạo git repo
 - [x] ✅ Tạo file ARCHITECTURE.md với kiến trúc CapRover
 - [x] ✅ Tạo cấu trúc thư mục cho các microservices
 - [x] ✅ Tạo Cargo workspace (Cargo.toml gốc)
 - [x] ✅ Tạo docker-compose.yml cho môi trường local
-- [ ] 🔄 Cài đặt Rust toolchain (stable + nightly)
+
+#### 1.1.1 Rust Toolchain Configuration (P0)
+- [ ] 🔴 **P0** Tạo `rust-toolchain.toml` ở root
+  - Khoá đúng stable version (ví dụ: `1.75.0`)
+  - Đảm bảo consistency giữa CI và dev máy
+  ```toml
+  [toolchain]
+  channel = "1.75.0"
+  components = ["rustfmt", "clippy", "rust-src"]
+  profile = "default"
+  ```
+- [ ] 🔴 **P0** Cài đặt Rust toolchain
   - `rustup default stable`
-  - `rustup toolchain add nightly`
+  - `rustup toolchain add nightly` (for some dependencies)
   - `rustup component add clippy rustfmt`
-- [ ] 🔄 Cài đặt công cụ phát triển
+- [ ] 🔴 **P0** Cài đặt công cụ phát triển
   - `cargo install cargo-watch` (auto-reload)
   - `cargo install sqlx-cli --features postgres` (database migrations)
   - `cargo install cargo-make` (task runner)
-- [ ] 🔄 Thiết lập Docker & Docker Compose trên máy local
-- [ ] 🔄 Khởi động môi trường local dev
+  - `cargo install cargo-nextest` (faster test runner)
+
+#### 1.1.2 Environment Configuration (P0)
+- [ ] 🔴 **P0** Tạo `.env.example` cho mỗi service
+  - `services/user-service/.env.example`
+  - `services/inventory-service/.env.example`
+  - Template variables: DATABASE_URL, REDIS_URL, NATS_URL, JWT_SECRET
+- [ ] 🔴 **P0** Tạo `.env.global.example` ở root
+  - Shared environment variables
+  - PostgreSQL, Redis, NATS connection strings
+  - CapRover deployment configs
+- [ ] 🔴 **P0** Script `make env` để generate local .env
+  ```bash
+  # Makefile.toml hoặc scripts/setup-env.sh
+  # Copy .env.example → .env và prompt for secrets
+  # Tránh hard-code DB URL trong code
+  ```
+- [ ] 🔴 **P0** Add `.env` và `.env.local` vào `.gitignore`
+
+#### 1.1.3 Docker Configuration (P0)
+- [ ] 🔴 **P0** Tạo `docker-compose.override.yml` (dev-mount source)
+  - Best practice: không modify file gốc
+  - Mount volumes cho hot-reload
+  ```yaml
+  version: '3.8'
+  services:
+    user-service:
+      volumes:
+        - ./services/user-service:/app
+        - /app/target  # Exclude target dir
+  ```
+- [ ] 🔴 **P0** Thiết lập Docker & Docker Compose trên máy local
+- [ ] 🔴 **P0** Khởi động môi trường local dev
   - `cd infra/docker-compose && docker-compose up -d`
 
 ### 1.2 Khởi Tạo Các Microservices
@@ -34,8 +76,28 @@
 - [x] ✅ Tạo skeleton cho order-service
 - [x] ✅ Tạo skeleton cho integration-service
 - [x] ✅ Tạo skeleton cho payment-service
+
+#### 1.2.1 Health Check Endpoints (P0)
+- [ ] 🔴 **P0** Implement `/health` endpoint cho mỗi service
+  - Return 200 OK với service name và version
+  - Dùng cho CapRover health check
+  ```rust
+  async fn health_check() -> Json<HealthResponse> {
+      Json(HealthResponse {
+          status: "healthy",
+          service: "user-service",
+          version: env!("CARGO_PKG_VERSION"),
+      })
+  }
+  ```
+- [ ] 🔴 **P0** Implement `/ready` endpoint (readiness probe)
+  - Check DB connection
+  - Check Redis connection
+  - Check NATS connection
+  - Return 503 if any dependency unavailable
 - [ ] 🔄 Test build tất cả services: `cargo build --workspace`
 - [ ] 🔄 Test chạy từng service riêng lẻ
+- [ ] 🔄 Test health endpoints: `curl http://localhost:3000/health`
 
 ### 1.3 Thiết Lập Shared Libraries
 - [ ] ⏳ Tạo `shared/common` crate
@@ -57,16 +119,245 @@
   - NATS client wrapper
   - Publish/Subscribe helpers
 
+### 1.4 Task Automation với cargo-make (P0)
+- [ ] 🔴 **P0** Tạo `Makefile.toml` ở root với common tasks
+  ```toml
+  [tasks.dev]
+  description = "Run service in dev mode with auto-reload"
+  command = "cargo"
+  args = ["watch", "-x", "run -p ${SERVICE}"]
+
+  [tasks.test]
+  description = "Run all tests"
+  command = "cargo"
+  args = ["nextest", "run", "--workspace"]
+
+  [tasks.migrate]
+  description = "Run database migrations"
+  script = ["sqlx migrate run --database-url ${DATABASE_URL}"]
+
+  [tasks.lint]
+  description = "Format and lint code"
+  dependencies = ["fmt", "clippy"]
+
+  [tasks.fmt]
+  command = "cargo"
+  args = ["fmt", "--all"]
+
+  [tasks.clippy]
+  command = "cargo"
+  args = ["clippy", "--all", "--", "-D", "warnings"]
+
+  [tasks.docker-build]
+  description = "Build Docker image for service"
+  script = ["docker build -t ${SERVICE}:latest -f services/${SERVICE}/Dockerfile ."]
+
+  [tasks.sqlx-prepare]
+  description = "Prepare SQLx offline query data"
+  command = "cargo"
+  args = ["sqlx", "prepare", "--workspace"]
+  ```
+- [ ] 🔴 **P0** Test các tasks:
+  - `cargo make dev SERVICE=user-service`
+  - `cargo make test`
+  - `cargo make migrate`
+  - `cargo make lint`
+
+### 1.5 Development Tooling (P1 - Convenience)
+
+#### 1.5.1 Git Hooks (P1)
+- [ ] 🟡 **P1** Setup pre-commit hook
+  - Install: `cargo install pre-commit` hoặc use Python pre-commit
+  - `.pre-commit-config.yaml`:
+  ```yaml
+  repos:
+    - repo: local
+      hooks:
+        - id: cargo-fmt
+          name: cargo fmt
+          entry: cargo fmt --all -- --check
+          language: system
+          pass_filenames: false
+        - id: cargo-clippy
+          name: cargo clippy
+          entry: cargo clippy --all -- -D warnings
+          language: system
+          pass_filenames: false
+        - id: sqlx-prepare
+          name: sqlx prepare
+          entry: cargo sqlx prepare --check
+          language: system
+          pass_filenames: false
+  ```
+- [ ] 🟡 **P1** Run: `pre-commit install`
+
+#### 1.5.2 direnv Integration (P1)
+- [ ] 🟡 **P1** Install direnv: `sudo pacman -S direnv` (Arch)
+- [ ] 🟡 **P1** Tạo `.envrc` ở root
+  ```bash
+  # .envrc
+  export DATABASE_URL="postgres://user:password@localhost:5432/inventory_db"
+  export REDIS_URL="redis://localhost:6379"
+  export NATS_URL="nats://localhost:4222"
+  export RUST_LOG="debug"
+  export RUST_BACKTRACE="1"
+
+  # Load from .env if exists
+  dotenv_if_exists .env
+
+  # Show loaded env
+  echo "✓ Environment loaded for inventory-saas-platform"
+  ```
+- [ ] 🟡 **P1** Add `.envrc` to `.gitignore`
+- [ ] 🟡 **P1** Run: `direnv allow .`
+- [ ] 🟡 **P1** Add to shell config (~/.zshrc):
+  ```bash
+  eval "$(direnv hook zsh)"
+  ```
+
+### 1.6 Optional Development Tools (P2)
+
+#### 1.6.1 Dev Container (P2)
+- [ ] 🔵 **P2** Tạo `.devcontainer/devcontainer.json` cho VS Code
+  ```json
+  {
+    "name": "Inventory SaaS Dev",
+    "dockerComposeFile": "../infra/docker-compose/docker-compose.yml",
+    "service": "dev",
+    "workspaceFolder": "/workspace",
+    "extensions": [
+      "rust-lang.rust-analyzer",
+      "vadimcn.vscode-lldb",
+      "tamasfe.even-better-toml"
+    ],
+    "postCreateCommand": "cargo build --workspace"
+  }
+  ```
+- [ ] 🔵 **P2** Tạo `.gitpod.yml` cho Gitpod
+  ```yaml
+  tasks:
+    - init: cargo build --workspace
+      command: cargo run -p user-service
+  vscode:
+    extensions:
+      - rust-lang.rust-analyzer
+  ```
+
+#### 1.6.2 Dependency Management (P2)
+- [ ] 🔵 **P2** Setup Renovate Bot
+  - Tạo `renovate.json`:
+  ```json
+  {
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:base"],
+    "cargo": {
+      "enabled": true
+    },
+    "schedule": ["after 10pm every weekday"],
+    "labels": ["dependencies"]
+  }
+  ```
+- [ ] 🔵 **P2** Hoặc enable GitHub Dependabot
+  - Tạo `.github/dependabot.yml`:
+  ```yaml
+  version: 2
+  updates:
+    - package-ecosystem: "cargo"
+      directory: "/"
+      schedule:
+        interval: "weekly"
+  ```
+
 ---
 
 ## Phase 2: Database & Migrations
 
 ### 2.1 Thiết Kế Database Schema
-- [ ] ⏳ Thiết kế schema cho multi-tenancy
-  - Quyết định chiến lược: Shared schema với tenant_id
-  - Row-Level Security policies (nếu dùng)
+
+#### 2.1.1 Multi-Tenancy Strategy (P0)
+- [ ] 🔴 **P0** Quyết định chiến lược multi-tenancy
+  - ✅ **Chọn**: Shared schema với `tenant_id` trong mỗi bảng
+  - Alternative: Separate schema per tenant (phức tạp hơn)
+  - Alternative: Separate database per tenant (expensive)
+
+- [ ] 🔴 **P0** Row-Level Security (RLS) Decision
+  - **Option 1: Postgres RLS** (Recommended for security)
+    - Enable RLS trên mỗi bảng có `tenant_id`
+    - Create policy: `tenant_id = current_setting('app.current_tenant')`
+    - Set `app.current_tenant` trong connection pool
+    - Pro: Database-level enforcement, không thể bypass
+    - Con: Thêm overhead, phức tạp khi debug
+  - **Option 2: Application-level filtering**
+    - Tự thêm `WHERE tenant_id = $1` trong mọi query
+    - Pro: Đơn giản, dễ debug
+    - Con: Dễ quên, risk của SQL injection bypass
+  - **Quyết định**: Ghi rõ trong ARCHITECTURE.md
+
+- [ ] 🔴 **P0** Nếu chọn RLS → Tạo migration template
+  ```sql
+  -- Template cho mỗi bảng multi-tenant
+  ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+  CREATE POLICY tenant_isolation_policy ON products
+    USING (tenant_id::text = current_setting('app.current_tenant', TRUE));
+
+  CREATE POLICY tenant_isolation_insert ON products
+    FOR INSERT
+    WITH CHECK (tenant_id::text = current_setting('app.current_tenant', TRUE));
+  ```
+
 - [ ] ⏳ Tạo ERD (Entity Relationship Diagram)
+  - Tool: dbdiagram.io, draw.io, hoặc PlantUML
 - [ ] ⏳ Viết SQL migration files trong `infra/sql-migrations/`
+
+#### 2.1.2 Data Type Standards (P0)
+- [ ] 🔴 **P0** UUID Version Selection
+  - ✅ **Use UUID v7** thay vì v4
+  - Lý do: UUID v7 có timestamp prefix → better index locality
+  - Install: `CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`
+  - Hoặc dùng crate `uuid` với feature `v7`
+  ```sql
+  -- PostgreSQL function for UUID v7 (if not using Rust)
+  CREATE OR REPLACE FUNCTION uuid_generate_v7() RETURNS uuid AS $$
+  -- Implementation
+  $$ LANGUAGE plpgsql;
+  ```
+
+- [ ] 🔴 **P0** Currency/Money Data Type
+  - ❌ **KHÔNG dùng**: FLOAT, DOUBLE, REAL (rounding errors)
+  - ✅ **Option 1**: `NUMERIC(19,4)` - lưu số thập phân chính xác
+    - 19 digits total, 4 decimal places
+    - Example: 999,999,999,999,999.9999
+  - ✅ **Option 2**: `BIGINT` - lưu đơn vị nhỏ nhất (cents, xu)
+    - Example: $10.50 → 1050 cents
+    - Cần convert khi display
+    - Tốt cho performance, dễ tính toán
+  - **Quyết định**: Document trong migration comments
+
+- [ ] 🔴 **P0** Sensitive Data Encryption
+  - Field `credentials` trong bảng `integrations`
+  - **Option 1**: PostgreSQL pgcrypto extension
+    ```sql
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    -- Encrypt: pgp_sym_encrypt(credentials, 'secret_key')
+    -- Decrypt: pgp_sym_decrypt(credentials, 'secret_key')
+    ```
+  - **Option 2**: Application-level encryption (Rust libsodium/RustCrypto)
+    - Envelope encryption: encrypt data key, store encrypted
+    - Pro: Key rotation dễ hơn
+  - **Option 3**: HashiCorp Vault integration
+    - Pro: Centralized key management
+    - Con: Infrastructure overhead
+  - Store encryption key trong env var, không hard-code
+
+- [ ] 🔴 **P0** Soft Delete Strategy
+  - Add `deleted_at TIMESTAMPTZ` to important tables (products, orders)
+  - Create partial index: `WHERE deleted_at IS NULL`
+  - Alternative: Move to archive table (cleaner, but more complex)
+  ```sql
+  ALTER TABLE products ADD COLUMN deleted_at TIMESTAMPTZ;
+  CREATE INDEX idx_products_active ON products(tenant_id, sku) WHERE deleted_at IS NULL;
+  ```
 
 ### 2.2 Core Tables
 - [ ] ⏳ Bảng `tenants`
@@ -106,13 +397,91 @@
   - payment_id, tenant_id, order_id
   - gateway, amount, status, transaction_id
 
-### 2.3 Indexes & Optimization
-- [ ] ⏳ Tạo composite indexes cho multi-tenant queries
-  - `(tenant_id, sku)` on products
-  - `(tenant_id, status, created_at)` on orders
-- [ ] ⏳ Tạo partial indexes cho performance
-  - Active integrations
-  - Pending orders
+### 2.3 Indexes & Optimization (P0/P1)
+
+#### 2.3.1 Essential Indexes (P0)
+- [ ] 🔴 **P0** Tạo composite indexes cho multi-tenant queries
+  ```sql
+  -- Products
+  CREATE INDEX idx_products_tenant_sku ON products(tenant_id, sku);
+  CREATE INDEX idx_products_tenant_group ON products(tenant_id, item_group_id);
+
+  -- Orders
+  CREATE INDEX idx_orders_tenant_status_date ON orders(tenant_id, status, created_at DESC);
+  CREATE INDEX idx_orders_tenant_customer ON orders(tenant_id, customer_id);
+
+  -- Inventory Levels
+  CREATE INDEX idx_inventory_tenant_product_warehouse 
+    ON inventory_levels(tenant_id, product_id, warehouse_id);
+
+  -- Stock Moves (CRITICAL - heavily queried)
+  CREATE INDEX idx_stock_moves_tenant_product_date 
+    ON stock_moves(tenant_id, product_id, move_date DESC);
+  CREATE INDEX idx_stock_moves_reference 
+    ON stock_moves(reference_type, reference_id);
+  ```
+
+- [ ] 🔴 **P0** Tạo partial indexes cho performance
+  ```sql
+  -- Only index active/non-deleted records
+  CREATE INDEX idx_integrations_active 
+    ON integrations(tenant_id, platform) 
+    WHERE status = 'active' AND deleted_at IS NULL;
+
+  -- Only index pending/in-progress orders
+  CREATE INDEX idx_orders_pending 
+    ON orders(tenant_id, created_at DESC) 
+    WHERE status IN ('pending', 'confirmed', 'processing');
+
+  -- Only index available stock (exclude reserved)
+  CREATE INDEX idx_stock_available 
+    ON inventory_levels(tenant_id, product_id) 
+    WHERE quantity_available > 0;
+  ```
+
+#### 2.3.2 Performance Tuning (P1)
+- [ ] 🟡 **P1** Table Partitioning cho large tables
+  - Partition `orders` và `order_items` by `tenant_id` + `created_at` (monthly)
+  - Khi dự kiến >100M rows
+  ```sql
+  -- Example: Range partitioning by date
+  CREATE TABLE orders_2025_01 PARTITION OF orders
+    FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
+  ```
+
+- [ ] 🟡 **P1** Vacuum & Autovacuum tuning
+  - Bảng `stock_moves` có nhiều INSERT → aggressive vacuum
+  ```sql
+  ALTER TABLE stock_moves SET (
+    autovacuum_vacuum_scale_factor = 0.05,
+    autovacuum_analyze_scale_factor = 0.02
+  );
+  ```
+
+- [ ] 🟡 **P1** Connection Pool Sizing
+  - Formula: `(CPU_cores * 2) + effective_io_concurrency`
+  - Example: 4 cores → pool size = 8-10
+  - Configure in SQLx:
+  ```rust
+  let pool = PgPoolOptions::new()
+      .max_connections(10)
+      .min_connections(2)
+      .acquire_timeout(Duration::from_secs(5))
+      .connect(&database_url)
+      .await?;
+  ```
+
+- [ ] 🟡 **P1** Query performance monitoring
+  - Enable `pg_stat_statements` extension
+  - Monitor slow queries (>1s)
+  ```sql
+  CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+  -- Query slowest queries
+  SELECT query, calls, mean_exec_time, max_exec_time
+  FROM pg_stat_statements
+  ORDER BY mean_exec_time DESC
+  LIMIT 20;
+  ```
 
 ### 2.4 Chạy Migrations
 - [ ] ⏳ Chạy migrations: `sqlx migrate run --database-url postgres://...`
@@ -123,36 +492,345 @@
 ## Phase 3: User Service (Auth & Tenancy)
 
 ### 3.1 Core Authentication
-- [ ] ⏳ Implement user registration endpoint
+
+#### 3.1.1 User Registration (P0)
+- [ ] 🔴 **P0** Implement user registration endpoint
   - POST `/api/v1/auth/register`
   - Tạo tenant mới cho user đầu tiên
-  - Hash password (argon2/bcrypt)
-- [ ] ⏳ Implement login endpoint
-  - POST `/api/v1/auth/login`
-  - Generate JWT access token + refresh token
-  - Lưu session vào database
-- [ ] ⏳ Implement refresh token endpoint
-  - POST `/api/v1/auth/refresh`
-- [ ] ⏳ Implement logout endpoint
-  - POST `/api/v1/auth/logout`
+  - Hash password với **Argon2id** (recommended, not bcrypt)
+    - Use crate `argon2`
+    - Config: memory=64MB, iterations=3, parallelism=4
+  - Validate email format
+  - Check email uniqueness
 
-### 3.2 Authorization với Casbin
-- [ ] ⏳ Tạo Casbin model file (`model.conf`)
+#### 3.1.2 Password Security (P0)
+- [ ] 🔴 **P0** Password Policy Enforcement
+  - Minimum length: 8 characters
+  - Minimum entropy: 50 bits (use crate `zxcvbn`)
+  - Check against top 10,000 breached passwords
+    - Use HaveIBeenPwned API: `https://api.pwnedpasswords.com/range/{hash_prefix}`
+    - Hoặc offline list từ: https://github.com/danielmiessler/SecLists
+  ```rust
+  use zxcvbn::zxcvbn;
+  
+  fn validate_password(password: &str) -> Result<(), String> {
+      if password.len() < 8 {
+          return Err("Password must be at least 8 characters".to_string());
+      }
+      let entropy = zxcvbn(password, &[]);
+      if entropy.score() < 3 {
+          return Err("Password is too weak".to_string());
+      }
+      // Check HaveIBeenPwned
+      Ok(())
+  }
+  ```
+
+#### 3.1.3 Login & Session Management (P0)
+- [ ] 🔴 **P0** Implement login endpoint
+  - POST `/api/v1/auth/login`
+  - Generate JWT access token (15 min expiry) + refresh token (7 days)
+  - Lưu session vào database với `user_agent`, `ip_address`
+  - Return tokens + user info
+
+- [ ] 🔴 **P0** Rate Limiting & Brute-Force Protection
+  - **Login rate limit**: 5 attempts per IP per 5 minutes
+  - **Forgot password**: 3 attempts per email per day
+  - Use Redis for rate limit counters
+  - Implement sliding window algorithm
+  ```rust
+  // tower_governor crate hoặc custom middleware
+  use tower_governor::{GovernorLayer, GovernorConfigBuilder};
+  
+  let governor_conf = GovernorConfigBuilder::default()
+      .per_second(1)  // 1 request per second
+      .burst_size(5)  // Allow burst of 5
+      .finish()
+      .unwrap();
+  
+  Router::new()
+      .route("/auth/login", post(login_handler))
+      .layer(GovernorLayer { config: governor_conf })
+  ```
+
+- [ ] 🔴 **P0** Implement refresh token endpoint
+  - POST `/api/v1/auth/refresh`
+  - Validate refresh token từ database
+  - Generate new access token
+  - Optional: Rotate refresh token
+
+- [ ] 🔴 **P0** Implement logout endpoint
+  - POST `/api/v1/auth/logout`
+  - Invalidate refresh token trong database
+  - Blacklist access token in Redis (optional, adds overhead)
+
+#### 3.1.4 Security Headers (P0)
+- [ ] 🔴 **P0** Configure secure HTTP headers
+  - Use `tower_http::set_header` middleware
+  ```rust
+  use tower_http::set_header::SetResponseHeaderLayer;
+  use http::header;
+  
+  let app = Router::new()
+      .layer(SetResponseHeaderLayer::if_not_present(
+          header::STRICT_TRANSPORT_SECURITY,
+          HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+      ))
+      .layer(SetResponseHeaderLayer::if_not_present(
+          header::X_CONTENT_TYPE_OPTIONS,
+          HeaderValue::from_static("nosniff"),
+      ))
+      .layer(SetResponseHeaderLayer::if_not_present(
+          header::X_FRAME_OPTIONS,
+          HeaderValue::from_static("DENY"),
+      ))
+      .layer(SetResponseHeaderLayer::if_not_present(
+          HeaderValue::from_name("Content-Security-Policy").unwrap(),
+          HeaderValue::from_static("default-src 'self'"),
+      ));
+  ```
+
+#### 3.1.5 Audit Logging (P0)
+- [ ] 🔴 **P0** Bảng `audit_logs`
+  ```sql
+  CREATE TABLE audit_logs (
+      audit_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+      tenant_id UUID NOT NULL,
+      user_id UUID,
+      action VARCHAR(100) NOT NULL,  -- login, logout, create, update, delete
+      resource_type VARCHAR(100),    -- product, order, user
+      resource_id UUID,
+      old_value JSONB,
+      new_value JSONB,
+      ip_address INET,
+      user_agent TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  
+  CREATE INDEX idx_audit_logs_tenant_date ON audit_logs(tenant_id, created_at DESC);
+  CREATE INDEX idx_audit_logs_user ON audit_logs(user_id, created_at DESC);
+  CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+  ```
+
+- [ ] 🔴 **P0** Log critical actions
+  - Login attempts (success & failure)
+  - Password changes
+  - User creation/deletion
+  - Permission changes
+  - Data exports
+  - Integration credentials access
+
+### 3.2 Authorization với Casbin (P0)
+- [ ] 🔴 **P0** Tạo Casbin model file (`model.conf`)
   - Multi-tenant RBAC: `sub, dom, obj, act`
-- [ ] ⏳ Tạo Casbin adapter cho PostgreSQL
+  ```conf
+  [request_definition]
+  r = sub, dom, obj, act
+
+  [policy_definition]
+  p = sub, dom, obj, act
+
+  [role_definition]
+  g = _, _, _
+
+  [policy_effect]
+  e = some(where (p.eft == allow))
+
+  [matchers]
+  m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act
+  ```
+  - Explanation:
+    - `sub`: user_id
+    - `dom`: tenant_id (domain for isolation)
+    - `obj`: resource (products, orders, users)
+    - `act`: action (read, write, delete)
+
+- [ ] 🔴 **P0** Tạo Casbin adapter cho PostgreSQL
+  - Use crate `casbin-sqlx-adapter`
   - Store policies trong bảng `casbin_rule`
-- [ ] ⏳ Implement Axum middleware cho authorization
-  - Extract JWT → Extract tenant_id + user_id
-  - Load enforcer với policies của tenant
-  - Enforce quyền truy cập
+  ```sql
+  CREATE TABLE casbin_rule (
+      id SERIAL PRIMARY KEY,
+      ptype VARCHAR(12) NOT NULL,  -- p (policy) or g (grouping)
+      v0 VARCHAR(128),              -- sub or role
+      v1 VARCHAR(128),              -- dom or tenant_id
+      v2 VARCHAR(128),              -- obj or resource
+      v3 VARCHAR(128),              -- act or action
+      v4 VARCHAR(128),
+      v5 VARCHAR(128)
+  );
+  ```
+
+- [ ] 🔴 **P0** Implement Axum middleware cho authorization
+  ```rust
+  use casbin::{Enforcer, CoreApi};
+  use axum::middleware::Next;
+  
+  async fn authorization_middleware(
+      Extension(enforcer): Extension<Arc<RwLock<Enforcer>>>,
+      req: Request<Body>,
+      next: Next<Body>,
+  ) -> Result<Response, StatusCode> {
+      // Extract JWT → Extract tenant_id + user_id
+      let claims = extract_jwt_claims(&req)?;
+      
+      // Get resource and action from request
+      let resource = req.uri().path();  // e.g., "/api/v1/products"
+      let action = req.method().as_str();  // GET, POST, PUT, DELETE
+      
+      // Load enforcer với policies của tenant
+      let mut e = enforcer.write().await;
+      let allowed = e.enforce((
+          &claims.user_id.to_string(),
+          &claims.tenant_id.to_string(),
+          resource,
+          action,
+      ))?;
+      
+      if !allowed {
+          return Err(StatusCode::FORBIDDEN);
+      }
+      
+      Ok(next.run(req).await)
+  }
+  ```
+
+- [ ] 🔴 **P0** Seed default roles and policies
+  ```sql
+  -- Example policies for tenant_id = '00000000-0000-0000-0000-000000000001'
+  -- Admin role
+  INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'products', 'read'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'products', 'write'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'orders', 'read'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'orders', 'write');
+  
+  -- Manager role
+  INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', 'products', 'read'),
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', 'orders', 'read'),
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', 'orders', 'write');
+  
+  -- User role (read-only)
+  INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
+  ('p', 'user', '00000000-0000-0000-0000-000000000001', 'products', 'read'),
+  ('p', 'user', '00000000-0000-0000-0000-000000000001', 'orders', 'read');
+  ```
 
 ### 3.3 User Management
-- [ ] ⏳ Endpoint: List users trong tenant
+### 3.3 User Management
+
+#### 3.3.1 Basic User CRUD (P0)
+- [ ] 🔴 **P0** Endpoint: List users trong tenant
   - GET `/api/v1/users`
-- [ ] ⏳ Endpoint: Invite user mới
+  - Filter by role, status
+  - Pagination support
+
+- [ ] 🔴 **P0** Tenant Isolation Testing
+  - **Critical Security Test**
+  - Tạo 2 tenants: tenant_a, tenant_b
+  - User A login → get JWT với tenant_a
+  - Cố gắng access resource của tenant_b bằng JWT của A
+  - **Expected**: 403 Forbidden hoặc 404 Not Found
+  - Test scenarios:
+    - Modify JWT header manually (change tenant_id claim)
+    - Use valid JWT but query với tenant_b's resource IDs
+    - SQL injection attempts to bypass tenant_id filter
+  ```rust
+  #[tokio::test]
+  async fn test_tenant_isolation() {
+      // Create tenant A and user A
+      let tenant_a = create_tenant("Tenant A").await;
+      let user_a = create_user(&tenant_a, "user_a@example.com").await;
+      let jwt_a = generate_jwt(&user_a, &tenant_a).await;
+      
+      // Create tenant B and resource
+      let tenant_b = create_tenant("Tenant B").await;
+      let product_b = create_product(&tenant_b, "Product B").await;
+      
+      // Try to access tenant B's resource with tenant A's JWT
+      let response = client
+          .get(&format!("/api/v1/products/{}", product_b.id))
+          .bearer_auth(&jwt_a)
+          .send()
+          .await;
+      
+      assert_eq!(response.status(), StatusCode::NOT_FOUND);
+  }
+  ```
+
+#### 3.3.2 User Invitation (P1)
+- [ ] 🟡 **P1** Bảng `user_invitations`
+  ```sql
+  CREATE TABLE user_invitations (
+      invitation_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+      tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
+      email VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL,
+      token VARCHAR(255) UNIQUE NOT NULL,  -- Random secure token
+      invited_by UUID NOT NULL REFERENCES users(user_id),
+      expires_at TIMESTAMPTZ NOT NULL,     -- 24 hours from created_at
+      accepted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  
+  CREATE INDEX idx_invitations_token ON user_invitations(token) WHERE accepted_at IS NULL;
+  ```
+
+- [ ] 🟡 **P1** Endpoint: Invite user mới
   - POST `/api/v1/users/invite`
+  - Generate secure token (32 bytes random)
+  - Send email với link: `https://app.example.com/accept-invite?token={token}`
+  - Token expires in 24 hours
+
+- [ ] 🟡 **P1** Endpoint: Accept invitation
+  - POST `/api/v1/users/accept-invite`
+  - Validate token (not expired, not used)
+  - Create user account
+  - Mark invitation as accepted
+
 - [ ] ⏳ Endpoint: Cập nhật user role
   - PATCH `/api/v1/users/:user_id/role`
+  - Log trong audit_logs
+
+#### 3.3.3 Advanced Features (P1)
+- [ ] 🟡 **P1** Impersonate (Admin login as user)
+  - POST `/api/v1/users/:user_id/impersonate`
+  - Only for super admin role
+  - Generate special JWT với flag `impersonated: true`
+  - Show banner in UI: "You are viewing as {user_name}"
+  - All actions logged với `impersonated_by: admin_id`
+  ```rust
+  #[derive(Serialize, Deserialize)]
+  struct JWTClaims {
+      sub: Uuid,           // user_id
+      tenant_id: Uuid,
+      role: String,
+      impersonated: bool,  // Flag for impersonation
+      impersonated_by: Option<Uuid>,
+      exp: u64,
+  }
+  ```
+
+- [ ] 🟡 **P1** SSO Integration (Enterprise feature)
+  - **SAML 2.0** support
+    - Use crate `samael`
+    - IdP metadata upload
+    - SP metadata generation
+  - **OIDC (OpenID Connect)** support
+    - Use crate `openidconnect`
+    - Support Google, Microsoft Azure AD, Okta
+  - Table: `sso_configurations`
+  ```sql
+  CREATE TABLE sso_configurations (
+      sso_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+      tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
+      provider VARCHAR(50) NOT NULL,  -- saml, oidc, google, azure
+      config JSONB NOT NULL,          -- Provider-specific config
+      is_enabled BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  ```
 
 ### 3.4 Testing
 - [ ] ⏳ Viết unit tests cho authentication logic
