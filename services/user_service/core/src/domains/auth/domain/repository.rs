@@ -39,4 +39,7 @@ pub trait TenantRepository: Send + Sync {
     
     /// Find tenant by name
     async fn find_by_name(&self, name: &str) -> Result<Option<Tenant>, AppError>;
+    
+    /// Find tenant by slug
+    async fn find_by_slug(&self, slug: &str) -> Result<Option<Tenant>, AppError>;
 }

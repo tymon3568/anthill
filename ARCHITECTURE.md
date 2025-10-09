@@ -88,6 +88,114 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
   - Vẫn tích hợp trực tiếp vào các microservice Rust (đặc biệt là User Service và API Gateway nếu tự build).
   - Models và policies có thể được lưu trong PostgreSQL, sử dụng `casbin-sqlx-adapter`.
   - Một middleware trong Axum sẽ load enforcer và kiểm tra quyền hạn cho mỗi request.
+  - Shared crate `shared/auth` cung cấp middleware và extractors cho tất cả services.
+
+### 6. Multi-Tenancy Strategy
+
+**Quyết định kiến trúc**: Sử dụng **Shared Database với Tenant Isolation bằng tenant_id**
+
+#### Lý do chọn Shared Schema:
+- **Đơn giản**: Chỉ một database, dễ quản lý migrations và backups
+- **Tiết kiệm chi phí**: Không cần nhiều database instances
+- **Performance tốt**: Có thể optimize indexes cho multi-tenant queries
+- **Scalable**: Có thể shard theo tenant_id khi cần
+
+#### Tenant Isolation Strategy:
+
+**Quyết định**: **Application-level filtering** (không dùng Postgres RLS)
+
+**Lý do**:
+- ✅ **Đơn giản hơn**: Dễ debug, dễ hiểu flow
+- ✅ **Performance**: Không có overhead của RLS
+- ✅ **Flexibility**: Dễ implement cross-tenant queries (cho admin/super-admin)
+- ✅ **Testing**: Dễ test hơn, không cần setup RLS policies
+- ⚠️ **Trade-off**: Cần cẩn thận thêm `WHERE tenant_id = $1` trong mọi query
+
+**Implementation Guidelines**:
+
+1. **Repository Pattern**: Tất cả queries qua Repository layer
+2. **Type Safety**: Sử dụng Rust type system để enforce tenant_id
+   ```rust
+   // Example
+   pub struct TenantContext {
+       pub tenant_id: Uuid,
+   }
+   
+   impl Repository {
+       pub async fn find_by_id(&self, ctx: &TenantContext, id: Uuid) -> Result<Product> {
+           sqlx::query_as!(Product,
+               "SELECT * FROM products WHERE tenant_id = $1 AND product_id = $2",
+               ctx.tenant_id, id
+           )
+           .fetch_one(&self.pool)
+           .await
+       }
+   }
+   ```
+
+3. **Middleware**: Extract tenant_id từ JWT và inject vào request
+4. **Testing**: Unit tests verify tenant isolation
+5. **Audit**: Log tất cả queries với tenant_id
+
+#### Database Schema Convention:
+
+- Mọi bảng có dữ liệu tenant-specific **PHẢI** có cột `tenant_id UUID NOT NULL`
+- Composite indexes: `(tenant_id, <other_columns>)` để optimize multi-tenant queries
+- Foreign keys: Include tenant_id trong composite keys khi cần
+  ```sql
+  -- Example: Order Items reference Products
+  FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id)
+  ```
+
+### 7. Database Design Standards
+
+#### 7.1 UUID Version: Use UUID v7
+
+- **Lý do**: UUID v7 có timestamp prefix → better index locality, improved query performance
+- **Implementation**: Sử dụng `uuid` crate với feature `v7`
+  ```rust
+  use uuid::Uuid;
+  let id = Uuid::now_v7(); // Timestamp-based UUID
+  ```
+
+#### 7.2 Currency/Money: Use BIGINT (cents)
+
+- **Quyết định**: Lưu tiền dưới dạng `BIGINT` (đơn vị nhỏ nhất - cents, xu)
+- **Lý do**:
+  - ✅ No floating-point rounding errors
+  - ✅ Better performance than NUMERIC
+  - ✅ Easy arithmetic operations
+- **Example**: $10.50 → 1050 cents, 100.000 VND → 100000
+- **Rust type**: `i64` hoặc custom `Money` type
+
+#### 7.3 Soft Delete Strategy
+
+- **Pattern**: Add `deleted_at TIMESTAMPTZ` column
+- **Apply to**: Critical tables (products, orders, users)
+- **Index**: Create partial index `WHERE deleted_at IS NULL` for active records
+  ```sql
+  ALTER TABLE products ADD COLUMN deleted_at TIMESTAMPTZ;
+  CREATE INDEX idx_products_active ON products(tenant_id, sku) 
+    WHERE deleted_at IS NULL;
+  ```
+
+#### 7.4 Timestamps Convention
+
+- Use `TIMESTAMPTZ` (timezone-aware) cho tất cả timestamp columns
+- Standard columns: `created_at`, `updated_at`, `deleted_at`
+- Set defaults:
+  ```sql
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  ```
+
+#### 7.5 Sensitive Data: Application-level Encryption
+
+- **Use case**: `credentials` field trong bảng `integrations`
+- **Strategy**: Encrypt trong Rust trước khi lưu DB
+- **Library**: `ring` hoặc `RustCrypto`
+- **Key management**: Environment variable, không hard-code
+- **Format**: Store as `BYTEA` hoặc `TEXT` (base64-encoded)
 
 ## 🔧 Technology Stack Summary (CapRover Edition)
 

@@ -99,9 +99,9 @@ pub struct UserInfo {
     #[schema(example = "user@example.com")]
     pub email: String,
     
-    /// Full name
+    /// Full name (optional)
     #[schema(example = "John Doe")]
-    pub full_name: String,
+    pub full_name: Option<String>,
     
     /// Tenant ID
     pub tenant_id: Uuid,

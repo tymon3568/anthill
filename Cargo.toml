@@ -34,7 +34,7 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 
 # SQLx - database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"] }
 
 # Logging & tracing
 tracing = "0.1"
@@ -57,8 +57,8 @@ uuid = { version = "1.6", features = ["v4", "v7", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Tower middleware
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace", "compression-full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace", "compression-full"] }
 
 # Auth & security
 jsonwebtoken = "9.2"

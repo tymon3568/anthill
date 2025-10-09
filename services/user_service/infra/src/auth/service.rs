@@ -11,6 +11,7 @@ use user_service_core::domains::auth::{
 };
 use shared_error::AppError;
 use shared_jwt::{Claims, encode_jwt, decode_jwt};
+use serde_json;
 
 /// Auth service implementation
 pub struct AuthServiceImpl<UR, TR>
@@ -48,7 +49,7 @@ where
     
     fn user_to_user_info(&self, user: &User) -> UserInfo {
         UserInfo {
-            id: user.id,
+            id: user.user_id,
             email: user.email.clone(),
             full_name: user.full_name.clone(),
             tenant_id: user.tenant_id,
@@ -70,12 +71,19 @@ where
             // Create new tenant
             let tenant_id = Uuid::new_v4();
             let now = Utc::now();
+            // Generate slug from tenant name (simple implementation)
+            let slug = tenant_name.to_lowercase().replace(" ", "-");
             let tenant = Tenant {
-                id: tenant_id,
+                tenant_id,
                 name: tenant_name.clone(),
-                is_active: true,
+                slug,
+                plan: "free".to_string(), // Default plan
+                plan_expires_at: None,
+                settings: sqlx::types::Json(serde_json::json!({})), // Empty settings
+                status: "active".to_string(),
                 created_at: now,
                 updated_at: now,
+                deleted_at: None,
             };
             self.tenant_repo.create(&tenant).await?
         } else {
@@ -84,7 +92,7 @@ where
         };
         
         // Check if user already exists
-        if self.user_repo.email_exists(&req.email, tenant.id).await? {
+        if self.user_repo.email_exists(&req.email, tenant.tenant_id).await? {
             return Err(AppError::UserAlreadyExists);
         }
         
@@ -96,28 +104,37 @@ where
         let user_id = Uuid::new_v4();
         let now = Utc::now();
         let user = User {
-            id: user_id,
+            user_id,
+            tenant_id: tenant.tenant_id,
             email: req.email.clone(),
             password_hash,
-            full_name: req.full_name.clone(),
-            tenant_id: tenant.id,
+            email_verified: false, // Default to unverified
+            email_verified_at: None,
+            full_name: Some(req.full_name.clone()),
+            avatar_url: None,
+            phone: None,
             role: "user".to_string(), // Default role
-            is_active: true,
+            status: "active".to_string(),
+            last_login_at: None,
+            failed_login_attempts: 0,
+            locked_until: None,
+            password_changed_at: Some(now), // Password just set
             created_at: now,
             updated_at: now,
+            deleted_at: None,
         };
         
         let created_user = self.user_repo.create(&user).await?;
         
         // Generate tokens
         let access_claims = Claims::new_access(
-            created_user.id,
+            created_user.user_id,
             created_user.tenant_id,
             created_user.role.clone(),
             self.jwt_expiration,
         );
         let refresh_claims = Claims::new_refresh(
-            created_user.id,
+            created_user.user_id,
             created_user.tenant_id,
             created_user.role.clone(),
             self.jwt_refresh_expiration,
@@ -135,7 +152,7 @@ where
         })
     }
     
-    async fn login(&self, req: LoginReq) -> Result<AuthResp, AppError> {
+    async fn login(&self, _req: LoginReq) -> Result<AuthResp, AppError> {
         // TODO: In production, implement tenant resolution from email domain or subdomain
         // For now, we'll search across all tenants (not production-ready)
         
@@ -162,13 +179,13 @@ where
         
         // 4. Generate tokens
         let access_claims = Claims::new_access(
-            user.id,
+            user.user_id,
             user.tenant_id,
             user.role.clone(),
             self.jwt_expiration,
         );
         let refresh_claims = Claims::new_refresh(
-            user.id,
+            user.user_id,
             user.tenant_id,
             user.role.clone(),
             self.jwt_refresh_expiration,
@@ -204,13 +221,13 @@ where
         
         // Generate new tokens
         let new_access_claims = Claims::new_access(
-            user.id,
+            user.user_id,
             user.tenant_id,
             user.role.clone(),
             self.jwt_expiration,
         );
         let new_refresh_claims = Claims::new_refresh(
-            user.id,
+            user.user_id,
             user.tenant_id,
             user.role.clone(),
             self.jwt_refresh_expiration,

@@ -1,0 +1,227 @@
+// Database ERD for Inventory SaaS Platform
+// Tool: https://dbdiagram.io/d (paste this code to visualize)
+// Multi-tenant architecture with application-level filtering
+
+Project inventory_saas {
+  database_type: 'PostgreSQL'
+  Note: '''
+    # Inventory SaaS Platform - Database Schema
+    
+    ## Multi-Tenancy Strategy
+    - Shared database with tenant_id in all tables
+    - Application-level filtering (no RLS)
+    - Repository pattern enforces tenant isolation
+    
+    ## Key Conventions
+    - UUID v7 for all primary keys (timestamp-based)
+    - BIGINT for money (cents/xu)
+    - TIMESTAMPTZ for all timestamps
+    - Soft delete with deleted_at
+    - Composite indexes: (tenant_id, other_columns)
+  '''
+}
+
+// ==================================
+// CORE TABLES
+// ==================================
+
+Table tenants {
+  tenant_id UUID [pk, default: `uuid_generate_v7()`]
+  name VARCHAR(255) [not null]
+  slug VARCHAR(100) [unique, not null, note: 'URL-friendly identifier']
+  plan VARCHAR(50) [not null, default: 'free', note: 'free/starter/professional/enterprise']
+  plan_expires_at TIMESTAMPTZ
+  settings JSONB [not null, default: '{}', note: 'Flexible tenant config']
+  status VARCHAR(50) [not null, default: 'active', note: 'active/suspended/cancelled']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ [note: 'Soft delete']
+  
+  Indexes {
+    (slug) [name: 'idx_tenants_slug', where: 'deleted_at IS NULL']
+    (status) [name: 'idx_tenants_status', where: 'deleted_at IS NULL']
+    (tenant_id) [name: 'idx_tenants_active', where: 'deleted_at IS NULL AND status = active']
+  }
+  
+  Note: 'Tenant organizations in multi-tenant system'
+}
+
+Table users {
+  user_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  email VARCHAR(255) [not null]
+  password_hash TEXT [not null, note: 'Bcrypt hash (cost 12)']
+  email_verified BOOLEAN [not null, default: false]
+  email_verified_at TIMESTAMPTZ
+  full_name VARCHAR(255)
+  avatar_url TEXT
+  phone VARCHAR(50)
+  role VARCHAR(50) [not null, default: 'user', note: 'super_admin/admin/manager/user/viewer']
+  status VARCHAR(50) [not null, default: 'active', note: 'active/inactive/suspended']
+  last_login_at TIMESTAMPTZ
+  failed_login_attempts INTEGER [not null, default: 0]
+  locked_until TIMESTAMPTZ [note: 'Account lockout']
+  password_changed_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ [note: 'Soft delete']
+  
+  Indexes {
+    (tenant_id) [name: 'idx_users_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, email) [unique, name: 'idx_users_email', where: 'deleted_at IS NULL']
+    (tenant_id, role) [name: 'idx_users_role', where: 'deleted_at IS NULL']
+    (tenant_id, status) [name: 'idx_users_status', where: 'deleted_at IS NULL']
+    (tenant_id, user_id) [name: 'idx_users_active', where: 'deleted_at IS NULL AND status = active']
+  }
+  
+  Note: 'User accounts with multi-tenant isolation'
+}
+
+Table sessions {
+  session_id UUID [pk, default: `uuid_generate_v7()`]
+  user_id UUID [not null, ref: > users.user_id]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  access_token_hash TEXT [not null, note: 'SHA-256 hash']
+  refresh_token_hash TEXT [not null, note: 'SHA-256 hash']
+  ip_address INET
+  user_agent TEXT
+  device_info JSONB [note: 'Browser, OS, device type']
+  access_token_expires_at TIMESTAMPTZ [not null]
+  refresh_token_expires_at TIMESTAMPTZ [not null]
+  revoked BOOLEAN [not null, default: false]
+  revoked_at TIMESTAMPTZ
+  revoked_reason VARCHAR(255)
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  last_used_at TIMESTAMPTZ [not null, default: `NOW()`]
+  
+  Indexes {
+    (user_id) [name: 'idx_sessions_user', where: 'NOT revoked']
+    (tenant_id) [name: 'idx_sessions_tenant', where: 'NOT revoked']
+    (access_token_hash) [name: 'idx_sessions_access_token', where: 'NOT revoked']
+    (refresh_token_hash) [name: 'idx_sessions_refresh_token', where: 'NOT revoked']
+    (access_token_expires_at) [name: 'idx_sessions_expires', where: 'NOT revoked']
+    (created_at) [name: 'idx_sessions_cleanup', where: 'revoked OR access_token_expires_at < NOW()']
+  }
+  
+  Note: 'Active user sessions with JWT token management'
+}
+
+// ==================================
+// CASBIN RBAC
+// ==================================
+
+Table casbin_rule {
+  id SERIAL [pk]
+  ptype VARCHAR(12) [not null, note: 'p=policy, g=grouping/role']
+  v0 VARCHAR(128) [not null, note: 'Subject: user_id or role']
+  v1 VARCHAR(128) [not null, note: 'Tenant ID']
+  v2 VARCHAR(128) [not null, note: 'Resource path']
+  v3 VARCHAR(128) [not null, note: 'Action: GET/POST/PUT/DELETE']
+  v4 VARCHAR(128) [default: '']
+  v5 VARCHAR(128) [default: '']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  
+  Indexes {
+    (ptype, v0, v1, v2, v3, v4, v5) [unique, name: 'casbin_rule_unique']
+    (ptype) [name: 'idx_casbin_rule_ptype']
+    (v0) [name: 'idx_casbin_rule_v0']
+    (v1) [name: 'idx_casbin_rule_v1']
+    (ptype, v0, v1) [name: 'idx_casbin_rule_composite']
+  }
+  
+  Note: 'Casbin RBAC rules storage (policies and role assignments)'
+}
+
+// ==================================
+// FUTURE TABLES (To be added)
+// ==================================
+
+// Table products {
+//   product_id UUID [pk]
+//   tenant_id UUID [not null, ref: > tenants.tenant_id]
+//   sku VARCHAR(100) [not null]
+//   name VARCHAR(255) [not null]
+//   description TEXT
+//   variants JSONB [note: 'Product variations']
+//   price BIGINT [not null, note: 'Price in smallest unit (cents/xu)']
+//   cost BIGINT [note: 'Cost price in smallest unit']
+//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   deleted_at TIMESTAMPTZ
+//   
+//   Indexes {
+//     (tenant_id, sku) [unique, where: 'deleted_at IS NULL']
+//     (tenant_id, product_id) [where: 'deleted_at IS NULL']
+//   }
+// }
+
+// Table warehouses {
+//   warehouse_id UUID [pk]
+//   tenant_id UUID [not null, ref: > tenants.tenant_id]
+//   name VARCHAR(255) [not null]
+//   location JSONB [note: 'Address, coordinates']
+//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   deleted_at TIMESTAMPTZ
+// }
+
+// Table inventory_levels {
+//   tenant_id UUID [not null, ref: > tenants.tenant_id]
+//   product_id UUID [not null, ref: > products.product_id]
+//   warehouse_id UUID [not null, ref: > warehouses.warehouse_id]
+//   quantity INTEGER [not null, default: 0]
+//   reserved_quantity INTEGER [not null, default: 0]
+//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   
+//   Indexes {
+//     (tenant_id, product_id, warehouse_id) [pk]
+//   }
+// }
+
+// Table orders {
+//   order_id UUID [pk]
+//   tenant_id UUID [not null, ref: > tenants.tenant_id]
+//   order_number VARCHAR(50) [not null]
+//   customer_info JSONB [not null]
+//   status VARCHAR(50) [not null]
+//   channel VARCHAR(50) [note: 'marketplace/web/manual']
+//   total_amount BIGINT [not null, note: 'Total in smallest unit']
+//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   deleted_at TIMESTAMPTZ
+// }
+
+// Table order_items {
+//   order_item_id UUID [pk]
+//   order_id UUID [not null, ref: > orders.order_id]
+//   product_id UUID [not null, ref: > products.product_id]
+//   tenant_id UUID [not null, ref: > tenants.tenant_id]
+//   quantity INTEGER [not null]
+//   unit_price BIGINT [not null]
+//   total_price BIGINT [not null]
+// }
+
+// Table integrations {
+//   integration_id UUID [pk]
+//   tenant_id UUID [not null, ref: > tenants.tenant_id]
+//   platform VARCHAR(50) [not null, note: 'shopee/lazada/tiki/tiktok']
+//   credentials BYTEA [not null, note: 'Encrypted API keys']
+//   config JSONB [note: 'Platform-specific settings']
+//   status VARCHAR(50) [not null]
+//   last_sync_at TIMESTAMPTZ
+//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   deleted_at TIMESTAMPTZ
+// }
+
+// Table payments {
+//   payment_id UUID [pk]
+//   tenant_id UUID [not null, ref: > tenants.tenant_id]
+//   order_id UUID [not null, ref: > orders.order_id]
+//   gateway VARCHAR(50) [not null, note: 'stripe/momo/vnpay']
+//   amount BIGINT [not null]
+//   status VARCHAR(50) [not null]
+//   transaction_id VARCHAR(255)
+//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
+//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+// }
