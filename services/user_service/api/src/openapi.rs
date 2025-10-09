@@ -10,6 +10,7 @@ use user_service_core::domains::auth::dto::auth_dto::*;
         crate::handlers::login,
         crate::handlers::refresh_token,
         crate::handlers::list_users,
+        crate::handlers::get_user,
     ),
     components(
         schemas(

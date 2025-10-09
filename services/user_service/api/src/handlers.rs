@@ -1,7 +1,7 @@
 use axum::{
     Json,
     http::StatusCode,
-    extract::State,
+    extract::{State, Query},
 };
 use chrono::Utc;
 use user_service_core::domains::auth::{
@@ -10,16 +10,23 @@ use user_service_core::domains::auth::{
 };
 use shared_error::AppError;
 use std::sync::Arc;
+use shared_auth::extractors::{AuthUser, RequireAdmin};
+use shared_auth::enforcer::SharedEnforcer;
+use serde::Deserialize;
 
 /// Application state containing service dependencies
 pub struct AppState<S: AuthService> {
     pub auth_service: Arc<S>,
+    pub enforcer: SharedEnforcer,
+    pub jwt_secret: String,
 }
 
 impl<S: AuthService> Clone for AppState<S> {
     fn clone(&self) -> Self {
         Self {
             auth_service: Arc::clone(&self.auth_service),
+            enforcer: self.enforcer.clone(),
+            jwt_secret: self.jwt_secret.clone(),
         }
     }
 }
@@ -119,7 +126,18 @@ pub async fn refresh_token<S: AuthService>(
     Ok(Json(resp))
 }
 
-/// List users (protected endpoint - TODO: add auth middleware)
+#[derive(Debug, Deserialize)]
+pub struct ListUsersQuery {
+    #[serde(default = "default_page")]
+    pub page: i32,
+    #[serde(default = "default_page_size")]
+    pub page_size: i32,
+}
+
+fn default_page() -> i32 { 1 }
+fn default_page_size() -> i32 { 20 }
+
+/// List users (protected endpoint - requires authentication)
 #[utoipa::path(
     get,
     path = "/api/v1/users",
@@ -139,14 +157,50 @@ pub async fn refresh_token<S: AuthService>(
     )
 )]
 pub async fn list_users<S: AuthService>(
-    State(_state): State<AppState<S>>,
+    auth_user: AuthUser,
+    State(state): State<AppState<S>>,
+    Query(query): Query<ListUsersQuery>,
 ) -> Result<Json<UserListResp>, AppError> {
-    // TODO: Extract tenant_id from JWT token via auth middleware
-    // For now, return empty list
-    Ok(Json(UserListResp {
-        users: vec![],
-        total: 0,
-        page: 1,
-        page_size: 20,
-    }))
+    // Extract tenant_id from authenticated user
+    let tenant_id = auth_user.tenant_id;
+    
+    let resp = state.auth_service
+        .list_users(tenant_id, query.page, query.page_size)
+        .await?;
+    
+    Ok(Json(resp))
+}
+
+/// Get user by ID (admin only)
+#[utoipa::path(
+    get,
+    path = "/api/v1/users/{user_id}",
+    tag = "users",
+    operation_id = "user_get_user",
+    params(
+        ("user_id" = uuid::Uuid, Path, description = "User ID"),
+    ),
+    responses(
+        (status = 200, description = "User details", body = UserInfo),
+        (status = 401, description = "Unauthorized", body = ErrorResp),
+        (status = 403, description = "Forbidden - Admin only", body = ErrorResp),
+        (status = 404, description = "User not found", body = ErrorResp),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_user<S: AuthService>(
+    RequireAdmin(admin_user): RequireAdmin,
+    State(state): State<AppState<S>>,
+    axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
+) -> Result<Json<UserInfo>, AppError> {
+    // Admin can view any user in their tenant
+    let tenant_id = admin_user.tenant_id;
+    
+    let user_info = state.auth_service
+        .get_user(user_id, tenant_id)
+        .await?;
+    
+    Ok(Json(user_info))
 }

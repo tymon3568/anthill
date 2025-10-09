@@ -4,6 +4,7 @@ mod openapi;
 use axum::{
     routing::{get, post},
     Router,
+    Extension,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -13,6 +14,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use user_service_infra::auth::{PgUserRepository, PgTenantRepository, AuthServiceImpl};
 use handlers::AppState;
+use shared_auth::enforcer::create_enforcer;
 
 #[tokio::main]
 async fn main() {
@@ -41,6 +43,13 @@ async fn main() {
     
     tracing::info!("✅ Database connected");
     
+    // Initialize Casbin enforcer
+    let enforcer = create_enforcer(&config.database_url, None)
+        .await
+        .expect("Failed to initialize Casbin enforcer");
+    
+    tracing::info!("✅ Casbin enforcer initialized");
+    
     // Initialize repositories
     let user_repo = PgUserRepository::new(db_pool.clone());
     let tenant_repo = PgTenantRepository::new(db_pool.clone());
@@ -57,16 +66,28 @@ async fn main() {
     // Create application state
     let state = AppState {
         auth_service: Arc::new(auth_service),
+        enforcer: enforcer.clone(),
+        jwt_secret: config.jwt_secret.clone(),
     };
     
     tracing::info!("✅ Services initialized");
     
-    // Build API routes
-    let api_routes = Router::new()
+    // Public routes (no auth required)
+    let public_routes = Router::new()
         .route("/api/v1/auth/register", post(handlers::register))
         .route("/api/v1/auth/login", post(handlers::login))
-        .route("/api/v1/auth/refresh", post(handlers::refresh_token))
+        .route("/api/v1/auth/refresh", post(handlers::refresh_token));
+    
+    // Protected routes (require authentication)
+    let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
+        .route("/api/v1/users/:user_id", get(handlers::get_user))
+        .layer(Extension(state.enforcer.clone()))
+        .layer(Extension(state.jwt_secret.clone()));
+    
+    // Combine all API routes
+    let api_routes = public_routes
+        .merge(protected_routes)
         .with_state(state);
     
     // Build application with routes and Swagger UI
