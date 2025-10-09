@@ -21,6 +21,11 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 tower-http = { workspace = true }
 serde_yaml = "0.9"
+bcrypt = "0.15"
+jsonwebtoken = "9.2"
+validator = { version = "0.16", features = ["derive"] }
+dotenvy = "0.15"
+async-trait = "0.1"
 
 [features]
 default = []
