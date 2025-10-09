@@ -64,7 +64,9 @@ anthill/
 │       ├── user.yaml               # User service spec
 │       └── README.md
 │
-├── migrations/                      # TODO: Database migrations (sqlx)
+├── infra/                           # Infrastructure
+│   ├── migrations/                  # Database migrations (sqlx)
+│   └── docker_compose/              # Docker compose configs
 │
 ├── Cargo.toml                       # Workspace configuration
 ├── Cargo.lock

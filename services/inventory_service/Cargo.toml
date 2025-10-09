@@ -1,5 +1,5 @@
 [package]
-name = "integration-service"
+name = "inventory_service"
 version = { workspace = true }
 edition = { workspace = true }
 authors = { workspace = true }

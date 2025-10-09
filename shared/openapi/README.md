@@ -26,7 +26,7 @@ To regenerate specs locally:
 
 ```bash
 # Generate spec for a specific service
-cd services/user-service
+cd services/user_service
 cargo build --features export-spec
 
 # Or generate all services

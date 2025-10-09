@@ -115,7 +115,7 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 
 ## 🚀 Quy trình phát triển & triển khai
 
-1.  **Local Dev**: Sử dụng `docker-compose` để mô phỏng môi trường CapRover (các service Rust, Postgres, Redis, NATS).
+1.  **Local Dev**: Sử dụng `docker_compose` để mô phỏng môi trường CapRover (các service Rust, Postgres, Redis, NATS).
 2.  **Code**: Viết logic cho các microservice bằng Rust.
 3.  **Push**: Đẩy code lên GitHub.
 4.  **Deploy**: CapRover nhận webhook, tự động build image từ `Dockerfile` và triển khai phiên bản mới.

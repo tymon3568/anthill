@@ -28,11 +28,11 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/user-service"
+          workspaces: "services/user_service"
       
       - name: Build and Export Spec
         run: |
-          cd services/user-service
+          cd services/user_service
           cargo build --release --features export-spec
       
       - name: Upload Spec Artifact
@@ -54,11 +54,11 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/inventory-service"
+          workspaces: "services/inventory_service"
       
       - name: Build and Export Spec
         run: |
-          cd services/inventory-service
+          cd services/inventory_service
           cargo build --release --features export-spec
       
       - name: Upload Spec Artifact
@@ -81,11 +81,11 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/order-service"
+          workspaces: "services/order_service"
       
       - name: Build and Export Spec
         run: |
-          cd services/order-service
+          cd services/order_service
           cargo build --release --features export-spec
       
       - name: Upload Spec Artifact
@@ -108,11 +108,11 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/payment-service"
+          workspaces: "services/payment_service"
       
       - name: Build and Export Spec
         run: |
-          cd services/payment-service
+          cd services/payment_service
           cargo build --release --features export-spec
       
       - name: Upload Spec Artifact
@@ -135,11 +135,11 @@ jobs:
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/integration-service"
+          workspaces: "services/integration_service"
       
       - name: Build and Export Spec
         run: |
-          cd services/integration-service
+          cd services/integration_service
           cargo build --release --features export-spec
       
       - name: Upload Spec Artifact

@@ -31,7 +31,7 @@ The workflow runs automatically. To test locally:
 
 ```bash
 # Export single service
-cd services/user-service
+cd services/user_service
 cargo build --features export-spec
 
 # Export all services
