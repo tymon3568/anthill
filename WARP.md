@@ -22,7 +22,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 **Reference Template**: https://github.com/sukjaelee/clean_axum_demo
 
 ```
-inventory-saas-platform/
+anthill/
 ├── services/                          # Microservices (Cargo workspace)
 │   ├── user-service/
 │   │   ├── src/

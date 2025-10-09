@@ -206,7 +206,7 @@
   dotenv_if_exists .env
 
   # Show loaded env
-  echo "✓ Environment loaded for inventory-saas-platform"
+  echo "✓ Environment loaded for anthill"
   ```
 - [ ] 🟡 **P1** Add `.envrc` to `.gitignore`
 - [ ] 🟡 **P1** Run: `direnv allow .`

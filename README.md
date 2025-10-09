@@ -1,6 +1,8 @@
-# 🚀 Inventory SaaS Platform
+# 🐜 Anthill - Inventory SaaS Platform
 
-Một nền tảng SaaS quản lý tồn kho đa người dùng (multi-tenant) hiện đại, được xây dựng bằng **Rust** (backend microservices) và **SvelteKit 5** (frontend), tối ưu cho các doanh nghiệp bán hàng online.
+**Anthill** là một nền tảng SaaS quản lý tồn kho đa người dùng (multi-tenant) hiện đại, được xây dựng bằng **Rust** (backend microservices) và **SvelteKit 5** (frontend), tối ưu cho các doanh nghiệp bán hàng online.
+
+> 🐜 Giống như đàn kiến làm việc hiệu quả và có tổ chức, Anthill giúp bạn quản lý tồn kho một cách thông minh và tự động.
 
 ## 🎯 Tính Năng Chính
 
@@ -30,7 +32,7 @@ Chi tiết kiến trúc xem tại [ARCHITECTURE.md](./ARCHITECTURE.md)
 ## 📁 Cấu Trúc Dự Án
 
 ```
-inventory-saas-platform/
+anthill/
 ├── services/                    # Các microservices Rust
 │   ├── user-service/           # Authentication & tenancy
 │   ├── inventory-service/      # Quản lý tồn kho
@@ -80,7 +82,7 @@ cargo install cargo-make         # Task runner
 ```bash
 # Clone repository
 git clone <your-repo-url>
-cd inventory-saas-platform
+cd anthill
 
 # Khởi động PostgreSQL, Redis, NATS
 cd infra/docker-compose

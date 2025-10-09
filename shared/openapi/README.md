@@ -30,7 +30,7 @@ cd services/user-service
 cargo build --features export-spec
 
 # Or generate all services
-cd /home/arch/inventory-saas-platform
+cd /home/arch/anthill
 for service in services/*/; do
   (cd "$service" && cargo build --features export-spec)
 done
