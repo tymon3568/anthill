@@ -1,0 +1,10 @@
+[package]
+name = "shared_config"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+config = { workspace = true }
+dotenvy = { workspace = true }
+serde = { workspace = true }

@@ -1,0 +1,12 @@
+[package]
+name = "shared_jwt"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+jsonwebtoken = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+shared_error = { workspace = true }

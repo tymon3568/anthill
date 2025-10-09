@@ -1,13 +1,19 @@
 [workspace]
 members = [
-    "services/*",
+    # Services (3-crate pattern)
+    "services/user_service/api",
+    "services/user_service/core",
+    "services/user_service/infra",
+    
+    # Shared libraries
+    "shared/error",
+    "shared/jwt",
+    "shared/config",
+    "shared/types",
+    "shared/db",
 ]
 
-# Shared libraries will be added here when created
-# "shared/common",
-# "shared/db",
-# "shared/auth",
-# "shared/events",
+resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
@@ -15,39 +21,59 @@ edition = "2021"
 authors = ["tymon3568 <tymon3568@gmail.com>"]
 
 [workspace.dependencies]
-# Tokio is the async runtime
+# Tokio - async runtime
 tokio = { version = "1", features = ["full"] }
 
-# Axum is the web framework
+# Axum - web framework
 axum = "0.8"
 
-# Serde is for serialization and deserialization
+# Serde - serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.9"
 
-# SQLx is for database access
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "json", "uuid"] }
+# SQLx - database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"] }
 
-# For logging and tracing
+# Logging & tracing
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
-# For handling configuration
+# Configuration
 config = "0.14"
+dotenvy = "0.15"
 
-# For handling errors
+# Error handling
 anyhow = "1.0"
 thiserror = "1.0"
 
-# For OpenAPI documentation
+# OpenAPI documentation
 utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-swagger-ui = { version = "9", features = ["axum"] }
 
-# UUID support
+# UUID & DateTime
 uuid = { version = "1.6", features = ["v4", "v7", "serde"] }
-
-# Date/Time support
 chrono = { version = "0.4", features = ["serde"] }
 
-# Tower middleware utilities
+# Tower middleware
+tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace", "compression-full"] }
+
+# Auth & security
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+validator = { version = "0.16", features = ["derive"] }
+
+# Async traits
+async-trait = "0.1"
+
+# Shared crates (internal)
+shared_error = { path = "shared/error" }
+shared_jwt = { path = "shared/jwt" }
+shared_config = { path = "shared/config" }
+shared_types = { path = "shared/types" }
+shared_db = { path = "shared/db" }
+
+# User service crates (internal)
+user_service_core = { path = "services/user_service/core" }
+user_service_infra = { path = "services/user_service/infra" }

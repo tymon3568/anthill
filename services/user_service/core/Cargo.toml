@@ -1,0 +1,19 @@
+[package]
+name = "user_service_core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Shared crates
+shared_error = { workspace = true }
+shared_types = { workspace = true }
+
+# External deps
+serde = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+validator = { workspace = true }
+utoipa = { workspace = true }
+sqlx = { workspace = true }
