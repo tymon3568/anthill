@@ -1,0 +1,91 @@
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 2%
+        if_ci_failed: error
+    
+    patch:
+      default:
+        target: 75%
+        threshold: 5%
+        if_ci_failed: error
+  
+  changes:
+    default:
+      target: auto
+      threshold: 1%
+
+comment:
+  layout: "header, diff, changes, files, footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  
+  # Show coverage for all files
+  branches:
+    - master
+    - main
+
+# Service-specific flags
+flags:
+  unittests:
+    paths:
+      - services/
+      - shared/
+    carryforward: true
+  
+  user-service:
+    paths:
+      - services/user-service/
+    carryforward: true
+  
+  inventory-service:
+    paths:
+      - services/inventory-service/
+    carryforward: true
+  
+  order-service:
+    paths:
+      - services/order-service/
+    carryforward: true
+  
+  payment-service:
+    paths:
+      - services/payment-service/
+    carryforward: true
+  
+  integration-service:
+    paths:
+      - services/integration-service/
+    carryforward: true
+
+# Ignore patterns
+ignore:
+  - "**/*_test.rs"
+  - "**/tests/**"
+  - "**/benches/**"
+  - "**/examples/**"
+  - "target/**"
+  - "**/main.rs"  # Main files usually don't need coverage
+
+# GitHub integration
+github_checks:
+  annotations: true
+
+# Pull request comments
+comment:
+  layout: "header, diff, flags, components, files, footer"
+  behavior: default
+  require_changes: false

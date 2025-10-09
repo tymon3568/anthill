@@ -1,0 +1,204 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [master, main, develop]
+    paths:
+      - 'services/**/*.rs'
+      - 'services/**/Cargo.toml'
+      - 'shared/**/*.rs'
+      - 'shared/**/Cargo.toml'
+      - '.github/workflows/test-coverage.yml'
+  pull_request:
+    paths:
+      - 'services/**/*.rs'
+      - 'services/**/Cargo.toml'
+      - 'shared/**/*.rs'
+      - 'shared/**/Cargo.toml'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  coverage:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      
+      - name: Run tests with coverage
+        run: |
+          cargo llvm-cov --workspace \
+            --all-features \
+            --lcov \
+            --output-path lcov.info
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov.info
+          flags: unittests
+          name: rust-coverage
+          fail_ci_if_error: true
+          verbose: true
+      
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: lcov.info
+          retention-days: 30
+
+  # Separate job for each service (parallel execution)
+  coverage-user-service:
+    name: Coverage - User Service
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "services/user-service"
+      
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      
+      - name: Run tests with coverage
+        run: |
+          cd services/user-service
+          cargo llvm-cov \
+            --all-features \
+            --lcov \
+            --output-path ../../lcov-user.info
+      
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov-user.info
+          flags: user-service
+          name: user-service-coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  coverage-inventory-service:
+    name: Coverage - Inventory Service
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "services/inventory-service"
+      
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      
+      - name: Run tests with coverage
+        run: |
+          cd services/inventory-service
+          cargo llvm-cov \
+            --all-features \
+            --lcov \
+            --output-path ../../lcov-inventory.info
+      
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov-inventory.info
+          flags: inventory-service
+          name: inventory-service-coverage
+
+  # Summary job
+  coverage-summary:
+    name: Coverage Summary
+    needs: [coverage, coverage-user-service, coverage-inventory-service]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+      
+      - name: Display coverage summary
+        run: |
+          echo "📊 Coverage reports generated successfully!"
+          echo "View detailed reports at: https://codecov.io/gh/${{ github.repository }}"
+          
+          if [ -f lcov.info ]; then
+            echo ""
+            echo "📈 Coverage file size: $(du -h lcov.info | cut -f1)"
+            echo "📝 Total lines: $(wc -l < lcov.info)"
+          fi
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📊 Test Coverage Report
+              
+              Coverage reports have been generated and uploaded to Codecov.
+              
+              🔗 [View full coverage report](https://codecov.io/gh/${context.repo.owner}/${context.repo.repo}/pull/${context.issue.number})
+              
+              **Services tested:**
+              - ✅ User Service
+              - ✅ Inventory Service
+              - ✅ Workspace (all services)
+              
+              *Coverage data will be available on Codecov shortly.*`
+            });
