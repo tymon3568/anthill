@@ -1,0 +1,27 @@
+[package]
+name = "user-service"
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+
+[dependencies]
+tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+config = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tower-http = { workspace = true }
+serde_yaml = "0.9"
+
+[features]
+default = []
+export-spec = []

@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inventory_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d inventory_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats_server
+    command: "-js"
+    ports:
+      - "4222:4222" # Client port
+      - "8222:8222" # HTTP monitoring port
+    healthcheck:
+      test: ["CMD-SHELL", "lsof -i :4222 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cube:
+    image: cubejs/cube:latest
+    container_name: cube_analytics
+    environment:
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: postgres
+      CUBEJS_DB_PORT: 5432
+      CUBEJS_DB_NAME: inventory_db
+      CUBEJS_DB_USER: user
+      CUBEJS_DB_PASS: password
+      CUBEJS_API_SECRET: YOUR_CUBE_API_SECRET
+      CUBEJS_DEV_MODE: "true"
+    ports:
+      - "4000:4000" # API port
+      - "9009:9009" # Playground port
+    depends_on:
+      postgres: 
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

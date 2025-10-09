@@ -1,0 +1,351 @@
+openapi: 3.1.0
+info:
+  title: User Service API
+  description: Authentication, user management, and tenant management API
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  version: 0.1.0
+servers:
+- url: http://localhost:3000
+  description: Local development
+- url: https://api.example.com
+  description: Production
+paths:
+  /api/v1/auth/login:
+    post:
+      tags:
+      - auth
+      summary: Login user
+      operationId: user_login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginReq'
+        required: true
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResp'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResp'
+        '429':
+          description: Too many login attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResp'
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - auth
+      summary: Refresh access token
+      operationId: user_refresh_token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshReq'
+        required: true
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResp'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResp'
+  /api/v1/auth/register:
+    post:
+      tags:
+      - auth
+      summary: Register a new user
+      operationId: user_register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterReq'
+        required: true
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResp'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResp'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResp'
+  /api/v1/users:
+    get:
+      tags:
+      - users
+      summary: List users (protected endpoint)
+      operationId: user_list_users
+      parameters:
+      - name: page
+        in: query
+        description: 'Page number (default: 1)'
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: page_size
+        in: query
+        description: 'Page size (default: 20)'
+        required: false
+        schema:
+          type: integer
+          format: int32
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResp'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResp'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResp'
+      security:
+      - bearer_auth: []
+  /health:
+    get:
+      tags:
+      - health
+      summary: Health check endpoint
+      operationId: user_health_check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResp'
+components:
+  schemas:
+    AuthResp:
+      type: object
+      description: Authentication response with JWT tokens
+      required:
+      - access_token
+      - refresh_token
+      - token_type
+      - expires_in
+      - user
+      properties:
+        access_token:
+          type: string
+          description: Access token (JWT, expires in 15 minutes)
+        expires_in:
+          type: integer
+          format: int64
+          description: Token expiration time in seconds
+          example: 900
+        refresh_token:
+          type: string
+          description: Refresh token (expires in 7 days)
+        token_type:
+          type: string
+          description: Token type
+          example: Bearer
+        user:
+          $ref: '#/components/schemas/UserInfo'
+          description: User information
+    ErrorResp:
+      type: object
+      description: Standard error response
+      required:
+      - error
+      properties:
+        code:
+          type:
+          - string
+          - 'null'
+          description: Error code for client-side handling
+          example: AUTH_FAILED
+        error:
+          type: string
+          description: Error message
+          example: Invalid credentials
+    HealthResp:
+      type: object
+      description: Health check response
+      required:
+      - status
+      - version
+      - timestamp
+      properties:
+        status:
+          type: string
+          description: Service status
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          description: Current timestamp
+        version:
+          type: string
+          description: Service version
+          example: 0.1.0
+    LoginReq:
+      type: object
+      description: Login request
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          description: Email address
+          example: user@example.com
+        password:
+          type: string
+          description: Password
+          example: SecurePass123!
+    RefreshReq:
+      type: object
+      description: Refresh token request
+      required:
+      - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Refresh token
+    RegisterReq:
+      type: object
+      description: User registration request
+      required:
+      - email
+      - password
+      - full_name
+      properties:
+        email:
+          type: string
+          description: Email address
+          example: user@example.com
+        full_name:
+          type: string
+          description: Full name
+          example: John Doe
+        password:
+          type: string
+          description: Password (min 8 characters)
+          example: SecurePass123!
+          minLength: 8
+        tenant_name:
+          type:
+          - string
+          - 'null'
+          description: Tenant name (for new tenant creation)
+          example: Acme Corp
+    UserInfo:
+      type: object
+      description: User information
+      required:
+      - id
+      - email
+      - full_name
+      - tenant_id
+      - role
+      - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+        email:
+          type: string
+          description: Email address
+          example: user@example.com
+        full_name:
+          type: string
+          description: Full name
+          example: John Doe
+        id:
+          type: string
+          format: uuid
+          description: User ID
+        role:
+          type: string
+          description: User role
+          example: admin
+        tenant_id:
+          type: string
+          format: uuid
+          description: Tenant ID
+    UserListResp:
+      type: object
+      description: List of users (paginated)
+      required:
+      - users
+      - total
+      - page
+      - page_size
+      properties:
+        page:
+          type: integer
+          format: int32
+          description: Current page
+          example: 1
+        page_size:
+          type: integer
+          format: int32
+          description: Page size
+          example: 20
+        total:
+          type: integer
+          format: int64
+          description: Total count
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserInfo'
+          description: List of users
+  securitySchemes:
+    bearer_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: health
+  description: Health check endpoints
+- name: auth
+  description: Authentication endpoints
+- name: users
+  description: User management endpoints

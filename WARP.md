@@ -17,31 +17,206 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 **Trạng thái hiện tại**: Phase 1 - Thiết lập cơ sở hạ tầng (~10% hoàn thành)
 
-## Cấu Trúc Dự Án
+## Cấu Trúc Dự Án (Clean Architecture)
+
+**Reference Template**: https://github.com/sukjaelee/clean_axum_demo
 
 ```
 inventory-saas-platform/
-├── services/                    # Rust microservices (Cargo workspace)
-│   ├── user-service/           # Authentication, tenancy, authorization
-│   ├── inventory-service/      # Product & stock management
-│   ├── order-service/          # Order processing & fulfillment
-│   ├── integration-service/    # Marketplace adapters (Shopee, Lazada...)
-│   └── payment-service/        # Payment gateway integration
-├── shared/                      # Shared Rust libraries (chưa triển khai)
-│   ├── common/                 # Error types, config, tracing utilities
-│   ├── db/                     # Database utilities, tenant context
-│   ├── auth/                   # JWT + Casbin middleware
-│   └── events/                 # NATS event definitions
-├── frontend/                    # SvelteKit application (chưa khởi tạo)
+├── services/                          # Microservices (Cargo workspace)
+│   ├── user-service/
+│   │   ├── src/
+│   │   │   ├── main.rs                # Entry point
+│   │   │   ├── app.rs                 # Router + middleware setup
+│   │   │   ├── lib.rs
+│   │   │   ├── common/                # Shared utilities
+│   │   │   │   ├── app_state.rs      # AppState (dependency injection)
+│   │   │   │   ├── bootstrap.rs      # Service initialization
+│   │   │   │   ├── config.rs         # Env config loader
+│   │   │   │   ├── error.rs          # AppError + IntoResponse
+│   │   │   │   ├── hash_util.rs      # Argon2 password hashing
+│   │   │   │   ├── jwt.rs            # JWT encode/decode
+│   │   │   │   └── opentelemetry.rs  # Tracing setup
+│   │   │   └── domains/               # Feature modules
+│   │   │       ├── auth/
+│   │   │       │   ├── api/          
+│   │   │       │   │   ├── handlers.rs  # Login, register, refresh
+│   │   │       │   │   └── routes.rs    # Route definitions
+│   │   │       │   ├── domain/          # Business logic
+│   │   │       │   │   ├── model.rs     # Auth entities
+│   │   │       │   │   ├── repository.rs
+│   │   │       │   │   └── service.rs
+│   │   │       │   ├── dto/             # Data Transfer Objects
+│   │   │       │   │   └── auth_dto.rs
+│   │   │       │   ├── infra/           # Infrastructure impl
+│   │   │       │   │   ├── impl_repository.rs
+│   │   │       │   │   └── impl_service.rs
+│   │   │       │   └── auth.rs          # Module entry
+│   │   │       ├── user/                # User management
+│   │   │       └── tenant/              # Tenant management
+│   │   ├── tests/
+│   │   │   ├── test_helpers.rs
+│   │   │   └── test_auth_routes.rs
+│   │   ├── .env.example
+│   │   └── Cargo.toml
+│   │
+│   ├── inventory-service/             # ⭐ MAIN INVENTORY SERVICE
+│   │   ├── src/
+│   │   │   ├── main.rs
+│   │   │   ├── app.rs
+│   │   │   ├── common/                # Same as user-service
+│   │   │   └── domains/
+│   │   │       ├── product/           # 📦 Product Master Data
+│   │   │       │   ├── api/
+│   │   │       │   │   ├── handlers.rs   # CRUD, list, search
+│   │   │       │   │   └── routes.rs     # /api/v1/inventory/products
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # Product, ItemGroup, UoM
+│   │   │       │   │   ├── repository.rs
+│   │   │       │   │   └── service.rs
+│   │   │       │   ├── dto/
+│   │   │       │   │   └── product_dto.rs # CreateProduct, UpdateProduct
+│   │   │       │   ├── infra/
+│   │   │       │   └── product.rs
+│   │   │       │
+│   │   │       ├── warehouse/         # 🏭 Warehouse & Storage
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Warehouse CRUD, locations
+│   │   │       │   ├── domain/
+│   │   │       │   │   └── model.rs      # Warehouse, StorageLocation
+│   │   │       │   └── warehouse.rs
+│   │   │       │
+│   │   │       ├── stock/             # 📊 Stock Tracking
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Get stock, movements, ledger
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # InventoryLevel, StockMove
+│   │   │       │   │   └── service.rs    # Stock mutation logic
+│   │   │       │   └── stock.rs
+│   │   │       │
+│   │   │       ├── receipt/           # 📥 Goods Receipt Note (GRN)
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Create, validate, complete
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # GoodsReceipt, GoodsReceiptItem
+│   │   │       │   │   └── service.rs    # Receipt workflow
+│   │   │       │   └── receipt.rs
+│   │   │       │
+│   │   │       ├── delivery/          # 📤 Delivery Order (DO)
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Reserve, pick, pack, ship
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # DeliveryOrder, items
+│   │   │       │   │   └── service.rs    # Delivery workflow
+│   │   │       │   └── delivery.rs
+│   │   │       │
+│   │   │       ├── transfer/          # 🔄 Stock Transfer
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Create, confirm, receive
+│   │   │       │   ├── domain/
+│   │   │       │   │   └── service.rs    # Transfer workflow
+│   │   │       │   └── transfer.rs
+│   │   │       │
+│   │   │       ├── stocktake/         # 📋 Physical Count
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Create, count, finalize
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # StockTake, StockTakeLine
+│   │   │       │   │   └── service.rs    # Reconciliation logic
+│   │   │       │   └── stocktake.rs
+│   │   │       │
+│   │   │       ├── traceability/      # 🔍 Lot & Serial Number
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Assign, track, FEFO
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # LotSerialNumber, moves
+│   │   │       │   │   └── service.rs    # Traceability logic
+│   │   │       │   └── traceability.rs
+│   │   │       │
+│   │   │       ├── valuation/         # 💰 Inventory Valuation
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Get valuation, revalue
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # InventoryValuation, layers
+│   │   │       │   │   └── service.rs    # FIFO/AVCO/Standard cost
+│   │   │       │   └── valuation.rs
+│   │   │       │
+│   │   │       ├── quality/           # ✅ Quality Control
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # QC checks, pass/fail
+│   │   │       │   └── quality.rs
+│   │   │       │
+│   │   │       ├── replenishment/     # 🔔 Reorder & Material Requests
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Reorder rules, MR
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # ReorderRule, MaterialRequest
+│   │   │       │   │   └── service.rs    # ROP calculation
+│   │   │       │   └── replenishment.rs
+│   │   │       │
+│   │   │       ├── picking/           # 📦 Pick/Pack/Putaway
+│   │   │       │   ├── api/
+│   │   │       │   │   └── handlers.rs   # Generate pick lists, optimize
+│   │   │       │   ├── domain/
+│   │   │       │   │   ├── model.rs      # PickList, PickListItem
+│   │   │       │   │   └── service.rs    # Batch/wave/cluster picking
+│   │   │       │   └── picking.rs
+│   │   │       │
+│   │   │       └── reports/           # 📈 Inventory Reports
+│   │   │           ├── api/
+│   │   │           │   └── handlers.rs   # Ledger, aging, turnover
+│   │   │           ├── domain/
+│   │   │           │   └── service.rs    # Report generation
+│   │   │           └── reports.rs
+│   │   │
+│   │   ├── tests/
+│   │   │   ├── test_product_routes.rs
+│   │   │   ├── test_receipt_workflow.rs
+│   │   │   ├── test_delivery_workflow.rs
+│   │   │   └── test_helpers.rs
+│   │   └── Cargo.toml
+│   │
+│   ├── order-service/
+│   │   └── src/domains/
+│   │       ├── order/                 # Order management
+│   │       ├── fulfillment/           # Order fulfillment
+│   │       └── rma/                   # Return merchandise
+│   │
+│   ├── integration-service/
+│   │   └── src/domains/
+│   │       ├── marketplace/           # Marketplace adapters
+│   │       │   ├── shopee/
+│   │       │   ├── lazada/
+│   │       │   └── tiki/
+│   │       ├── webhook/               # Webhook handlers
+│   │       └── sync/                  # Sync orchestration
+│   │
+│   └── payment-service/
+│       └── src/domains/
+│           ├── payment/               # Payment processing
+│           ├── gateway/               # Gateway adapters (VNPay, Stripe)
+│           └── refund/                # Refund handling
+│
+├── shared/                            # Shared Rust libraries
+│   ├── common/                        # Common utilities
+│   ├── db/                            # Database utilities
+│   ├── auth/                          # Auth middleware
+│   └── events/                        # NATS event definitions
+├── frontend/                          # SvelteKit application
 ├── infra/
-│   ├── docker-compose/         # Local dev environment
-│   │   └── docker-compose.yml
-│   └── sql-migrations/         # SQLx migrations (sẽ được tạo)
-├── Cargo.toml                   # Rust workspace root
-├── ARCHITECTURE.md              # Kiến trúc chi tiết
-├── TODO.md                      # Danh sách công việc theo phase
-└── README.md                    # Documentation chính
+│   ├── docker-compose/
+│   └── sql-migrations/
+├── .env.global.example
+├── rust-toolchain.toml
+├── Makefile.toml
+└── Cargo.toml
 ```
+
+**Key Principles**:
+1. **Clean Architecture**: API → Domain → Infrastructure layers
+2. **Domain-Driven**: Each feature is self-contained (product, receipt, delivery, etc.)
+3. **Type Safety**: Strong typing with compile-time SQLx checks
+4. **Dependency Injection**: Use `AppState` pattern
 
 ## Kiến Trúc Microservices
 
@@ -357,31 +532,328 @@ rust-gdb --args target/debug/user-service
 rust-lldb target/debug/user-service
 ```
 
-## Patterns và Best Practices
+## ⚡ Axum Production Best Practices
 
-### Multi-Tenant Database Queries
+### 1. State Management (⚠️ CRITICAL)
 
-Luôn include `tenant_id` trong WHERE clause:
+**✅ DO**: Use `Arc<AppState>` with `with_state()`
 
 ```rust
-// ✅ ĐÚNG
+#[derive(Clone)]
+pub struct AppState {
+    pub db: PgPool,
+    pub config: Config,
+    pub jwt_secret: String,
+}
+
+// In main.rs
+let app_state = Arc::new(AppState { db: pool, /* ... */ });
+
+let app = Router::new()
+    .route("/products", get(list_products))
+    .with_state(app_state);  // ✅ Type-safe!
+
+// In handler
+async fn list_products(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<Product>>, AppError> {
+    // Use state.db
+}
+```
+
+**❌ DON'T**: Use `Extension` for complex state
+
+---
+
+### 2. Error Handling (⚠️ CRITICAL)
+
+**✅ DO**: Create `AppError` implementing `IntoResponse`
+
+```rust
+use axum::{http::StatusCode, response::IntoResponse};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum AppError {
+    #[error("Database error")]
+    Database(#[from] sqlx::Error),
+    
+    #[error("Unauthorized")]
+    Unauthorized,
+    
+    #[error("Validation: {0}")]
+    Validation(String),
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self {
+            AppError::Database(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DB error"),
+            AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized"),
+            AppError::Validation(msg) => (StatusCode::BAD_REQUEST, &msg),
+        };
+        (status, Json(json!({"error": message}))).into_response()
+    }
+}
+```
+
+**❌ DON'T**: Use `unwrap()` or `expect()` in production
+
+---
+
+### 3. Database & Connection Pool
+
+**✅ DO**: SQLx with compile-time checks & offline mode
+
+```rust
+let pool = PgPoolOptions::new()
+    .max_connections(10)
+    .connect(&database_url)
+    .await?;
+
+// Compile-time checked query
+let products = sqlx::query_as!(
+    Product,
+    "SELECT * FROM products WHERE tenant_id = $1",
+    tenant_id
+).fetch_all(&pool).await?;
+
+// Run: cargo sqlx prepare --workspace
+```
+
+**❌ DON'T**: Create pool per request
+
+---
+
+### 4. OpenAPI với Utoipa (⚠️ IMPORTANT)
+
+**✅ DO**: Auto-generate Swagger UI
+
+```rust
+use utoipa::{OpenApi, ToSchema};
+use utoipa_swagger_ui::SwaggerUi;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(list_products, create_product),
+    components(schemas(Product, CreateProductDto)),
+    tags((name = "products"))
+)]
+struct ApiDoc;
+
+#[derive(Serialize, ToSchema)]
+pub struct Product {
+    pub id: Uuid,
+    pub sku: String,
+    pub name: String,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/products",
+    responses(
+        (status = 200, body = Vec<Product>),
+        (status = 401, description = "Unauthorized"),
+    ),
+    security(("bearer_auth" = []))
+)]
+async fn list_products(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<Product>>, AppError> {
+    // Implementation
+}
+
+// Mount Swagger
+let app = Router::new()
+    .merge(SwaggerUi::new("/docs")
+        .url("/api-docs/openapi.json", ApiDoc::openapi()))
+    .route("/api/v1/products", get(list_products));
+```
+
+Access: `http://localhost:3000/docs`
+
+---
+
+### 5. Validation với Custom Extractors
+
+```rust
+use validator::Validate;
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub struct CreateProductDto {
+    #[validate(length(min = 1, max = 100))]
+    pub sku: String,
+    
+    #[validate(range(min = 0.01))]
+    pub price: f64,
+}
+
+pub struct ValidatedJson<T>(pub T);
+
+#[async_trait]
+impl<T, S> FromRequest<S> for ValidatedJson<T>
+where
+    T: DeserializeOwned + Validate,
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, String);
+
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
+        let Json(data) = Json::<T>::from_request(req, state).await
+            .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+        data.validate()
+            .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+        Ok(ValidatedJson(data))
+    }
+}
+
+// Use in handler
+async fn create_product(
+    ValidatedJson(dto): ValidatedJson<CreateProductDto>,
+) -> Result<Json<Product>, AppError> {
+    // dto is validated!
+}
+```
+
+---
+
+### 6. Middleware & Tracing
+
+```rust
+use tower_http::{trace::TraceLayer, cors::CorsLayer, compression::CompressionLayer};
+
+let app = Router::new()
+    .layer(TraceLayer::new_for_http())
+    .layer(CorsLayer::permissive())
+    .layer(CompressionLayer::new());
+
+// Structured logging
+tracing::info!(
+    tenant_id = %tenant_id,
+    count = products.len(),
+    "Fetched products"
+);
+```
+
+**❌ DON'T**: Use `println!`
+
+---
+
+### 7. JWT Authentication
+
+```rust
+#[derive(Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: Uuid,        // user_id
+    pub tenant_id: Uuid,
+    pub role: String,
+    pub exp: u64,
+}
+
+pub async fn jwt_middleware(
+    State(state): State<Arc<AppState>>,
+    TypedHeader(auth): TypedHeader<Authorization<Bearer>>,
+    mut req: Request,
+    next: Next,
+) -> Result<Response, AppError> {
+    let claims = decode_jwt(auth.token(), &state.jwt_secret)?;
+    req.extensions_mut().insert(claims);
+    Ok(next.run(req).await)
+}
+
+// Protected routes
+let protected = Router::new()
+    .route("/products", get(list_products))
+    .layer(middleware::from_fn_with_state(state.clone(), jwt_middleware));
+```
+
+---
+
+### 8. Testing without Server
+
+```rust
+use tower::ServiceExt;
+
+#[tokio::test]
+async fn test_list_products() {
+    let pool = setup_test_db().await;
+    let app_state = Arc::new(AppState { db: pool });
+    
+    let app = Router::new()
+        .route("/products", get(list_products))
+        .with_state(app_state);
+    
+    let request = Request::builder()
+        .uri("/products")
+        .body(Body::empty())
+        .unwrap();
+    
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+```
+
+---
+
+## 🎯 AI Coding Guidelines
+
+### When AI Generates Code:
+
+**✅ DO**:
+1. **Use the template**: Start from `clean_axum_demo` structure
+2. **Be specific**: "Create GRN handler following clean architecture with domain/repository/service separation"
+3. **Request OpenAPI docs**: "Add utoipa macros for Swagger"
+4. **Check tenant isolation**: Every query must filter by `tenant_id`
+5. **Review lifetimes**: AI often gets `Arc<Mutex<>>`, `Send + Sync` wrong
+
+**❌ DON'T**:
+1. Trust AI 100% on async/await, lifetimes
+2. Let AI use `unwrap()` in handlers
+3. Accept runtime string queries (use sqlx compile-time checks)
+4. Skip validation on DTOs
+
+### Example Prompt Template:
+
+```
+I need a handler for creating goods receipts in the inventory-service.
+
+Context:
+- Project structure: Clean Architecture (api/domain/dto/infra layers)
+- Framework: Axum 0.7 with sqlx
+- State: Arc<AppState> with PgPool
+- Error: AppError enum implementing IntoResponse
+- Requirements: 
+  - Multi-tenant (filter by tenant_id)
+  - OpenAPI docs (utoipa)
+  - Validated DTO
+  - Idempotency key support
+
+Please create:
+1. GoodsReceiptDto in dto/receipt_dto.rs
+2. Handler in api/handlers.rs
+3. Service trait method signature
+4. Repository trait method signature
+```
+
+---
+
+## Multi-Tenant Database Patterns
+
+```rust
+// ✅ CORRECT: Always include tenant_id
 let products = sqlx::query_as!(
     Product,
     "SELECT * FROM products WHERE tenant_id = $1 AND sku = $2",
     tenant_id,
     sku
-)
-.fetch_all(&pool)
-.await?;
+).fetch_all(&pool).await?;
 
-// ❌ SAI - Thiếu tenant isolation
+// ❌ WRONG: Missing tenant isolation
 let products = sqlx::query_as!(
     Product,
     "SELECT * FROM products WHERE sku = $1",
     sku
-)
-.fetch_all(&pool)
-.await?;
+).fetch_all(&pool).await?;
 ```
 
 ### Event Publishing với NATS
@@ -559,27 +1031,67 @@ cargo sqlx prepare
 - **NATS Docs**: https://docs.nats.io/
 - **Casbin-rs**: https://github.com/casbin/casbin-rs
 
-## Quick Reference
+## Quick Reference Commands
 
 ```bash
-# Startup sequence
+# Start local dev
 cd infra/docker-compose && docker-compose up -d && cd ../..
-cargo run -p user-service &
-cargo run -p inventory-service &
-cd frontend && pnpm dev
 
-# Full rebuild
-cargo clean && cargo build --workspace --release
+# Run service with auto-reload
+cargo watch -x 'run -p inventory-service'
 
-# Run all tests with coverage
-cargo test --workspace --all-features
+# SQLx offline mode
+cargo sqlx prepare --workspace
 
-# Database reset (dev only)
-sqlx database drop && sqlx database create && sqlx migrate run
-
-# Format & lint all code
+# Format & lint
 cargo fmt --all && cargo clippy --all -- -D warnings
 
-# Check project health
-cargo check --workspace && cargo test --workspace && cargo clippy --all
+# Run tests
+cargo test --workspace
+
+# Generate OpenAPI docs (built-in at /docs)
+curl http://localhost:3001/docs
 ```
+
+---
+
+## Resources
+
+- **Clean Axum Template**: https://github.com/sukjaelee/clean_axum_demo
+- **Utoipa Docs**: https://docs.rs/utoipa/
+- **Axum Examples**: https://github.com/tokio-rs/axum/tree/main/examples
+- **SQLx Guide**: https://github.com/launchbadge/sqlx
+- **ARCHITECTURE.md**: Detailed system architecture
+- **TODO.md**: Development roadmap with priorities
+
+---
+
+## Project-Specific Notes
+
+### Inventory Service Domains Map:
+
+| Domain | Purpose | Key Models | Routes |
+|--------|---------|------------|--------|
+| product | Product master data, UoM, variants | Product, ItemGroup, UoM | /api/v1/inventory/products |
+| warehouse | Warehouse & storage locations | Warehouse, StorageLocation | /api/v1/inventory/warehouses |
+| stock | Inventory levels, stock moves | InventoryLevel, StockMove | /api/v1/inventory/stock |
+| receipt | Goods receipt (GRN) | GoodsReceipt, GoodsReceiptItem | /api/v1/inventory/receipts |
+| delivery | Delivery orders (DO) | DeliveryOrder, DeliveryOrderItem | /api/v1/inventory/deliveries |
+| transfer | Inter-warehouse transfers | StockTransfer, StockTransferItem | /api/v1/inventory/transfers |
+| stocktake | Physical inventory count | StockTake, StockTakeLine | /api/v1/inventory/stock-takes |
+| traceability | Lot & serial numbers | LotSerialNumber | /api/v1/inventory/tracking |
+| valuation | FIFO/AVCO/Standard cost | InventoryValuation, ValuationLayer | /api/v1/inventory/valuation |
+| quality | QC checks | QualityCheck | /api/v1/inventory/quality-checks |
+| replenishment | Reorder rules, ROP | ReorderRule, MaterialRequest | /api/v1/inventory/replenishment |
+| picking | Pick/pack/putaway | PickList, PickListItem | /api/v1/inventory/pick-lists |
+| reports | Stock ledger, aging, turnover | - | /api/v1/inventory/reports |
+
+### Adding New Domain Module:
+
+1. Create folder structure: `domains/<module>/{api,domain,dto,infra}/`
+2. Register in `domains.rs` and `app.rs`
+3. Add to `app_state.rs` if needs dependencies
+4. Update OpenAPI spec in `main.rs`
+5. Add integration tests in `tests/test_<module>_routes.rs`
+
+**Example**: See `/services/user-service/src/domains/auth/` as reference

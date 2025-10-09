@@ -1,8 +1,13 @@
 [workspace]
 members = [
     "services/*",
-    "shared/*",
 ]
+
+# Shared libraries will be added here when created
+# "shared/common",
+# "shared/db",
+# "shared/auth",
+# "shared/events",
 
 [workspace.package]
 version = "0.1.0"
@@ -14,7 +19,7 @@ authors = ["Your Name <you@example.com>"]
 tokio = { version = "1", features = ["full"] }
 
 # Axum is the web framework
-axum = "0.7"
+axum = "0.8"
 
 # Serde is for serialization and deserialization
 serde = { version = "1.0", features = ["derive"] }
@@ -33,3 +38,16 @@ config = "0.14"
 # For handling errors
 anyhow = "1.0"
 thiserror = "1.0"
+
+# For OpenAPI documentation
+utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
+
+# UUID support
+uuid = { version = "1.6", features = ["v4", "v7", "serde"] }
+
+# Date/Time support
+chrono = { version = "0.4", features = ["serde"] }
+
+# Tower middleware utilities
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-full"] }
