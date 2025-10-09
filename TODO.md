@@ -39,9 +39,10 @@
 - [x] ✅ `shared/openapi` - OpenAPI spec export
 
 ### ⏳ 1.4 Pending Shared Libraries
-- [ ] 🟡 **P1** `shared/auth` crate (auth middleware)
+- [ ] 🔴 **P0** `shared/auth` crate (auth middleware)
   - JWT validation middleware
-  - Optional: Casbin enforcer for RBAC
+  - Casbin enforcer for RBAC (using casbin-rs)
+  - Axum extractors for authentication & authorization
 - [ ] 🟡 **P1** `shared/events` crate (when implementing event-driven)
   - Event definitions
   - NATS client wrapper
@@ -422,9 +423,19 @@
   - Data exports
   - Integration credentials access
 
-### 3.2 Authorization với Casbin (P0)
-- [ ] 🔴 **P0** Tạo Casbin model file (`model.conf`)
+### 3.2 Authorization với Casbin (P0 - Core Infrastructure)
+
+> **Decision**: Using `casbin-rs` for RBAC from the start for scalable, flexible authorization
+
+#### 3.2.1 Casbin Setup (P0)
+- [ ] 🔴 **P0** Add dependencies to `shared/auth` crate
+  - `casbin = "2.0"` (core casbin-rs)
+  - `casbin-sqlx-adapter = "0.6"` (PostgreSQL adapter)
+  - `async-trait = "0.1"` (for async traits)
+  
+- [ ] 🔴 **P0** Tạo Casbin model file (`shared/auth/model.conf`)
   - Multi-tenant RBAC: `sub, dom, obj, act`
+  - Model definition:
   ```conf
   [request_definition]
   r = sub, dom, obj, act
@@ -441,52 +452,72 @@
   [matchers]
   m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act
   ```
-  - Explanation:
-    - `sub`: user_id
-    - `dom`: tenant_id (domain for isolation)
-    - `obj`: resource (products, orders, users)
-    - `act`: action (read, write, delete)
+  - **Explanation**:
+    - `sub`: user_id or role name
+    - `dom`: tenant_id (domain for multi-tenant isolation)
+    - `obj`: resource path (e.g., `/api/v1/products`, `/api/v1/orders`)
+    - `act`: HTTP method (GET, POST, PUT, DELETE) or custom action (read, write)
+  - **Multi-tenant isolation**: `r.dom == p.dom` ensures policies only apply within same tenant
 
-- [ ] 🔴 **P0** Tạo Casbin adapter cho PostgreSQL
-  - Use crate `casbin-sqlx-adapter`
-  - Store policies trong bảng `casbin_rule`
+#### 3.2.2 Database Schema (P0)
+- [ ] 🔴 **P0** Create `casbin_rule` table migration
+  - Store all Casbin policies in PostgreSQL
   ```sql
   CREATE TABLE casbin_rule (
       id SERIAL PRIMARY KEY,
-      ptype VARCHAR(12) NOT NULL,  -- p (policy) or g (grouping)
-      v0 VARCHAR(128),              -- sub or role
-      v1 VARCHAR(128),              -- dom or tenant_id
-      v2 VARCHAR(128),              -- obj or resource
-      v3 VARCHAR(128),              -- act or action
-      v4 VARCHAR(128),
-      v5 VARCHAR(128)
+      ptype VARCHAR(12) NOT NULL,  -- 'p' (policy) or 'g' (grouping/role)
+      v0 VARCHAR(128),              -- sub: user_id or role name
+      v1 VARCHAR(128),              -- dom: tenant_id
+      v2 VARCHAR(128),              -- obj: resource path or name
+      v3 VARCHAR(128),              -- act: action (read, write, delete)
+      v4 VARCHAR(128),              -- extra param (optional)
+      v5 VARCHAR(128)               -- extra param (optional)
   );
+  
+  -- Index for performance
+  CREATE INDEX idx_casbin_rule_ptype ON casbin_rule(ptype);
+  CREATE INDEX idx_casbin_rule_v1 ON casbin_rule(v1);  -- tenant_id
+  ```
+
+#### 3.2.3 Casbin Integration (P0)
+- [ ] 🔴 **P0** Initialize Casbin enforcer in `shared/auth`
+  ```rust
+  use casbin::{Enforcer, CoreApi};
+  use casbin_sqlx_adapter::SqlxAdapter;
+  
+  pub async fn create_enforcer(db_pool: PgPool) -> Result<Enforcer, Box<dyn std::error::Error>> {
+      let adapter = SqlxAdapter::new(db_pool).await?;
+      let enforcer = Enforcer::new("model.conf", adapter).await?;
+      Ok(enforcer)
+  }
   ```
 
 - [ ] 🔴 **P0** Implement Axum middleware cho authorization
+  - Extract JWT claims (user_id, tenant_id, role)
+  - Check permissions with Casbin enforcer
+  - Return 403 Forbidden if not allowed
   ```rust
   use casbin::{Enforcer, CoreApi};
-  use axum::middleware::Next;
+  use axum::{middleware::Next, Extension};
+  use std::sync::Arc;
+  use tokio::sync::RwLock;
   
-  async fn authorization_middleware(
+  pub async fn casbin_middleware(
       Extension(enforcer): Extension<Arc<RwLock<Enforcer>>>,
+      claims: Claims,  // Extracted from JWT
       req: Request<Body>,
       next: Next<Body>,
   ) -> Result<Response, StatusCode> {
-      // Extract JWT → Extract tenant_id + user_id
-      let claims = extract_jwt_claims(&req)?;
-      
-      // Get resource and action from request
       let resource = req.uri().path();  // e.g., "/api/v1/products"
       let action = req.method().as_str();  // GET, POST, PUT, DELETE
       
-      // Load enforcer với policies của tenant
+      // Check permission with Casbin
       let mut e = enforcer.write().await;
       let allowed = e.enforce((
-          &claims.user_id.to_string(),
-          &claims.tenant_id.to_string(),
-          resource,
-          action,
+          &claims.user_id.to_string(),        // sub
+          &claims.tenant_id.to_string(),      // dom
+          resource,                            // obj
+          action,                              // act
       ))?;
       
       if !allowed {
@@ -497,27 +528,63 @@
   }
   ```
 
-- [ ] 🔴 **P0** Seed default roles and policies
+- [ ] 🔴 **P0** Axum extractor for role-based checks
+  - `RequireRole` extractor: `RequireRole("admin")`
+  - `RequirePermission` extractor: `RequirePermission { resource: "products", action: "write" }`
+
+#### 3.2.4 Default Policies & Roles (P0)
+- [ ] 🔴 **P0** Seed default roles for each tenant
+  - **Admin role**: Full access to all resources
+  - **Manager role**: CRUD on products, orders (no user management)
+  - **User role**: Read-only access
   ```sql
-  -- Example policies for tenant_id = '00000000-0000-0000-0000-000000000001'
-  -- Admin role
+  -- Policies cho Admin role (tenant_id = example tenant)
   INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
-  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'products', 'read'),
-  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'products', 'write'),
-  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'orders', 'read'),
-  ('p', 'admin', '00000000-0000-0000-0000-000000000001', 'orders', 'write');
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'GET'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'POST'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'PUT'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'DELETE'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/orders', 'GET'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/orders', 'POST'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/users', 'GET'),
+  ('p', 'admin', '00000000-0000-0000-0000-000000000001', '/api/v1/users', 'POST');
   
-  -- Manager role
+  -- Policies cho Manager role
   INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
-  ('p', 'manager', '00000000-0000-0000-0000-000000000001', 'products', 'read'),
-  ('p', 'manager', '00000000-0000-0000-0000-000000000001', 'orders', 'read'),
-  ('p', 'manager', '00000000-0000-0000-0000-000000000001', 'orders', 'write');
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'GET'),
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'POST'),
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'PUT'),
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', '/api/v1/orders', 'GET'),
+  ('p', 'manager', '00000000-0000-0000-0000-000000000001', '/api/v1/orders', 'POST');
   
-  -- User role (read-only)
+  -- Policies cho User role (read-only)
   INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
-  ('p', 'user', '00000000-0000-0000-0000-000000000001', 'products', 'read'),
-  ('p', 'user', '00000000-0000-0000-0000-000000000001', 'orders', 'read');
+  ('p', 'user', '00000000-0000-0000-0000-000000000001', '/api/v1/products', 'GET'),
+  ('p', 'user', '00000000-0000-0000-0000-000000000001', '/api/v1/orders', 'GET');
+  
+  -- Assign user to role (grouping policy)
+  -- Example: user_id 'abc123' has role 'admin' in tenant '00000000-0000-0000-0000-000000000001'
+  INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES
+  ('g', 'abc123-user-uuid', 'admin', '00000000-0000-0000-0000-000000000001');
   ```
+
+- [ ] 🔴 **P0** API endpoints for role management (admin only)
+  - POST `/api/v1/admin/roles` - Create custom role
+  - POST `/api/v1/admin/policies` - Add policy to role
+  - DELETE `/api/v1/admin/policies` - Remove policy
+  - POST `/api/v1/admin/users/:user_id/roles` - Assign role to user
+  - DELETE `/api/v1/admin/users/:user_id/roles` - Revoke role
+
+#### 3.2.5 Testing (P0)
+- [ ] 🔴 **P0** Unit tests for Casbin enforcer
+  - Test role assignments
+  - Test permission checks
+  - Test multi-tenant isolation
+- [ ] 🔴 **P0** Integration tests for authorization middleware
+  - Test admin can access all endpoints
+  - Test manager cannot delete users
+  - Test user cannot write to products
+  - Test tenant isolation (user A cannot access tenant B resources)
 
 ### 3.3 User Management
 ### 3.3 User Management
