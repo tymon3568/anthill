@@ -12,7 +12,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <you@example.com>"]
+authors = ["tymon3568 <tymon3568@gmail.com>"]
 
 [workspace.dependencies]
 # Tokio is the async runtime
