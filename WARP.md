@@ -1031,6 +1031,120 @@ cargo sqlx prepare
 - **NATS Docs**: https://docs.nats.io/
 - **Casbin-rs**: https://github.com/casbin/casbin-rs
 
+## 📄 OpenAPI Specification Workflow
+
+### Auto-Export OpenAPI Spec
+
+Mỗi service tự động export OpenAPI spec sang `shared/openapi/<service>.yaml` khi build với feature `export-spec`:
+
+```bash
+# Export spec for single service
+cd services/user-service
+cargo build --features export-spec
+cargo run --features export-spec  # Export + start server
+
+# Export all services
+for service in services/*/; do
+  (cd "$service" && cargo build --features export-spec)
+done
+```
+
+### File Structure
+
+```
+shared/openapi/
+├── README.md           # ⚠️ DO NOT EDIT - Auto-generated warning
+├── user.yaml          # User service API spec
+├── inventory.yaml     # Inventory service API spec  
+├── order.yaml         # Order service API spec
+├── payment.yaml       # Payment service API spec
+├── integration.yaml   # Integration service API spec
+└── api.yaml           # Merged final spec (for frontend)
+```
+
+### Swagger UI Access
+
+Mỗi service expose Swagger UI tại `/docs`:
+
+```bash
+# User Service
+http://localhost:3000/docs
+
+# Inventory Service  
+http://localhost:3001/docs
+
+# Order Service
+http://localhost:3002/docs
+```
+
+### Adding New API Endpoint
+
+**1. Define DTO in `models.rs`:**
+```rust
+use utoipa::ToSchema;
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct CreateProductDto {
+    #[schema(example = "PROD-001")]
+    pub sku: String,
+    
+    #[schema(example = "Laptop")]
+    pub name: String,
+}
+```
+
+**2. Create handler in `handlers.rs`:**
+```rust
+#[utoipa::path(
+    post,
+    path = "/api/v1/products",
+    tag = "products",
+    operation_id = "inventory_create_product",  // Prefix with service name!
+    request_body = CreateProductDto,
+    responses(
+        (status = 201, description = "Product created", body = Product),
+        (status = 400, description = "Invalid input", body = ErrorResp),
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn create_product(
+    Json(payload): Json<CreateProductDto>,
+) -> Result<(StatusCode, Json<Product>), AppError> {
+    // Implementation
+}
+```
+
+**3. Register in `openapi.rs`:**
+```rust
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        crate::handlers::create_product,  // Add here
+    ),
+    components(schemas(
+        crate::models::CreateProductDto,  // Add DTO
+    ))
+)]
+pub struct ApiDoc;
+```
+
+**4. Export và verify:**
+```bash
+cargo build --features export-spec
+cat ../../shared/openapi/inventory.yaml  # Check output
+```
+
+### Frontend SDK Generation (Future)
+
+Khi CI/CD merge tất cả specs vào `api.yaml`, frontend sẽ auto-generate SDK:
+
+```bash
+# In frontend directory
+pnpm orval  # or @hey-api/openapi-ts
+```
+
+---
+
 ## Quick Reference Commands
 
 ```bash
@@ -1039,6 +1153,11 @@ cd infra/docker-compose && docker-compose up -d && cd ../..
 
 # Run service with auto-reload
 cargo watch -x 'run -p inventory-service'
+
+# Export OpenAPI specs
+for service in services/*/; do
+  (cd "$service" && cargo build --features export-spec)
+done
 
 # SQLx offline mode
 cargo sqlx prepare --workspace
@@ -1049,8 +1168,8 @@ cargo fmt --all && cargo clippy --all -- -D warnings
 # Run tests
 cargo test --workspace
 
-# Generate OpenAPI docs (built-in at /docs)
-curl http://localhost:3001/docs
+# View Swagger UI
+open http://localhost:3000/docs  # user-service
 ```
 
 ---
