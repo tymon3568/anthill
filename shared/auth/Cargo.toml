@@ -1,0 +1,44 @@
+[package]
+name = "shared-auth"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Casbin core
+casbin = { version = "2.0", default-features = false, features = ["runtime-tokio", "logging", "incremental"] }
+sqlx-adapter = "1.8"
+
+# Axum
+axum = "0.7"
+tower = "0.4"
+tower-layer = "0.3"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Database
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-native-tls"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# HTTP types
+http = "1.0"
+http-body = "1.0"
+bytes = "1.5"
+
+# Shared crates
+shared_error = { path = "../error" }
+shared_jwt = { path = "../jwt" }
+shared_types = { path = "../types" }
+
+# Logging
+tracing = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"

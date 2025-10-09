@@ -11,6 +11,7 @@ members = [
     "shared/config",
     "shared/types",
     "shared/db",
+    "shared/auth",
 ]
 
 resolver = "2"
@@ -73,6 +74,7 @@ shared_jwt = { path = "shared/jwt" }
 shared_config = { path = "shared/config" }
 shared_types = { path = "shared/types" }
 shared_db = { path = "shared/db" }
+shared_auth = { path = "shared/auth" }
 
 # User service crates (internal)
 user_service_core = { path = "services/user_service/core" }
