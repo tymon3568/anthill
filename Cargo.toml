@@ -65,6 +65,7 @@ jsonwebtoken = "9.2"
 bcrypt = "0.15"
 validator = { version = "0.16", features = ["derive"] }
 sha2 = "0.10"
+zxcvbn = "3.1"
 
 # Async traits
 async-trait = "0.1"

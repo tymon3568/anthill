@@ -9,6 +9,7 @@ use user_service_core::domains::auth::{
         service::AuthService,
     },
     dto::auth_dto::{RegisterReq, LoginReq, RefreshReq, AuthResp, UserInfo, UserListResp},
+    utils::password_validator::validate_password_quick,
 };
 use shared_error::AppError;
 use shared_jwt::{Claims, encode_jwt, decode_jwt};
@@ -148,6 +149,15 @@ where
         if self.user_repo.email_exists(&req.email, tenant.tenant_id).await? {
             return Err(AppError::UserAlreadyExists);
         }
+        
+        // Validate password strength
+        let user_inputs = [
+            req.email.as_str(),
+            req.full_name.as_str(),
+            tenant.name.as_str(),
+        ];
+        validate_password_quick(&req.password, &user_inputs)
+            .map_err(|e| AppError::ValidationError(format!("Password validation failed: {}", e)))?;
         
         // Hash password
         let password_hash = bcrypt::hash(&req.password, bcrypt::DEFAULT_COST)

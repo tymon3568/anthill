@@ -18,3 +18,4 @@ async-trait = { workspace = true }
 validator = { workspace = true }
 utoipa = { workspace = true }
 sqlx = { workspace = true }
+zxcvbn = { workspace = true }
