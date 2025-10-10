@@ -64,6 +64,7 @@ pub async fn health_check() -> Json<HealthResp> {
 )]
 pub async fn register<S: AuthService>(
     State(state): State<AppState<S>>,
+    client_info: crate::extractors::ClientInfo,
     Json(payload): Json<RegisterReq>,
 ) -> Result<(StatusCode, Json<AuthResp>), AppError> {
     // Validate request
@@ -71,7 +72,11 @@ pub async fn register<S: AuthService>(
     payload.validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
     
-    let resp = state.auth_service.register(payload).await?;
+    let resp = state.auth_service.register(
+        payload,
+        client_info.ip_address,
+        client_info.user_agent,
+    ).await?;
     Ok((StatusCode::CREATED, Json(resp)))
 }
 
@@ -90,6 +95,7 @@ pub async fn register<S: AuthService>(
 )]
 pub async fn login<S: AuthService>(
     State(state): State<AppState<S>>,
+    client_info: crate::extractors::ClientInfo,
     Json(payload): Json<LoginReq>,
 ) -> Result<Json<AuthResp>, AppError> {
     // Validate request
@@ -97,7 +103,11 @@ pub async fn login<S: AuthService>(
     payload.validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
     
-    let resp = state.auth_service.login(payload).await?;
+    let resp = state.auth_service.login(
+        payload,
+        client_info.ip_address,
+        client_info.user_agent,
+    ).await?;
     Ok(Json(resp))
 }
 
@@ -115,6 +125,7 @@ pub async fn login<S: AuthService>(
 )]
 pub async fn refresh_token<S: AuthService>(
     State(state): State<AppState<S>>,
+    client_info: crate::extractors::ClientInfo,
     Json(payload): Json<RefreshReq>,
 ) -> Result<Json<AuthResp>, AppError> {
     // Validate request
@@ -122,7 +133,11 @@ pub async fn refresh_token<S: AuthService>(
     payload.validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
     
-    let resp = state.auth_service.refresh_token(payload).await?;
+    let resp = state.auth_service.refresh_token(
+        payload,
+        client_info.ip_address,
+        client_info.user_agent,
+    ).await?;
     Ok(Json(resp))
 }
 

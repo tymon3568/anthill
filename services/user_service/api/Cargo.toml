@@ -40,6 +40,7 @@ tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
 validator = { workspace = true }
+async-trait = { workspace = true }
 
 [features]
 default = []

@@ -113,7 +113,12 @@ where
     TR: TenantRepository + Send + Sync,
     SR: SessionRepository + Send + Sync,
 {
-    async fn register(&self, req: RegisterReq) -> Result<AuthResp, AppError> {
+    async fn register(
+        &self,
+        req: RegisterReq,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<AuthResp, AppError> {
         // Determine tenant
         let tenant = if let Some(tenant_name) = &req.tenant_name {
             // Create new tenant
@@ -192,7 +197,6 @@ where
         let refresh_token = encode_jwt(&refresh_claims, &self.jwt_secret)?;
         
         // Create session record
-        // TODO: Extract IP and User-Agent from request context
         self.create_session(
             created_user.user_id,
             created_user.tenant_id,
@@ -200,8 +204,8 @@ where
             &refresh_token,
             self.jwt_expiration,
             self.jwt_refresh_expiration,
-            None, // ip_address - should be extracted from request
-            None, // user_agent - should be extracted from request
+            ip_address,
+            user_agent,
         ).await?;
         
         Ok(AuthResp {
@@ -213,7 +217,12 @@ where
         })
     }
     
-    async fn login(&self, _req: LoginReq) -> Result<AuthResp, AppError> {
+    async fn login(
+        &self,
+        _req: LoginReq,
+        _ip_address: Option<String>,
+        _user_agent: Option<String>,
+    ) -> Result<AuthResp, AppError> {
         // TODO: In production, implement tenant resolution from email domain or subdomain
         // For now, we'll search across all tenants (not production-ready)
         
@@ -265,7 +274,12 @@ where
         */
     }
     
-    async fn refresh_token(&self, req: RefreshReq) -> Result<AuthResp, AppError> {
+    async fn refresh_token(
+        &self,
+        req: RefreshReq,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<AuthResp, AppError> {
         // Decode and validate refresh token
         let claims = decode_jwt(&req.refresh_token, &self.jwt_secret)?;
         
@@ -304,7 +318,6 @@ where
         }
         
         // Create new session
-        // TODO: Extract IP and User-Agent from request context
         self.create_session(
             user.user_id,
             user.tenant_id,
@@ -312,8 +325,8 @@ where
             &refresh_token,
             self.jwt_expiration,
             self.jwt_refresh_expiration,
-            None, // ip_address
-            None, // user_agent
+            ip_address,
+            user_agent,
         ).await?;
         
         Ok(AuthResp {

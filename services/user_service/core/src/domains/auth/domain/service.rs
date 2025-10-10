@@ -11,13 +11,28 @@ use crate::domains::auth::dto::auth_dto::{
 #[async_trait]
 pub trait AuthService: Send + Sync {
     /// Register a new user
-    async fn register(&self, req: RegisterReq) -> Result<AuthResp, AppError>;
+    async fn register(
+        &self,
+        req: RegisterReq,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<AuthResp, AppError>;
     
     /// Login user
-    async fn login(&self, req: LoginReq) -> Result<AuthResp, AppError>;
+    async fn login(
+        &self,
+        req: LoginReq,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<AuthResp, AppError>;
     
     /// Refresh access token
-    async fn refresh_token(&self, req: RefreshReq) -> Result<AuthResp, AppError>;
+    async fn refresh_token(
+        &self,
+        req: RefreshReq,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<AuthResp, AppError>;
     
     /// Logout user by revoking refresh token session
     async fn logout(&self, refresh_token: &str) -> Result<(), AppError>;
