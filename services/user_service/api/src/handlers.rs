@@ -126,6 +126,31 @@ pub async fn refresh_token<S: AuthService>(
     Ok(Json(resp))
 }
 
+/// Logout user by revoking refresh token session
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/logout",
+    tag = "auth",
+    operation_id = "user_logout",
+    request_body = RefreshReq,
+    responses(
+        (status = 200, description = "Logout successful"),
+        (status = 401, description = "Invalid refresh token", body = ErrorResp),
+    )
+)]
+pub async fn logout<S: AuthService>(
+    State(state): State<AppState<S>>,
+    Json(payload): Json<RefreshReq>,
+) -> Result<StatusCode, AppError> {
+    // Validate request
+    use validator::Validate;
+    payload.validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+    
+    state.auth_service.logout(&payload.refresh_token).await?;
+    Ok(StatusCode::OK)
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ListUsersQuery {
     #[serde(default = "default_page")]

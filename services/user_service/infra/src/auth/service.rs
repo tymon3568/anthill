@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use uuid::Uuid;
+use sha2::{Sha256, Digest};
 use user_service_core::domains::auth::{
     domain::{
-        model::{User, Tenant},
-        repository::{UserRepository, TenantRepository},
+        model::{User, Tenant, Session},
+        repository::{UserRepository, TenantRepository, SessionRepository},
         service::AuthService,
     },
     dto::auth_dto::{RegisterReq, LoginReq, RefreshReq, AuthResp, UserInfo, UserListResp},
@@ -14,26 +15,30 @@ use shared_jwt::{Claims, encode_jwt, decode_jwt};
 use serde_json;
 
 /// Auth service implementation
-pub struct AuthServiceImpl<UR, TR>
+pub struct AuthServiceImpl<UR, TR, SR>
 where
     UR: UserRepository,
     TR: TenantRepository,
+    SR: SessionRepository,
 {
     user_repo: UR,
     tenant_repo: TR,
+    session_repo: SR,
     jwt_secret: String,
     jwt_expiration: i64,
     jwt_refresh_expiration: i64,
 }
 
-impl<UR, TR> AuthServiceImpl<UR, TR>
+impl<UR, TR, SR> AuthServiceImpl<UR, TR, SR>
 where
     UR: UserRepository,
     TR: TenantRepository,
+    SR: SessionRepository,
 {
     pub fn new(
         user_repo: UR,
         tenant_repo: TR,
+        session_repo: SR,
         jwt_secret: String,
         jwt_expiration: i64,
         jwt_refresh_expiration: i64,
@@ -41,6 +46,7 @@ where
         Self {
             user_repo,
             tenant_repo,
+            session_repo,
             jwt_secret,
             jwt_expiration,
             jwt_refresh_expiration,
@@ -57,13 +63,55 @@ where
             created_at: user.created_at,
         }
     }
+    
+    /// Hash token using SHA-256 for secure storage
+    fn hash_token(&self, token: &str) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(token.as_bytes());
+        format!("{:x}", hasher.finalize())
+    }
+    
+    /// Create session record for tokens
+    async fn create_session(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        access_token: &str,
+        refresh_token: &str,
+        access_exp: i64,
+        refresh_exp: i64,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Result<Session, AppError> {
+        let now = Utc::now();
+        let session = Session {
+            session_id: Uuid::new_v4(),
+            user_id,
+            tenant_id,
+            access_token_hash: self.hash_token(access_token),
+            refresh_token_hash: self.hash_token(refresh_token),
+            ip_address,
+            user_agent,
+            device_info: None,
+            access_token_expires_at: now + chrono::Duration::seconds(access_exp),
+            refresh_token_expires_at: now + chrono::Duration::seconds(refresh_exp),
+            revoked: false,
+            revoked_at: None,
+            revoked_reason: None,
+            created_at: now,
+            last_used_at: now,
+        };
+        
+        self.session_repo.create(&session).await
+    }
 }
 
 #[async_trait]
-impl<UR, TR> AuthService for AuthServiceImpl<UR, TR>
+impl<UR, TR, SR> AuthService for AuthServiceImpl<UR, TR, SR>
 where
     UR: UserRepository + Send + Sync,
     TR: TenantRepository + Send + Sync,
+    SR: SessionRepository + Send + Sync,
 {
     async fn register(&self, req: RegisterReq) -> Result<AuthResp, AppError> {
         // Determine tenant
@@ -142,6 +190,19 @@ where
         
         let access_token = encode_jwt(&access_claims, &self.jwt_secret)?;
         let refresh_token = encode_jwt(&refresh_claims, &self.jwt_secret)?;
+        
+        // Create session record
+        // TODO: Extract IP and User-Agent from request context
+        self.create_session(
+            created_user.user_id,
+            created_user.tenant_id,
+            &access_token,
+            &refresh_token,
+            self.jwt_expiration,
+            self.jwt_refresh_expiration,
+            None, // ip_address - should be extracted from request
+            None, // user_agent - should be extracted from request
+        ).await?;
         
         Ok(AuthResp {
             access_token,
@@ -236,6 +297,25 @@ where
         let access_token = encode_jwt(&new_access_claims, &self.jwt_secret)?;
         let refresh_token = encode_jwt(&new_refresh_claims, &self.jwt_secret)?;
         
+        // Revoke old session and create new one
+        let old_token_hash = self.hash_token(&req.refresh_token);
+        if let Some(old_session) = self.session_repo.find_by_refresh_token(&old_token_hash).await? {
+            self.session_repo.revoke(old_session.session_id, "Token refreshed").await?;
+        }
+        
+        // Create new session
+        // TODO: Extract IP and User-Agent from request context
+        self.create_session(
+            user.user_id,
+            user.tenant_id,
+            &access_token,
+            &refresh_token,
+            self.jwt_expiration,
+            self.jwt_refresh_expiration,
+            None, // ip_address
+            None, // user_agent
+        ).await?;
+        
         Ok(AuthResp {
             access_token,
             refresh_token,
@@ -243,6 +323,21 @@ where
             expires_in: self.jwt_expiration,
             user: self.user_to_user_info(&user),
         })
+    }
+    
+    async fn logout(&self, refresh_token: &str) -> Result<(), AppError> {
+        // Hash the refresh token to find the session
+        let token_hash = self.hash_token(refresh_token);
+        
+        // Find and revoke the session
+        if let Some(session) = self.session_repo.find_by_refresh_token(&token_hash).await? {
+            self.session_repo.revoke(session.session_id, "User logout").await?;
+        } else {
+            // If session not found, it might be already revoked or invalid
+            return Err(AppError::InvalidToken);
+        }
+        
+        Ok(())
     }
     
     async fn list_users(&self, tenant_id: Uuid, page: i32, page_size: i32) -> Result<UserListResp, AppError> {

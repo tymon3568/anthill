@@ -19,6 +19,9 @@ pub trait AuthService: Send + Sync {
     /// Refresh access token
     async fn refresh_token(&self, req: RefreshReq) -> Result<AuthResp, AppError>;
     
+    /// Logout user by revoking refresh token session
+    async fn logout(&self, refresh_token: &str) -> Result<(), AppError>;
+    
     /// List users (paginated, tenant-scoped)
     async fn list_users(&self, tenant_id: Uuid, page: i32, page_size: i32) -> Result<UserListResp, AppError>;
     

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use uuid::Uuid;
-use super::model::{User, Tenant};
+use super::model::{User, Tenant, Session};
 use shared_error::AppError;
 
 /// User repository trait
@@ -42,4 +42,28 @@ pub trait TenantRepository: Send + Sync {
     
     /// Find tenant by slug
     async fn find_by_slug(&self, slug: &str) -> Result<Option<Tenant>, AppError>;
+}
+
+/// Session repository trait
+/// 
+/// Manages user sessions and JWT token tracking.
+#[async_trait]
+pub trait SessionRepository: Send + Sync {
+    /// Create a new session
+    async fn create(&self, session: &Session) -> Result<Session, AppError>;
+    
+    /// Find session by refresh token hash
+    async fn find_by_refresh_token(&self, token_hash: &str) -> Result<Option<Session>, AppError>;
+    
+    /// Revoke a session (logout)
+    async fn revoke(&self, session_id: Uuid, reason: &str) -> Result<(), AppError>;
+    
+    /// Revoke all sessions for a user (force logout everywhere)
+    async fn revoke_all_for_user(&self, user_id: Uuid) -> Result<u64, AppError>;
+    
+    /// Update last_used_at timestamp
+    async fn update_last_used(&self, session_id: Uuid) -> Result<(), AppError>;
+    
+    /// Delete expired sessions (cleanup job)
+    async fn delete_expired(&self) -> Result<u64, AppError>;
 }

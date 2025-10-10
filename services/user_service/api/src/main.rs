@@ -12,7 +12,7 @@ use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use user_service_infra::auth::{PgUserRepository, PgTenantRepository, AuthServiceImpl};
+use user_service_infra::auth::{PgUserRepository, PgTenantRepository, PgSessionRepository, AuthServiceImpl};
 use handlers::AppState;
 use shared_auth::enforcer::create_enforcer;
 
@@ -53,11 +53,13 @@ async fn main() {
     // Initialize repositories
     let user_repo = PgUserRepository::new(db_pool.clone());
     let tenant_repo = PgTenantRepository::new(db_pool.clone());
+    let session_repo = PgSessionRepository::new(db_pool.clone());
     
     // Initialize service
     let auth_service = AuthServiceImpl::new(
         user_repo,
         tenant_repo,
+        session_repo,
         config.jwt_secret.clone(),
         config.jwt_expiration,
         config.jwt_refresh_expiration,
@@ -76,7 +78,8 @@ async fn main() {
     let public_routes = Router::new()
         .route("/api/v1/auth/register", post(handlers::register))
         .route("/api/v1/auth/login", post(handlers::login))
-        .route("/api/v1/auth/refresh", post(handlers::refresh_token));
+        .route("/api/v1/auth/refresh", post(handlers::refresh_token))
+        .route("/api/v1/auth/logout", post(handlers::logout));
     
     // Protected routes (require authentication)
     let protected_routes = Router::new()

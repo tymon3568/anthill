@@ -9,6 +9,7 @@ use user_service_core::domains::auth::dto::auth_dto::*;
         crate::handlers::register,
         crate::handlers::login,
         crate::handlers::refresh_token,
+        crate::handlers::logout,
         crate::handlers::list_users,
         crate::handlers::get_user,
     ),

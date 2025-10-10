@@ -295,7 +295,8 @@ migrations/
   - [x] ✅ POST `/api/v1/auth/login`
   - [x] ✅ Generate JWT access token (15 min expiry) + refresh token (7 days)
   - [x] ✅ Return tokens + user info
-  - [ ] ⏳ TODO: Store session vào database với `user_agent`, `ip_address`
+  - [x] ✅ Store session in database with token hashes (SHA-256)
+  - [ ] ⏳ TODO: Extract `user_agent`, `ip_address` from HTTP request headers
   - [ ] ⏳ TODO: Implement tenant resolution (currently creates new tenant)
 
 - [ ] 🔴 **P0** Rate Limiting & Brute-Force Protection
@@ -321,13 +322,14 @@ migrations/
 - [x] ✅ **P0** Implement refresh token endpoint
   - [x] ✅ POST `/api/v1/auth/refresh`
   - [x] ✅ Generate new access token from refresh token
-  - [ ] ⏳ TODO: Validate refresh token từ database
-  - [ ] ⏳ TODO: Optional rotate refresh token
+  - [x] ✅ Validate refresh token from database (hash lookup)
+  - [x] ✅ Rotate refresh token (revoke old, create new session)
 
-- [ ] 🔴 **P0** Implement logout endpoint
-  - POST `/api/v1/auth/logout`
-  - Invalidate refresh token trong database
-  - Blacklist access token in Redis (optional, adds overhead)
+- [x] ✅ **P0** Implement logout endpoint - **COMPLETED 2025-01-10**
+  - [x] ✅ POST `/api/v1/auth/logout`
+  - [x] ✅ Revoke refresh token in database
+  - [x] ✅ Session management fully implemented
+  - ℹ️ Note: Access token blacklisting in Redis not implemented (adds overhead, short expiry sufficient)
 
 #### 3.1.4 Security Headers (P0)
 - [ ] 🔴 **P0** Configure secure HTTP headers
@@ -1639,10 +1641,11 @@ cargo test --workspace
 - **Phase 4-12**: ⏳ 0% complete (not started)
 
 ### 🎯 Immediate Next Steps (Priority Order)
-1. 🔴 **P0** Update User Service repositories to use new database schema
-2. 🔴 **P0** Integrate Casbin middleware into User Service API
-3. 🔴 **P0** Implement session management (store in database, logout endpoint)
+1. ✅ ~~Update User Service repositories to use new database schema~~ (COMPLETED)
+2. ✅ ~~Integrate Casbin middleware into User Service API~~ (COMPLETED)
+3. ✅ ~~Implement session management (store in database, logout endpoint)~~ (COMPLETED 2025-01-10)
 4. 🔴 **P0** Tenant isolation testing (CRITICAL SECURITY)
 5. 🔴 **P0** Integration tests for auth endpoints
-6. 🟡 **P1** Implement tenant resolution in login
-7. 🟡 **P1** Migrate password hashing to Argon2id
+6. 🔴 **P0** Extract IP address & User-Agent in session management
+7. 🟡 **P1** Implement tenant resolution in login
+8. 🟡 **P1** Migrate password hashing to Argon2id

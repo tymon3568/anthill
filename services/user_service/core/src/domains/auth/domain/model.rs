@@ -42,3 +42,26 @@ pub struct Tenant {
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,  // Soft delete
 }
+
+/// Session entity
+/// 
+/// Represents an active user session with JWT tokens.
+/// Tokens are hashed (SHA-256) for security.
+#[derive(Debug, Clone, FromRow)]
+pub struct Session {
+    pub session_id: Uuid,
+    pub user_id: Uuid,
+    pub tenant_id: Uuid,
+    pub access_token_hash: String,
+    pub refresh_token_hash: String,
+    pub ip_address: Option<String>,  // Stored as text for simplicity
+    pub user_agent: Option<String>,
+    pub device_info: Option<sqlx::types::Json<serde_json::Value>>,
+    pub access_token_expires_at: DateTime<Utc>,
+    pub refresh_token_expires_at: DateTime<Utc>,
+    pub revoked: bool,
+    pub revoked_at: Option<DateTime<Utc>>,
+    pub revoked_reason: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub last_used_at: DateTime<Utc>,
+}

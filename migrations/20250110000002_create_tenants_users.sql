@@ -132,7 +132,7 @@ CREATE TABLE sessions (
     refresh_token_hash TEXT NOT NULL, -- SHA-256 hash of refresh token
     
     -- Session metadata
-    ip_address INET,
+    ip_address TEXT,  -- IP address as string
     user_agent TEXT,
     device_info JSONB, -- Browser, OS, device type
     
