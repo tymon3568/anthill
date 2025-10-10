@@ -39,8 +39,9 @@ pub async fn create_enforcer(
     info!("Casbin model loaded successfully");
 
     // Create SQLx adapter for PostgreSQL
-    let adapter = SqlxAdapter::new(database_url, 8).await?;
-    info!("Casbin SQLx adapter initialized");
+    // Use 2 connections: sufficient for policy loads and occasional updates
+    let adapter = SqlxAdapter::new(database_url, 2).await?;
+    info!("Casbin SQLx adapter initialized with 2 connections");
 
     // Create enforcer with model and adapter
     let mut enforcer = Enforcer::new(model, adapter).await?;
