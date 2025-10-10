@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 
+# Library for integration tests
+[lib]
+name = "user_service_api"
+path = "src/lib.rs"
+
 [[bin]]
 name = "user-service"
 path = "src/main.rs"
@@ -41,6 +46,13 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 validator = { workspace = true }
 async-trait = { workspace = true }
+
+[dev-dependencies]
+# Test dependencies
+tower = { workspace = true }
+http-body-util = "0.1"
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"] }
+tokio-test = "0.4"
 
 [features]
 default = []

@@ -1,6 +1,4 @@
-mod handlers;
 mod openapi;
-mod extractors;
 
 use axum::{
     routing::{get, post},
@@ -14,7 +12,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use user_service_infra::auth::{PgUserRepository, PgTenantRepository, PgSessionRepository, AuthServiceImpl};
-use handlers::AppState;
+use user_service_api::{handlers, AppState};
 use shared_auth::enforcer::create_enforcer;
 
 #[tokio::main]
