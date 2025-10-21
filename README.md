@@ -1,22 +1,22 @@
 # 🐜 Anthill - Inventory SaaS Platform
 
-**Anthill** là một nền tảng SaaS quản lý tồn kho đa người dùng (multi-tenant) hiện đại, được xây dựng bằng **Rust** (backend microservices) và **SvelteKit 5** (frontend), tối ưu cho các doanh nghiệp bán hàng online.
+**Anthill** is a modern multi-tenant inventory management SaaS platform built with **Rust** (backend microservices) and **SvelteKit 5** (frontend), optimized for e-commerce businesses.
 
-> 🐜 Giống như đàn kiến làm việc hiệu quả và có tổ chức, Anthill giúp bạn quản lý tồn kho một cách thông minh và tự động.
+> 🐜 Just like an anthill works efficiently and organized, Anthill helps you manage inventory intelligently and automatically.
 
-## 🎯 Tính Năng Chính
+## 🎯 Key Features
 
-- ✅ **Multi-tenant Architecture**: Hỗ trợ nhiều khách hàng trên cùng một hạ tầng
-- ✅ **Real-time Inventory Tracking**: Cập nhật tồn kho thời gian thực
-- ✅ **Marketplace Integration**: Kết nối với Shopee, Lazada, Tiki, WooCommerce, Shopify
-- ✅ **Order Management**: Quản lý đơn hàng từ nhiều kênh
-- ✅ **Payment Gateway**: Tích hợp VNPay, Stripe, MoMo, ZaloPay
-- ✅ **Analytics & Reporting**: Dashboard phân tích với Cube
-- ✅ **Zero Downtime Deployment**: Triển khai liên tục không gián đoạn
+- ✅ **Multi-tenant Architecture**: Support multiple tenants on the same infrastructure
+- ✅ **Real-time Inventory Tracking**: Update inventory in real-time
+- ✅ **Marketplace Integration**: Connect with Shopee, Lazada, Tiki, WooCommerce, Shopify
+- ✅ **Order Management**: Manage orders from multiple channels
+- ✅ **Payment Gateway**: Integrate with VNPay, Stripe, MoMo, ZaloPay
+- ✅ **Analytics & Reporting**: Analytics dashboard with Cube
+- ✅ **Zero Downtime Deployment**: Continuous deployment without interruption
 
-## 🏗️ Kiến Trúc
+## 🏗️ Architecture
 
-Dự án sử dụng kiến trúc **Event-Driven Microservices** với các công nghệ:
+The project uses **Event-Driven Microservices** architecture with the following technologies:
 
 - **Backend**: Rust + Axum + Tokio + SQLx
 - **Frontend**: SvelteKit 5 + TypeScript + Tailwind CSS
@@ -27,19 +27,19 @@ Dự án sử dụng kiến trúc **Event-Driven Microservices** với các côn
 - **Deployment**: CapRover (Docker Swarm)
 - **Gateway**: NGINX (managed by CapRover)
 
-Chi tiết kiến trúc xem tại [ARCHITECTURE.md](./ARCHITECTURE.md)
+See architecture details at [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-## 📁 Cấu Trúc Dự Án
+## 📁 Project Structure
 
-```
+```bash
 anthill/
-├── services/                    # Các microservices Rust
+├── services/                    # Rust microservices
 │   ├── user-service/           # Authentication & tenancy
-│   ├── inventory-service/      # Quản lý tồn kho
-│   ├── order-service/          # Quản lý đơn hàng
-│   ├── integration-service/    # Tích hợp marketplace
-│   └── payment-service/        # Xử lý thanh toán
-├── shared/                      # Thư viện chung
+│   ├── inventory-service/      # Inventory management
+│   ├── order-service/          # Order management
+│   ├── integration-service/    # Marketplace integration
+│   └── payment-service/        # Payment processing
+├── shared/                      # Shared libraries
 │   ├── common/                 # Error types, config, tracing
 │   ├── db/                     # Database utilities
 │   ├── auth/                   # JWT, Casbin middleware
@@ -49,9 +49,9 @@ anthill/
 │   ├── docker-compose/         # Local dev environment
 │   └── sql-migrations/         # Database migrations
 ├── Cargo.toml                   # Rust workspace
-├── ARCHITECTURE.md              # Tài liệu kiến trúc
-├── TODO.md                      # Danh sách công việc
-└── README.md                    # File này
+├── ARCHITECTURE.md              # Architecture documentation
+├── TODO.md                      # Task list
+└── README.md                    # This file
 ```
 
 ## 🚀 Quick Start
@@ -59,52 +59,50 @@ anthill/
 ### Prerequisites
 
 - **Rust** (stable + nightly): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Docker & Docker Compose**: Để chạy môi trường local
-- **Node.js** (>= 20) & **pnpm**: Cho frontend
+- **Docker & Docker Compose**: For running local environment
+- **Node.js** (>= 20) & **pnpm**: For frontend
 - **PostgreSQL Client**: `psql` (optional, for debugging)
 
-### 1. Cài đặt Rust Tools
+### 1. Install Rust Tools
 
 ```bash
-# Cài đặt Rust toolchain
+# Install Rust toolchain
 rustup default stable
 rustup toolchain add nightly
 rustup component add clippy rustfmt
 
-# Cài đặt cargo tools
+# Install cargo tools
 cargo install cargo-watch        # Auto-reload
 cargo install sqlx-cli --features postgres  # DB migrations
 cargo install cargo-make         # Task runner
 ```
 
-### 2. Khởi Động Môi Trường Local
+### 2. Start Local Environment
 
 ```bash
 # Clone repository
 git clone <your-repo-url>
 cd anthill
 
-# Khởi động PostgreSQL, Redis, NATS
-cd infra/docker-compose
+# Start PostgreSQL, Redis, NATS
 docker-compose up -d
 
-# Quay lại thư mục gốc
-cd ../..
+# Return to root directory
 ```
 
 ### 3. Build & Run Backend Services
 
 ```bash
-# Build tất cả services
+# Build all services
 cargo build --workspace
 
-# Chạy user-service (port 3000)
+# Run user-service (port 3000)
 cargo run -p user-service
 
-# Trong terminal khác, chạy inventory-service (port 3001)
+# In another terminal, run inventory-service (port 3001)
 cargo run -p inventory-service
 
-# Và cứ thế tiếp tục với các service khác...
+# And continue with other services...
 ```
 
 ### 4. Setup Frontend (SvelteKit)
@@ -112,14 +110,14 @@ cargo run -p inventory-service
 ```bash
 cd frontend
 
-# Cài đặt dependencies
+# Install dependencies
 pnpm install
 
-# Chạy dev server
+# Run dev server
 pnpm dev
 ```
 
-Truy cập: `http://localhost:5173`
+Access: `http://localhost:5173`
 
 ## 🛠️ Development Commands
 
@@ -135,7 +133,7 @@ cargo clippy --all -- -D warnings
 # Run tests
 cargo test --workspace
 
-# Run specific service với auto-reload
+# Run specific service with auto-reload
 cargo watch -x 'run -p user-service'
 
 # Check code without building
@@ -145,10 +143,10 @@ cargo check --workspace
 ### Database Migrations
 
 ```bash
-# Chạy migrations
+# Run migrations
 sqlx migrate run --database-url postgres://user:password@localhost:5432/inventory_db
 
-# Tạo migration mới
+# Create new migration
 sqlx migrate add <migration_name>
 
 # Revert migration
@@ -176,77 +174,77 @@ pnpm format
 
 ## 📊 Database Schema
 
-Xem chi tiết trong `infra/sql-migrations/`. Các bảng chính:
+See details in `infra/sql-migrations/`. Main tables:
 
-- `tenants`: Thông tin khách hàng (tenant)
-- `users`: Người dùng trong từng tenant
-- `products`: Sản phẩm
-- `inventory_levels`: Mức tồn kho
-- `orders`: Đơn hàng
-- `integrations`: Kết nối marketplace
-- `payments`: Giao dịch thanh toán
+- `tenants`: Tenant information
+- `users`: Users within each tenant
+- `products`: Products
+- `inventory_levels`: Inventory levels
+- `orders`: Orders
+- `integrations`: Marketplace integrations
+- `payments`: Payment transactions
 
 ## 🔐 Authentication & Authorization
 
 - **Authentication**: JWT tokens (access + refresh)
-- **Authorization**: Casbin-rs với multi-tenant RBAC
-- **Tenant Isolation**: Tự động filter queries bằng `tenant_id`
+- **Authorization**: Casbin-rs with multi-tenant RBAC
+- **Tenant Isolation**: Automatically filter queries by `tenant_id`
 
 ## 🌐 API Documentation
 
-Mỗi service expose OpenAPI spec tại endpoint `/api/docs`.
+Each service exposes OpenAPI spec at `/api/docs` endpoint.
 
-Ví dụ: `http://localhost:3000/api/docs` cho user-service.
+Example: `http://localhost:3000/api/docs` for user-service.
 
 ## 📦 Deployment (CapRover)
 
 ### Local → CapRover
 
-1. Cài đặt CapRover trên VPS của bạn: https://caprover.com/docs/get-started.html
-2. Deploy các stateful services (PostgreSQL, Redis, NATS) qua One-Click Apps
-3. Tạo `Dockerfile` cho mỗi microservice
-4. Tạo app trong CapRover và kết nối với GitHub
-5. Push code → CapRover tự động build & deploy
+1. Install CapRover on your VPS: https://caprover.com/docs/get-started.html
+2. Deploy stateful services (PostgreSQL, Redis, NATS) via One-Click Apps
+3. Create `Dockerfile` for each microservice
+4. Create app in CapRover and connect with GitHub
+5. Push code → CapRover automatically builds & deploys
 
-Chi tiết xem trong `TODO.md` - Phase 10.
+See details in `TODO.md` - Phase 10.
 
 ## 🧪 Testing Strategy
 
 - **Unit Tests**: `cargo test` - Coverage > 70%
-- **Integration Tests**: Test API endpoints với test database
-- **E2E Tests**: Playwright cho frontend
-- **Load Tests**: K6 cho stress testing
+- **Integration Tests**: Test API endpoints with test database
+- **E2E Tests**: Playwright for frontend
+- **Load Tests**: K6 for stress testing
 
 ## 📈 Monitoring & Observability
 
 - **Logging**: `tracing` crate + OpenTelemetry
 - **Metrics**: Prometheus + Grafana
-- **Tracing**: Distributed tracing với Jaeger (optional)
-- **Health Checks**: `/health` endpoint cho mỗi service
+- **Tracing**: Distributed tracing with Jaeger (optional)
+- **Health Checks**: `/health` endpoint for each service
 
 ## 🤝 Contributing
 
 1. Fork repository
-2. Tạo feature branch: `git checkout -b feature/amazing-feature`
+2. Create feature branch: `git checkout -b feature/amazing-feature`
 3. Commit changes: `git commit -m 'Add amazing feature'`
 4. Push to branch: `git push origin feature/amazing-feature`
-5. Tạo Pull Request
+5. Create Pull Request
 
 ### Code Style
 
-- Rust: Chạy `cargo fmt` và `cargo clippy` trước khi commit
-- TypeScript: Chạy `pnpm lint` và `pnpm format`
-- Commit messages: Sử dụng conventional commits
+- Rust: Run `cargo fmt` and `cargo clippy` before committing
+- TypeScript: Run `pnpm lint` and `pnpm format`
+- Commit messages: Use conventional commits
 
 ## 📝 Documentation
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Chi tiết kiến trúc hệ thống
-- [TODO.md](./TODO.md) - Danh sách công việc và tiến độ
-- API Docs - OpenAPI spec tại mỗi service endpoint
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed system architecture
+- [TODO.md](./TODO.md) - Task list and progress
+- API Docs - OpenAPI spec at each service endpoint
 
 ## 📄 License
 
-MIT License - Xem file `LICENSE` để biết thêm chi tiết.
+MIT License - See `LICENSE` file for more details.
 
 ## 👥 Team
 
@@ -262,8 +260,8 @@ MIT License - Xem file `LICENSE` để biết thêm chi tiết.
 
 ---
 
-**Trạng thái**: 🚧 Đang phát triển - Phase 1 (Thiết lập cơ sở hạ tầng)
+**Status**: 🚧 In Development - Phase 1 (Infrastructure Setup)
 
-**Mục tiêu MVP**: 2-3 tháng
+**MVP Target**: 2-3 months
 
-Xem [TODO.md](./TODO.md) để theo dõi tiến độ chi tiết.
+See [TODO.md](./TODO.md) for detailed progress tracking.
