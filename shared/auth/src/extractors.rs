@@ -11,6 +11,10 @@ use shared_jwt::Claims;
 
 use crate::enforcer::SharedEnforcer;
 
+pub trait JwtSecretProvider {
+    fn get_jwt_secret(&self) -> &str;
+}
+
 /// Authenticated user information extracted from JWT
 ///
 /// This extractor validates the JWT token and extracts user information.
@@ -57,11 +61,11 @@ impl AuthUser {
 
 impl<S> FromRequestParts<S> for AuthUser
 where
-    S: Send + Sync,
+    S: Send + Sync + JwtSecretProvider,
 {
     type Rejection = StatusCode;
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         // Extract Authorization header
         let auth_header = parts
             .headers
@@ -75,9 +79,8 @@ where
             .ok_or(StatusCode::UNAUTHORIZED)?;
 
         // Decode and validate JWT
-        // Note: In production, get secret from environment/config
-        let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret".to_string());
-        let claims = shared_jwt::decode_jwt(token, &secret).map_err(|e| {
+        let secret = state.get_jwt_secret();
+        let claims = shared_jwt::decode_jwt(token, secret).map_err(|e| {
             warn!("JWT decode failed: {}", e);
             StatusCode::UNAUTHORIZED
         })?;
@@ -153,7 +156,7 @@ where
 /// #[tokio::main]
 /// async fn main() {
 ///     let enforcer = create_enforcer("postgres://localhost/db", None).await.unwrap();
-///     
+///
 ///     let app = Router::new()
 ///         .route("/api/products", get(handler))
 ///         .layer(middleware::from_fn_with_state(enforcer, casbin_middleware));

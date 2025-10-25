@@ -1,23 +1,14 @@
-mod openapi;
-
-use axum::{
-    routing::{get, post},
-    Router,
-    Extension,
-    http::header::{self, HeaderValue},
-};
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tower_http::{
-    trace::TraceLayer,
-    set_header::SetResponseHeaderLayer,
-};
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
-
-use user_service_infra::auth::{PgUserRepository, PgTenantRepository, PgSessionRepository, AuthServiceImpl};
+use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use user_service_api::{handlers, AppState};
-use shared_auth::enforcer::create_enforcer;
+use user_service_infra::auth::{
+    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
+};
+
+#[derive(Clone)]
+pub struct AuthzState {
+    enforcer: SharedEnforcer,
+    jwt_secret: String,
+}
 
 #[tokio::main]
 async fn main() {
@@ -34,8 +25,7 @@ async fn main() {
     tracing::info!("🚀 User Service Starting...");
 
     // Load configuration
-    let config = shared_config::Config::from_env()
-        .expect("Failed to load configuration");
+    let config = shared_config::Config::from_env().expect("Failed to load configuration");
 
     tracing::info!("✅ Configuration loaded");
 
@@ -75,6 +65,11 @@ async fn main() {
         jwt_secret: config.jwt_secret.clone(),
     };
 
+    let authz_state = AuthzState {
+        enforcer: enforcer.clone(),
+        jwt_secret: config.jwt_secret.clone(),
+    };
+
     tracing::info!("✅ Services initialized");
 
     // Public routes (no auth required)
@@ -88,12 +83,13 @@ async fn main() {
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
         .route("/api/v1/users/:user_id", get(handlers::get_user))
-        .layer(axum::middleware::from_fn_with_state(enforcer.clone(), shared_auth::middleware::casbin_middleware));
+        .layer(axum::middleware::from_fn_with_state(
+            authz_state,
+            shared_auth::middleware::casbin_middleware,
+        ));
 
     // Combine all API routes
-    let api_routes = public_routes
-        .merge(protected_routes)
-        .with_state(state);
+    let api_routes = public_routes.merge(protected_routes).with_state(state);
 
     // Build application with routes and Swagger UI
     let app = Router::new()
