@@ -5,27 +5,27 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** InProgress
+**Assignee:** Gemini
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-10-25
 
 ## Detailed Description:
 Create an Axum middleware for authorization. The middleware should intercept incoming requests, extract user and request details, and use the Casbin enforcer to decide if the request is allowed.
 
 ## Specific Sub-tasks:
-- [ ] 1. Create an async function `casbin_middleware(Extension(enforcer), claims, req, next)`.
-- [ ] 2. Extract JWT claims (`user_id`, `tenant_id`).
-- [ ] 3. Extract the request URI path and HTTP method.
-- [ ] 4. Call `enforcer.enforce(...)` with the extracted `(user_id, tenant_id, path, method)`.
-- [ ] 5. If `enforce` returns `false`, return an `Err(StatusCode::FORBIDDEN)`.
-- [ ] 6. If `enforce` returns `true`, call `next.run(req).await`.
+- [x] 1. Create an async function `casbin_middleware(Extension(enforcer), claims, req, next)`.
+- [x] 2. Extract JWT claims (`user_id`, `tenant_id`).
+- [x] 3. Extract the request URI path and HTTP method.
+- [x] 4. Call `enforcer.enforce(...)` with the extracted `(user_id, tenant_id, path, method)`.
+- [x] 5. If `enforce` returns `false`, return an `Err(StatusCode::FORBIDDEN)`.
+- [x] 6. If `enforce` returns `true`, call `next.run(req).await`.
 
 ## Acceptance Criteria:
-- [ ] An async function `casbin_middleware` is created.
-- [ ] The middleware correctly extracts claims, path, and method.
-- [ ] It calls the Casbin enforcer for permission checking.
-- [ ] It correctly returns a 403 status on failure.
+- [x] An async function `casbin_middleware` is created.
+- [x] The middleware correctly extracts claims, path, and method.
+- [x] It calls the Casbin enforcer for permission checking.
+- [x] It correctly returns a 403 status on failure.
 - [ ] The middleware is added to the Axum router for protected routes.
 
 ## Dependencies:
@@ -40,4 +40,4 @@ Create an Axum middleware for authorization. The middleware should intercept inc
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+* 2025-10-25 10:40: Gemini review: Verified `casbin_middleware` function in `shared/auth/src/middleware.rs` is implemented correctly. The middleware is not yet applied to the Axum router. Status updated to InProgress.
