@@ -1,14 +1,10 @@
-use axum::{
-    extract::{Request, State},
-    http::{header, StatusCode},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
-use tracing::{debug, warn};
-
-use casbin::CoreApi;
-
 use crate::enforcer::SharedEnforcer;
+
+#[derive(Clone)]
+pub struct AuthzState {
+    pub enforcer: SharedEnforcer,
+    pub jwt_secret: String,
+}
 
 /// Casbin authorization middleware
 ///
@@ -30,14 +26,14 @@ use crate::enforcer::SharedEnforcer;
 /// #[tokio::main]
 /// async fn main() {
 ///     let enforcer = create_enforcer("postgres://localhost/db", None).await.unwrap();
-///     
+///
 ///     let app = Router::new()
 ///         .route("/api/v1/products", get(handler))
 ///         .layer(middleware::from_fn_with_state(enforcer, casbin_middleware));
 /// }
 /// ```
 pub async fn casbin_middleware(
-    State(enforcer): State<SharedEnforcer>,
+    State(state): State<AuthzState>,
     request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {
@@ -54,9 +50,8 @@ pub async fn casbin_middleware(
         .ok_or(AuthError::InvalidToken)?;
 
     // Decode and validate JWT
-    // Note: In production, get secret from environment/config
-    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret".to_string());
-    let claims = shared_jwt::decode_jwt(token, &secret).map_err(|_| AuthError::InvalidToken)?;
+    let claims =
+        shared_jwt::decode_jwt(token, &state.jwt_secret).map_err(|_| AuthError::InvalidToken)?;
 
     debug!(
         "JWT validated: user_id={}, tenant_id={}, role={}",
@@ -69,7 +64,7 @@ pub async fn casbin_middleware(
 
     // Check permission with Casbin
     let allowed = check_permission(
-        &enforcer,
+        &state.enforcer,
         &claims.sub.to_string(),
         &claims.tenant_id.to_string(),
         resource,
@@ -103,7 +98,7 @@ async fn check_permission(
     action: &str,
 ) -> Result<bool, AuthError> {
     let e = enforcer.read().await;
-    
+
     // Try to enforce with user_id first
     let allowed = e
         .enforce((user_id, tenant_id, resource, action))

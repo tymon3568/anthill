@@ -1,18 +1,8 @@
-use axum::{
-    Json,
-    http::StatusCode,
-    extract::{State, Query},
-};
-use chrono::Utc;
-use user_service_core::domains::auth::{
-    domain::service::AuthService,
-    dto::auth_dto::*,
-};
+use serde::Deserialize;
+use shared_auth::enforcer::SharedEnforcer;
+use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
 use shared_error::AppError;
 use std::sync::Arc;
-use shared_auth::extractors::{AuthUser, RequireAdmin};
-use shared_auth::enforcer::SharedEnforcer;
-use serde::Deserialize;
 
 /// Application state containing service dependencies
 pub struct AppState<S: AuthService> {
@@ -28,6 +18,12 @@ impl<S: AuthService> Clone for AppState<S> {
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),
         }
+    }
+}
+
+impl<S: AuthService> JwtSecretProvider for AppState<S> {
+    fn get_jwt_secret(&self) -> &str {
+        &self.jwt_secret
     }
 }
 
@@ -69,14 +65,14 @@ pub async fn register<S: AuthService>(
 ) -> Result<(StatusCode, Json<AuthResp>), AppError> {
     // Validate request
     use validator::Validate;
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    
-    let resp = state.auth_service.register(
-        payload,
-        client_info.ip_address,
-        client_info.user_agent,
-    ).await?;
+
+    let resp = state
+        .auth_service
+        .register(payload, client_info.ip_address, client_info.user_agent)
+        .await?;
     Ok((StatusCode::CREATED, Json(resp)))
 }
 
@@ -100,14 +96,14 @@ pub async fn login<S: AuthService>(
 ) -> Result<Json<AuthResp>, AppError> {
     // Validate request
     use validator::Validate;
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    
-    let resp = state.auth_service.login(
-        payload,
-        client_info.ip_address,
-        client_info.user_agent,
-    ).await?;
+
+    let resp = state
+        .auth_service
+        .login(payload, client_info.ip_address, client_info.user_agent)
+        .await?;
     Ok(Json(resp))
 }
 
@@ -130,14 +126,14 @@ pub async fn refresh_token<S: AuthService>(
 ) -> Result<Json<AuthResp>, AppError> {
     // Validate request
     use validator::Validate;
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    
-    let resp = state.auth_service.refresh_token(
-        payload,
-        client_info.ip_address,
-        client_info.user_agent,
-    ).await?;
+
+    let resp = state
+        .auth_service
+        .refresh_token(payload, client_info.ip_address, client_info.user_agent)
+        .await?;
     Ok(Json(resp))
 }
 
@@ -159,9 +155,10 @@ pub async fn logout<S: AuthService>(
 ) -> Result<StatusCode, AppError> {
     // Validate request
     use validator::Validate;
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    
+
     state.auth_service.logout(&payload.refresh_token).await?;
     Ok(StatusCode::OK)
 }
@@ -174,8 +171,12 @@ pub struct ListUsersQuery {
     pub page_size: i32,
 }
 
-fn default_page() -> i32 { 1 }
-fn default_page_size() -> i32 { 20 }
+fn default_page() -> i32 {
+    1
+}
+fn default_page_size() -> i32 {
+    20
+}
 
 /// List users (protected endpoint - requires authentication)
 #[utoipa::path(
@@ -203,11 +204,12 @@ pub async fn list_users<S: AuthService>(
 ) -> Result<Json<UserListResp>, AppError> {
     // Extract tenant_id from authenticated user
     let tenant_id = auth_user.tenant_id;
-    
-    let resp = state.auth_service
+
+    let resp = state
+        .auth_service
         .list_users(tenant_id, query.page, query.page_size)
         .await?;
-    
+
     Ok(Json(resp))
 }
 
@@ -237,10 +239,8 @@ pub async fn get_user<S: AuthService>(
 ) -> Result<Json<UserInfo>, AppError> {
     // Admin can view any user in their tenant
     let tenant_id = admin_user.tenant_id;
-    
-    let user_info = state.auth_service
-        .get_user(user_id, tenant_id)
-        .await?;
-    
+
+    let user_info = state.auth_service.get_user(user_id, tenant_id).await?;
+
     Ok(Json(user_info))
 }
