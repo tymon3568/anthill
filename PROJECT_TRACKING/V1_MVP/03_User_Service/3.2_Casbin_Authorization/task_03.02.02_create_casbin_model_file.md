@@ -5,25 +5,25 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** Done
+**Assignee:** Gemini
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-10-25
 
 ## Detailed Description:
 Create the Casbin model configuration file at `shared/auth/model.conf`. This model will define the multi-tenant RBAC structure using `sub, dom, obj, act`.
 
 ## Specific Sub-tasks:
-- [ ] 1. Create a new file named `model.conf` inside the `shared/auth` directory.
-- [ ] 2. Add the `[request_definition]` with `r = sub, dom, obj, act`.
-- [ ] 3. Add the `[policy_definition]` with `p = sub, dom, obj, act`.
-- [ ] 4. Add the `[role_definition]` with `g = _, _, _`.
-- [ ] 5. Add the `[policy_effect]` with `e = some(where (p.eft == allow))`.
-- [ ] 6. Add the `[matchers]` with `m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act`.
+- [x] 1. Create a new file named `model.conf` inside the `shared/auth` directory.
+- [x] 2. Add the `[request_definition]` with `r = sub, dom, obj, act`.
+- [x] 3. Add the `[policy_definition]` with `p = sub, dom, obj, act`.
+- [x] 4. Add the `[role_definition]` with `g = _, _, _`.
+- [x] 5. Add the `[policy_effect]` with `e = some(where (p.eft == allow))`.
+- [x] 6. Add the `[matchers]` with `m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act`.
 
 ## Acceptance Criteria:
-- [ ] The file `shared/auth/model.conf` is created with the exact content specified.
-- [ ] The model correctly defines request, policy, role, effect, and matchers for multi-tenant RBAC.
+- [x] The file `shared/auth/model.conf` is created with the exact content specified.
+- [x] The model correctly defines request, policy, role, effect, and matchers for multi-tenant RBAC.
 
 ## Dependencies:
 *   (Sẽ được cập nhật khi cần)
@@ -37,4 +37,4 @@ Create the Casbin model configuration file at `shared/auth/model.conf`. This mod
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+* 2025-10-25 10:10: Gemini review: Verified `shared/auth/model.conf` exists and has the correct content. Status updated to Done.
