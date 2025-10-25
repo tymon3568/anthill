@@ -3,9 +3,9 @@ use axum::{
     http::{header, request::Parts, StatusCode},
 };
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use tracing::{debug, warn};
 use uuid::Uuid;
-use std::marker::PhantomData;
 
 use casbin::CoreApi;
 use shared_jwt::Claims;
@@ -101,6 +101,9 @@ pub trait Role {
 }
 
 /// Generic extractor for role checking
+///
+/// Note: checks for the 'admin' role also accept 'super_admin'; all
+/// other roles require exact matches.
 #[derive(Debug, Clone)]
 pub struct RequireRole<R: Role> {
     pub user: AuthUser,
@@ -132,7 +135,10 @@ where
             return Err(StatusCode::FORBIDDEN);
         }
 
-        debug!("Role check passed for role '{}': user {}", required_role, user.user_id);
+        debug!(
+            "Role check passed for role '{}': user {}",
+            required_role, user.user_id
+        );
         Ok(RequireRole {
             user,
             _phantom: PhantomData,
@@ -227,7 +233,7 @@ impl RequirePermission {
 
 impl<S> FromRequestParts<S> for RequirePermission
 where
-    S: Send + Sync,
+    S: Send + Sync + JwtSecretProvider,
     SharedEnforcer: FromRequestParts<S>,
 {
     type Rejection = StatusCode;

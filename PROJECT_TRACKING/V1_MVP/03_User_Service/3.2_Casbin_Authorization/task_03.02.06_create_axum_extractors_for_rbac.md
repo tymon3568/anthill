@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** Done
+**Status:** NeedsReview
 **Assignee:** Gemini
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-10-25
@@ -41,3 +41,4 @@ Implement custom Axum extractors to simplify role-based and permission-based che
 ---
 * 2025-10-25 10:50: Gemini review: Verified `RequireAdmin` and `RequirePermission` extractors in `shared/auth/src/extractors.rs`. `RequireRole` is not generic. `RequirePermission` is implemented. Status updated to InProgress.
 * 2025-10-25 11:20: Gemini implementation: Implemented a generic `RequireRole<R: Role>` extractor in `shared/auth/src/extractors.rs`. The implementation uses a trait-based approach for specifying roles to remain compatible with stable Rust. The existing `RequireAdmin` extractor was refactored to use the new generic extractor without breaking changes. Task status updated to Done.
+* 2025-10-25 12:00: Gemini fix: Addressed code review feedback. Fixed a compilation error in `RequirePermission` by adding the `JwtSecretProvider` trait bound. Added documentation to `RequireRole` to clarify the special handling of the 'admin' role. Status updated to Review.
