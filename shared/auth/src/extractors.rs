@@ -5,6 +5,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use tracing::{debug, warn};
 use uuid::Uuid;
+use std::marker::PhantomData;
 
 use casbin::CoreApi;
 use shared_jwt::Claims;
@@ -94,9 +95,63 @@ where
     }
 }
 
+/// Trait to define a role for the extractor
+pub trait Role {
+    fn name() -> &'static str;
+}
+
+/// Generic extractor for role checking
+#[derive(Debug, Clone)]
+pub struct RequireRole<R: Role> {
+    pub user: AuthUser,
+    _phantom: PhantomData<R>,
+}
+
+impl<S, R> FromRequestParts<S> for RequireRole<R>
+where
+    R: Role + Send + Sync,
+    S: Send + Sync + JwtSecretProvider,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let user = AuthUser::from_request_parts(parts, state).await?;
+        let required_role = R::name();
+
+        let authorized = if required_role == "admin" {
+            user.is_admin()
+        } else {
+            user.has_role(required_role)
+        };
+
+        if !authorized {
+            warn!(
+                "Role check failed for role '{}': user {} has role '{}'",
+                required_role, user.user_id, user.role
+            );
+            return Err(StatusCode::FORBIDDEN);
+        }
+
+        debug!("Role check passed for role '{}': user {}", required_role, user.user_id);
+        Ok(RequireRole {
+            user,
+            _phantom: PhantomData,
+        })
+    }
+}
+
+/// Define an AdminRole struct implementing the Role trait
+pub struct AdminRole;
+impl Role for AdminRole {
+    fn name() -> &'static str {
+        "admin"
+    }
+}
+
 /// Extractor that requires admin role
 ///
 /// Convenience extractor for admin-only endpoints.
+/// It is implemented using the generic `RequireRole` extractor.
 ///
 /// # Usage
 /// ```no_run
@@ -114,23 +169,13 @@ pub struct RequireAdmin(pub AuthUser);
 
 impl<S> FromRequestParts<S> for RequireAdmin
 where
-    S: Send + Sync,
+    S: Send + Sync + JwtSecretProvider,
 {
     type Rejection = StatusCode;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let user = AuthUser::from_request_parts(parts, state).await?;
-
-        if !user.is_admin() {
-            warn!(
-                "Admin check failed: user {} has role '{}'",
-                user.user_id, user.role
-            );
-            return Err(StatusCode::FORBIDDEN);
-        }
-
-        debug!("Admin check passed: user {}", user.user_id);
-        Ok(RequireAdmin(user))
+        let role_extractor = RequireRole::<AdminRole>::from_request_parts(parts, state).await?;
+        Ok(RequireAdmin(role_extractor.user))
     }
 }
 
