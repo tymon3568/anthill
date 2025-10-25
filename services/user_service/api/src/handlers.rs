@@ -402,7 +402,9 @@ pub async fn assign_role_to_user<S: AuthService>(
     payload
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-
+    // Verify user exists and belongs to admin's tenant
+    let tenant_id = admin_user.tenant_id;
+    let target_user = state.auth_service.get_user(user_id, tenant_id).await?;
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
         .add_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
@@ -447,7 +449,9 @@ pub async fn revoke_role_from_user<S: AuthService>(
     payload
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-
+    // Verify user exists and belongs to admin's tenant
+    let tenant_id = admin_user.tenant_id;
+    let target_user = state.auth_service.get_user(user_id, tenant_id).await?;
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
         .remove_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
