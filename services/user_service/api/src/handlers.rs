@@ -247,27 +247,35 @@ pub async fn get_user<S: AuthService>(
 
 // DTOs for role management
 
-#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
 pub struct CreatePolicyReq {
+    #[validate(length(min = 1))]
     pub role: String,
+    #[validate(length(min = 1))]
     pub resource: String,
+    #[validate(length(min = 1))]
     pub action: String,
 }
 
-#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
 pub struct DeletePolicyReq {
+    #[validate(length(min = 1))]
     pub role: String,
+    #[validate(length(min = 1))]
     pub resource: String,
+    #[validate(length(min = 1))]
     pub action: String,
 }
 
-#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
 pub struct AssignRoleReq {
+    #[validate(length(min = 1))]
     pub role: String,
 }
 
-#[derive(Debug, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
 pub struct RevokeRoleReq {
+    #[validate(length(min = 1))]
     pub role: String,
 }
 
@@ -295,6 +303,12 @@ pub async fn add_policy<S: AuthService>(
     State(state): State<AppState<S>>,
     Json(payload): Json<CreatePolicyReq>,
 ) -> Result<StatusCode, AppError> {
+    // Validate request
+    use validator::Validate;
+    payload
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
         .add_policy(vec![
@@ -334,6 +348,12 @@ pub async fn remove_policy<S: AuthService>(
     State(state): State<AppState<S>>,
     Json(payload): Json<DeletePolicyReq>,
 ) -> Result<StatusCode, AppError> {
+    // Validate request
+    use validator::Validate;
+    payload
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
         .remove_policy(vec![
@@ -377,6 +397,12 @@ pub async fn assign_role_to_user<S: AuthService>(
     axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
     Json(payload): Json<AssignRoleReq>,
 ) -> Result<StatusCode, AppError> {
+    // Validate request
+    use validator::Validate;
+    payload
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
         .add_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
@@ -416,6 +442,12 @@ pub async fn revoke_role_from_user<S: AuthService>(
     axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
     Json(payload): Json<RevokeRoleReq>,
 ) -> Result<StatusCode, AppError> {
+    // Validate request
+    use validator::Validate;
+    payload
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
         .remove_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
