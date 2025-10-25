@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** InProgress
+**Status:** Done
 **Assignee:** Gemini
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-10-25
@@ -26,7 +26,7 @@ Create an Axum middleware for authorization. The middleware should intercept inc
 - [x] The middleware correctly extracts claims, path, and method.
 - [x] It calls the Casbin enforcer for permission checking.
 - [x] It correctly returns a 403 status on failure.
-- [ ] The middleware is added to the Axum router for protected routes.
+- [x] The middleware is added to the Axum router for protected routes.
 
 ## Dependencies:
 *   Task: `task_03.02.04_initialize_casbin_enforcer.md`
