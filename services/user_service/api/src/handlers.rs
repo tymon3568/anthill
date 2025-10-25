@@ -249,11 +249,11 @@ pub async fn get_user<S: AuthService>(
 
 #[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
 pub struct CreatePolicyReq {
-    #[validate(length(min = 1))]
+    #[validate(length(min = 1, max = 255))]
     pub role: String,
-    #[validate(length(min = 1))]
+    #[validate(length(min = 1, max = 255))]
     pub resource: String,
-    #[validate(length(min = 1))]
+    #[validate(length(min = 1, max = 255))]
     pub action: String,
 }
 
@@ -299,7 +299,7 @@ pub struct RevokeRoleReq {
     )
 )]
 pub async fn add_policy<S: AuthService>(
-    RequireAdmin(_): RequireAdmin,
+    RequireAdmin(admin_user): RequireAdmin,
     State(state): State<AppState<S>>,
     Json(payload): Json<CreatePolicyReq>,
 ) -> Result<StatusCode, AppError> {
@@ -308,16 +308,15 @@ pub async fn add_policy<S: AuthService>(
     payload
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
         .add_policy(vec![
             payload.role.clone(),
+            admin_user.tenant_id.to_string(),
             payload.resource.clone(),
             payload.action.clone(),
         ])
         .await?;
-
     if added {
         enforcer.save_policy().await?;
         Ok(StatusCode::OK)
@@ -344,7 +343,7 @@ pub async fn add_policy<S: AuthService>(
     )
 )]
 pub async fn remove_policy<S: AuthService>(
-    RequireAdmin(_): RequireAdmin,
+    RequireAdmin(admin_user): RequireAdmin,
     State(state): State<AppState<S>>,
     Json(payload): Json<DeletePolicyReq>,
 ) -> Result<StatusCode, AppError> {
@@ -354,13 +353,13 @@ pub async fn remove_policy<S: AuthService>(
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
+    let scoped_role = format!("{}:{}", admin_user.tenant_id, payload.role.trim());
+    let resource = payload.resource.trim().to_string();
+    let action = payload.action.trim().to_string();
+
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
-        .remove_policy(vec![
-            payload.role.clone(),
-            payload.resource.clone(),
-            payload.action.clone(),
-        ])
+        .remove_policy(vec![scoped_role, resource, action])
         .await?;
 
     if removed {
@@ -392,7 +391,7 @@ pub async fn remove_policy<S: AuthService>(
     )
 )]
 pub async fn assign_role_to_user<S: AuthService>(
-    RequireAdmin(_): RequireAdmin,
+    RequireAdmin(admin_user): RequireAdmin,
     State(state): State<AppState<S>>,
     axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
     Json(payload): Json<AssignRoleReq>,
@@ -404,10 +403,11 @@ pub async fn assign_role_to_user<S: AuthService>(
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
     // Verify user exists and belongs to admin's tenant
     let tenant_id = admin_user.tenant_id;
-    let target_user = state.auth_service.get_user(user_id, tenant_id).await?;
+    state.auth_service.get_user(user_id, tenant_id).await?;
+    let scoped_role = format!("{}:{}", tenant_id, payload.role.trim());
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
-        .add_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
+        .add_grouping_policy(vec![user_id.to_string(), scoped_role])
         .await?;
 
     if added {
@@ -439,7 +439,7 @@ pub async fn assign_role_to_user<S: AuthService>(
     )
 )]
 pub async fn revoke_role_from_user<S: AuthService>(
-    RequireAdmin(_): RequireAdmin,
+    RequireAdmin(admin_user): RequireAdmin,
     State(state): State<AppState<S>>,
     axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
     Json(payload): Json<RevokeRoleReq>,
@@ -451,10 +451,11 @@ pub async fn revoke_role_from_user<S: AuthService>(
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
     // Verify user exists and belongs to admin's tenant
     let tenant_id = admin_user.tenant_id;
-    let target_user = state.auth_service.get_user(user_id, tenant_id).await?;
+    state.auth_service.get_user(user_id, tenant_id).await?;
+    let scoped_role = format!("{}:{}", tenant_id, payload.role.trim());
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
-        .remove_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
+        .remove_grouping_policy(vec![user_id.to_string(), scoped_role])
         .await?;
 
     if removed {
