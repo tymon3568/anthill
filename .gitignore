@@ -13,6 +13,8 @@ Cargo.lock
 *.swp
 *.swo
 *~
+.roo/
+.windsurf/
 
 # OS
 .DS_Store

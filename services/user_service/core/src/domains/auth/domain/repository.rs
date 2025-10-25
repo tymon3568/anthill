@@ -21,8 +21,8 @@ pub trait UserRepository: Send + Sync {
     /// Update a user
     async fn update(&self, user: &User) -> Result<User, AppError>;
     
-    /// List users with pagination (within a tenant)
-    async fn list(&self, tenant_id: Uuid, page: i32, page_size: i32) -> Result<(Vec<User>, i64), AppError>;
+    /// List users with pagination and optional filtering (within a tenant)
+    async fn list(&self, tenant_id: Uuid, page: i32, page_size: i32, role: Option<String>, status: Option<String>) -> Result<(Vec<User>, i64), AppError>;
     
     /// Check if email exists within a tenant
     async fn email_exists(&self, email: &str, tenant_id: Uuid) -> Result<bool, AppError>;

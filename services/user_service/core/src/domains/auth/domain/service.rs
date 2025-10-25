@@ -37,8 +37,8 @@ pub trait AuthService: Send + Sync {
     /// Logout user by revoking refresh token session
     async fn logout(&self, refresh_token: &str) -> Result<(), AppError>;
     
-    /// List users (paginated, tenant-scoped)
-    async fn list_users(&self, tenant_id: Uuid, page: i32, page_size: i32) -> Result<UserListResp, AppError>;
+    /// List users (paginated, tenant-scoped, with optional filtering)
+    async fn list_users(&self, tenant_id: Uuid, page: i32, page_size: i32, role: Option<String>, status: Option<String>) -> Result<UserListResp, AppError>;
     
     /// Get user info by ID
     async fn get_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<UserInfo, AppError>;

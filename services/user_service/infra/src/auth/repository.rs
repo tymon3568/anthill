@@ -96,28 +96,44 @@ impl UserRepository for PgUserRepository {
         Ok(user)
     }
     
-    async fn list(&self, tenant_id: Uuid, page: i32, page_size: i32) -> Result<(Vec<User>, i64), AppError> {
+    async fn list(&self, tenant_id: Uuid, page: i32, page_size: i32, role: Option<String>, status: Option<String>) -> Result<(Vec<User>, i64), AppError> {
         let offset = (page - 1) * page_size;
-        
-        // Get total count
-        let total: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND status = 'active' AND deleted_at IS NULL"
-        )
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await?;
-        
-        // Get users
-        let users = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE tenant_id = $1 AND status = 'active' AND deleted_at IS NULL 
-             ORDER BY created_at DESC LIMIT $2 OFFSET $3"
-        )
-        .bind(tenant_id)
-        .bind(page_size as i64)
-        .bind(offset as i64)
-        .fetch_all(&self.pool)
-        .await?;
-        
+
+        // Build query dynamically
+        let mut query = "SELECT * FROM users WHERE tenant_id = $1 AND deleted_at IS NULL".to_string();
+        let mut count_query = "SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND deleted_at IS NULL".to_string();
+
+        // Add role filter
+        if let Some(role_filter) = &role {
+            query.push_str(&format!(" AND role = '{}'", role_filter));
+            count_query.push_str(&format!(" AND role = '{}'", role_filter));
+        }
+
+        // Add status filter
+        if let Some(status_filter) = &status {
+            query.push_str(&format!(" AND status = '{}'", status_filter));
+            count_query.push_str(&format!(" AND status = '{}'", status_filter));
+        } else {
+            // Default to active status
+            query.push_str(" AND status = 'active'");
+            count_query.push_str(" AND status = 'active'");
+        }
+
+        // Add ordering and pagination
+        query.push_str(&format!(" ORDER BY created_at DESC LIMIT {} OFFSET {}", page_size, offset));
+
+        // Execute count query
+        let total: (i64,) = sqlx::query_as(&count_query)
+            .bind(tenant_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        // Execute data query
+        let users = sqlx::query_as::<_, User>(&query)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await?;
+
         Ok((users, total.0))
     }
     
