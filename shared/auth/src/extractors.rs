@@ -66,6 +66,25 @@ where
 {
     type Rejection = StatusCode;
 
+    /// Extracts an AuthUser from request parts by validating a Bearer JWT in the `Authorization` header.
+    ///
+    /// Returns `Ok(AuthUser)` when a valid Bearer token is present and the JWT decodes with the secret
+    /// provided by the state. Returns `StatusCode::UNAUTHORIZED` when the header is missing, not a
+    /// Bearer token, or the JWT fails to decode or validate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use axum::http::request::Parts;
+    /// # use axum::http::header;
+    /// # use uuid::Uuid;
+    /// # // Assume `state` implements `JwtSecretProvider` and `parts` contains an Authorization header:
+    /// # // let mut parts = Parts::default();
+    /// # // parts.headers.insert(header::AUTHORIZATION, "Bearer <token>".parse().unwrap());
+    /// # // let state = ...;
+    /// // let auth = AuthUser::from_request_parts(&mut parts, &state).await?;
+    /// // assert_eq!(auth.user_id, Uuid::parse_str("...")?);
+    /// ```
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         // Extract Authorization header
         let auth_header = parts
@@ -117,6 +136,41 @@ where
 {
     type Rejection = StatusCode;
 
+    /// Extracts the authenticated user from the request and enforces that the user has role `R`.
+    ///
+    /// If the user's role matches `R::name()` (with `"admin"` treated as matching both `admin` and `super_admin`),
+    /// the extractor returns a `RequireRole<R>` containing the authenticated `AuthUser`.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(RequireRole<R>)` when the user is authenticated and authorized for the role, `Err(StatusCode::FORBIDDEN)`
+    /// when the user is authenticated but does not have the required role. Other rejections from authentication are
+    /// forwarded as-is.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use axum::http::request::Parts;
+    /// # use uuid::Uuid;
+    /// # struct MyState;
+    /// # impl crate::JwtSecretProvider for MyState { fn get_jwt_secret(&self) -> &str { "secret" } }
+    /// # struct MyRole;
+    /// # impl crate::Role for MyRole { fn name() -> &'static str { "user" } }
+    /// # async fn demo(parts: &mut Parts, state: &MyState) {
+    /// // Attempt to extract and enforce the `MyRole` role from the request:
+    /// let result = RequireRole::<MyRole>::from_request_parts(parts, state).await;
+    /// match result {
+    ///     Ok(require_role) => {
+    ///         // Authorized: access require_role.user
+    ///         let _user_id = require_role.user.user_id;
+    ///     }
+    ///     Err(status) => {
+    ///         // `StatusCode::FORBIDDEN` if role check failed, or other status if auth failed.
+    ///         let _ = status;
+    ///     }
+    /// }
+    /// # }
+    /// ```
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let user = AuthUser::from_request_parts(parts, state).await?;
         let required_role = R::name();
@@ -149,6 +203,23 @@ where
 /// Define an AdminRole struct implementing the Role trait
 pub struct AdminRole;
 impl Role for AdminRole {
+    /// Provides the canonical name for the admin role.
+    
+    ///
+    
+    /// This function returns the static role identifier used to represent administrative users.
+    
+    ///
+    
+    /// # Examples
+    
+    ///
+    
+    /// ```
+    
+    /// assert_eq!(AdminRole::name(), "admin");
+    
+    /// ```
     fn name() -> &'static str {
         "admin"
     }
@@ -179,6 +250,19 @@ where
 {
     type Rejection = StatusCode;
 
+    /// Extracts an authenticated admin user from request parts and returns it wrapped in `RequireAdmin`.
+    ///
+    /// This will perform JWT authentication and enforce that the authenticated user has an admin role; on failure it yields an appropriate `StatusCode` rejection.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Used as an extractor in an axum handler to require an admin user.
+    /// async fn admin_handler(RequireAdmin(user): RequireAdmin) {
+    ///     // `user` is guaranteed to be an authenticated admin
+    ///     let _id = user.user_id;
+    /// }
+    /// ```
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let role_extractor = RequireRole::<AdminRole>::from_request_parts(parts, state).await?;
         Ok(RequireAdmin(role_extractor.user))
