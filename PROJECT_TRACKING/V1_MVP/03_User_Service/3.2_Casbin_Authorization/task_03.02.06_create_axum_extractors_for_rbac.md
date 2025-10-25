@@ -14,7 +14,7 @@
 Implement custom Axum extractors to simplify role-based and permission-based checks directly in API handlers, making the code cleaner and more declarative.
 
 ## Specific Sub-tasks:
-- [x] 1. Implement a `RequireRole` extractor that takes a role name (e.g., `RequireRole("admin")`).
+- [x] 1. Implement a generic `RequireRole<R: Role>` extractor (e.g., `RequireRole<AdminRole>`).
 - [x] 2. Implement a `RequirePermission` extractor that takes a resource and action (e.g., `RequirePermission { resource: "products", action: "write" }`).
 - [x] 3. Both extractors should use the Casbin enforcer from an extension to perform the check.
 - [x] 4. If the check fails, the extractor should return an appropriate `Rejection` (e.g., a 403 Forbidden status).
