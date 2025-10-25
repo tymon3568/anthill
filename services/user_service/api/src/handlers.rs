@@ -244,3 +244,191 @@ pub async fn get_user<S: AuthService>(
 
     Ok(Json(user_info))
 }
+
+// DTOs for role management
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct CreatePolicyReq {
+    pub role: String,
+    pub resource: String,
+    pub action: String,
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct DeletePolicyReq {
+    pub role: String,
+    pub resource: String,
+    pub action: String,
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct AssignRoleReq {
+    pub role: String,
+}
+
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
+pub struct RevokeRoleReq {
+    pub role: String,
+}
+
+// Role management handlers
+
+/// Add a policy to a role (admin only)
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/policies",
+    tag = "admin",
+    operation_id = "admin_add_policy",
+    request_body = CreatePolicyReq,
+    responses(
+        (status = 200, description = "Policy added successfully"),
+        (status = 400, description = "Invalid request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin only"),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn add_policy<S: AuthService>(
+    RequireAdmin(_): RequireAdmin,
+    State(state): State<AppState<S>>,
+    Json(payload): Json<CreatePolicyReq>,
+) -> Result<StatusCode, AppError> {
+    let mut enforcer = state.enforcer.write().await;
+    let added = enforcer
+        .add_policy(vec![
+            payload.role.clone(),
+            payload.resource.clone(),
+            payload.action.clone(),
+        ])
+        .await?;
+
+    if added {
+        enforcer.save_policy().await?;
+        Ok(StatusCode::OK)
+    } else {
+        Err(AppError::bad_request("Policy already exists"))
+    }
+}
+
+/// Remove a policy from a role (admin only)
+#[utoipa::path(
+    delete,
+    path = "/api/v1/admin/policies",
+    tag = "admin",
+    operation_id = "admin_remove_policy",
+    request_body = DeletePolicyReq,
+    responses(
+        (status = 200, description = "Policy removed successfully"),
+        (status = 400, description = "Invalid request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin only"),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn remove_policy<S: AuthService>(
+    RequireAdmin(_): RequireAdmin,
+    State(state): State<AppState<S>>,
+    Json(payload): Json<DeletePolicyReq>,
+) -> Result<StatusCode, AppError> {
+    let mut enforcer = state.enforcer.write().await;
+    let removed = enforcer
+        .remove_policy(vec![
+            payload.role.clone(),
+            payload.resource.clone(),
+            payload.action.clone(),
+        ])
+        .await?;
+
+    if removed {
+        enforcer.save_policy().await?;
+        Ok(StatusCode::OK)
+    } else {
+        Err(AppError::bad_request("Policy does not exist"))
+    }
+}
+
+/// Assign a role to a user (admin only)
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/users/{user_id}/roles",
+    tag = "admin",
+    operation_id = "admin_assign_role",
+    params(
+        ("user_id" = uuid::Uuid, Path, description = "User ID"),
+    ),
+    request_body = AssignRoleReq,
+    responses(
+        (status = 200, description = "Role assigned successfully"),
+        (status = 400, description = "Invalid request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin only"),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn assign_role_to_user<S: AuthService>(
+    RequireAdmin(_): RequireAdmin,
+    State(state): State<AppState<S>>,
+    axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
+    Json(payload): Json<AssignRoleReq>,
+) -> Result<StatusCode, AppError> {
+    let mut enforcer = state.enforcer.write().await;
+    let added = enforcer
+        .add_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
+        .await?;
+
+    if added {
+        enforcer.save_policy().await?;
+        Ok(StatusCode::OK)
+    } else {
+        Err(AppError::bad_request("User already has this role"))
+    }
+}
+
+/// Revoke a role from a user (admin only)
+#[utoipa::path(
+    delete,
+    path = "/api/v1/admin/users/{user_id}/roles",
+    tag = "admin",
+    operation_id = "admin_revoke_role",
+    params(
+        ("user_id" = uuid::Uuid, Path, description = "User ID"),
+    ),
+    request_body = RevokeRoleReq,
+    responses(
+        (status = 200, description = "Role revoked successfully"),
+        (status = 400, description = "Invalid request"),
+        (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - Admin only"),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn revoke_role_from_user<S: AuthService>(
+    RequireAdmin(_): RequireAdmin,
+    State(state): State<AppState<S>>,
+    axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
+    Json(payload): Json<RevokeRoleReq>,
+) -> Result<StatusCode, AppError> {
+    let mut enforcer = state.enforcer.write().await;
+    let removed = enforcer
+        .remove_grouping_policy(vec![user_id.to_string(), payload.role.clone()])
+        .await?;
+
+    if removed {
+        enforcer.save_policy().await?;
+        Ok(StatusCode::OK)
+    } else {
+        Err(AppError::bad_request("User does not have this role"))
+    }
+}
+
+// Note: The endpoint for creating a role (POST /api/v1/admin/roles) is not implemented
+// because a role in Casbin is implicitly created when it is used in a policy.
+// If an explicit list of roles is needed, it should be managed in the application's own database.
