@@ -5,10 +5,10 @@
 **Phase:** 03_User_Service
 **Module:** 3.3_User_Management
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** InProgress_By_Cascade
+**Assignee:** Cascade 
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-10-25
 
 ## Detailed Description:
 Implement an API endpoint for listing all users within the caller's tenant.
@@ -38,6 +38,4 @@ Implement an API endpoint for listing all users within the caller's tenant.
 ---
 *   (Khu vực dành cho các câu hỏi, thảo luận, hoặc ghi chú trong quá trình thực hiện)
 
-## AI Agent Log:
----
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+* 2025-10-25 18:20: Cascade started working on this task. Created branch 'feature/03.03.01-list-users-in-tenant'. Task status updated to InProgress_By_Cascade.
