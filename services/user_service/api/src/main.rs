@@ -1,3 +1,4 @@
+use axum::routing::{delete, get, post};
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use user_service_api::{handlers, AppState};
 use user_service_infra::auth::{
@@ -83,6 +84,15 @@ async fn main() {
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
         .route("/api/v1/users/:user_id", get(handlers::get_user))
+        // Admin routes for role management
+        .route(
+            "/api/v1/admin/policies",
+            post(handlers::add_policy).delete(handlers::remove_policy),
+        )
+        .route(
+            "/api/v1/admin/users/:user_id/roles",
+            post(handlers::assign_role_to_user).delete(handlers::revoke_role_from_user),
+        )
         .layer(axum::middleware::from_fn_with_state(
             authz_state,
             shared_auth::middleware::casbin_middleware,

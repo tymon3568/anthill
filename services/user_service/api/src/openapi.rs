@@ -1,5 +1,5 @@
-use utoipa::OpenApi;
 use user_service_core::domains::auth::dto::auth_dto::*;
+use utoipa::OpenApi;
 
 /// OpenAPI documentation for User Service
 #[derive(OpenApi)]
@@ -12,6 +12,10 @@ use user_service_core::domains::auth::dto::auth_dto::*;
         crate::handlers::logout,
         crate::handlers::list_users,
         crate::handlers::get_user,
+        crate::handlers::add_policy,
+        crate::handlers::remove_policy,
+        crate::handlers::assign_role_to_user,
+        crate::handlers::revoke_role_from_user,
     ),
     components(
         schemas(
@@ -23,12 +27,17 @@ use user_service_core::domains::auth::dto::auth_dto::*;
             UserInfo,
             UserListResp,
             ErrorResp,
+            crate::handlers::CreatePolicyReq,
+            crate::handlers::DeletePolicyReq,
+            crate::handlers::AssignRoleReq,
+            crate::handlers::RevokeRoleReq,
         )
     ),
     tags(
         (name = "health", description = "Health check endpoints"),
         (name = "auth", description = "Authentication endpoints"),
         (name = "users", description = "User management endpoints"),
+        (name = "admin", description = "Admin-only endpoints for role and policy management"),
     ),
     info(
         title = "User Service API",
@@ -49,19 +58,18 @@ pub struct ApiDoc;
 #[cfg(feature = "export-spec")]
 pub fn export_spec() -> std::io::Result<()> {
     use std::path::Path;
-    
+
     let openapi = ApiDoc::openapi();
-    let yaml = serde_yaml::to_string(&openapi)
-        .expect("Failed to serialize OpenAPI to YAML");
-    
+    let yaml = serde_yaml::to_string(&openapi).expect("Failed to serialize OpenAPI to YAML");
+
     let path = Path::new(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../../shared/openapi/user.yaml"
     ));
-    
+
     std::fs::create_dir_all(path.parent().unwrap())?;
     std::fs::write(path, yaml)?;
-    
+
     println!("cargo:warning=OpenAPI spec exported to {:?}", path);
     Ok(())
 }
