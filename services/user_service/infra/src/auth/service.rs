@@ -359,15 +359,15 @@ where
             // If session not found, it might be already revoked or invalid
             return Err(AppError::InvalidToken);
         }
-        
+
         Ok(())
     }
-    
-    async fn list_users(&self, tenant_id: Uuid, page: i32, page_size: i32) -> Result<UserListResp, AppError> {
-        let (users, total) = self.user_repo.list(tenant_id, page, page_size).await?;
-        
+
+    async fn list_users(&self, tenant_id: Uuid, page: i32, page_size: i32, role: Option<String>, status: Option<String>) -> Result<UserListResp, AppError> {
+        let (users, total) = self.user_repo.list(tenant_id, page, page_size, role, status).await?;
+
         let user_infos = users.iter().map(|u| self.user_to_user_info(u)).collect();
-        
+
         Ok(UserListResp {
             users: user_infos,
             total,
@@ -375,7 +375,7 @@ where
             page_size,
         })
     }
-    
+
     async fn get_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<UserInfo, AppError> {
         let user = self.user_repo
             .find_by_id(user_id, tenant_id)

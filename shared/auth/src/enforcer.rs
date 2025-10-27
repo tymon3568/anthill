@@ -31,7 +31,7 @@ pub async fn create_enforcer(
     model_path: Option<&str>,
 ) -> Result<SharedEnforcer, Box<dyn std::error::Error>> {
     let model_path = model_path.unwrap_or("shared/auth/model.conf");
-    
+
     info!("Initializing Casbin enforcer with model: {}", model_path);
 
     // Load Casbin model
@@ -45,10 +45,10 @@ pub async fn create_enforcer(
 
     // Create enforcer with model and adapter
     let mut enforcer = Enforcer::new(model, adapter).await?;
-    
+
     // Enable logging for debugging
     enforcer.enable_log(true);
-    
+
     // Enable auto-save (policies will be saved to DB automatically)
     enforcer.enable_auto_save(true);
 
@@ -76,16 +76,16 @@ pub async fn enforce(
     action: &str,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let e = enforcer.read().await;
-    
+
     let allowed = e.enforce((user_id, tenant_id, resource, action))?;
-    
+
     if !allowed {
         warn!(
             "Permission denied: user={}, tenant={}, resource={}, action={}",
             user_id, tenant_id, resource, action
         );
     }
-    
+
     Ok(allowed)
 }
 
@@ -105,7 +105,14 @@ pub async fn add_policy(
     action: &str,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let mut e = enforcer.write().await;
-    let added = e.add_policy(vec![subject.to_string(), domain.to_string(), resource.to_string(), action.to_string()]).await?;
+    let added = e
+        .add_policy(vec![
+            subject.to_string(),
+            domain.to_string(),
+            resource.to_string(),
+            action.to_string(),
+        ])
+        .await?;
     Ok(added)
 }
 
@@ -118,7 +125,14 @@ pub async fn remove_policy(
     action: &str,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let mut e = enforcer.write().await;
-    let removed = e.remove_policy(vec![subject.to_string(), domain.to_string(), resource.to_string(), action.to_string()]).await?;
+    let removed = e
+        .remove_policy(vec![
+            subject.to_string(),
+            domain.to_string(),
+            resource.to_string(),
+            action.to_string(),
+        ])
+        .await?;
     Ok(removed)
 }
 
@@ -166,16 +180,106 @@ pub async fn get_roles_for_user(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use casbin::{DefaultModel, Enforcer, MgmtApi, RbacApi};
+    use sqlx::sqlite::SqlitePoolOptions;
+    use sqlx_adapter::SqlxAdapter;
 
-    // Note: These tests require a PostgreSQL database connection
-    // You can run them with: cargo test --features test-db
+    async fn setup_test_enforcer() -> Enforcer {
+        // Note: The model file path is relative to the crate root
+        let model = DefaultModel::from_file("model.conf").await.unwrap();
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        let adapter = SqlxAdapter::new_with_pool(pool).await.unwrap();
+        Enforcer::new(model, adapter).await.unwrap()
+    }
 
     #[tokio::test]
-    #[ignore] // Ignore by default (requires DB)
-    async fn test_enforcer_initialization() {
-        // This would need a test database
-        // let pool = PgPool::connect("postgres://localhost/test_db").await.unwrap();
-        // let enforcer = create_enforcer(pool, None).await.unwrap();
-        // assert!(enforcer is initialized);
+    async fn test_role_assignments() {
+        let mut e = setup_test_enforcer().await;
+        e.add_grouping_policy(vec![
+            "user1".to_string(),
+            "admin".to_string(),
+            "tenant1".to_string(),
+        ])
+        .await
+        .unwrap();
+
+        assert_eq!(
+            e.get_roles_for_user("user1", Some("tenant1")),
+            vec!["admin".to_string()]
+        );
+
+        e.remove_grouping_policy(vec![
+            "user1".to_string(),
+            "admin".to_string(),
+            "tenant1".to_string(),
+        ])
+        .await
+        .unwrap();
+
+        assert!(e.get_roles_for_user("user1", Some("tenant1")).is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_permission_checks() {
+        let mut e = setup_test_enforcer().await;
+        e.add_policy(vec![
+            "admin".to_string(),
+            "tenant1".to_string(),
+            "data1".to_string(),
+            "read".to_string(),
+        ])
+        .await
+        .unwrap();
+
+        assert!(e.enforce(("admin", "tenant1", "data1", "read")).unwrap());
+        assert!(!e.enforce(("admin", "tenant1", "data1", "write")).unwrap());
+        assert!(!e.enforce(("user", "tenant1", "data1", "read")).unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_tenant_isolation() {
+        let mut e = setup_test_enforcer().await;
+        e.add_policy(vec![
+            "user1".to_string(),
+            "tenant1".to_string(),
+            "data1".to_string(),
+            "read".to_string(),
+        ])
+        .await
+        .unwrap();
+
+        assert!(e.enforce(("user1", "tenant1", "data1", "read")).unwrap());
+        assert!(!e.enforce(("user1", "tenant2", "data1", "read")).unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_admin_role_access() {
+        let mut e = setup_test_enforcer().await;
+        e.add_grouping_policy(vec![
+            "alice".to_string(),
+            "admin".to_string(),
+            "tenant1".to_string(),
+        ])
+        .await
+        .unwrap();
+        e.add_policy(vec![
+            "admin".to_string(),
+            "tenant1".to_string(),
+            "/api/v1/admin/users".to_string(),
+            "POST".to_string(),
+        ])
+        .await
+        .unwrap();
+
+        assert!(e
+            .enforce(("alice", "tenant1", "/api/v1/admin/users", "POST"))
+            .unwrap());
+        assert!(!e
+            .enforce(("bob", "tenant1", "/api/v1/admin/users", "POST"))
+            .unwrap());
     }
 }

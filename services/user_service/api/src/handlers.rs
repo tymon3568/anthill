@@ -169,6 +169,10 @@ pub struct ListUsersQuery {
     pub page: i32,
     #[serde(default = "default_page_size")]
     pub page_size: i32,
+    /// Filter by user role (optional)
+    pub role: Option<String>,
+    /// Filter by user status (optional)
+    pub status: Option<String>,
 }
 
 fn default_page() -> i32 {
@@ -187,6 +191,8 @@ fn default_page_size() -> i32 {
     params(
         ("page" = Option<i32>, Query, description = "Page number (default: 1)"),
         ("page_size" = Option<i32>, Query, description = "Page size (default: 20)"),
+        ("role" = Option<String>, Query, description = "Filter by user role (e.g., admin, manager, user)"),
+        ("status" = Option<String>, Query, description = "Filter by user status (e.g., active, inactive, suspended)"),
     ),
     responses(
         (status = 200, description = "List of users", body = UserListResp),
@@ -207,7 +213,7 @@ pub async fn list_users<S: AuthService>(
 
     let resp = state
         .auth_service
-        .list_users(tenant_id, query.page, query.page_size)
+        .list_users(tenant_id, query.page, query.page_size, query.role, query.status)
         .await?;
 
     Ok(Json(resp))

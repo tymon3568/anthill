@@ -43,3 +43,4 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
+sqlx = { workspace = true, features = ["sqlite", "runtime-tokio-rustls"] }
