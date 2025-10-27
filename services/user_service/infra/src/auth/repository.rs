@@ -97,40 +97,59 @@ impl UserRepository for PgUserRepository {
     }
     
     async fn list(&self, tenant_id: Uuid, page: i32, page_size: i32, role: Option<String>, status: Option<String>) -> Result<(Vec<User>, i64), AppError> {
-        let offset = (page - 1) * page_size;
+        // Clamp page to minimum of 1 and page_size to safe bounds (1-100)
+        let page = page.max(1);
+        let page_size = page_size.max(1).min(100);
 
-        // Build query dynamically
-        let mut query = "SELECT * FROM users WHERE tenant_id = $1 AND deleted_at IS NULL".to_string();
-        let mut count_query = "SELECT COUNT(*) FROM users WHERE tenant_id = $1 AND deleted_at IS NULL".to_string();
+        // Use saturating arithmetic and convert to u64 for database offset
+        let offset: u64 = ((page as u64).saturating_sub(1)).saturating_mul(page_size as u64);
 
-        // Add role filter
+        // Build query dynamically using QueryBuilder to prevent SQL injection
+        let mut query_builder = sqlx::QueryBuilder::new("SELECT * FROM users WHERE tenant_id = ");
+        query_builder.push_bind(tenant_id);
+        query_builder.push(" AND deleted_at IS NULL");
+
+        let mut count_builder = sqlx::QueryBuilder::new("SELECT COUNT(*) FROM users WHERE tenant_id = ");
+        count_builder.push_bind(tenant_id);
+        count_builder.push(" AND deleted_at IS NULL");
+
+        // Add role filter with proper parameter binding
         if let Some(role_filter) = &role {
-            query.push_str(&format!(" AND role = '{}'", role_filter));
-            count_query.push_str(&format!(" AND role = '{}'", role_filter));
+            query_builder.push(" AND role = ");
+            query_builder.push_bind(role_filter);
+            count_builder.push(" AND role = ");
+            count_builder.push_bind(role_filter);
         }
 
-        // Add status filter
+        // Add status filter with proper parameter binding
         if let Some(status_filter) = &status {
-            query.push_str(&format!(" AND status = '{}'", status_filter));
-            count_query.push_str(&format!(" AND status = '{}'", status_filter));
+            query_builder.push(" AND status = ");
+            query_builder.push_bind(status_filter);
+            count_builder.push(" AND status = ");
+            count_builder.push_bind(status_filter);
         } else {
             // Default to active status
-            query.push_str(" AND status = 'active'");
-            count_query.push_str(" AND status = 'active'");
+            query_builder.push(" AND status = ");
+            query_builder.push_bind("active");
+            count_builder.push(" AND status = ");
+            count_builder.push_bind("active");
         }
 
-        // Add ordering and pagination
-        query.push_str(&format!(" ORDER BY created_at DESC LIMIT {} OFFSET {}", page_size, offset));
+        // Add ordering and pagination with proper parameter binding
+        query_builder.push(" ORDER BY created_at DESC LIMIT ");
+        query_builder.push_bind(page_size as i64);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset as i64);
 
         // Execute count query
-        let total: (i64,) = sqlx::query_as(&count_query)
-            .bind(tenant_id)
+        let total: (i64,) = count_builder
+            .build_query_as::<(i64,)>()
             .fetch_one(&self.pool)
             .await?;
 
         // Execute data query
-        let users = sqlx::query_as::<_, User>(&query)
-            .bind(tenant_id)
+        let users = query_builder
+            .build_query_as::<User>()
             .fetch_all(&self.pool)
             .await?;
 
