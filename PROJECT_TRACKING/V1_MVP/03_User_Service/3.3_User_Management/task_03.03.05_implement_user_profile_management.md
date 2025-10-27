@@ -15,15 +15,15 @@ Implement comprehensive user profile management system allowing users to view an
 
 ## Specific Sub-tasks:
 - [x] 1. Create `user_profiles` database table with optional fields
-- [ ] 2. Implement `GET /api/v1/users/profile` - Get current user profile
-- [ ] 3. Implement `PUT /api/v1/users/profile` - Update user profile
-- [ ] 4. Implement `POST /api/v1/users/profile/avatar` - Upload profile picture
-- [ ] 5. Add profile validation and sanitization
-- [ ] 6. Implement profile visibility settings (public/private)
-- [ ] 7. Add notification preferences management
-- [ ] 8. Create profile completeness scoring
-- [ ] 9. Implement profile search and discovery features
-- [ ] 10. Add profile analytics and insights
+- [x] 2. Implement `GET /api/v1/users/profile` - Get current user profile
+- [x] 3. Implement `PUT /api/v1/users/profile` - Update user profile
+- [x] 4. Implement `POST /api/v1/users/profile/avatar` - Upload profile picture (placeholder)
+- [x] 5. Add profile validation and sanitization
+- [x] 6. Implement profile visibility settings (public/private)
+- [x] 7. Add notification preferences management
+- [x] 8. Create profile completeness scoring
+- [x] 9. Implement profile search and discovery features
+- [ ] 10. Add profile analytics and insights (deferred)
 
 ## Acceptance Criteria:
 - [ ] User profile CRUD operations fully functional
@@ -60,3 +60,7 @@ Implement comprehensive user profile management system allowing users to view an
 * 2025-10-27 19:10: Starting Sub-task 2 & 3 - Implementing domain models, DTOs, and repository layer.
 * 2025-10-27 19:20: ✓ Completed domain layer - Added UserProfile model, ProfileResponse/UpdateProfileRequest DTOs, and UserProfileRepository trait with comprehensive operations.
 * 2025-10-27 19:25: ✓ Completed infrastructure layer - Implemented PgUserProfileRepository with dynamic query building, profile search, and completeness calculation.
+* 2025-10-27 19:30: ✓ Completed service layer - Implemented ProfileServiceImpl with all business logic for profile operations.
+* 2025-10-27 19:35: ✓ Completed API handlers - Created profile_handlers.rs with 7 endpoints (get, update, visibility, completeness, search, public profile, verification).
+* 2025-10-27 19:40: ✓ Fixed AppError variants - Added NotFound and Forbidden variants to shared_error for proper error handling.
+* 2025-10-27 19:40: Sub-tasks 2-9 completed. Task ready for integration and testing. Avatar upload is placeholder (needs S3 integration).
