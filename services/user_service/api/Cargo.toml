@@ -53,6 +53,7 @@ tower = { workspace = true }
 http-body-util = "0.1"
 sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"] }
 tokio-test = "0.4"
+bcrypt = { workspace = true }
 
 [features]
 default = []
