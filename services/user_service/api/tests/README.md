@@ -93,6 +93,8 @@ cargo test --package user_service_api --test integration_test -- --ignored --tes
 | `test_refresh_token_rotates_session` | Validates session rotation on token refresh |
 | `test_logout_revokes_session` | Confirms logout revokes session |
 | `test_tenant_isolation_users_cannot_see_other_tenants` | **CRITICAL SECURITY TEST** - Verifies tenant isolation |
+| `test_cross_tenant_access_admin_cannot_access_other_tenant_users` | **CRITICAL SECURITY TEST** - Admin cross-tenant access prevention |
+| `test_tenant_isolation_with_multiple_users_per_tenant` | **CRITICAL SECURITY TEST** - Multi-user tenant isolation |
 | `test_invalid_email_format_fails` | Tests email validation |
 | `test_weak_password_fails` | Tests password length validation |
 
