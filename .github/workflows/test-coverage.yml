@@ -100,13 +100,22 @@ jobs:
         with:
           tool: cargo-llvm-cov
       
-      - name: Run tests with coverage
+      - name: Setup PostgreSQL for Integration Tests
         run: |
-          cd services/user_service
-          cargo llvm-cov \
-            --all-features \
-            --lcov \
-            --output-path ../../lcov-user.info
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-contrib
+          sudo systemctl start postgresql
+          sudo -u postgres psql -c "CREATE DATABASE test_db;"
+          sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'postgres';"
+          sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;"
+
+      - name: Run Integration Tests
+        run: |
+          cd services/user_service/api
+          cargo test --test security -- --ignored --test-threads=1 --nocapture
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
       
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
