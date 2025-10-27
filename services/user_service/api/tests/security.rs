@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower::ServiceExt;
-use user_service_api::{handlers::AppState, AppState as _};
+use user_service_api::AppState;
 use user_service_core::domains::auth::{
     domain::{model::{User, Tenant}, repository::{UserRepository, TenantRepository}},
     dto::auth_dto::RegisterReq,
@@ -22,11 +22,21 @@ use user_service_infra::auth::{
 use uuid::Uuid;
 
 /// Test database URL - should be configured in CI/CD
-const TEST_DATABASE_URL: &str = "postgres://anthill:anthill@localhost:5432/anthill_test";
+fn get_test_database_url() -> String {
+    std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5432/anthill_test".to_string())
+}
+
+/// Helper function to get JWT secret from environment
+fn get_test_jwt_secret() -> String {
+    std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string())
+}
 
 /// Helper function to setup test database
 async fn setup_test_db() -> PgPool {
-    let pool = shared_db::init_pool(TEST_DATABASE_URL, 1)
+    let database_url = get_test_database_url();
+    let pool = shared_db::init_pool(&database_url, 1)
         .await
         .expect("Failed to connect to test database");
 
@@ -116,9 +126,9 @@ fn create_test_jwt(user_id: Uuid, tenant_id: Uuid, role: &str) -> String {
     use shared_jwt::{Claims, encode_jwt};
 
     let claims = Claims::new_access(user_id, tenant_id, role.to_string(), 900);
-    let jwt_secret = "test-secret-key-at-least-32-characters-long";
+    let jwt_secret = get_test_jwt_secret();
 
-    encode_jwt(&claims, jwt_secret).expect("Failed to create JWT")
+    encode_jwt(&claims, &jwt_secret).expect("Failed to create JWT")
 }
 
 /// Helper function to make authenticated request
@@ -169,17 +179,17 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
         user_repo,
         tenant_repo,
         session_repo,
-        "test-secret-key-at-least-32-characters-long".to_string(),
+        get_test_jwt_secret(),
         900,   // 15 minutes
         604800, // 7 days
     );
 
     let state = AppState {
         auth_service: Arc::new(auth_service),
-        enforcer: shared_auth::enforcer::create_enforcer(TEST_DATABASE_URL, None)
+        enforcer: shared_auth::enforcer::create_enforcer(&get_test_database_url(), None)
             .await
             .expect("Failed to create enforcer"),
-        jwt_secret: "test-secret-key-at-least-32-characters-long".to_string(),
+        jwt_secret: get_test_jwt_secret(),
     };
 
     let app = Router::new()
@@ -284,17 +294,17 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
         user_repo,
         tenant_repo,
         session_repo,
-        "test-secret-key-at-least-32-characters-long".to_string(),
+        get_test_jwt_secret(),
         900,
         604800,
     );
 
     let state = AppState {
         auth_service: Arc::new(auth_service),
-        enforcer: shared_auth::enforcer::create_enforcer(TEST_DATABASE_URL, None)
+        enforcer: shared_auth::enforcer::create_enforcer(&get_test_database_url(), None)
             .await
             .expect("Failed to create enforcer"),
-        jwt_secret: "test-secret-key-at-least-32-characters-long".to_string(),
+        jwt_secret: get_test_jwt_secret(),
     };
 
     let app = Router::new()
@@ -380,17 +390,17 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
         user_repo,
         tenant_repo,
         session_repo,
-        "test-secret-key-at-least-32-characters-long".to_string(),
+        get_test_jwt_secret(),
         900,
         604800,
     );
 
     let state = AppState {
         auth_service: Arc::new(auth_service),
-        enforcer: shared_auth::enforcer::create_enforcer(TEST_DATABASE_URL, None)
+        enforcer: shared_auth::enforcer::create_enforcer(&get_test_database_url(), None)
             .await
             .expect("Failed to create enforcer"),
-        jwt_secret: "test-secret-key-at-least-32-characters-long".to_string(),
+        jwt_secret: get_test_jwt_secret(),
     };
 
     let app = Router::new()
