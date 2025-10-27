@@ -102,7 +102,29 @@ cargo test --package user_service_api --test integration_test -- --ignored --tes
 | `test_invalid_email_format_fails` | Tests email validation |
 | `test_weak_password_fails` | Tests password length validation |
 
-## Troubleshooting
+## Test Verification
+
+Before running tests, validate your setup using the verification script:
+
+```bash
+# From repository root
+./services/user_service/api/test_verification.sh
+
+# Or from services/user_service/api directory
+./test_verification.sh
+```
+
+**The script will:**
+- ✅ **Securely validate** environment variables (no credential exposure)
+- ✅ **Check JWT_SECRET length** (minimum 32 characters required)
+- ✅ **Verify test file structure** (3+ tests, proper integration markers)
+- ✅ **Validate environment usage** in tests (std::env::var usage)
+- ✅ **Fail CI fast** if setup is incorrect (non-zero exit code)
+- ✅ **Work from any directory** (robust path resolution)
+
+**Exit codes:**
+- `0`: All validations passed ✅
+- `1`: Validation errors found ❌ (will fail CI)
 
 ### Test Fails with "Connection Refused"
 
