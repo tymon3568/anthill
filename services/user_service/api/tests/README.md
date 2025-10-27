@@ -51,6 +51,10 @@ cp .env.example .env
 # Edit .env with test database credentials
 ```
 
+**Note**: In CI/CD environments, these should be set via repository secrets:
+- `DATABASE_URL`: PostgreSQL connection string for test database
+- `JWT_SECRET`: Secret key for JWT token signing (minimum 32 characters)
+
 ### 3. Run Migrations
 
 ```bash
@@ -138,13 +142,28 @@ sqlx migrate run --database-url $DATABASE_URL
 For GitHub Actions:
 
 ```yaml
+- name: Setup PostgreSQL for Integration Tests
+  run: |
+    sudo apt-get update
+    sudo apt-get install -y postgresql postgresql-contrib
+    sudo systemctl start postgresql
+    
+    # Create test database if it doesn't exist (idempotent)
+    sudo -u postgres psql -c "SELECT 1 FROM pg_database WHERE datname = 'test_db';" | grep -q 1 || \
+    sudo -u postgres createdb test_db
+    
+    # Set password for postgres user if not already set (idempotent)
+    sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" 2>/dev/null || true
+    
+    # Grant privileges (idempotent)
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;"
+
 - name: Run Integration Tests
   env:
-    DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+    DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
     JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
   run: |
-    sqlx migrate run
-    cargo test --package user_service_api --test integration_test -- --ignored --test-threads=1
+    cargo test --test security -- --ignored --test-threads=1 --nocapture
 ```
 
 ## Notes
