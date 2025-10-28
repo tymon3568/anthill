@@ -245,12 +245,13 @@ impl UserProfileRepository for PgUserProfileRepository {
         Ok(())
     }
     
-    async fn calculate_completeness(&self, user_id: Uuid) -> Result<ProfileCompletenessResponse, AppError> {
+    async fn calculate_completeness(&self, user_id: Uuid, tenant_id: Uuid) -> Result<ProfileCompletenessResponse, AppError> {
         // Call the database function to calculate completeness
         let score: i32 = sqlx::query_scalar(
-            "SELECT calculate_profile_completeness($1)"
+            "SELECT calculate_profile_completeness($1, $2)"
         )
         .bind(user_id)
+        .bind(tenant_id)
         .fetch_one(&self.pool)
         .await?;
         
@@ -258,11 +259,12 @@ impl UserProfileRepository for PgUserProfileRepository {
         sqlx::query(
             r#"
             UPDATE user_profiles 
-            SET completeness_score = $2, last_completeness_check_at = NOW()
-            WHERE user_id = $1
+            SET completeness_score = $3, last_completeness_check_at = NOW()
+            WHERE user_id = $1 AND tenant_id = $2
             "#
         )
         .bind(user_id)
+        .bind(tenant_id)
         .bind(score)
         .execute(&self.pool)
         .await?;
@@ -273,16 +275,18 @@ impl UserProfileRepository for PgUserProfileRepository {
         
         // Get user and profile data to check what's missing
         let user_data: Option<(Option<String>, Option<String>, Option<String>, bool)> = sqlx::query_as(
-            "SELECT full_name, avatar_url, phone, email_verified FROM users WHERE user_id = $1"
+            "SELECT full_name, avatar_url, phone, email_verified FROM users WHERE user_id = $1 AND tenant_id = $2"
         )
         .bind(user_id)
+        .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await?;
         
         let profile_data: Option<(Option<String>, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
-            "SELECT bio, title, department, location FROM user_profiles WHERE user_id = $1"
+            "SELECT bio, title, department, location FROM user_profiles WHERE user_id = $1 AND tenant_id = $2"
         )
         .bind(user_id)
+        .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await?;
         
@@ -376,7 +380,9 @@ impl UserProfileRepository for PgUserProfileRepository {
         
         // Count total
         let count_query = format!(
-            "SELECT COUNT(*) FROM user_profiles up JOIN users u ON up.user_id = u.user_id WHERE {}",
+            "SELECT COUNT(*) FROM user_profiles up \
+             JOIN users u ON up.user_id = u.user_id AND up.tenant_id = u.tenant_id \
+             WHERE {}",
             where_clause
         );
         
@@ -397,7 +403,10 @@ impl UserProfileRepository for PgUserProfileRepository {
         
         // Fetch profiles
         let profiles_query = format!(
-            "SELECT up.* FROM user_profiles up JOIN users u ON up.user_id = u.user_id WHERE {} ORDER BY up.completeness_score DESC, up.updated_at DESC LIMIT ${} OFFSET ${}",
+            "SELECT up.* FROM user_profiles up \
+             JOIN users u ON up.user_id = u.user_id AND up.tenant_id = u.tenant_id \
+             WHERE {} \
+             ORDER BY up.completeness_score DESC, up.updated_at DESC LIMIT ${} OFFSET ${}",
             where_clause, param_count, param_count + 1
         );
         

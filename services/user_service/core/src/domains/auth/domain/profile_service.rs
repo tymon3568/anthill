@@ -41,7 +41,7 @@ pub trait ProfileService: Send + Sync {
     ) -> Result<(), AppError>;
     
     /// Get profile completeness score and suggestions
-    async fn get_completeness(&self, user_id: Uuid) -> Result<ProfileCompletenessResponse, AppError>;
+    async fn get_completeness(&self, user_id: Uuid, tenant_id: Uuid) -> Result<ProfileCompletenessResponse, AppError>;
     
     /// Search profiles within tenant
     async fn search_profiles(

@@ -44,25 +44,32 @@ services:
       timeout: 5s
       retries: 5
 
-  cube:
-    image: cubejs/cube:latest
-    container_name: cube_analytics
+  minio:
+    image: minio/minio:latest
+    container_name: minio_storage
     environment:
-      CUBEJS_DB_TYPE: postgres
-      CUBEJS_DB_HOST: postgres
-      CUBEJS_DB_PORT: 5432
-      CUBEJS_DB_NAME: inventory_db
-      CUBEJS_DB_USER: user
-      CUBEJS_DB_PASS: password
-      CUBEJS_API_SECRET: YOUR_CUBE_API_SECRET
-      CUBEJS_DEV_MODE: "true"
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_REGION_NAME: us-east-1
     ports:
-      - "4000:4000" # API port
-      - "9009:9009" # Playground port
+      - "9000:9000" # MinIO API port
+      - "9001:9001" # MinIO Console port
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio_init
     depends_on:
-      postgres: 
+      minio:
         condition: service_healthy
+    volumes:
+      - ./infra/init-minio.sh:/init-minio.sh:ro
+    command: sh /init-minio.sh
+    environment:
+      - MC_HOST_local=http://minioadmin:minioadmin@minio:9000
 
 volumes:
   postgres_data:
   redis_data:
+  minio_data:

@@ -155,8 +155,8 @@ impl ProfileService for ProfileServiceImpl {
         ).await
     }
     
-    async fn get_completeness(&self, user_id: Uuid) -> Result<ProfileCompletenessResponse, AppError> {
-        self.profile_repo.calculate_completeness(user_id).await
+    async fn get_completeness(&self, user_id: Uuid, tenant_id: Uuid) -> Result<ProfileCompletenessResponse, AppError> {
+        self.profile_repo.calculate_completeness(user_id, tenant_id).await
     }
     
     async fn search_profiles(

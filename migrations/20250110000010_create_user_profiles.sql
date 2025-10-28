@@ -84,6 +84,13 @@ CREATE TABLE user_profiles (
     CONSTRAINT user_profiles_verified_at_check CHECK ((verified = TRUE AND verified_at IS NOT NULL) OR (verified = FALSE AND verified_at IS NULL))
 );
 
+-- Add composite foreign key constraint for tenant isolation
+ALTER TABLE user_profiles 
+ADD CONSTRAINT user_profiles_user_tenant_fk 
+FOREIGN KEY (user_id, tenant_id) 
+REFERENCES users(user_id, tenant_id) 
+ON DELETE CASCADE;
+
 -- Indexes
 CREATE INDEX idx_user_profiles_user ON user_profiles(user_id);
 CREATE INDEX idx_user_profiles_tenant ON user_profiles(tenant_id);
@@ -110,7 +117,7 @@ COMMENT ON COLUMN user_profiles.custom_fields IS 'Extensible custom fields in JS
 -- FUNCTION: Calculate Profile Completeness Score
 -- =============================================================================
 
-CREATE OR REPLACE FUNCTION calculate_profile_completeness(p_user_id UUID)
+CREATE OR REPLACE FUNCTION calculate_profile_completeness(p_user_id UUID, p_tenant_id UUID)
 RETURNS INTEGER AS $$
 DECLARE
     v_score INTEGER := 0;
@@ -121,15 +128,15 @@ BEGIN
     SELECT full_name, avatar_url, phone, email_verified
     INTO v_user_record
     FROM users
-    WHERE user_id = p_user_id;
+    WHERE user_id = p_user_id AND tenant_id = p_tenant_id;
     
     -- Get profile info
     SELECT bio, title, department, location, social_links
     INTO v_profile_record
     FROM user_profiles
-    WHERE user_id = p_user_id;
+    WHERE user_id = p_user_id AND tenant_id = p_tenant_id;
     
-    -- Calculate score (each field worth 10 points)
+    -- Calculate score (weights total 100; see individual increments below)
     IF v_user_record.full_name IS NOT NULL AND v_user_record.full_name != '' THEN
         v_score := v_score + 15;
     END IF;

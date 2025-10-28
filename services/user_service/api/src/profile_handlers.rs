@@ -130,7 +130,7 @@ pub async fn get_completeness<S: ProfileService>(
     auth_user: AuthUser,
 ) -> Result<Json<ProfileCompletenessResponse>, AppError> {
     let completeness = state.profile_service
-        .get_completeness(auth_user.user_id)
+        .get_completeness(auth_user.user_id, auth_user.tenant_id)
         .await?;
     
     Ok(Json(completeness))

@@ -26,7 +26,7 @@ pub trait UserProfileRepository: Send + Sync {
     async fn update_notification_preferences(&self, user_id: Uuid, tenant_id: Uuid, preferences: &serde_json::Value) -> Result<(), AppError>;
     
     /// Calculate and update profile completeness score
-    async fn calculate_completeness(&self, user_id: Uuid) -> Result<ProfileCompletenessResponse, AppError>;
+    async fn calculate_completeness(&self, user_id: Uuid, tenant_id: Uuid) -> Result<ProfileCompletenessResponse, AppError>;
     
     /// Search profiles within tenant
     async fn search(
