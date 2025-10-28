@@ -17,13 +17,13 @@ Implement comprehensive user profile management system allowing users to view an
 - [x] 1. Create `user_profiles` database table with optional fields
 - [x] 2. Implement `GET /api/v1/users/profile` - Get current user profile
 - [x] 3. Implement `PUT /api/v1/users/profile` - Update user profile
-- [x] 4. Implement `POST /api/v1/users/profile/avatar` - Upload profile picture (placeholder)
+- [ ] 4. Implement `POST /api/v1/users/profile/avatar` - Upload profile picture [Endpoint scaffolding complete, S3 storage integration deferred]
 - [x] 5. Add profile validation and sanitization
-- [x] 6. Implement profile visibility settings (public/private)
+- [x] 6. Implement profile visibility settings (public/private/team_only)
 - [x] 7. Add notification preferences management
 - [x] 8. Create profile completeness scoring
 - [x] 9. Implement profile search and discovery features
-- [ ] 10. Add profile analytics and insights (deferred)
+- [ ] 10. Add profile analytics and insights (deferred to future iteration)
 
 ## Acceptance Criteria:
 - [x] User profile CRUD operations fully functional
@@ -55,6 +55,9 @@ Implement comprehensive user profile management system allowing users to view an
 * Profile pictures should be stored securely with size optimization
 * Implement profile verification badges for trusted users
 * Consider social features like profile linking and endorsements
+* **Visibility Settings:** public (all tenant users), private (owner only), team_only (application-level filtering, no team_id FK)
+* **Avatar Upload:** Endpoint scaffolding complete, S3 integration pending for production
+* **Profile ID:** Auto-generated via uuid_generate_v7() database default
 
 ## AI Agent Log:
 ---

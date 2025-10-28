@@ -300,7 +300,7 @@ Updates the verification status of a user's profile. This endpoint is restricted
 ### user_profiles Table
 ```sql
 CREATE TABLE user_profiles (
-    profile_id UUID PRIMARY KEY,
+    profile_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
     user_id UUID NOT NULL UNIQUE,
     tenant_id UUID NOT NULL,
     
