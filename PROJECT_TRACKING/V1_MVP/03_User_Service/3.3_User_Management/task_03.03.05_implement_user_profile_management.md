@@ -70,3 +70,10 @@ Implement comprehensive user profile management system allowing users to view an
 * 2025-10-28 09:50: 🔍 Code review received from CodeRabbit on PR #11.
 * 2025-10-28 09:55: ✅ Fixed critical bug in calculate_profile_completeness() - corrected social_links check logic (jsonb_object_keys returns SETOF text, not array).
 * 2025-10-28 09:55: 📤 Pushed fix to GitHub. PR updated and ready for re-review.
+* 2025-10-28 10:00: 🔧 Fixed all remaining CodeRabbit review comments (7 issues total):
+  - Added utoipa::ToSchema to all 10 DTOs for OpenAPI generation
+  - Added rows_affected() checks in update_visibility, update_notification_preferences, update_verification
+  - CRITICAL: Added visibility filter to search (only public profiles)
+  - Fixed search results to populate full_name/avatar_url from users table (N+1 for now)
+  - Clamped paging parameters (page >= 1, per_page 1-100)
+* 2025-10-28 10:05: ✅ All review comments addressed. Pushed to GitHub. PR ready for final review and merge.
