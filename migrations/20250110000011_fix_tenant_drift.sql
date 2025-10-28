@@ -7,7 +7,8 @@
 -- STEP 1: Add UNIQUE constraint on users table
 -- =============================================================================
 
--- First, ensure we have the constraint (idempotent)
+-- Note: This constraint is now created in migration 20250110000010_create_user_profiles.sql
+-- This step is kept for backwards compatibility with existing databases
 ALTER TABLE users 
 ADD CONSTRAINT IF NOT EXISTS users_user_tenant_unique UNIQUE (user_id, tenant_id);
 

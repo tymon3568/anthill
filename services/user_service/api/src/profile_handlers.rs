@@ -1,7 +1,6 @@
 use axum::{
     extract::{State, Path},
     http::StatusCode,
-    response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -97,6 +96,7 @@ pub async fn update_profile<S: ProfileService>(
         (status = 200, description = "Visibility settings updated successfully"),
         (status = 400, description = "Invalid request"),
         (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Profile not found"),
     )
 )]
 pub async fn update_visibility<S: ProfileService>(

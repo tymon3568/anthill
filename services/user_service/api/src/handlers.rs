@@ -371,13 +371,14 @@ pub async fn remove_policy<S: AuthService>(
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
-    let scoped_role = format!("{}:{}", admin_user.tenant_id, payload.role.trim());
-    let resource = payload.resource.trim().to_string();
-    let action = payload.action.trim().to_string();
-
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
-        .remove_policy(vec![scoped_role, resource, action])
+        .remove_policy(vec![
+            payload.role.clone(),
+            admin_user.tenant_id.to_string(),
+            payload.resource.clone(),
+            payload.action.clone(),
+        ])
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to remove policy: {}", e)))?;
 
@@ -423,10 +424,13 @@ pub async fn assign_role_to_user<S: AuthService>(
     // Verify user exists and belongs to admin's tenant
     let tenant_id = admin_user.tenant_id;
     state.auth_service.get_user(user_id, tenant_id).await?;
-    let scoped_role = format!("{}:{}", tenant_id, payload.role.trim());
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
-        .add_grouping_policy(vec![user_id.to_string(), scoped_role])
+        .add_grouping_policy(vec![
+            user_id.to_string(),
+            payload.role.trim().to_string(),
+            tenant_id.to_string(),
+        ])
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to add grouping policy: {}", e)))?;
 
@@ -472,10 +476,13 @@ pub async fn revoke_role_from_user<S: AuthService>(
     // Verify user exists and belongs to admin's tenant
     let tenant_id = admin_user.tenant_id;
     state.auth_service.get_user(user_id, tenant_id).await?;
-    let scoped_role = format!("{}:{}", tenant_id, payload.role.trim());
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
-        .remove_grouping_policy(vec![user_id.to_string(), scoped_role])
+        .remove_grouping_policy(vec![
+            user_id.to_string(),
+            payload.role.trim().to_string(),
+            tenant_id.to_string(),
+        ])
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to remove grouping policy: {}", e)))?;
 

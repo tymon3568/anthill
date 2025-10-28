@@ -84,6 +84,10 @@ CREATE TABLE user_profiles (
     CONSTRAINT user_profiles_verified_at_check CHECK ((verified = TRUE AND verified_at IS NOT NULL) OR (verified = FALSE AND verified_at IS NULL))
 );
 
+-- Add UNIQUE constraint on users table to support composite FK
+ALTER TABLE users 
+ADD CONSTRAINT IF NOT EXISTS users_user_tenant_unique UNIQUE (user_id, tenant_id);
+
 -- Add composite foreign key constraint for tenant isolation
 ALTER TABLE user_profiles 
 ADD CONSTRAINT user_profiles_user_tenant_fk 
