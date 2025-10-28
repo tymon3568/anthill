@@ -79,7 +79,9 @@ CREATE TABLE user_profiles (
     CONSTRAINT user_profiles_visibility_check CHECK (profile_visibility IN ('public', 'private', 'team_only')),
     CONSTRAINT user_profiles_completeness_check CHECK (completeness_score >= 0 AND completeness_score <= 100),
     CONSTRAINT user_profiles_language_check CHECK (language IN ('en', 'vi', 'zh', 'ja', 'ko', 'es', 'fr', 'de')),
-    CONSTRAINT user_profiles_time_format_check CHECK (time_format IN ('12h', '24h'))
+    CONSTRAINT user_profiles_time_format_check CHECK (time_format IN ('12h', '24h')),
+    CONSTRAINT user_profiles_date_format_check CHECK (date_format IN ('YYYY-MM-DD', 'DD-MM-YYYY', 'MM-DD-YYYY', 'DD/MM/YYYY', 'MM/DD/YYYY')),
+    CONSTRAINT user_profiles_verified_at_check CHECK ((verified = TRUE AND verified_at IS NOT NULL) OR (verified = FALSE AND verified_at IS NULL))
 );
 
 -- Indexes
