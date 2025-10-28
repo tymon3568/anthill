@@ -157,7 +157,7 @@ pub async fn search_profiles<S: ProfileService>(
     Json(request): Json<ProfileSearchRequest>,
 ) -> Result<Json<ProfileSearchResponse>, AppError> {
     let (profiles, total) = state.profile_service
-        .search_profiles(auth_user.tenant_id, request)
+        .search_profiles(auth_user.tenant_id, auth_user.user_id, request)
         .await?;
     
     Ok(Json(ProfileSearchResponse {

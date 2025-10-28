@@ -47,6 +47,7 @@ pub trait ProfileService: Send + Sync {
     async fn search_profiles(
         &self,
         tenant_id: Uuid,
+        viewer_user_id: Uuid,
         request: ProfileSearchRequest,
     ) -> Result<(Vec<PublicProfileResponse>, i64), AppError>;
     

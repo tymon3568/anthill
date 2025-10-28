@@ -32,6 +32,7 @@ pub trait UserProfileRepository: Send + Sync {
     async fn search(
         &self,
         tenant_id: Uuid,
+        viewer_user_id: Uuid,
         query: Option<&str>,
         department: Option<&str>,
         location: Option<&str>,

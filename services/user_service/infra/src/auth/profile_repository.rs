@@ -338,6 +338,7 @@ impl UserProfileRepository for PgUserProfileRepository {
     async fn search(
         &self,
         tenant_id: Uuid,
+        viewer_user_id: Uuid,
         query: Option<&str>,
         department: Option<&str>,
         location: Option<&str>,
@@ -347,12 +348,16 @@ impl UserProfileRepository for PgUserProfileRepository {
     ) -> Result<(Vec<UserProfile>, i64), AppError> {
         let offset = (page - 1) * per_page;
         
-        // Build dynamic WHERE clause
+        // Build dynamic WHERE clause for visibility
+        // Users can see:
+        // - Public profiles (always)
+        // - Their own private profiles
+        // - Team-only profiles if they are in the same department
         let mut where_clauses = vec![
             "up.tenant_id = $1".to_string(),
-            "up.profile_visibility = 'public'".to_string(), // Only show public profiles
+            format!("(up.profile_visibility = 'public' OR up.user_id = $2 OR (up.profile_visibility = 'team_only' AND up.department = (SELECT department FROM user_profiles WHERE user_id = $2 AND tenant_id = $1)))"),
         ];
-        let mut param_count = 2;
+        let mut param_count = 3;
         
         if query.is_some() {
             where_clauses.push(format!(
@@ -387,7 +392,8 @@ impl UserProfileRepository for PgUserProfileRepository {
         );
         
         let mut count_q = sqlx::query_scalar::<_, i64>(&count_query)
-            .bind(tenant_id);
+            .bind(tenant_id)
+            .bind(viewer_user_id);
         
         if let Some(q) = query {
             count_q = count_q.bind(format!("%{}%", q));
@@ -411,7 +417,8 @@ impl UserProfileRepository for PgUserProfileRepository {
         );
         
         let mut profiles_q = sqlx::query_as::<_, UserProfile>(&profiles_query)
-            .bind(tenant_id);
+            .bind(tenant_id)
+            .bind(viewer_user_id);
         
         if let Some(q) = query {
             profiles_q = profiles_q.bind(format!("%{}%", q));

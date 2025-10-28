@@ -162,6 +162,7 @@ impl ProfileService for ProfileServiceImpl {
     async fn search_profiles(
         &self,
         tenant_id: Uuid,
+        viewer_user_id: Uuid,
         request: ProfileSearchRequest,
     ) -> Result<(Vec<PublicProfileResponse>, i64), AppError> {
         // Clamp paging parameters to safe ranges
@@ -170,6 +171,7 @@ impl ProfileService for ProfileServiceImpl {
         
         let (profiles, total) = self.profile_repo.search(
             tenant_id,
+            viewer_user_id,
             request.query.as_deref(),
             request.department.as_deref(),
             request.location.as_deref(),
