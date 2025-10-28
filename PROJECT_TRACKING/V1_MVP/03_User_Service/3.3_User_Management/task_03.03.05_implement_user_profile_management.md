@@ -82,3 +82,9 @@ Implement comprehensive user profile management system allowing users to view an
   - Fixed search results to populate full_name/avatar_url from users table (N+1 for now)
   - Clamped paging parameters (page >= 1, per_page 1-100)
 * 2025-10-28 10:05: ✅ All review comments addressed. Pushed to GitHub. PR ready for final review and merge.
+* 2025-10-28 10:10: 🔍 Second round of CodeRabbit review received - 3 additional issues found.
+* 2025-10-28 10:15: ✅ Fixed all 3 additional issues:
+  - Added date_format validation constraint (5 common formats)
+  - Added verified/verified_at consistency check constraint
+  - Fixed documentation: corrected file paths and updated acceptance criteria
+* 2025-10-28 10:15: 📤 All fixes pushed to GitHub. PR fully reviewed and ready for merge.
