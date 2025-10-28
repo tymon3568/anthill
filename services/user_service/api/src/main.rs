@@ -1,4 +1,4 @@
-use axum::routing::{delete, get, post};
+use axum::routing::{delete, get, post, put};
 use axum::{http::{header, HeaderValue}, Router};
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use std::net::SocketAddr;
@@ -7,9 +7,10 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use user_service_api::{handlers, AppState};
+use user_service_api::{handlers, profile_handlers, AppState, ProfileAppState};
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
+    ProfileServiceImpl, PgUserProfileRepository,
 };
 
 mod openapi;
@@ -57,22 +58,32 @@ async fn main() {
     let user_repo = PgUserRepository::new(db_pool.clone());
     let tenant_repo = PgTenantRepository::new(db_pool.clone());
     let session_repo = PgSessionRepository::new(db_pool.clone());
+    let profile_repo = PgUserProfileRepository::new(db_pool.clone());
 
-    // Initialize service
+    // Initialize services
     let auth_service = AuthServiceImpl::new(
-        user_repo,
+        user_repo.clone(),
         tenant_repo,
         session_repo,
         config.jwt_secret.clone(),
         config.jwt_expiration,
         config.jwt_refresh_expiration,
     );
+    
+    let profile_service = ProfileServiceImpl::new(
+        Arc::new(profile_repo),
+        Arc::new(user_repo),
+    );
 
-    // Create application state
+    // Create application states
     let state = AppState {
         auth_service: Arc::new(auth_service),
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
+    };
+    
+    let profile_state = ProfileAppState {
+        profile_service: Arc::new(profile_service),
     };
 
     // TODO: Re-enable authorization state
@@ -103,14 +114,41 @@ async fn main() {
             "/api/v1/admin/users/:user_id/roles",
             post(handlers::assign_role_to_user).delete(handlers::revoke_role_from_user),
         );
+    
         // TODO: Re-enable authorization middleware
         // .layer(axum::middleware::from_fn_with_state(
         //     authz_state,
         //     shared_auth::middleware::casbin_middleware,
         // ));
+    
+    // Profile routes (require authentication)
+    let profile_routes = Router::new()
+        .route("/api/v1/users/profile", 
+            get(profile_handlers::get_profile::<ProfileServiceImpl>)
+            .put(profile_handlers::update_profile::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profile/visibility", 
+            put(profile_handlers::update_visibility::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profile/completeness", 
+            get(profile_handlers::get_completeness::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profiles/search", 
+            post(profile_handlers::search_profiles::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profiles/:user_id", 
+            get(profile_handlers::get_public_profile::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/admin/users/:user_id/verification", 
+            put(profile_handlers::update_verification::<ProfileServiceImpl>)
+        )
+        .with_state(profile_state);
 
     // Combine all API routes
-    let api_routes = public_routes.merge(protected_routes).with_state(state);
+    let api_routes = public_routes
+        .merge(protected_routes)
+        .with_state(state)
+        .merge(profile_routes);
 
     // Build application with routes and Swagger UI
     let app = Router::new()

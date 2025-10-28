@@ -9,7 +9,7 @@
 
 CREATE TABLE user_profiles (
     profile_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
-    user_id UUID NOT NULL UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     
     -- Extended Profile Information
