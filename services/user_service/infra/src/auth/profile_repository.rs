@@ -193,9 +193,12 @@ impl UserProfileRepository for PgUserProfileRepository {
             q = q.bind(serde_json::to_value(custom_fields).map_err(|e| AppError::InternalError(e.to_string()))?);
         }
         
-        let profile = q.fetch_one(&self.pool).await?;
+        let profile = q.fetch_optional(&self.pool).await?;
         
-        Ok(profile)
+        match profile {
+            Some(profile) => Ok(profile),
+            None => Err(AppError::NotFound("Profile not found".to_string())),
+        }
     }
     
     async fn update_visibility(&self, user_id: Uuid, tenant_id: Uuid, visibility: &str, show_email: bool, show_phone: bool) -> Result<(), AppError> {

@@ -46,15 +46,15 @@ impl ProfileService for ProfileServiceImpl {
         
         // Parse social_links from JSONB
         let social_links: HashMap<String, String> = serde_json::from_value(profile.social_links.0.clone())
-            .unwrap_or_default();
+            .map_err(|e| AppError::InternalError(format!("Failed to parse social_links JSON: {}", e)))?;
         
         // Parse notification_preferences from JSONB
         let notification_preferences: NotificationPreferences = serde_json::from_value(profile.notification_preferences.0.clone())
-            .unwrap_or_default();
+            .map_err(|e| AppError::InternalError(format!("Failed to parse notification_preferences JSON: {}", e)))?;
         
         // Parse custom_fields from JSONB
         let custom_fields: HashMap<String, serde_json::Value> = serde_json::from_value(profile.custom_fields.0.clone())
-            .unwrap_or_default();
+            .map_err(|e| AppError::InternalError(format!("Failed to parse custom_fields JSON: {}", e)))?;
         
         Ok(ProfileResponse {
             user_id: user.user_id,
@@ -182,7 +182,8 @@ impl ProfileService for ProfileServiceImpl {
         let mut public_profiles = Vec::with_capacity(profiles.len());
         for p in profiles {
             let social_links: HashMap<String, String> = 
-                serde_json::from_value(p.social_links.0.clone()).unwrap_or_default();
+                serde_json::from_value(p.social_links.0.clone())
+                .map_err(|e| AppError::InternalError(format!("Failed to parse social_links JSON for user {}: {}", p.user_id, e)))?;
             
             // Fetch user data to get full_name and avatar_url
             let user = self.user_repo
@@ -220,7 +221,7 @@ impl ProfileService for ProfileServiceImpl {
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
         
         let social_links: HashMap<String, String> = serde_json::from_value(profile.social_links.0.clone())
-            .unwrap_or_default();
+            .map_err(|e| AppError::InternalError(format!("Failed to parse social_links JSON for user {}: {}", user_id, e)))?;
         
         Ok(PublicProfileResponse {
             user_id: profile.user_id,
