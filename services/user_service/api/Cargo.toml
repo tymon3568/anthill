@@ -46,8 +46,10 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 validator = { workspace = true }
 async-trait = { workspace = true }
+sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"] }
 
 [dev-dependencies]
+shared_jwt = { workspace = true }
 # Test dependencies
 tower = { workspace = true }
 http-body-util = "0.1"

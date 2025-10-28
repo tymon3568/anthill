@@ -5,10 +5,10 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** InProgress_By_Gemini
+**Assignee:** Gemini
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-10-27
 
 ## Detailed Description:
 Write integration tests for the authorization middleware. These tests will require a running instance of the service or a test server to hit the actual endpoints.
@@ -34,8 +34,8 @@ Write integration tests for the authorization middleware. These tests will requi
 
 ## Notes / Discussion:
 ---
-*   (Khu vực dành cho các câu hỏi, thảo luận, hoặc ghi chú trong quá trình thực hiện)
+*   (Khu vực dành cho các câu hỏi, thảo luận, hoặc ghi chú trong quá-trình thực hiện)
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+*   2025-10-27: Task claimed by Gemini.

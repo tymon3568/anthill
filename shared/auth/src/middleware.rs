@@ -1,12 +1,10 @@
 use crate::enforcer::SharedEnforcer;
-use axum::{
-    extract::{Request, State},
-    http::{header, StatusCode},
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
-use casbin::CoreApi;
+use axum::extract::{Request, State};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
+use http::{header, StatusCode};
 use tracing::{debug, warn};
+use casbin::CoreApi;
 
 #[derive(Clone)]
 pub struct AuthzState {
@@ -105,11 +103,11 @@ async fn check_permission(
     resource: &str,
     action: &str,
 ) -> Result<bool, AuthError> {
-    let e = enforcer.read().await;
+    let mut e = enforcer.write().await;
 
     // Try to enforce with user_id first
     let allowed = e
-        .enforce((user_id, tenant_id, resource, action))
+        .enforce_mut((user_id, tenant_id, resource, action))
         .map_err(|e| AuthError::CasbinError(e.to_string()))?;
 
     Ok(allowed)

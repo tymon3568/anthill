@@ -28,7 +28,7 @@ async fn main() {
     // Export OpenAPI spec if feature is enabled
     #[cfg(feature = "export-spec")]
     {
-        openapi::export_spec().expect("Failed to export OpenAPI spec");
+        user_service_api::openapi::export_spec().expect("Failed to export OpenAPI spec");
         tracing::info!("📄 OpenAPI spec exported to shared/openapi/user.yaml");
     }
 

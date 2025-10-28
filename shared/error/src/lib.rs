@@ -31,7 +31,10 @@ pub enum AppError {
     PayloadTooLarge(String), // File size exceeds limit
     UnsupportedMediaType(String), // Invalid file type
     
-    // Internal errors
+    // Casbin errors
+    Casbin(casbin::Error),
+
+    // Internal errors    // Internal errors
     InternalServerError(String),
     InternalError(String), // Alias for InternalServerError
     ConfigError(String),
@@ -54,6 +57,7 @@ impl fmt::Display for AppError {
             AppError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
             AppError::PayloadTooLarge(msg) => write!(f, "Payload too large: {}", msg),
             AppError::UnsupportedMediaType(msg) => write!(f, "Unsupported media type: {}", msg),
+            AppError::Casbin(e) => write!(f, "Casbin error: {}", e),
             AppError::InternalServerError(msg) => write!(f, "Internal server error: {}", msg),
             AppError::InternalError(msg) => write!(f, "Internal error: {}", msg),
             AppError::ConfigError(msg) => write!(f, "Configuration error: {}", msg),
@@ -83,6 +87,10 @@ impl IntoResponse for AppError {
             AppError::Forbidden(ref msg) => (StatusCode::FORBIDDEN, msg.clone(), "FORBIDDEN"),
             AppError::PayloadTooLarge(ref msg) => (StatusCode::PAYLOAD_TOO_LARGE, msg.clone(), "PAYLOAD_TOO_LARGE"),
             AppError::UnsupportedMediaType(ref msg) => (StatusCode::UNSUPPORTED_MEDIA_TYPE, msg.clone(), "UNSUPPORTED_MEDIA_TYPE"),
+            AppError::Casbin(ref e) => {
+                tracing::error!("Casbin error: {:?}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Authorization error".to_string(), "CASBIN_ERROR")
+            }
             AppError::InternalServerError(ref msg) => {
                 tracing::error!("Internal error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string(), "INTERNAL_ERROR")
@@ -120,5 +128,11 @@ impl From<sqlx::Error> for AppError {
 impl From<std::env::VarError> for AppError {
     fn from(err: std::env::VarError) -> Self {
         AppError::ConfigError(err.to_string())
+    }
+}
+
+impl From<casbin::Error> for AppError {
+    fn from(err: casbin::Error) -> Self {
+        AppError::Casbin(err)
     }
 }

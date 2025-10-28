@@ -41,6 +41,8 @@ shared_types = { workspace = true }
 # Logging
 tracing = { workspace = true }
 
+futures-util = "0.3"
+
 [dev-dependencies]
 tokio-test = "0.4"
 sqlx = { workspace = true, features = ["sqlite", "runtime-tokio-rustls"] }

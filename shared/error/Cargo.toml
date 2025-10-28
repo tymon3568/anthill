@@ -11,3 +11,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 sqlx = { workspace = true }
+casbin = { version = "2.0", default-features = false, features = ["runtime-tokio", "logging", "incremental"] }
