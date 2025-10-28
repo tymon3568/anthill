@@ -160,7 +160,7 @@ BEGIN
         v_score := v_score + 5;
     END IF;
     
-    IF v_profile_record.social_links IS NOT NULL AND jsonb_array_length(jsonb_object_keys(v_profile_record.social_links)::jsonb) > 0 THEN
+    IF v_profile_record.social_links IS NOT NULL AND v_profile_record.social_links != '{}' THEN
         v_score := v_score + 10;
     END IF;
     
