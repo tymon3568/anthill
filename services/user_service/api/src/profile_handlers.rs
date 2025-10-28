@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Path},
+    extract::{State, Path, Multipart},
     http::StatusCode,
     Json,
 };
@@ -11,6 +11,7 @@ use user_service_core::domains::auth::domain::profile_service::ProfileService;
 use user_service_core::domains::auth::dto::profile_dto::{
     ProfileResponse, UpdateProfileRequest, ProfileVisibilityRequest,
     ProfileCompletenessResponse, ProfileSearchRequest, PublicProfileResponse,
+    UploadAvatarRequest, UploadAvatarResponse,
 };
 use uuid::Uuid;
 
@@ -80,6 +81,110 @@ pub async fn update_profile<S: ProfileService>(
         .await?;
     
     Ok(Json(profile))
+}
+
+/// Upload user avatar
+#[utoipa::path(
+    post,
+    path = "/api/v1/users/profile/avatar",
+    tag = "profile",
+    operation_id = "upload_avatar",
+    security(
+        ("bearer_auth" = [])
+    ),
+    request_body(content_type = "multipart/form-data"),
+    responses(
+        (status = 200, description = "Avatar uploaded successfully", body = UploadAvatarResponse),
+        (status = 400, description = "Invalid request - missing file or invalid format"),
+        (status = 401, description = "Unauthorized"),
+        (status = 413, description = "Payload too large - file exceeds 5MB limit"),
+        (status = 415, description = "Unsupported media type - only images allowed"),
+    )
+)]
+pub async fn upload_avatar<S: ProfileService>(
+    State(state): State<ProfileAppState<S>>,
+    auth_user: AuthUser,
+    mut multipart: Multipart,
+) -> Result<Json<UploadAvatarResponse>, AppError> {
+    const MAX_FILE_SIZE: usize = 5 * 1024 * 1024; // 5MB
+    const ALLOWED_CONTENT_TYPES: &[&str] = &[
+        "image/jpeg",
+        "image/jpg", 
+        "image/png",
+        "image/gif",
+        "image/webp",
+    ];
+
+    let mut file_data: Option<Vec<u8>> = None;
+    let mut content_type: Option<String> = None;
+    let mut filename: Option<String> = None;
+
+    // Parse multipart form data
+    while let Some(field) = multipart.next_field().await
+        .map_err(|e| AppError::ValidationError(format!("Failed to read multipart field: {}", e)))? 
+    {
+        let field_name = field.name().unwrap_or("").to_string();
+        
+        if field_name == "file" || field_name == "avatar" {
+            // Get content type
+            content_type = field.content_type().map(|ct| ct.to_string());
+            
+            // Get filename
+            filename = field.file_name().map(|f| f.to_string());
+            
+            // Read file data
+            let data = field.bytes().await
+                .map_err(|e| AppError::ValidationError(format!("Failed to read file data: {}", e)))?;
+            
+            file_data = Some(data.to_vec());
+            break;
+        }
+    }
+
+    // Validate file exists
+    let file_data = file_data.ok_or_else(|| 
+        AppError::ValidationError("No file provided. Please upload a file with field name 'file' or 'avatar'".to_string())
+    )?;
+
+    // Validate file size
+    if file_data.len() > MAX_FILE_SIZE {
+        return Err(AppError::PayloadTooLarge(format!(
+            "File size {} bytes exceeds maximum allowed size of {} bytes (5MB)",
+            file_data.len(),
+            MAX_FILE_SIZE
+        )));
+    }
+
+    // Validate content type
+    let content_type = content_type.ok_or_else(|| 
+        AppError::ValidationError("Content-Type header is required".to_string())
+    )?;
+
+    if !ALLOWED_CONTENT_TYPES.iter().any(|&ct| content_type.starts_with(ct)) {
+        return Err(AppError::UnsupportedMediaType(format!(
+            "Unsupported file type: {}. Allowed types: JPEG, PNG, GIF, WebP",
+            content_type
+        )));
+    }
+
+    // Create upload request
+    let request = UploadAvatarRequest {
+        file_name: filename.unwrap_or_else(|| format!("avatar_{}.jpg", auth_user.user_id)),
+        file_size: file_data.len(),
+        content_type,
+    };
+
+    // Upload to service
+    let response = state.profile_service
+        .upload_avatar(
+            auth_user.user_id,
+            auth_user.tenant_id,
+            request,
+            file_data,
+        )
+        .await?;
+
+    Ok(Json(response))
 }
 
 /// Update profile visibility settings

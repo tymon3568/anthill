@@ -127,6 +127,9 @@ async fn main() {
             get(profile_handlers::get_profile::<ProfileServiceImpl>)
             .put(profile_handlers::update_profile::<ProfileServiceImpl>)
         )
+        .route("/api/v1/users/profile/avatar",
+            post(profile_handlers::upload_avatar::<ProfileServiceImpl>)
+        )
         .route("/api/v1/users/profile/visibility", 
             put(profile_handlers::update_visibility::<ProfileServiceImpl>)
         )
