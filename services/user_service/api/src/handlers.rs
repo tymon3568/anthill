@@ -1,8 +1,19 @@
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    Json,
+};
+use chrono::Utc;
 use serde::Deserialize;
+use shared_auth::casbin::{CoreApi, MgmtApi};
 use shared_auth::enforcer::SharedEnforcer;
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
 use shared_error::AppError;
 use std::sync::Arc;
+use user_service_core::domains::auth::domain::service::AuthService;
+use user_service_core::domains::auth::dto::auth_dto::{
+    AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
+};
 
 /// Application state containing service dependencies
 pub struct AppState<S: AuthService> {
@@ -322,12 +333,13 @@ pub async fn add_policy<S: AuthService>(
             payload.resource.clone(),
             payload.action.clone(),
         ])
-        .await?;
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to add policy: {}", e)))?;
     if added {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("Policy already exists"))
+        Err(AppError::ValidationError("Policy already exists".to_string()))
     }
 }
 
@@ -366,13 +378,14 @@ pub async fn remove_policy<S: AuthService>(
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
         .remove_policy(vec![scoped_role, resource, action])
-        .await?;
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to remove policy: {}", e)))?;
 
     if removed {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("Policy does not exist"))
+        Err(AppError::ValidationError("Policy does not exist".to_string()))
     }
 }
 
@@ -414,13 +427,14 @@ pub async fn assign_role_to_user<S: AuthService>(
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
         .add_grouping_policy(vec![user_id.to_string(), scoped_role])
-        .await?;
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to add grouping policy: {}", e)))?;
 
     if added {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("User already has this role"))
+        Err(AppError::ValidationError("User already has this role".to_string()))
     }
 }
 
@@ -462,13 +476,14 @@ pub async fn revoke_role_from_user<S: AuthService>(
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
         .remove_grouping_policy(vec![user_id.to_string(), scoped_role])
-        .await?;
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to remove grouping policy: {}", e)))?;
 
     if removed {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("User does not have this role"))
+        Err(AppError::ValidationError("User does not have this role".to_string()))
     }
 }
 
