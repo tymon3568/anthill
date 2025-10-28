@@ -164,8 +164,9 @@ impl ProfileService for ProfileServiceImpl {
         tenant_id: Uuid,
         request: ProfileSearchRequest,
     ) -> Result<(Vec<PublicProfileResponse>, i64), AppError> {
-        let page = request.page.unwrap_or(1);
-        let per_page = request.per_page.unwrap_or(20).min(100); // Max 100 per page
+        // Clamp paging parameters to safe ranges
+        let page = request.page.unwrap_or(1).max(1);
+        let per_page = request.per_page.unwrap_or(20).clamp(1, 100);
         
         let (profiles, total) = self.profile_repo.search(
             tenant_id,
@@ -177,15 +178,22 @@ impl ProfileService for ProfileServiceImpl {
             per_page,
         ).await?;
         
-        // Convert to public profile responses
-        let public_profiles: Vec<PublicProfileResponse> = profiles.into_iter().map(|p| {
-            let social_links: HashMap<String, String> = serde_json::from_value(p.social_links.0.clone())
-                .unwrap_or_default();
+        // Convert to public profile responses with user fields
+        let mut public_profiles = Vec::with_capacity(profiles.len());
+        for p in profiles {
+            let social_links: HashMap<String, String> = 
+                serde_json::from_value(p.social_links.0.clone()).unwrap_or_default();
             
-            PublicProfileResponse {
+            // Fetch user data to get full_name and avatar_url
+            let user = self.user_repo
+                .find_by_id(p.user_id, tenant_id)
+                .await?
+                .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+            
+            public_profiles.push(PublicProfileResponse {
                 user_id: p.user_id,
-                full_name: None, // Will be fetched from users table if needed
-                avatar_url: None,
+                full_name: user.full_name,
+                avatar_url: user.avatar_url,
                 title: p.title,
                 department: p.department,
                 location: p.location,
@@ -193,8 +201,8 @@ impl ProfileService for ProfileServiceImpl {
                 verified: p.verified,
                 verification_badge: p.verification_badge,
                 social_links,
-            }
-        }).collect();
+            });
+        }
         
         Ok((public_profiles, total))
     }

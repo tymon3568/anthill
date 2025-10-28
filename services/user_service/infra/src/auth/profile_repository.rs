@@ -199,7 +199,7 @@ impl UserProfileRepository for PgUserProfileRepository {
     }
     
     async fn update_visibility(&self, user_id: Uuid, tenant_id: Uuid, visibility: &str, show_email: bool, show_phone: bool) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_profiles 
             SET profile_visibility = $3, show_email = $4, show_phone = $5, updated_at = NOW()
@@ -214,11 +214,15 @@ impl UserProfileRepository for PgUserProfileRepository {
         .execute(&self.pool)
         .await?;
         
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Profile not found".to_string()));
+        }
+        
         Ok(())
     }
     
     async fn update_notification_preferences(&self, user_id: Uuid, tenant_id: Uuid, preferences: &serde_json::Value) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_profiles 
             SET notification_preferences = $3, updated_at = NOW()
@@ -230,6 +234,10 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(preferences)
         .execute(&self.pool)
         .await?;
+        
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Profile not found".to_string()));
+        }
         
         Ok(())
     }
@@ -333,7 +341,10 @@ impl UserProfileRepository for PgUserProfileRepository {
         let offset = (page - 1) * per_page;
         
         // Build dynamic WHERE clause
-        let mut where_clauses = vec!["up.tenant_id = $1".to_string()];
+        let mut where_clauses = vec![
+            "up.tenant_id = $1".to_string(),
+            "up.profile_visibility = 'public'".to_string(), // Only show public profiles
+        ];
         let mut param_count = 2;
         
         if query.is_some() {
@@ -437,7 +448,7 @@ impl UserProfileRepository for PgUserProfileRepository {
     }
     
     async fn update_verification(&self, user_id: Uuid, tenant_id: Uuid, verified: bool, badge: Option<&str>) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_profiles 
             SET verified = $3, verification_badge = $4, verified_at = CASE WHEN $3 = true THEN NOW() ELSE NULL END, updated_at = NOW()
@@ -450,6 +461,10 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(badge)
         .execute(&self.pool)
         .await?;
+        
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Profile not found".to_string()));
+        }
         
         Ok(())
     }

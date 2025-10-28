@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 /// DTO for getting user profile (combines User + UserProfile data)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ProfileResponse {
     // User basic info
     pub user_id: Uuid,
@@ -54,7 +55,7 @@ pub struct ProfileResponse {
 }
 
 /// DTO for updating user profile
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdateProfileRequest {
     // User basic info (optional updates)
     pub full_name: Option<String>,
@@ -89,7 +90,7 @@ pub struct UpdateProfileRequest {
 }
 
 /// Notification preferences structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct NotificationPreferences {
     pub email_notifications: bool,
     pub push_notifications: bool,
@@ -109,7 +110,7 @@ impl Default for NotificationPreferences {
 }
 
 /// Specific notification type preferences
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct NotificationTypes {
     pub order_updates: bool,
     pub inventory_alerts: bool,
@@ -131,7 +132,7 @@ impl Default for NotificationTypes {
 }
 
 /// DTO for profile avatar upload
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UploadAvatarRequest {
     pub file_name: String,
     pub file_size: usize,
@@ -139,14 +140,14 @@ pub struct UploadAvatarRequest {
 }
 
 /// DTO for avatar upload response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UploadAvatarResponse {
     pub avatar_url: String,
     pub uploaded_at: DateTime<Utc>,
 }
 
 /// DTO for profile visibility settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ProfileVisibilityRequest {
     pub profile_visibility: String, // public, private, team_only
     pub show_email: bool,
@@ -154,7 +155,7 @@ pub struct ProfileVisibilityRequest {
 }
 
 /// DTO for profile completeness response
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ProfileCompletenessResponse {
     pub score: i32,
     pub missing_fields: Vec<String>,
@@ -162,7 +163,7 @@ pub struct ProfileCompletenessResponse {
 }
 
 /// DTO for profile search/discovery
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ProfileSearchRequest {
     pub query: Option<String>,
     pub department: Option<String>,
@@ -173,7 +174,7 @@ pub struct ProfileSearchRequest {
 }
 
 /// DTO for public profile view (limited info)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PublicProfileResponse {
     pub user_id: Uuid,
     pub full_name: Option<String>,
