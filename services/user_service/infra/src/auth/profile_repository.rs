@@ -37,15 +37,19 @@ impl UserProfileRepository for PgUserProfileRepository {
         let profile = sqlx::query_as::<_, UserProfile>(
             r#"
             INSERT INTO user_profiles (
-                user_id, tenant_id, bio, title, department, location, website_url,
+                profile_id, user_id, tenant_id, 
+                bio, title, department, location, website_url,
                 social_links, language, timezone, date_format, time_format,
                 notification_preferences, profile_visibility, show_email, show_phone,
-                completeness_score, verified, verification_badge, custom_fields
+                completeness_score, last_completeness_check_at,
+                verified, verified_at, verification_badge, 
+                custom_fields, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
             RETURNING *
             "#
         )
+        .bind(profile.profile_id)
         .bind(&profile.user_id)
         .bind(&profile.tenant_id)
         .bind(&profile.bio)
@@ -63,9 +67,13 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(profile.show_email)
         .bind(profile.show_phone)
         .bind(profile.completeness_score)
+        .bind(profile.last_completeness_check_at)
         .bind(profile.verified)
+        .bind(profile.verified_at)
         .bind(&profile.verification_badge)
         .bind(&profile.custom_fields)
+        .bind(profile.created_at)
+        .bind(profile.updated_at)
         .fetch_one(&self.pool)
         .await?;
         
