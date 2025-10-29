@@ -144,21 +144,21 @@ async fn main() {
         .route("/api/v1/users/profiles/:user_id", 
             get(profile_handlers::get_public_profile::<ProfileServiceImpl>)
         )
-        .route("/api/v1/admin/users/:user_id/verification", 
+        .route("/api/v1/users/profiles/:user_id/verification", 
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
         )
         .with_state(profile_state);
 
-    // Combine all API routes
+    // Combine all API routes - merge at root level
     let api_routes = public_routes
         .merge(protected_routes)
-        .with_state(state)
-        .merge(profile_routes);
+        .with_state(state);
 
     // Build application with routes and Swagger UI
     let app = Router::new()
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
+        .merge(profile_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(

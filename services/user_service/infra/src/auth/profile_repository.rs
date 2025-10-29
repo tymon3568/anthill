@@ -256,7 +256,7 @@ impl UserProfileRepository for PgUserProfileRepository {
         .await?;
         
         // Update the score in the profile
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_profiles 
             SET completeness_score = $3, last_completeness_check_at = NOW()
@@ -268,6 +268,10 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(score)
         .execute(&self.pool)
         .await?;
+        
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Profile not found".to_string()));
+        }
         
         // Determine missing fields and suggestions
         let mut missing_fields = Vec::new();
