@@ -24,6 +24,12 @@ pub enum AppError {
     UserAlreadyExists,
     UserNotFound,
     TenantNotFound,
+    NotFound(String), // Generic not found with custom message
+    Forbidden(String), // Forbidden access with custom message
+    
+    // File upload errors
+    PayloadTooLarge(String), // File size exceeds limit
+    UnsupportedMediaType(String), // Invalid file type
     
     // Internal errors
     InternalServerError(String),
@@ -44,6 +50,10 @@ impl fmt::Display for AppError {
             AppError::UserAlreadyExists => write!(f, "User already exists"),
             AppError::UserNotFound => write!(f, "User not found"),
             AppError::TenantNotFound => write!(f, "Tenant not found"),
+            AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
+            AppError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
+            AppError::PayloadTooLarge(msg) => write!(f, "Payload too large: {}", msg),
+            AppError::UnsupportedMediaType(msg) => write!(f, "Unsupported media type: {}", msg),
             AppError::InternalServerError(msg) => write!(f, "Internal server error: {}", msg),
             AppError::InternalError(msg) => write!(f, "Internal error: {}", msg),
             AppError::ConfigError(msg) => write!(f, "Configuration error: {}", msg),
@@ -69,6 +79,10 @@ impl IntoResponse for AppError {
             AppError::UserAlreadyExists => (StatusCode::CONFLICT, self.to_string(), "USER_EXISTS"),
             AppError::UserNotFound => (StatusCode::NOT_FOUND, self.to_string(), "USER_NOT_FOUND"),
             AppError::TenantNotFound => (StatusCode::NOT_FOUND, self.to_string(), "TENANT_NOT_FOUND"),
+            AppError::NotFound(ref msg) => (StatusCode::NOT_FOUND, msg.clone(), "NOT_FOUND"),
+            AppError::Forbidden(ref msg) => (StatusCode::FORBIDDEN, msg.clone(), "FORBIDDEN"),
+            AppError::PayloadTooLarge(ref msg) => (StatusCode::PAYLOAD_TOO_LARGE, msg.clone(), "PAYLOAD_TOO_LARGE"),
+            AppError::UnsupportedMediaType(ref msg) => (StatusCode::UNSUPPORTED_MEDIA_TYPE, msg.clone(), "UNSUPPORTED_MEDIA_TYPE"),
             AppError::InternalServerError(ref msg) => {
                 tracing::error!("Internal error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string(), "INTERNAL_ERROR")

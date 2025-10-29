@@ -8,6 +8,7 @@ use user_service_core::domains::auth::domain::{
 use shared_error::AppError;
 
 /// PostgreSQL implementation of UserRepository
+#[derive(Clone)]
 pub struct PgUserRepository {
     pool: PgPool,
 }

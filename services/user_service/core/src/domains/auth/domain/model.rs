@@ -65,3 +65,52 @@ pub struct Session {
     pub created_at: DateTime<Utc>,
     pub last_used_at: DateTime<Utc>,
 }
+
+/// UserProfile entity
+/// 
+/// Extended user profile information with preferences and settings.
+/// This is a separate entity from User to keep the core user table lean.
+#[derive(Debug, Clone, FromRow)]
+pub struct UserProfile {
+    pub profile_id: Uuid,
+    pub user_id: Uuid,
+    pub tenant_id: Uuid,
+    
+    // Extended profile information
+    pub bio: Option<String>,
+    pub title: Option<String>,
+    pub department: Option<String>,
+    pub location: Option<String>,
+    pub website_url: Option<String>,
+    
+    // Social links and preferences (JSONB)
+    pub social_links: sqlx::types::Json<serde_json::Value>,
+    pub language: String,
+    pub timezone: String,
+    pub date_format: String,
+    pub time_format: String,
+    
+    // Notification preferences (JSONB)
+    pub notification_preferences: sqlx::types::Json<serde_json::Value>,
+    
+    // Privacy settings
+    pub profile_visibility: String,
+    pub show_email: bool,
+    pub show_phone: bool,
+    
+    // Profile completeness
+    pub completeness_score: i32,
+    pub last_completeness_check_at: Option<DateTime<Utc>>,
+    
+    // Verification
+    pub verified: bool,
+    pub verified_at: Option<DateTime<Utc>>,
+    pub verification_badge: Option<String>,
+    
+    // Custom fields (JSONB)
+    pub custom_fields: sqlx::types::Json<serde_json::Value>,
+    
+    // Audit fields
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}

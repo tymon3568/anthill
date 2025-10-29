@@ -1,8 +1,19 @@
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    Json,
+};
+use chrono::Utc;
 use serde::Deserialize;
+use shared_auth::casbin::{CoreApi, MgmtApi};
 use shared_auth::enforcer::SharedEnforcer;
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
 use shared_error::AppError;
 use std::sync::Arc;
+use user_service_core::domains::auth::domain::service::AuthService;
+use user_service_core::domains::auth::dto::auth_dto::{
+    AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
+};
 
 /// Application state containing service dependencies
 pub struct AppState<S: AuthService> {
@@ -322,12 +333,13 @@ pub async fn add_policy<S: AuthService>(
             payload.resource.clone(),
             payload.action.clone(),
         ])
-        .await?;
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to add policy: {}", e)))?;
     if added {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("Policy already exists"))
+        Err(AppError::ValidationError("Policy already exists".to_string()))
     }
 }
 
@@ -359,20 +371,22 @@ pub async fn remove_policy<S: AuthService>(
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
-    let scoped_role = format!("{}:{}", admin_user.tenant_id, payload.role.trim());
-    let resource = payload.resource.trim().to_string();
-    let action = payload.action.trim().to_string();
-
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
-        .remove_policy(vec![scoped_role, resource, action])
-        .await?;
+        .remove_policy(vec![
+            payload.role.clone(),
+            admin_user.tenant_id.to_string(),
+            payload.resource.clone(),
+            payload.action.clone(),
+        ])
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to remove policy: {}", e)))?;
 
     if removed {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("Policy does not exist"))
+        Err(AppError::ValidationError("Policy does not exist".to_string()))
     }
 }
 
@@ -410,17 +424,21 @@ pub async fn assign_role_to_user<S: AuthService>(
     // Verify user exists and belongs to admin's tenant
     let tenant_id = admin_user.tenant_id;
     state.auth_service.get_user(user_id, tenant_id).await?;
-    let scoped_role = format!("{}:{}", tenant_id, payload.role.trim());
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
-        .add_grouping_policy(vec![user_id.to_string(), scoped_role])
-        .await?;
+        .add_grouping_policy(vec![
+            user_id.to_string(),
+            payload.role.trim().to_string(),
+            tenant_id.to_string(),
+        ])
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to add grouping policy: {}", e)))?;
 
     if added {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("User already has this role"))
+        Err(AppError::ValidationError("User already has this role".to_string()))
     }
 }
 
@@ -458,17 +476,21 @@ pub async fn revoke_role_from_user<S: AuthService>(
     // Verify user exists and belongs to admin's tenant
     let tenant_id = admin_user.tenant_id;
     state.auth_service.get_user(user_id, tenant_id).await?;
-    let scoped_role = format!("{}:{}", tenant_id, payload.role.trim());
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer
-        .remove_grouping_policy(vec![user_id.to_string(), scoped_role])
-        .await?;
+        .remove_grouping_policy(vec![
+            user_id.to_string(),
+            payload.role.trim().to_string(),
+            tenant_id.to_string(),
+        ])
+        .await
+        .map_err(|e| AppError::InternalError(format!("Failed to remove grouping policy: {}", e)))?;
 
     if removed {
-        enforcer.save_policy().await?;
+        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
-        Err(AppError::bad_request("User does not have this role"))
+        Err(AppError::ValidationError("User does not have this role".to_string()))
     }
 }
 

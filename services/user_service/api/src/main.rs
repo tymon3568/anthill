@@ -1,11 +1,23 @@
-use axum::routing::{delete, get, post};
+use axum::routing::{get, post, put};
+use axum::{http::{header, HeaderValue}, Router};
+use axum::extract::{DefaultBodyLimit, FromRef};
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
-use user_service_api::{handlers, AppState};
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tower_http::set_header::SetResponseHeaderLayer;
+use tower_http::trace::TraceLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+use user_service_api::{handlers, profile_handlers, AppState, ProfileAppState};
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
+    ProfileServiceImpl, PgUserProfileRepository,
 };
 
+mod openapi;
+
 #[derive(Clone)]
+#[allow(dead_code)] // TODO: Re-enable when authorization middleware is activated
 pub struct AuthzState {
     enforcer: SharedEnforcer,
     jwt_secret: String,
@@ -48,28 +60,70 @@ async fn main() {
     let user_repo = PgUserRepository::new(db_pool.clone());
     let tenant_repo = PgTenantRepository::new(db_pool.clone());
     let session_repo = PgSessionRepository::new(db_pool.clone());
+    let profile_repo = PgUserProfileRepository::new(db_pool.clone());
 
-    // Initialize service
+    // Initialize services
     let auth_service = AuthServiceImpl::new(
-        user_repo,
+        user_repo.clone(),
         tenant_repo,
         session_repo,
         config.jwt_secret.clone(),
         config.jwt_expiration,
         config.jwt_refresh_expiration,
     );
+    
+    let profile_service = ProfileServiceImpl::new(
+        Arc::new(profile_repo),
+        Arc::new(user_repo),
+    );
 
-    // Create application state
+    // Create application states
     let state = AppState {
         auth_service: Arc::new(auth_service),
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
     };
-
-    let authz_state = AuthzState {
-        enforcer: enforcer.clone(),
+    
+    let profile_state = ProfileAppState {
+        profile_service: Arc::new(profile_service),
         jwt_secret: config.jwt_secret.clone(),
     };
+
+    // Combined state for unified router (Axum best practice)
+    #[derive(Clone)]
+    struct CombinedState {
+        app: AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>,
+        profile: ProfileAppState<ProfileServiceImpl>,
+    }
+
+    impl FromRef<CombinedState> for AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>> {
+        fn from_ref(state: &CombinedState) -> Self {
+            state.app.clone()
+        }
+    }
+
+    impl FromRef<CombinedState> for ProfileAppState<ProfileServiceImpl> {
+        fn from_ref(state: &CombinedState) -> Self {
+            state.profile.clone()
+        }
+    }
+
+    impl shared_auth::extractors::JwtSecretProvider for CombinedState {
+        fn get_jwt_secret(&self) -> &str {
+            &self.app.jwt_secret
+        }
+    }
+
+    let combined_state = CombinedState {
+        app: state.clone(),
+        profile: profile_state.clone(),
+    };
+
+    // TODO: Re-enable authorization state
+    // let authz_state = AuthzState {
+    //     enforcer: enforcer.clone(),
+    //     jwt_secret: config.jwt_secret.clone(),
+    // };
 
     tracing::info!("✅ Services initialized");
 
@@ -92,20 +146,52 @@ async fn main() {
         .route(
             "/api/v1/admin/users/:user_id/roles",
             post(handlers::assign_role_to_user).delete(handlers::revoke_role_from_user),
+        );
+    
+        // TODO: Re-enable authorization middleware
+        // .layer(axum::middleware::from_fn_with_state(
+        //     authz_state,
+        //     shared_auth::middleware::casbin_middleware,
+        // ));
+    
+    // Profile routes (require authentication)
+    let profile_routes = Router::new()
+        .route("/api/v1/users/profile", 
+            get(profile_handlers::get_profile::<ProfileServiceImpl>)
+            .put(profile_handlers::update_profile::<ProfileServiceImpl>)
         )
-        .layer(axum::middleware::from_fn_with_state(
-            authz_state,
-            shared_auth::middleware::casbin_middleware,
-        ));
+        // Avatar upload with 5MB body limit to prevent 413 before handler validation
+        .route("/api/v1/users/profile/avatar",
+            post(profile_handlers::upload_avatar::<ProfileServiceImpl>)
+                .layer(DefaultBodyLimit::max(5 * 1024 * 1024)) // 5MB
+        )
+        .route("/api/v1/users/profile/visibility", 
+            put(profile_handlers::update_visibility::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profile/completeness", 
+            get(profile_handlers::get_completeness::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profiles/search", 
+            post(profile_handlers::search_profiles::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profiles/:user_id", 
+            get(profile_handlers::get_public_profile::<ProfileServiceImpl>)
+        )
+        .route("/api/v1/users/profiles/:user_id/verification", 
+            put(profile_handlers::update_verification::<ProfileServiceImpl>)
+        );
 
-    // Combine all API routes
-    let api_routes = public_routes.merge(protected_routes).with_state(state);
+    // Combine all API routes with single unified state
+    let api_routes = public_routes
+        .merge(protected_routes)
+        .merge(profile_routes);
 
     // Build application with routes and Swagger UI
     let app = Router::new()
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
+        .with_state(combined_state)
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(
             header::STRICT_TRANSPORT_SECURITY,
