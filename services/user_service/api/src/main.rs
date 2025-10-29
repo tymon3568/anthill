@@ -1,6 +1,6 @@
 use axum::routing::{get, post, put};
 use axum::{http::{header, HeaderValue}, Router};
-use axum::extract::FromRef;
+use axum::extract::{DefaultBodyLimit, FromRef};
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -160,8 +160,10 @@ async fn main() {
             get(profile_handlers::get_profile::<ProfileServiceImpl>)
             .put(profile_handlers::update_profile::<ProfileServiceImpl>)
         )
+        // Avatar upload with 5MB body limit to prevent 413 before handler validation
         .route("/api/v1/users/profile/avatar",
             post(profile_handlers::upload_avatar::<ProfileServiceImpl>)
+                .layer(DefaultBodyLimit::max(5 * 1024 * 1024)) // 5MB
         )
         .route("/api/v1/users/profile/visibility", 
             put(profile_handlers::update_visibility::<ProfileServiceImpl>)

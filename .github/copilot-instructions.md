@@ -61,6 +61,16 @@ use uuid::Uuid;
 let id = Uuid::now_v7();
 ```
 
+**Setup required:**
+1. Add v7 feature to `Cargo.toml`:
+   ```toml
+   uuid = { version = "1.0", features = ["v7", "serde"] }
+   ```
+2. Compile with unstable flag (UUID v7 is currently unstable):
+   ```bash
+   RUSTFLAGS="--cfg uuid_unstable" cargo build
+   ```
+
 ### Money as BIGINT (cents)
 Never use floating-point for currency:
 ```rust
