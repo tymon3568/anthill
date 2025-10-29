@@ -1,5 +1,6 @@
 use axum::routing::{get, post, put};
 use axum::{http::{header, HeaderValue}, Router};
+use axum::extract::FromRef;
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -88,6 +89,36 @@ async fn main() {
         jwt_secret: config.jwt_secret.clone(),
     };
 
+    // Combined state for unified router (Axum best practice)
+    #[derive(Clone)]
+    struct CombinedState {
+        app: AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>,
+        profile: ProfileAppState<ProfileServiceImpl>,
+    }
+
+    impl FromRef<CombinedState> for AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>> {
+        fn from_ref(state: &CombinedState) -> Self {
+            state.app.clone()
+        }
+    }
+
+    impl FromRef<CombinedState> for ProfileAppState<ProfileServiceImpl> {
+        fn from_ref(state: &CombinedState) -> Self {
+            state.profile.clone()
+        }
+    }
+
+    impl shared_auth::extractors::JwtSecretProvider for CombinedState {
+        fn get_jwt_secret(&self) -> &str {
+            &self.app.jwt_secret
+        }
+    }
+
+    let combined_state = CombinedState {
+        app: state.clone(),
+        profile: profile_state.clone(),
+    };
+
     // TODO: Re-enable authorization state
     // let authz_state = AuthzState {
     //     enforcer: enforcer.clone(),
@@ -146,20 +177,19 @@ async fn main() {
         )
         .route("/api/v1/users/profiles/:user_id/verification", 
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
-        )
-        .with_state(profile_state);
+        );
 
-    // Combine all API routes - merge at root level
+    // Combine all API routes with single unified state
     let api_routes = public_routes
         .merge(protected_routes)
-        .with_state(state);
+        .merge(profile_routes);
 
     // Build application with routes and Swagger UI
     let app = Router::new()
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
-        .merge(profile_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
+        .with_state(combined_state)
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(
             header::STRICT_TRANSPORT_SECURITY,
