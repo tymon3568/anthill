@@ -4,7 +4,7 @@ use axum::{
     Json,
 };
 use serde::{Deserialize, Serialize};
-use shared_auth::extractors::AuthUser;
+use shared_auth::extractors::{AuthUser, JwtSecretProvider};
 use shared_error::AppError;
 use std::sync::Arc;
 use user_service_core::domains::auth::domain::profile_service::ProfileService;
@@ -18,13 +18,21 @@ use uuid::Uuid;
 /// Application state for profile handlers
 pub struct ProfileAppState<S: ProfileService> {
     pub profile_service: Arc<S>,
+    pub jwt_secret: String,
 }
 
 impl<S: ProfileService> Clone for ProfileAppState<S> {
     fn clone(&self) -> Self {
         Self {
             profile_service: Arc::clone(&self.profile_service),
+            jwt_secret: self.jwt_secret.clone(),
         }
+    }
+}
+
+impl<S: ProfileService> JwtSecretProvider for ProfileAppState<S> {
+    fn get_jwt_secret(&self) -> &str {
+        &self.jwt_secret
     }
 }
 

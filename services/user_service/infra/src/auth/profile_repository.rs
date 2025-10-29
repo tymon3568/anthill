@@ -136,7 +136,7 @@ impl UserProfileRepository for PgUserProfileRepository {
         }
         if request.custom_fields.is_some() {
             query.push_str(&format!(", custom_fields = ${}", param_count));
-            param_count += 1;
+            // param_count is not incremented here as it's the last field
         }
         
         query.push_str(" WHERE user_id = $1 AND tenant_id = $2 RETURNING *");

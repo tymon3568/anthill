@@ -1,4 +1,4 @@
-use axum::routing::{delete, get, post, put};
+use axum::routing::{get, post, put};
 use axum::{http::{header, HeaderValue}, Router};
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use std::net::SocketAddr;
@@ -16,6 +16,7 @@ use user_service_infra::auth::{
 mod openapi;
 
 #[derive(Clone)]
+#[allow(dead_code)] // TODO: Re-enable when authorization middleware is activated
 pub struct AuthzState {
     enforcer: SharedEnforcer,
     jwt_secret: String,
@@ -84,6 +85,7 @@ async fn main() {
     
     let profile_state = ProfileAppState {
         profile_service: Arc::new(profile_service),
+        jwt_secret: config.jwt_secret.clone(),
     };
 
     // TODO: Re-enable authorization state
