@@ -88,3 +88,25 @@ Create REST APIs for managing roles and permissions in the Casbin RBAC system, a
   - services/user_service/core/Cargo.toml
   
   Tests: cargo check --workspace passed ✅
+
+* 2025-10-30 11:00: Addressed PR review feedback from CodeRabbit
+  - **FIX #1 (CRITICAL):** Removed duplicate endpoints
+    * Deleted legacy assign_role_to_user/revoke_role_from_user from handlers.rs
+    * Kept only comprehensive implementations in admin_handlers.rs
+    * Removed duplicate routes from main.rs and lib.rs
+    * Updated OpenAPI documentation
+    * Now only ONE clear API for role assignment:
+      - POST /api/v1/admin/users/{user_id}/roles/assign
+      - DELETE /api/v1/admin/users/{user_id}/roles/{role_name}/remove
+  
+  - **FIX #2 (MAJOR):** Fixed error ordering logic in remove_role_from_user
+    * Now checks if role exists BEFORE checking role count
+    * Returns correct HTTP status codes:
+      - 404 when user doesn't have the role
+      - 400 when trying to remove user's only role
+    * Improved error message accuracy
+  
+  - **SKIPPED:** Markdown code block language identifiers (cosmetic only)
+  
+  All fixes compiled successfully ✅
+  Changes pushed to PR #13
