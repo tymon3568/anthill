@@ -10,7 +10,7 @@ pub use profile_handlers::ProfileAppState;
 
 use axum::routing::{get, post};
 use axum::Router;
-use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
+use shared_auth::enforcer::create_enforcer;
 use shared_auth::AuthzState;
 use shared_config::Config;
 use sqlx::PgPool;

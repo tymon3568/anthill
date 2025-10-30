@@ -133,8 +133,8 @@ verify_dependencies() {
                 break
             fi
             
-            # Parse dependency line
-            if [[ "$line" =~ Task:.*'`'([^'`']+'`') ]]; then
+            # Parse dependency line - matches Task: `path/to/file.md` format
+            if [[ $line =~ Task:[[:space:]]*\`([^\`]+)\` ]]; then
                 local dep_file="${BASH_REMATCH[1]}"
                 local dep_path="$TRACKING_DIR/$dep_file"
                 

@@ -103,11 +103,11 @@ pub async fn check_permission(
     resource: &str,
     action: &str,
 ) -> Result<bool, AuthError> {
-    let mut e = enforcer.write().await;
+    let e = enforcer.read().await;
 
     // Try to enforce with user_id first
     let allowed = e
-        .enforce_mut((user_id, tenant_id, resource, action))
+        .enforce((user_id, tenant_id, resource, action))
         .map_err(|e| AuthError::CasbinError(e.to_string()))?;
 
     Ok(allowed)

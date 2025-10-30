@@ -2,11 +2,10 @@ use crate::middleware::{AuthError, AuthzState};
 use axum::body::Body;
 use axum::response::{IntoResponse, Response};
 use futures_util::future::BoxFuture;
-use http::{header, Request, StatusCode};
+use http::{header, Request};
 use std::task::{Context, Poll};
 use tower::{Layer, Service};
 use tracing::{debug, warn};
-use casbin::CoreApi;
 
 #[derive(Clone)]
 pub struct CasbinAuthLayer {
@@ -64,7 +63,14 @@ where
                 return Ok(error.into_response());
             }
 
-            let token = auth_header.unwrap().strip_prefix("Bearer ");
+            // Parse Bearer token with case-insensitive scheme matching (OAuth spec compliant)
+            let token = auth_header
+                .and_then(|value| value.trim().split_once(' '))
+                .and_then(|(scheme, token)| {
+                    scheme.eq_ignore_ascii_case("Bearer").then_some(token)
+                })
+                .filter(|token| !token.is_empty());
+
             if token.is_none() {
                 let error = AuthError::InvalidToken;
                 return Ok(error.into_response());
