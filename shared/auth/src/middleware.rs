@@ -50,9 +50,14 @@ pub async fn casbin_middleware(
         .and_then(|h| h.to_str().ok())
         .ok_or(AuthError::MissingToken)?;
 
-    // Extract token from "Bearer <token>"
+    // Extract token from "Bearer <token>" (case-insensitive per OAuth spec)
     let token = auth_header
-        .strip_prefix("Bearer ")
+        .trim()
+        .split_once(' ')
+        .and_then(|(scheme, token)| {
+            scheme.eq_ignore_ascii_case("Bearer").then_some(token)
+        })
+        .filter(|token| !token.is_empty())
         .ok_or(AuthError::InvalidToken)?;
 
     // Decode and validate JWT
