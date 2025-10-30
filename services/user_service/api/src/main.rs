@@ -1,4 +1,4 @@
-use axum::routing::{get, post, put};
+use axum::routing::{get, post, put, delete};
 use axum::{http::{header, HeaderValue}, Router};
 use axum::extract::{DefaultBodyLimit, FromRef};
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
@@ -8,7 +8,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use user_service_api::{handlers, profile_handlers, AppState, ProfileAppState};
+use user_service_api::{handlers, profile_handlers, admin_handlers, AppState, ProfileAppState};
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
     ProfileServiceImpl, PgUserProfileRepository,
@@ -148,6 +148,33 @@ async fn main() {
             post(handlers::assign_role_to_user).delete(handlers::revoke_role_from_user),
         );
     
+    // Admin role and permission management routes
+    let admin_routes = Router::new()
+        // Role management
+        .route("/api/v1/admin/roles",
+            post(admin_handlers::create_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+            .get(admin_handlers::list_roles::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/roles/:role_name",
+            put(admin_handlers::update_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+            .delete(admin_handlers::delete_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        // User role assignment (additional GET endpoint)
+        .route("/api/v1/admin/users/:user_id/roles",
+            get(admin_handlers::get_user_roles::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        // New user role management endpoints
+        .route("/api/v1/admin/users/:user_id/roles/assign",
+            post(admin_handlers::assign_role_to_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/users/:user_id/roles/:role_name/remove",
+            delete(admin_handlers::remove_role_from_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        // Permission listing
+        .route("/api/v1/admin/permissions",
+            get(admin_handlers::list_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        );
+    
         // TODO: Re-enable authorization middleware
         // .layer(axum::middleware::from_fn_with_state(
         //     authz_state,
@@ -184,6 +211,7 @@ async fn main() {
     // Combine all API routes with single unified state
     let api_routes = public_routes
         .merge(protected_routes)
+        .merge(admin_routes)
         .merge(profile_routes);
 
     // Build application with routes and Swagger UI

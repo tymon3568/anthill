@@ -19,3 +19,5 @@ validator = { workspace = true }
 utoipa = { workspace = true }
 sqlx = { workspace = true }
 zxcvbn = { workspace = true }
+regex = { workspace = true }
+lazy_static = { workspace = true }

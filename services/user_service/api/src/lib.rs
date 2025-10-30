@@ -1,4 +1,5 @@
 // Library exports for integration tests
+pub mod admin_handlers;
 pub mod extractors;
 pub mod handlers;
 pub mod openapi;
