@@ -9,25 +9,51 @@
 
 -- Note: This constraint is now created in migration 20250110000010_create_user_profiles.sql
 -- This step is kept for backwards compatibility with existing databases
-ALTER TABLE users 
-ADD CONSTRAINT IF NOT EXISTS users_user_tenant_unique UNIQUE (user_id, tenant_id);
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'users_user_tenant_unique'
+    ) THEN
+        ALTER TABLE users 
+        ADD CONSTRAINT users_user_tenant_unique UNIQUE (user_id, tenant_id);
+    END IF;
+END $$;
 
 -- =============================================================================
 -- STEP 2: Fix user_profiles foreign key
 -- =============================================================================
 
--- Drop existing constraints
-ALTER TABLE user_profiles 
-DROP CONSTRAINT IF EXISTS user_profiles_user_id_key,
-DROP CONSTRAINT IF EXISTS user_profiles_user_id_fkey;
+-- Drop existing constraints if they exist
+DO $$
+BEGIN
+    -- Drop user_id_key if exists
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_id_key' AND conrelid = 'user_profiles'::regclass) THEN
+        ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_user_id_key;
+    END IF;
+    
+    -- Drop user_id_fkey if exists
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_id_fkey' AND conrelid = 'user_profiles'::regclass) THEN
+        ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_user_id_fkey;
+    END IF;
+END $$;
 
--- Add composite foreign key
-ALTER TABLE user_profiles 
-ADD CONSTRAINT user_profiles_user_tenant_fk 
-    FOREIGN KEY (user_id, tenant_id) 
-    REFERENCES users(user_id, tenant_id) 
-    ON DELETE CASCADE,
-ADD CONSTRAINT user_profiles_user_tenant_unique UNIQUE (user_id, tenant_id);
+-- Add composite foreign key if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_tenant_fk' AND conrelid = 'user_profiles'::regclass) THEN
+        ALTER TABLE user_profiles 
+        ADD CONSTRAINT user_profiles_user_tenant_fk 
+            FOREIGN KEY (user_id, tenant_id) 
+            REFERENCES users(user_id, tenant_id) 
+            ON DELETE CASCADE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_tenant_unique' AND conrelid = 'user_profiles'::regclass) THEN
+        ALTER TABLE user_profiles 
+        ADD CONSTRAINT user_profiles_user_tenant_unique UNIQUE (user_id, tenant_id);
+    END IF;
+END $$;
 
 -- =============================================================================
 -- STEP 3: Update indexes

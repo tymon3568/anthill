@@ -83,8 +83,9 @@ Table sessions {
   tenant_id UUID [not null, ref: > tenants.tenant_id]
   access_token_hash TEXT [not null, note: 'SHA-256 hash']
   refresh_token_hash TEXT [not null, note: 'SHA-256 hash']
-  ip_address INET
-  user_agent TEXT
+  -- Session metadata
+  ip_address TEXT,  -- IP address as string
+  user_agent TEXT,
   device_info JSONB [note: 'Browser, OS, device type']
   access_token_expires_at TIMESTAMPTZ [not null]
   refresh_token_expires_at TIMESTAMPTZ [not null]

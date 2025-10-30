@@ -1,16 +1,19 @@
 pub mod enforcer;
-pub mod middleware;
 pub mod extractors;
+pub mod middleware;
+pub mod layer;
 
 // Re-export commonly used types
 pub use enforcer::{
-    create_enforcer, enforce, add_policy, remove_policy,
-    add_role_for_user, remove_role_for_user, get_roles_for_user,
-    SharedEnforcer,
+    add_policy, add_role_for_user, create_enforcer, enforce, get_roles_for_user, remove_policy,
+    remove_role_for_user, SharedEnforcer,
 };
 
 // Re-export middleware
-pub use middleware::{casbin_middleware, AuthError};
+pub use middleware::{casbin_middleware, AuthError, AuthzState};
+
+// Re-export layer
+pub use layer::CasbinAuthLayer;
 
 // Re-export extractors
 pub use extractors::{AuthUser, RequireAdmin, RequirePermission};

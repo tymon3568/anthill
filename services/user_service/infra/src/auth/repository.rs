@@ -49,10 +49,12 @@ impl UserRepository for PgUserRepository {
         let user = sqlx::query_as::<_, User>(
             r#"
             INSERT INTO users (
-                user_id, tenant_id, email, password_hash, full_name, role, status,
-                email_verified, failed_login_attempts, created_at, updated_at
+                user_id, tenant_id, email, password_hash, full_name, avatar_url, phone,
+                role, status, email_verified, email_verified_at, last_login_at,
+                failed_login_attempts, locked_until, password_changed_at,
+                created_at, updated_at, deleted_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             RETURNING *
             "#
         )
@@ -61,12 +63,19 @@ impl UserRepository for PgUserRepository {
         .bind(&user.email)
         .bind(&user.password_hash)
         .bind(&user.full_name)
+        .bind(&user.avatar_url)
+        .bind(&user.phone)
         .bind(&user.role)
         .bind(&user.status)
         .bind(user.email_verified)
+        .bind(user.email_verified_at)
+        .bind(user.last_login_at)
         .bind(user.failed_login_attempts)
+        .bind(user.locked_until)
+        .bind(user.password_changed_at)
         .bind(user.created_at)
         .bind(user.updated_at)
+        .bind(user.deleted_at)
         .fetch_one(&self.pool)
         .await?;
         
@@ -77,9 +86,21 @@ impl UserRepository for PgUserRepository {
         let user = sqlx::query_as::<_, User>(
             r#"
             UPDATE users
-            SET email = $2, password_hash = $3, full_name = $4, role = $5, status = $6, 
-                updated_at = NOW(), last_login_at = $7
-            WHERE user_id = $1 AND tenant_id = $8 AND deleted_at IS NULL
+            SET email = $2, 
+                password_hash = $3, 
+                full_name = $4, 
+                avatar_url = $5,
+                phone = $6,
+                role = $7, 
+                status = $8,
+                email_verified = $9,
+                email_verified_at = $10,
+                last_login_at = $11,
+                failed_login_attempts = $12,
+                locked_until = $13,
+                password_changed_at = $14,
+                updated_at = NOW()
+            WHERE user_id = $1 AND tenant_id = $15 AND deleted_at IS NULL
             RETURNING *
             "#
         )
@@ -87,9 +108,16 @@ impl UserRepository for PgUserRepository {
         .bind(&user.email)
         .bind(&user.password_hash)
         .bind(&user.full_name)
+        .bind(&user.avatar_url)
+        .bind(&user.phone)
         .bind(&user.role)
         .bind(&user.status)
+        .bind(user.email_verified)
+        .bind(user.email_verified_at)
         .bind(user.last_login_at)
+        .bind(user.failed_login_attempts)
+        .bind(user.locked_until)
+        .bind(user.password_changed_at)
         .bind(user.tenant_id)
         .fetch_one(&self.pool)
         .await?;
@@ -197,8 +225,11 @@ impl TenantRepository for PgTenantRepository {
     async fn create(&self, tenant: &Tenant) -> Result<Tenant, AppError> {
         let tenant = sqlx::query_as::<_, Tenant>(
             r#"
-            INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO tenants (
+                tenant_id, name, slug, plan, plan_expires_at, 
+                status, settings, created_at, updated_at, deleted_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
             "#
         )
@@ -206,10 +237,12 @@ impl TenantRepository for PgTenantRepository {
         .bind(&tenant.name)
         .bind(&tenant.slug)
         .bind(&tenant.plan)
+        .bind(tenant.plan_expires_at)
         .bind(&tenant.status)
         .bind(&tenant.settings)
         .bind(tenant.created_at)
         .bind(tenant.updated_at)
+        .bind(tenant.deleted_at)
         .fetch_one(&self.pool)
         .await?;
         

@@ -85,8 +85,17 @@ CREATE TABLE user_profiles (
 );
 
 -- Add UNIQUE constraint on users table to support composite FK
-ALTER TABLE users 
-ADD CONSTRAINT IF NOT EXISTS users_user_tenant_unique UNIQUE (user_id, tenant_id);
+-- Check if constraint doesn't exist before adding
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'users_user_tenant_unique'
+    ) THEN
+        ALTER TABLE users 
+        ADD CONSTRAINT users_user_tenant_unique UNIQUE (user_id, tenant_id);
+    END IF;
+END $$;
 
 -- Add composite foreign key constraint for tenant isolation
 ALTER TABLE user_profiles 
