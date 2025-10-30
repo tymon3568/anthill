@@ -8,16 +8,13 @@ pub mod profile_handlers;
 pub use handlers::AppState;
 pub use profile_handlers::ProfileAppState;
 
-use axum::error_handling::HandleErrorLayer;
-use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::Router;
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
-use shared_auth::middleware::AuthError;
+use shared_auth::AuthzState;
 use shared_config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
-use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
@@ -25,15 +22,21 @@ use user_service_infra::auth::{
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-#[derive(Clone)]
-pub struct AuthzState {
-    pub enforcer: SharedEnforcer,
-    pub jwt_secret: String,
-}
-
 pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
     // Initialize Casbin enforcer
-    let enforcer = create_enforcer(&config.database_url, None)
+    // Try multiple paths to find the model file
+    let model_paths = [
+        "shared/auth/model.conf",                                      // From workspace root
+        "../../../shared/auth/model.conf",                            // From services/user_service/api
+        "../../../../shared/auth/model.conf",                          // From target/debug
+    ];
+    
+    let model_path = model_paths.iter()
+        .find(|p| std::path::Path::new(p).exists())
+        .copied()
+        .unwrap_or("shared/auth/model.conf");
+    
+    let enforcer = create_enforcer(&config.database_url, Some(model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
 
@@ -84,13 +87,9 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
             "/api/v1/admin/users/:user_id/roles",
             post(handlers::assign_role_to_user).delete(handlers::revoke_role_from_user),
         )
-        .layer(axum::middleware::from_fn_with_state(
-            authz_state,
-            shared_auth::middleware::casbin_middleware,
-        ))
-        .layer(HandleErrorLayer::new(|e: AuthError| async move {
-            e.into_response()
-        })); // Combine all API routes
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state));
+    
+    // Combine all API routes
     let api_routes = public_routes.merge(protected_routes).with_state(state);
 
     // Build application with routes and Swagger UI

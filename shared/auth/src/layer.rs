@@ -40,7 +40,6 @@ impl<S> Service<Request<Body>> for CasbinAuthMiddleware<S>
 where
     S: Service<Request<Body>, Response = Response> + Clone + Send + 'static,
     S::Future: Send + 'static,
-    S::Error: Into<AuthError> + Send,
 {
     type Response = S::Response;
     type Error = S::Error;

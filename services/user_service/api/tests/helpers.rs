@@ -5,7 +5,14 @@ use uuid::Uuid;
 
 pub async fn setup_test_db(config: &mut Config) -> PgPool {
     // Generate a unique database name for each test run
-    let db_name = format!("test_db_{}", Uuid::new_v4().to_string());
+    let db_name = format!("test_db_{}", Uuid::new_v4().to_string().replace("-", "_"));
+
+    // Parse the original database URL to replace the database name
+    let base_url = if let Some(idx) = config.database_url.rfind('/') {
+        &config.database_url[..idx]
+    } else {
+        &config.database_url
+    };
 
     // Connect to the default database to create the new test database
     let mut conn = PgConnection::connect(&config.database_url)
@@ -18,7 +25,7 @@ pub async fn setup_test_db(config: &mut Config) -> PgPool {
         .expect("Failed to create test database");
 
     // Update the config to use the new test database
-    config.database_url = format!("{}/{}", config.database_url, db_name);
+    config.database_url = format!("{}/{}", base_url, db_name);
 
     // Connect to the new test database
     let pool = PgPool::connect(&config.database_url)
@@ -46,7 +53,7 @@ pub async fn seed_test_data(pool: &PgPool) {
     let tenant_a_id = Uuid::new_v4();
     let tenant_b_id = Uuid::new_v4();
     sqlx::query!(
-        "INSERT INTO tenants (id, name) VALUES ($1, 'Tenant A'), ($2, 'Tenant B')",
+        "INSERT INTO tenants (tenant_id, name, slug) VALUES ($1, 'Tenant A', 'tenant-a'), ($2, 'Tenant B', 'tenant-b')",
         tenant_a_id,
         tenant_b_id
     )
@@ -61,7 +68,7 @@ pub async fn seed_test_data(pool: &PgPool) {
     let user_b_id = Uuid::new_v4();
 
     sqlx::query!(
-        "INSERT INTO users (id, tenant_id, email, password_hash) VALUES ($1, $2, 'admin@test.com', 'hash'), ($3, $2, 'manager@test.com', 'hash'), ($4, $2, 'user@test.com', 'hash'), ($5, $6, 'user_b@test.com', 'hash')",
+        "INSERT INTO users (user_id, tenant_id, email, password_hash) VALUES ($1, $2, 'admin@test.com', 'hash'), ($3, $2, 'manager@test.com', 'hash'), ($4, $2, 'user@test.com', 'hash'), ($5, $6, 'user_b@test.com', 'hash')",
         admin_id,
         tenant_a_id,
         manager_id,
@@ -75,7 +82,7 @@ pub async fn seed_test_data(pool: &PgPool) {
 
     // Assign roles
     sqlx::query!(
-        "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES ('g', $1, 'role:admin', $3), ('g', $2, 'role:manager', $3)",
+        "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES ('g', $1, 'role:admin', $3, ''), ('g', $2, 'role:manager', $3, '')",
         admin_id.to_string(),
         manager_id.to_string(),
         tenant_a_id.to_string()

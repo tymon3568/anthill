@@ -96,7 +96,7 @@ pub async fn casbin_middleware(
 }
 
 /// Check permission using Casbin enforcer
-async fn check_permission(
+pub async fn check_permission(
     enforcer: &SharedEnforcer,
     user_id: &str,
     tenant_id: &str,
