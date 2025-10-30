@@ -459,6 +459,13 @@ pub async fn remove_role_from_user<S: AuthService>(
         .filter(|g| g.len() >= 3 && g[2] == tenant_id.to_string())
         .collect();
 
+    // Check if user has the role we're trying to remove (before checking count)
+    if !tenant_roles.iter().any(|g| g.get(1).map(|r| r == &role_name).unwrap_or(false)) {
+        return Err(AppError::NotFound(
+            format!("User does not have role '{}'", role_name)
+        ));
+    }
+
     // Prevent removing user's last role
     if tenant_roles.len() <= 1 {
         return Err(AppError::ValidationError(
@@ -477,16 +484,12 @@ pub async fn remove_role_from_user<S: AuthService>(
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to remove grouping policy: {}", e)))?;
 
-    if !removed {
-        return Err(AppError::NotFound(
-            format!("User does not have role '{}'", role_name)
-        ));
+    // Save changes (removed check should always be true since we verified above)
+    if removed {
+        enforcer.save_policy()
+            .await
+            .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
     }
-
-    // Save changes
-    enforcer.save_policy()
-        .await
-        .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
 
     drop(enforcer);
 

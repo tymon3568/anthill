@@ -13,11 +13,10 @@ use utoipa::OpenApi;
         crate::handlers::logout,
         crate::handlers::list_users,
         crate::handlers::get_user,
+        // Low-level policy management
         crate::handlers::add_policy,
         crate::handlers::remove_policy,
-        crate::handlers::assign_role_to_user,
-        crate::handlers::revoke_role_from_user,
-        // Admin role management endpoints
+        // Admin role management endpoints (new comprehensive implementations)
         crate::admin_handlers::create_role,
         crate::admin_handlers::list_roles,
         crate::admin_handlers::update_role,
@@ -39,9 +38,7 @@ use utoipa::OpenApi;
             ErrorResp,
             crate::handlers::CreatePolicyReq,
             crate::handlers::DeletePolicyReq,
-            crate::handlers::AssignRoleReq,
-            crate::handlers::RevokeRoleReq,
-            // Admin DTOs
+            // Admin DTOs (comprehensive role management)
             CreateRoleReq,
             CreateRoleResp,
             RoleListResp,
