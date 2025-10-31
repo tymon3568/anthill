@@ -11,6 +11,11 @@ This directory contains integration and security tests for the User Service API:
 - SQL injection prevention
 - Unit tests with mocks
 
+## Documentation
+
+- **[Testing Guide](../../../../docs/testing/TESTING_GUIDE.md)** - Complete testing best practices
+- **[Coverage Guide](../../../../docs/testing/COVERAGE_GUIDE.md)** - Coverage reporting with Tarpaulin & Codecov
+
 ## Prerequisites
 
 1. **PostgreSQL Database**: A test database must be running
