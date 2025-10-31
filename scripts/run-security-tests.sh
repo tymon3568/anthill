@@ -28,7 +28,7 @@ if [ -z "$JWT_SECRET" ]; then
 fi
 
 echo -e "${GREEN}Environment Variables:${NC}"
-echo "  DATABASE_URL: $DATABASE_URL"
+echo "  DATABASE_URL: [HIDDEN]"
 echo "  JWT_SECRET: [HIDDEN]"
 echo ""
 
