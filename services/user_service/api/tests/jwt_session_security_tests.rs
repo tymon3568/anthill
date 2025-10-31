@@ -126,18 +126,32 @@ async fn test_jwt_claims_validation() {
     let user = create_test_user(&pool, tenant.tenant_id, "user@test.com", "User", "user").await;
 
     let jwt_secret = get_test_jwt_secret();
+    let app = create_test_app(&pool).await;
 
-    // Test 1: Missing required claims
+    // Test 1: Missing required claims (tenant_id)
+    let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256);
     let invalid_claims = json!({
         "sub": user.user_id.to_string(),
         // Missing tenant_id and role
         "exp": (Utc::now() + chrono::Duration::hours(1)).timestamp()
     });
 
-    // Manual token creation with invalid structure would fail during decode
-    // This test ensures our Claims struct enforces required fields
+    let invalid_token = jsonwebtoken::encode(
+        &header,
+        &invalid_claims,
+        &jsonwebtoken::EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )
+    .expect("Should encode invalid token");
 
-    // Test 2: Invalid UUID format
+    // Should fail when trying to use this token
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &invalid_token, None).await;
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "Token with missing tenant_id claim should be rejected"
+    );
+
+    // Test 2: Invalid UUID format in sub claim
     let bad_uuid_claims = json!({
         "sub": "not-a-uuid",
         "tenant_id": tenant.tenant_id.to_string(),
@@ -145,7 +159,19 @@ async fn test_jwt_claims_validation() {
         "exp": (Utc::now() + chrono::Duration::hours(1)).timestamp()
     });
 
-    // These would fail to deserialize into Claims struct
+    let bad_uuid_token = jsonwebtoken::encode(
+        &header,
+        &bad_uuid_claims,
+        &jsonwebtoken::EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )
+    .expect("Should encode bad UUID token");
+
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &bad_uuid_token, None).await;
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "Token with invalid UUID format should be rejected"
+    );
 }
 
 /// Test: Token refresh mechanism
