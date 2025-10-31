@@ -558,7 +558,31 @@ async fn test_mass_assignment_prevention() {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let auth_resp: Value = serde_json::from_slice(&body).unwrap();
 
-        // User role should be "user" or default, NOT "admin"
-        // This would need to verify in the database
+        // Extract user_id from response to verify in database
+        let user_id_str = auth_resp["user"]["user_id"]
+            .as_str()
+            .expect("Response should contain user_id");
+        let user_id = uuid::Uuid::parse_str(user_id_str).expect("user_id should be valid UUID");
+
+        // Verify in database that role is NOT admin
+        let user_role = sqlx::query!(
+            "SELECT role FROM users WHERE user_id = $1",
+            user_id
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("Should find created user");
+
+        assert_ne!(
+            user_role.role, "admin",
+            "User should NOT be assigned admin role via mass assignment attack. Actual role: {}",
+            user_role.role
+        );
+
+        // Role should be the default "user" or similar safe default
+        assert_eq!(
+            user_role.role, "user",
+            "User should have default 'user' role, not attacker-supplied role"
+        );
     }
 }
