@@ -5,22 +5,22 @@ use serde::Deserialize;
 pub struct Config {
     /// Database connection URL
     pub database_url: String,
-    
+
     /// JWT secret key for signing tokens
     pub jwt_secret: String,
-    
+
     /// JWT access token expiration in seconds (default: 900 = 15 minutes)
     #[serde(default = "default_jwt_expiration")]
     pub jwt_expiration: i64,
-    
+
     /// JWT refresh token expiration in seconds (default: 604800 = 7 days)
     #[serde(default = "default_jwt_refresh_expiration")]
     pub jwt_refresh_expiration: i64,
-    
+
     /// Server host address
     #[serde(default = "default_host")]
     pub host: String,
-    
+
     /// Server port
     #[serde(default = "default_port")]
     pub port: u16,
@@ -47,11 +47,11 @@ impl Config {
     pub fn from_env() -> Result<Self, config::ConfigError> {
         // Load .env file if exists
         let _ = dotenvy::dotenv();
-        
+
         let config = config::Config::builder()
             .add_source(config::Environment::default().separator("_"))
             .build()?;
-        
+
         config.try_deserialize()
     }
 }

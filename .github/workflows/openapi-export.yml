@@ -21,20 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "services/user_service"
-      
+
       - name: Build and Export Spec
         run: |
           cd services/user_service
           cargo build --release --features export-spec
-      
+
       - name: Upload Spec Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -47,20 +47,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "services/inventory_service"
-      
+
       - name: Build and Export Spec
         run: |
           cd services/inventory_service
           cargo build --release --features export-spec
-      
+
       - name: Upload Spec Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -74,20 +74,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "services/order_service"
-      
+
       - name: Build and Export Spec
         run: |
           cd services/order_service
           cargo build --release --features export-spec
-      
+
       - name: Upload Spec Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -101,20 +101,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "services/payment_service"
-      
+
       - name: Build and Export Spec
         run: |
           cd services/payment_service
           cargo build --release --features export-spec
-      
+
       - name: Upload Spec Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -128,20 +128,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "services/integration_service"
-      
+
       - name: Build and Export Spec
         run: |
           cd services/integration_service
           cargo build --release --features export-spec
-      
+
       - name: Upload Spec Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -153,7 +153,7 @@ jobs:
   # Merge all specs into single api.yaml
   merge-specs:
     name: Merge OpenAPI Specs
-    needs: 
+    needs:
       - export-user-service
       - export-inventory-service
       - export-order-service
@@ -162,30 +162,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
+
       - name: Install Redocly CLI
         run: npm install -g @redocly/cli
-      
+
       - name: Merge Specs
         run: |
           # Copy all specs to shared/openapi
           mkdir -p shared/openapi
           find artifacts -name "*.yaml" -exec cp {} shared/openapi/ \;
-          
+
           # List available specs
           echo "📄 Available specs:"
           ls -lh shared/openapi/*.yaml || echo "No specs found"
-          
+
           # Merge specs using redocly (if multiple specs exist)
           if [ $(ls shared/openapi/*.yaml 2>/dev/null | wc -l) -gt 1 ]; then
             echo "🔀 Merging multiple specs..."
@@ -203,36 +203,36 @@ jobs:
             echo "📋 Single spec found, copying as api.yaml"
             cp shared/openapi/user.yaml shared/openapi/api.yaml
           fi
-          
+
           echo "✅ Final api.yaml size: $(du -h shared/openapi/api.yaml | cut -f1)"
-      
+
       - name: Commit and Push Changes
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           git add shared/openapi/*.yaml
-          
+
           # Only commit if there are changes
           if git diff --cached --quiet; then
             echo "✅ No changes to commit"
           else
             git commit -m "chore: update OpenAPI specifications [skip ci]
-            
+
             Auto-generated from services:
             $(find shared/openapi -name '*.yaml' -not -name 'README.md' -exec basename {} \; | sed 's/^/- /')"
-            
+
             git push
           fi
-      
+
       - name: Upload Merged Spec
         uses: actions/upload-artifact@v4
         with:
           name: merged-api-spec
           path: shared/openapi/api.yaml
           retention-days: 30
-      
+
       - name: Comment PR with Spec Info
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -243,7 +243,7 @@ jobs:
               .filter(f => f.endsWith('.yaml'))
               .map(f => `- \`${f}\` (${fs.statSync(\`shared/openapi/\${f}\`).size} bytes)`)
               .join('\n');
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

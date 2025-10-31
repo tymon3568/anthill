@@ -60,24 +60,24 @@ case "$1" in
         echo -e "${GREEN}Creating migration: $2${NC}"
         sqlx migrate add "$2"
         ;;
-    
+
     run)
         echo -e "${GREEN}Running migrations...${NC}"
         sqlx migrate run
         echo -e "${GREEN}✓ Migrations complete${NC}"
         ;;
-    
+
     revert)
         echo -e "${YELLOW}Reverting last migration...${NC}"
         sqlx migrate revert
         echo -e "${GREEN}✓ Migration reverted${NC}"
         ;;
-    
+
     status)
         echo -e "${GREEN}Migration status:${NC}"
         sqlx migrate info
         ;;
-    
+
     reset)
         echo -e "${YELLOW}Warning: This will drop the database and run all migrations!${NC}"
         read -p "Are you sure? (y/N) " -n 1 -r
@@ -94,13 +94,13 @@ case "$1" in
             echo -e "${YELLOW}Cancelled${NC}"
         fi
         ;;
-    
+
     setup)
         echo -e "${GREEN}Setting up database...${NC}"
         sqlx database create
         echo -e "${GREEN}✓ Database created${NC}"
         ;;
-    
+
     drop)
         echo -e "${YELLOW}Warning: This will drop the database!${NC}"
         read -p "Are you sure? (y/N) " -n 1 -r
@@ -112,7 +112,7 @@ case "$1" in
             echo -e "${YELLOW}Cancelled${NC}"
         fi
         ;;
-    
+
     *)
         usage
         ;;

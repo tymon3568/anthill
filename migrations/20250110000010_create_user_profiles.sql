@@ -11,14 +11,14 @@ CREATE TABLE user_profiles (
     profile_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
     user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-    
+
     -- Extended Profile Information
     bio TEXT, -- User biography/description
     title VARCHAR(255), -- Job title or position
     department VARCHAR(255), -- Department or team
     location VARCHAR(255), -- Physical location or timezone
     website_url TEXT, -- Personal or company website
-    
+
     -- Social Links (JSONB for flexibility)
     social_links JSONB DEFAULT '{}',
     -- Example:
@@ -27,13 +27,13 @@ CREATE TABLE user_profiles (
     --   "twitter": "https://twitter.com/username",
     --   "github": "https://github.com/username"
     -- }
-    
+
     -- Preferences
     language VARCHAR(10) DEFAULT 'en', -- UI language preference (en, vi, etc.)
     timezone VARCHAR(100) DEFAULT 'UTC', -- User timezone
     date_format VARCHAR(50) DEFAULT 'YYYY-MM-DD', -- Date format preference
     time_format VARCHAR(50) DEFAULT '24h', -- 12h or 24h
-    
+
     -- Notification Preferences (JSONB)
     notification_preferences JSONB DEFAULT '{}',
     -- Example:
@@ -47,21 +47,21 @@ CREATE TABLE user_profiles (
     --     "system_announcements": false
     --   }
     -- }
-    
+
     -- Privacy Settings
     profile_visibility VARCHAR(50) DEFAULT 'private', -- public, private, team_only
     show_email BOOLEAN DEFAULT FALSE,
     show_phone BOOLEAN DEFAULT FALSE,
-    
+
     -- Profile Completeness
     completeness_score INTEGER DEFAULT 0, -- 0-100 score
     last_completeness_check_at TIMESTAMPTZ,
-    
+
     -- Profile Verification
     verified BOOLEAN DEFAULT FALSE,
     verified_at TIMESTAMPTZ,
     verification_badge VARCHAR(50), -- verified, trusted, expert, etc.
-    
+
     -- Custom Fields (JSONB for extensibility)
     custom_fields JSONB DEFAULT '{}',
     -- Example:
@@ -70,11 +70,11 @@ CREATE TABLE user_profiles (
     --   "manager": "John Doe",
     --   "start_date": "2024-01-15"
     -- }
-    
+
     -- Audit fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
+
     -- Constraints
     CONSTRAINT user_profiles_visibility_check CHECK (profile_visibility IN ('public', 'private', 'team_only')),
     CONSTRAINT user_profiles_completeness_check CHECK (completeness_score >= 0 AND completeness_score <= 100),
@@ -86,22 +86,22 @@ CREATE TABLE user_profiles (
 
 -- Add UNIQUE constraint on users table to support composite FK
 -- Check if constraint doesn't exist before adding
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
+        SELECT 1 FROM pg_constraint
         WHERE conname = 'users_user_tenant_unique'
     ) THEN
-        ALTER TABLE users 
+        ALTER TABLE users
         ADD CONSTRAINT users_user_tenant_unique UNIQUE (user_id, tenant_id);
     END IF;
 END $$;
 
 -- Add composite foreign key constraint for tenant isolation
-ALTER TABLE user_profiles 
-ADD CONSTRAINT user_profiles_user_tenant_fk 
-FOREIGN KEY (user_id, tenant_id) 
-REFERENCES users(user_id, tenant_id) 
+ALTER TABLE user_profiles
+ADD CONSTRAINT user_profiles_user_tenant_fk
+FOREIGN KEY (user_id, tenant_id)
+REFERENCES users(user_id, tenant_id)
 ON DELETE CASCADE;
 
 -- Indexes
@@ -142,50 +142,50 @@ BEGIN
     INTO v_user_record
     FROM users
     WHERE user_id = p_user_id AND tenant_id = p_tenant_id;
-    
+
     -- Get profile info
     SELECT bio, title, department, location, social_links
     INTO v_profile_record
     FROM user_profiles
     WHERE user_id = p_user_id AND tenant_id = p_tenant_id;
-    
+
     -- Calculate score (weights total 100; see individual increments below)
     IF v_user_record.full_name IS NOT NULL AND v_user_record.full_name != '' THEN
         v_score := v_score + 15;
     END IF;
-    
+
     IF v_user_record.avatar_url IS NOT NULL AND v_user_record.avatar_url != '' THEN
         v_score := v_score + 15;
     END IF;
-    
+
     IF v_user_record.phone IS NOT NULL AND v_user_record.phone != '' THEN
         v_score := v_score + 10;
     END IF;
-    
+
     IF v_user_record.email_verified = TRUE THEN
         v_score := v_score + 20;
     END IF;
-    
+
     IF v_profile_record.bio IS NOT NULL AND v_profile_record.bio != '' THEN
         v_score := v_score + 10;
     END IF;
-    
+
     IF v_profile_record.title IS NOT NULL AND v_profile_record.title != '' THEN
         v_score := v_score + 10;
     END IF;
-    
+
     IF v_profile_record.department IS NOT NULL AND v_profile_record.department != '' THEN
         v_score := v_score + 5;
     END IF;
-    
+
     IF v_profile_record.location IS NOT NULL AND v_profile_record.location != '' THEN
         v_score := v_score + 5;
     END IF;
-    
+
     IF v_profile_record.social_links IS NOT NULL AND v_profile_record.social_links != '{}' THEN
         v_score := v_score + 10;
     END IF;
-    
+
     RETURN v_score;
 END;
 $$ LANGUAGE plpgsql;

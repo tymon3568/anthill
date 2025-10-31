@@ -2,9 +2,9 @@ use crate::enforcer::SharedEnforcer;
 use axum::extract::{Request, State};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use casbin::CoreApi;
 use http::{header, StatusCode};
 use tracing::{debug, warn};
-use casbin::CoreApi;
 
 #[derive(Clone)]
 pub struct AuthzState {
@@ -54,9 +54,7 @@ pub async fn casbin_middleware(
     let token = auth_header
         .trim()
         .split_once(' ')
-        .and_then(|(scheme, token)| {
-            scheme.eq_ignore_ascii_case("Bearer").then_some(token)
-        })
+        .and_then(|(scheme, token)| scheme.eq_ignore_ascii_case("Bearer").then_some(token))
         .filter(|token| !token.is_empty())
         .ok_or(AuthError::InvalidToken)?;
 
@@ -135,11 +133,8 @@ impl IntoResponse for AuthError {
             AuthError::PermissionDenied => (StatusCode::FORBIDDEN, "Permission denied"),
             AuthError::CasbinError(ref e) => {
                 warn!("Casbin error: {}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Authorization check failed",
-                )
-            }
+                (StatusCode::INTERNAL_SERVER_ERROR, "Authorization check failed")
+            },
         };
 
         let body = serde_json::json!({

@@ -1,23 +1,22 @@
+[dependencies]
+async-trait = {workspace = true}
+chrono = {workspace = true}
+lazy_static = {workspace = true}
+regex = {workspace = true}
+# External deps
+serde = {workspace = true}
+serde_json = {workspace = true}
+# Shared crates
+shared_error = {workspace = true}
+shared_types = {workspace = true}
+sqlx = {workspace = true}
+utoipa = {workspace = true}
+uuid = {workspace = true}
+validator = {workspace = true}
+zxcvbn = {workspace = true}
+
 [package]
 name = "user_service_core"
-version.workspace = true
-edition.workspace = true
 authors.workspace = true
-
-[dependencies]
-# Shared crates
-shared_error = { workspace = true }
-shared_types = { workspace = true }
-
-# External deps
-serde = { workspace = true }
-serde_json = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
-async-trait = { workspace = true }
-validator = { workspace = true }
-utoipa = { workspace = true }
-sqlx = { workspace = true }
-zxcvbn = { workspace = true }
-regex = { workspace = true }
-lazy_static = { workspace = true }
+edition.workspace = true
+version.workspace = true

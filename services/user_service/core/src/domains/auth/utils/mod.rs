@@ -1,4 +1,6 @@
 pub mod password_validator;
 
 // Re-export for convenience
-pub use password_validator::{validate_password_quick, validate_password_strength, PasswordValidationResult};
+pub use password_validator::{
+    validate_password_quick, validate_password_strength, PasswordValidationResult,
+};

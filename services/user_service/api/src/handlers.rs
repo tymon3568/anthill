@@ -327,7 +327,10 @@ pub async fn add_policy<S: AuthService>(
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to add policy: {}", e)))?;
     if added {
-        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
+        enforcer
+            .save_policy()
+            .await
+            .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
         Err(AppError::ValidationError("Policy already exists".to_string()))
@@ -374,7 +377,10 @@ pub async fn remove_policy<S: AuthService>(
         .map_err(|e| AppError::InternalError(format!("Failed to remove policy: {}", e)))?;
 
     if removed {
-        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
+        enforcer
+            .save_policy()
+            .await
+            .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
         Ok(StatusCode::OK)
     } else {
         Err(AppError::ValidationError("Policy does not exist".to_string()))
@@ -388,7 +394,3 @@ pub async fn remove_policy<S: AuthService>(
 // - Prevention of removing user's last role
 // - Better error messages (404 vs 400)
 // See admin_handlers.rs for the current implementations.
-
-
-
-

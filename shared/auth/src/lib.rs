@@ -1,7 +1,7 @@
 pub mod enforcer;
 pub mod extractors;
-pub mod middleware;
 pub mod layer;
+pub mod middleware;
 
 // Re-export commonly used types
 pub use enforcer::{

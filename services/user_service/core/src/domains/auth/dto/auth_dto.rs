@@ -1,7 +1,7 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use validator::Validate;
 
 /// Standard error response
@@ -10,7 +10,7 @@ pub struct ErrorResp {
     /// Error message
     #[schema(example = "Invalid credentials")]
     pub error: String,
-    
+
     /// Error code for client-side handling
     #[schema(example = "AUTH_FAILED")]
     pub code: Option<String>,
@@ -22,11 +22,11 @@ pub struct HealthResp {
     /// Service status
     #[schema(example = "ok")]
     pub status: String,
-    
+
     /// Service version
     #[schema(example = "0.1.0")]
     pub version: String,
-    
+
     /// Current timestamp
     pub timestamp: DateTime<Utc>,
 }
@@ -38,17 +38,17 @@ pub struct RegisterReq {
     #[validate(email)]
     #[schema(example = "user@example.com")]
     pub email: String,
-    
+
     /// Password (min 8 characters)
     #[validate(length(min = 8))]
     #[schema(example = "SecurePass123!", min_length = 8)]
     pub password: String,
-    
+
     /// Full name
     #[validate(length(min = 1))]
     #[schema(example = "John Doe")]
     pub full_name: String,
-    
+
     /// Tenant name (for new tenant creation)
     #[schema(example = "Acme Corp")]
     pub tenant_name: Option<String>,
@@ -61,7 +61,7 @@ pub struct LoginReq {
     #[validate(email)]
     #[schema(example = "user@example.com")]
     pub email: String,
-    
+
     /// Password
     #[validate(length(min = 1))]
     #[schema(example = "SecurePass123!")]
@@ -73,18 +73,18 @@ pub struct LoginReq {
 pub struct AuthResp {
     /// Access token (JWT, expires in 15 minutes)
     pub access_token: String,
-    
+
     /// Refresh token (expires in 7 days)
     pub refresh_token: String,
-    
+
     /// Token type
     #[schema(example = "Bearer")]
     pub token_type: String,
-    
+
     /// Token expiration time in seconds
     #[schema(example = 900)]
     pub expires_in: i64,
-    
+
     /// User information
     pub user: UserInfo,
 }
@@ -94,22 +94,22 @@ pub struct AuthResp {
 pub struct UserInfo {
     /// User ID
     pub id: Uuid,
-    
+
     /// Email address
     #[schema(example = "user@example.com")]
     pub email: String,
-    
+
     /// Full name (optional)
     #[schema(example = "John Doe")]
     pub full_name: Option<String>,
-    
+
     /// Tenant ID
     pub tenant_id: Uuid,
-    
+
     /// User role
     #[schema(example = "admin")]
     pub role: String,
-    
+
     /// Account creation timestamp
     pub created_at: DateTime<Utc>,
 }
@@ -127,14 +127,14 @@ pub struct RefreshReq {
 pub struct UserListResp {
     /// List of users
     pub users: Vec<UserInfo>,
-    
+
     /// Total count
     pub total: i64,
-    
+
     /// Current page
     #[schema(example = 1)]
     pub page: i32,
-    
+
     /// Page size
     #[schema(example = 20)]
     pub page_size: i32,

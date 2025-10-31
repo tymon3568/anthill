@@ -91,10 +91,7 @@ pub fn export_spec() -> std::io::Result<()> {
     let openapi = ApiDoc::openapi();
     let yaml = serde_yaml::to_string(&openapi).expect("Failed to serialize OpenAPI to YAML");
 
-    let path = Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../shared/openapi/user.yaml"
-    ));
+    let path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../shared/openapi/user.yaml"));
 
     std::fs::create_dir_all(path.parent().unwrap())?;
     std::fs::write(path, yaml)?;

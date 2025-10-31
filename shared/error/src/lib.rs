@@ -10,28 +10,28 @@ use std::fmt;
 pub enum AppError {
     // Database errors
     Database(sqlx::Error),
-    
+
     // Authentication errors
     Unauthorized(String), // With message
     InvalidCredentials,
     TokenExpired,
     InvalidToken,
-    
+
     // Validation errors
     ValidationError(String),
-    
+
     // Business logic errors
     UserAlreadyExists,
     UserNotFound,
     TenantNotFound,
-    NotFound(String), // Generic not found with custom message
+    NotFound(String),  // Generic not found with custom message
     Forbidden(String), // Forbidden access with custom message
-    Conflict(String), // Resource conflict with custom message
-    
+    Conflict(String),  // Resource conflict with custom message
+
     // File upload errors
-    PayloadTooLarge(String), // File size exceeds limit
+    PayloadTooLarge(String),      // File size exceeds limit
     UnsupportedMediaType(String), // Invalid file type
-    
+
     // Casbin errors
     Casbin(casbin::Error),
 
@@ -75,41 +75,77 @@ impl IntoResponse for AppError {
         let (status, error_message, error_code) = match self {
             AppError::Database(ref e) => {
                 tracing::error!("Database error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string(), "DATABASE_ERROR")
-            }
-            AppError::Unauthorized(ref msg) => (StatusCode::UNAUTHORIZED, msg.clone(), "UNAUTHORIZED"),
-            AppError::InvalidCredentials => (StatusCode::UNAUTHORIZED, self.to_string(), "INVALID_CREDENTIALS"),
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error".to_string(),
+                    "DATABASE_ERROR",
+                )
+            },
+            AppError::Unauthorized(ref msg) => {
+                (StatusCode::UNAUTHORIZED, msg.clone(), "UNAUTHORIZED")
+            },
+            AppError::InvalidCredentials => {
+                (StatusCode::UNAUTHORIZED, self.to_string(), "INVALID_CREDENTIALS")
+            },
             AppError::TokenExpired => (StatusCode::UNAUTHORIZED, self.to_string(), "TOKEN_EXPIRED"),
             AppError::InvalidToken => (StatusCode::UNAUTHORIZED, self.to_string(), "INVALID_TOKEN"),
-            AppError::ValidationError(ref msg) => (StatusCode::BAD_REQUEST, msg.clone(), "VALIDATION_ERROR"),
+            AppError::ValidationError(ref msg) => {
+                (StatusCode::BAD_REQUEST, msg.clone(), "VALIDATION_ERROR")
+            },
             AppError::UserAlreadyExists => (StatusCode::CONFLICT, self.to_string(), "USER_EXISTS"),
             AppError::UserNotFound => (StatusCode::NOT_FOUND, self.to_string(), "USER_NOT_FOUND"),
-            AppError::TenantNotFound => (StatusCode::NOT_FOUND, self.to_string(), "TENANT_NOT_FOUND"),
+            AppError::TenantNotFound => {
+                (StatusCode::NOT_FOUND, self.to_string(), "TENANT_NOT_FOUND")
+            },
             AppError::NotFound(ref msg) => (StatusCode::NOT_FOUND, msg.clone(), "NOT_FOUND"),
             AppError::Forbidden(ref msg) => (StatusCode::FORBIDDEN, msg.clone(), "FORBIDDEN"),
             AppError::Conflict(ref msg) => (StatusCode::CONFLICT, msg.clone(), "CONFLICT"),
-            AppError::PayloadTooLarge(ref msg) => (StatusCode::PAYLOAD_TOO_LARGE, msg.clone(), "PAYLOAD_TOO_LARGE"),
-            AppError::UnsupportedMediaType(ref msg) => (StatusCode::UNSUPPORTED_MEDIA_TYPE, msg.clone(), "UNSUPPORTED_MEDIA_TYPE"),
+            AppError::PayloadTooLarge(ref msg) => {
+                (StatusCode::PAYLOAD_TOO_LARGE, msg.clone(), "PAYLOAD_TOO_LARGE")
+            },
+            AppError::UnsupportedMediaType(ref msg) => {
+                (StatusCode::UNSUPPORTED_MEDIA_TYPE, msg.clone(), "UNSUPPORTED_MEDIA_TYPE")
+            },
             AppError::Casbin(ref e) => {
                 tracing::error!("Casbin error: {:?}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Authorization error".to_string(), "CASBIN_ERROR")
-            }
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Authorization error".to_string(),
+                    "CASBIN_ERROR",
+                )
+            },
             AppError::InternalServerError(ref msg) => {
                 tracing::error!("Internal error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string(), "INTERNAL_ERROR")
-            }
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error".to_string(),
+                    "INTERNAL_ERROR",
+                )
+            },
             AppError::InternalError(ref msg) => {
                 tracing::error!("Internal error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Internal error".to_string(), "INTERNAL_ERROR")
-            }
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal error".to_string(),
+                    "INTERNAL_ERROR",
+                )
+            },
             AppError::ConfigError(ref msg) => {
                 tracing::error!("Config error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Configuration error".to_string(), "CONFIG_ERROR")
-            }
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Configuration error".to_string(),
+                    "CONFIG_ERROR",
+                )
+            },
             AppError::DatabaseError(ref msg) => {
                 tracing::error!("Database error: {}", msg);
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string(), "DATABASE_ERROR")
-            }
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Database error".to_string(),
+                    "DATABASE_ERROR",
+                )
+            },
         };
 
         let body = Json(json!({

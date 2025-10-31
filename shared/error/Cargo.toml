@@ -1,14 +1,14 @@
+[dependencies]
+axum = {workspace = true}
+casbin = {version = "2.0", default-features = false, features = ["runtime-tokio", "logging", "incremental"]}
+serde = {workspace = true}
+serde_json = {workspace = true}
+sqlx = {workspace = true}
+thiserror = {workspace = true}
+tracing = {workspace = true}
+
 [package]
 name = "shared_error"
-version.workspace = true
-edition.workspace = true
 authors.workspace = true
-
-[dependencies]
-axum = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-sqlx = { workspace = true }
-casbin = { version = "2.0", default-features = false, features = ["runtime-tokio", "logging", "incremental"] }
+edition.workspace = true
+version.workspace = true

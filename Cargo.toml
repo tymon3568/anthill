@@ -1,85 +1,70 @@
 [workspace]
 members = [
-    # Services (3-crate pattern)
-    "services/user_service/api",
-    "services/user_service/core",
-    "services/user_service/infra",
-    
-    # Shared libraries
-    "shared/error",
-    "shared/jwt",
-    "shared/config",
-    "shared/types",
-    "shared/db",
-    "shared/auth",
+  # Services (3-crate pattern)
+  "services/user_service/api",
+  "services/user_service/core",
+  "services/user_service/infra",
+  # Shared libraries
+  "shared/error",
+  "shared/jwt",
+  "shared/config",
+  "shared/types",
+  "shared/db",
+  "shared/auth"
 ]
-
 resolver = "2"
 
-[workspace.package]
-version = "0.1.0"
-edition = "2021"
-authors = ["tymon3568 <tymon3568@gmail.com>"]
-
 [workspace.dependencies]
-# Tokio - async runtime
-tokio = { version = "1", features = ["full"] }
-
+# Error handling
+anyhow = "1.0"
+# Async traits
+async-trait = "0.1"
 # Axum - web framework
-axum = { version = "0.8", features = ["multipart"] }
-
-# Serde - serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-
-# SQLx - database
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"] }
-
-# Logging & tracing
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-
+axum = {version = "0.8", features = ["multipart"]}
+bcrypt = "0.15"
+chrono = {version = "0.4", features = ["serde"]}
 # Configuration
 config = "0.14"
 dotenvy = "0.15"
-
-# Error handling
-anyhow = "1.0"
-thiserror = "1.0"
-
-# OpenAPI documentation
-utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
-utoipa-swagger-ui = { version = "9", features = ["axum"] }
-
-# UUID & DateTime
-uuid = { version = "1.6", features = ["v4", "v7", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
-
-# Tower middleware
-tower = "0.5"
-tower-http = { version = "0.6", features = ["cors", "trace", "compression-full", "set-header"] }
-
 # Auth & security
 jsonwebtoken = "9.2"
-bcrypt = "0.15"
-validator = { version = "0.16", features = ["derive"] }
-sha2 = "0.10"
-zxcvbn = "3.1"
-regex = "1.10"
 lazy_static = "1.4"
-
-# Async traits
-async-trait = "0.1"
-
+regex = "1.10"
+# Serde - serialization
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+serde_yaml = "0.9"
+sha2 = "0.10"
+shared-auth = {path = "shared/auth"}
+shared_config = {path = "shared/config"}
+shared_db = {path = "shared/db"}
 # Shared crates (internal)
-shared_error = { path = "shared/error" }
-shared_jwt = { path = "shared/jwt" }
-shared_config = { path = "shared/config" }
-shared_types = { path = "shared/types" }
-shared_db = { path = "shared/db" }
-shared-auth = { path = "shared/auth" }
-
+shared_error = {path = "shared/error"}
+shared_jwt = {path = "shared/jwt"}
+shared_types = {path = "shared/types"}
+# SQLx - database
+sqlx = {version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"]}
+thiserror = "1.0"
+# Tokio - async runtime
+tokio = {version = "1", features = ["full"]}
+# Tower middleware
+tower = "0.5"
+tower-http = {version = "0.6", features = ["cors", "trace", "compression-full", "set-header"]}
+# Logging & tracing
+tracing = "0.1"
+tracing-subscriber = {version = "0.3", features = ["env-filter", "json"]}
 # User service crates (internal)
-user_service_core = { path = "services/user_service/core" }
-user_service_infra = { path = "services/user_service/infra" }
+user_service_core = {path = "services/user_service/core"}
+user_service_infra = {path = "services/user_service/infra"}
+# OpenAPI documentation
+utoipa = {version = "5", features = ["axum_extras", "uuid", "chrono"]}
+utoipa-swagger-ui = {version = "9", features = ["axum"]}
+# UUID & DateTime
+uuid = {version = "1.6", features = ["v4", "v7", "serde"]}
+validator = {version = "0.16", features = ["derive"]}
+zxcvbn = "3.1"
+
+[workspace.package]
+authors = ["tymon3568 <tymon3568@gmail.com>"]
+edition = "2021"
+version = "0.1.0"

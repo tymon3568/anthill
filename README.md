@@ -121,6 +121,33 @@ Access: `http://localhost:5173`
 
 ## 🛠️ Development Commands
 
+### Pre-commit Hooks (Recommended)
+
+This project uses pre-commit hooks to automatically check code quality before commits.
+
+```bash
+# Install pre-commit (one-time setup)
+pipx install pre-commit
+
+# Install git hooks (run in project root)
+pre-commit install
+
+# Run hooks manually on all files
+pre-commit run --all-files
+
+# Skip hooks for a specific commit (use sparingly)
+git commit --no-verify
+```
+
+**What the hooks do:**
+- ✅ Format Rust code with `cargo fmt`
+- ✅ Lint Rust code with `cargo clippy` (blocks commits with warnings)
+- ✅ Check YAML syntax
+- ✅ Trim trailing whitespace
+- ✅ Fix end-of-file issues
+- ✅ Format TOML files
+- ✅ Prevent large files from being committed
+
 ### Backend (Rust)
 
 ```bash
@@ -226,15 +253,20 @@ See details in `TODO.md` - Phase 10.
 
 1. Fork repository
 2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Create Pull Request
+3. Install pre-commit hooks: `pre-commit install`
+4. Make your changes (hooks will run automatically on commit)
+5. Commit changes: `git commit -m 'Add amazing feature'`
+6. Push to branch: `git push origin feature/amazing-feature`
+7. Create Pull Request
 
 ### Code Style
 
-- Rust: Run `cargo fmt` and `cargo clippy` before committing
-- TypeScript: Run `pnpm lint` and `pnpm format`
-- Commit messages: Use conventional commits
+- Rust: Pre-commit hooks will automatically run `cargo fmt` and `cargo clippy`
+- TypeScript/Svelte: Run `pnpm lint` before committing
+- Follow existing patterns in the codebase
+- Write tests for new features
+- Update documentation as needed
+- Commit messages: Use conventional commits (e.g., `feat:`, `fix:`, `chore:`)
 
 ## 📝 Documentation
 

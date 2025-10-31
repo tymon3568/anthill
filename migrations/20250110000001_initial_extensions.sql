@@ -33,16 +33,16 @@ DECLARE
 BEGIN
   -- Get current Unix timestamp in milliseconds
   unix_ts_ms := (EXTRACT(EPOCH FROM clock_timestamp()) * 1000)::BIGINT;
-  
+
   -- Generate UUID v7
-  uuid_bytes := 
+  uuid_bytes :=
     -- Timestamp (48 bits = 6 bytes)
     substring(int8send(unix_ts_ms) from 3 for 6) ||
     -- Version (4 bits = 0x7) + random (12 bits)
     set_byte('\x0000'::BYTEA, 0, (b'0111' || substring(get_byte(gen_random_bytes(1)::TEXT::BYTEA, 0)::BIT(8) from 5 for 4))::BIT(8)::INT) ||
     -- Variant (2 bits = 0b10) + random (62 bits = 7.75 bytes, use 8 bytes)
     set_byte(gen_random_bytes(8), 0, (b'10' || substring(get_byte(gen_random_bytes(1)::TEXT::BYTEA, 0)::BIT(8) from 3 for 6))::BIT(8)::INT);
-  
+
   RETURN encode(uuid_bytes, 'hex')::UUID;
 END;
 $$ LANGUAGE plpgsql VOLATILE;

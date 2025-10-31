@@ -1,18 +1,21 @@
-use axum::routing::{get, post, put, delete};
-use axum::{http::{header, HeaderValue}, Router};
 use axum::extract::{DefaultBodyLimit, FromRef};
+use axum::routing::{delete, get, post, put};
+use axum::{
+    http::{header, HeaderValue},
+    Router,
+};
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
+use user_service_api::{admin_handlers, handlers, profile_handlers, AppState, ProfileAppState};
+use user_service_infra::auth::{
+    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserProfileRepository,
+    PgUserRepository, ProfileServiceImpl,
+};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use user_service_api::{handlers, profile_handlers, admin_handlers, AppState, ProfileAppState};
-use user_service_infra::auth::{
-    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
-    ProfileServiceImpl, PgUserProfileRepository,
-};
 
 mod openapi;
 
@@ -71,11 +74,8 @@ async fn main() {
         config.jwt_expiration,
         config.jwt_refresh_expiration,
     );
-    
-    let profile_service = ProfileServiceImpl::new(
-        Arc::new(profile_repo),
-        Arc::new(user_repo),
-    );
+
+    let profile_service = ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo));
 
     // Create application states
     let state = AppState {
@@ -83,7 +83,7 @@ async fn main() {
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
     };
-    
+
     let profile_state = ProfileAppState {
         profile_service: Arc::new(profile_service),
         jwt_secret: config.jwt_secret.clone(),
@@ -96,7 +96,9 @@ async fn main() {
         profile: ProfileAppState<ProfileServiceImpl>,
     }
 
-    impl FromRef<CombinedState> for AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>> {
+    impl FromRef<CombinedState>
+        for AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>
+    {
         fn from_ref(state: &CombinedState) -> Self {
             state.app.clone()
         }
@@ -143,7 +145,7 @@ async fn main() {
             "/api/v1/admin/policies",
             post(handlers::add_policy).delete(handlers::remove_policy),
         );
-    
+
     // Admin role and permission management routes
     let admin_routes = Router::new()
         // Role management
@@ -170,16 +172,16 @@ async fn main() {
         .route("/api/v1/admin/permissions",
             get(admin_handlers::list_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         );
-    
-        // TODO: Re-enable authorization middleware
-        // .layer(axum::middleware::from_fn_with_state(
-        //     authz_state,
-        //     shared_auth::middleware::casbin_middleware,
-        // ));
-    
+
+    // TODO: Re-enable authorization middleware
+    // .layer(axum::middleware::from_fn_with_state(
+    //     authz_state,
+    //     shared_auth::middleware::casbin_middleware,
+    // ));
+
     // Profile routes (require authentication)
     let profile_routes = Router::new()
-        .route("/api/v1/users/profile", 
+        .route("/api/v1/users/profile",
             get(profile_handlers::get_profile::<ProfileServiceImpl>)
             .put(profile_handlers::update_profile::<ProfileServiceImpl>)
         )
@@ -188,19 +190,19 @@ async fn main() {
             post(profile_handlers::upload_avatar::<ProfileServiceImpl>)
                 .layer(DefaultBodyLimit::max(5 * 1024 * 1024)) // 5MB
         )
-        .route("/api/v1/users/profile/visibility", 
+        .route("/api/v1/users/profile/visibility",
             put(profile_handlers::update_visibility::<ProfileServiceImpl>)
         )
-        .route("/api/v1/users/profile/completeness", 
+        .route("/api/v1/users/profile/completeness",
             get(profile_handlers::get_completeness::<ProfileServiceImpl>)
         )
-        .route("/api/v1/users/profiles/search", 
+        .route("/api/v1/users/profiles/search",
             post(profile_handlers::search_profiles::<ProfileServiceImpl>)
         )
-        .route("/api/v1/users/profiles/:user_id", 
+        .route("/api/v1/users/profiles/:user_id",
             get(profile_handlers::get_public_profile::<ProfileServiceImpl>)
         )
-        .route("/api/v1/users/profiles/:user_id/verification", 
+        .route("/api/v1/users/profiles/:user_id/verification",
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
         );
 
@@ -249,10 +251,7 @@ async fn main() {
     tracing::info!("📚 Swagger UI available at http://{}/docs", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
-    .unwrap();
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+        .await
+        .unwrap();
 }

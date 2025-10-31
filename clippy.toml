@@ -1,0 +1,29 @@
+# Clippy configuration for Anthill project
+# See: https://doc.rust-lang.org/clippy/
+
+# Array size threshold
+array-size-threshold = 512000
+# Cognitive complexity threshold
+cognitive-complexity-threshold = 30
+# Large enum variant threshold (in bytes)
+enum-variant-size-threshold = 200
+# Literal representation threshold
+literal-representation-threshold = 10
+# Documentation settings
+missing-docs-in-crate-items = false
+# Pass by value size limit
+pass-by-value-size-limit = 256
+# Maximum number of single char bindings
+single-char-binding-names-threshold = 4
+# Too large for stack threshold
+too-large-for-stack = 200
+# Too many arguments threshold
+too-many-arguments-threshold = 9  # Increased from 7 for trait methods with many params
+# Too many lines threshold
+too-many-lines-threshold = 150
+# Trivially copy pass by value size limit
+trivial-copy-size-limit = 128
+# Type complexity threshold
+type-complexity-threshold = 250
+# Verbose bit mask threshold
+verbose-bit-mask-threshold = 1

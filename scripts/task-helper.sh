@@ -18,14 +18,14 @@ NC='\033[0m' # No Color
 find_todo_tasks() {
     local phase=${1:-"03_User_Service"}
     local search_path="$TRACKING_DIR/$phase"
-    
+
     if [ ! -d "$search_path" ]; then
         echo -e "${RED}❌ Phase directory not found: $search_path${NC}"
         return 1
     fi
-    
+
     echo -e "${BLUE}🔍 Searching for Todo tasks in $phase...${NC}\n"
-    
+
     local found=0
     while IFS= read -r file; do
         if grep -q "^\*\*Status:\*\* Todo" "$file" 2>/dev/null; then
@@ -33,7 +33,7 @@ find_todo_tasks() {
             local task_id=$(basename "$file" .md)
             local priority=$(grep "^\*\*Priority:\*\*" "$file" | sed 's/.*: //')
             local module=$(grep "^\*\*Module:\*\*" "$file" | sed 's/.*: //')
-            
+
             echo -e "${GREEN}✓ Found:${NC} $task_id"
             echo -e "  ${YELLOW}Priority:${NC} $priority"
             echo -e "  ${YELLOW}Module:${NC} $module"
@@ -41,7 +41,7 @@ find_todo_tasks() {
             echo ""
         fi
     done < <(find "$search_path" -type f -name "task_*.md")
-    
+
     if [ $found -eq 0 ]; then
         echo -e "${YELLOW}⚠ No Todo tasks found in $phase${NC}"
     else
@@ -54,15 +54,15 @@ find_by_status() {
     local status=$1
     local phase=${2:-"03_User_Service"}
     local search_path="$TRACKING_DIR/$phase"
-    
+
     if [ -z "$status" ]; then
         echo -e "${RED}❌ Please specify status${NC}"
         echo "  Valid: Todo, InProgress_By_*, Blocked_By_*, NeedsReview, Done"
         return 1
     fi
-    
+
     echo -e "${BLUE}🔍 Searching for '$status' tasks in $phase...${NC}\n"
-    
+
     local found=0
     while IFS= read -r file; do
         if grep -q "^\*\*Status:\*\* $status" "$file" 2>/dev/null; then
@@ -71,34 +71,34 @@ find_by_status() {
             echo -e "${GREEN}✓${NC} $task_id → $file"
         fi
     done < <(find "$search_path" -type f -name "task_*.md")
-    
+
     echo -e "\n${GREEN}📊 Total: $found task(s) with status '$status'${NC}"
 }
 
 # Function: Show task details
 show_task() {
     local task_file=$1
-    
+
     if [ -z "$task_file" ]; then
         echo -e "${RED}❌ Please specify task file path${NC}"
         return 1
     fi
-    
+
     if [ ! -f "$task_file" ]; then
         echo -e "${RED}❌ Task file not found: $task_file${NC}"
         return 1
     fi
-    
+
     echo -e "${BLUE}📋 Task Details:${NC}\n"
     echo -e "${YELLOW}════════════════════════════════════════${NC}"
     head -30 "$task_file"
     echo -e "${YELLOW}════════════════════════════════════════${NC}\n"
-    
+
     # Show dependencies
     echo -e "${BLUE}📦 Dependencies:${NC}"
     grep -A 5 "## Dependencies:" "$task_file" || echo "  None specified"
     echo ""
-    
+
     # Show sub-tasks status
     echo -e "${BLUE}✅ Sub-tasks Progress:${NC}"
     local total=$(grep -c "^- \[ \]" "$task_file" 2>/dev/null || echo 0)
@@ -109,35 +109,35 @@ show_task() {
 # Function: Verify dependencies
 verify_dependencies() {
     local task_file=$1
-    
+
     if [ ! -f "$task_file" ]; then
         echo -e "${RED}❌ Task file not found: $task_file${NC}"
         return 1
     fi
-    
+
     echo -e "${BLUE}🔍 Verifying dependencies for: $(basename "$task_file")${NC}\n"
-    
+
     # Extract dependencies section
     local in_deps=0
     local all_done=1
-    
+
     while IFS= read -r line; do
         if [[ "$line" =~ ^##\ Dependencies: ]]; then
             in_deps=1
             continue
         fi
-        
+
         if [[ $in_deps -eq 1 ]]; then
             # Stop at next section
             if [[ "$line" =~ ^## ]]; then
                 break
             fi
-            
+
             # Parse dependency line - matches Task: `path/to/file.md` format
             if [[ $line =~ Task:[[:space:]]*\`([^\`]+)\` ]]; then
                 local dep_file="${BASH_REMATCH[1]}"
                 local dep_path="$TRACKING_DIR/$dep_file"
-                
+
                 if [ -f "$dep_path" ]; then
                     local dep_status=$(grep "^\*\*Status:\*\*" "$dep_path" | sed 's/.*: //')
                     if [ "$dep_status" == "Done" ]; then
@@ -153,7 +153,7 @@ verify_dependencies() {
             fi
         fi
     done < "$task_file"
-    
+
     echo ""
     if [ $all_done -eq 1 ]; then
         echo -e "${GREEN}✅ All dependencies satisfied! Task ready to claim.${NC}"
@@ -170,35 +170,35 @@ create_task() {
     local module=$2
     local task_num=$3
     local description=$4
-    
+
     if [ -z "$phase" ] || [ -z "$module" ] || [ -z "$task_num" ] || [ -z "$description" ]; then
         echo -e "${RED}❌ Usage: create <phase> <module> <task_num> <description>${NC}"
         echo "  Example: create 03_User_Service 3.2_Casbin_Authorization 03.02.15 implement_role_hierarchy"
         return 1
     fi
-    
+
     local target_dir="$TRACKING_DIR/$phase/$module"
     local filename="task_${task_num}_${description}.md"
     local target_path="$target_dir/$filename"
-    
+
     if [ ! -d "$target_dir" ]; then
         echo -e "${YELLOW}⚠ Creating directory: $target_dir${NC}"
         mkdir -p "$target_dir"
     fi
-    
+
     if [ -f "$target_path" ]; then
         echo -e "${RED}❌ Task file already exists: $target_path${NC}"
         return 1
     fi
-    
+
     if [ ! -f "$TEMPLATE_FILE" ]; then
         echo -e "${RED}❌ Template file not found: $TEMPLATE_FILE${NC}"
         return 1
     fi
-    
+
     # Copy template and replace placeholders
     cp "$TEMPLATE_FILE" "$target_path"
-    
+
     local today=$(date +%Y-%m-%d)
     sed -i.bak \
         -e "s|\[Phase\]|$phase|g" \
@@ -207,9 +207,9 @@ create_task() {
         -e "s|\[description\]|$description|g" \
         -e "s|YYYY-MM-DD|$today|g" \
         "$target_path"
-    
+
     rm "${target_path}.bak"
-    
+
     echo -e "${GREEN}✅ Created new task: $target_path${NC}"
     echo -e "${YELLOW}📝 Please edit the file to fill in details${NC}"
 }
@@ -217,7 +217,7 @@ create_task() {
 # Function: List all phases
 list_phases() {
     echo -e "${BLUE}📂 Available phases in V1_MVP:${NC}\n"
-    
+
     for dir in "$TRACKING_DIR"/*; do
         if [ -d "$dir" ]; then
             local phase=$(basename "$dir")

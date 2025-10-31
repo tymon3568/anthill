@@ -1,0 +1,34 @@
+# Rustfmt configuration for Anthill project
+# See: https://rust-lang.github.io/rustfmt/
+# Note: Only stable features used for compatibility
+
+# Edition must match Cargo.toml
+edition = "2021"
+fn_call_width = 80
+# Function definitions
+fn_params_layout = "Tall"
+hard_tabs = false
+# Match block trailing comma
+match_block_trailing_comma = true
+# Formatting style
+max_width = 100
+# Misc
+newline_style = "Unix"
+remove_nested_parens = true
+tab_spaces = 4
+# Use field init shorthand if possible
+use_field_init_shorthand = true
+use_try_shorthand = true
+
+# Unstable features (commented out - require nightly)
+# imports_granularity = "Crate"
+# group_imports = "StdExternalCrate"
+# reorder_imports = true
+# trailing_comma = "Vertical"
+# format_strings = true
+# chain_width = 80
+# wrap_comments = true
+# comment_width = 100
+# normalize_comments = true
+# control_brace_style = "AlwaysSameLine"
+# struct_field_align_threshold = 20

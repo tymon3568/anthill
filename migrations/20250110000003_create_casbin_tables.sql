@@ -13,29 +13,29 @@
 
 CREATE TABLE casbin_rule (
     id SERIAL PRIMARY KEY,
-    
+
     -- Policy type (p = policy, g = grouping/role)
     ptype VARCHAR(12) NOT NULL,
-    
+
     -- Subject (user_id or role name)
     v0 VARCHAR(128) NOT NULL,
-    
+
     -- Tenant ID (for multi-tenancy)
     v1 VARCHAR(128) NOT NULL,
-    
+
     -- Resource (e.g., "/api/v1/products")
     v2 VARCHAR(128) NOT NULL,
-    
+
     -- Action (e.g., "GET", "POST", "DELETE")
     v3 VARCHAR(128) NOT NULL,
-    
+
     -- Additional fields (for future extensibility)
     v4 VARCHAR(128) DEFAULT '',
     v5 VARCHAR(128) DEFAULT '',
-    
+
     -- Audit
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
+
     -- Unique constraint to prevent duplicate rules
     CONSTRAINT casbin_rule_unique UNIQUE (ptype, v0, v1, v2, v3, v4, v5)
 );
@@ -95,7 +95,7 @@ COMMENT ON COLUMN casbin_rule.v3 IS 'Action/HTTP method (e.g., GET, POST)';
 
 -- View to see all policies in a more readable format
 CREATE OR REPLACE VIEW casbin_policies AS
-SELECT 
+SELECT
     id,
     ptype AS policy_type,
     v0 AS subject,
@@ -110,7 +110,7 @@ COMMENT ON VIEW casbin_policies IS 'Human-readable view of Casbin policies';
 
 -- View to see all role assignments
 CREATE OR REPLACE VIEW casbin_role_assignments AS
-SELECT 
+SELECT
     id,
     v0 AS user_id,
     v1 AS role,

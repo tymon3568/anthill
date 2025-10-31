@@ -1,12 +1,13 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
-use uuid::Uuid;
-use user_service_core::domains::auth::domain::{
-    model::UserProfile,
-    profile_repository::UserProfileRepository,
-};
-use user_service_core::domains::auth::dto::profile_dto::{UpdateProfileRequest, ProfileCompletenessResponse};
 use shared_error::AppError;
+use sqlx::PgPool;
+use user_service_core::domains::auth::domain::{
+    model::UserProfile, profile_repository::UserProfileRepository,
+};
+use user_service_core::domains::auth::dto::profile_dto::{
+    ProfileCompletenessResponse, UpdateProfileRequest,
+};
+use uuid::Uuid;
 
 /// PostgreSQL implementation of UserProfileRepository
 pub struct PgUserProfileRepository {
@@ -21,28 +22,32 @@ impl PgUserProfileRepository {
 
 #[async_trait]
 impl UserProfileRepository for PgUserProfileRepository {
-    async fn find_by_user_id(&self, user_id: Uuid, tenant_id: Uuid) -> Result<Option<UserProfile>, AppError> {
+    async fn find_by_user_id(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+    ) -> Result<Option<UserProfile>, AppError> {
         let profile = sqlx::query_as::<_, UserProfile>(
-            "SELECT * FROM user_profiles WHERE user_id = $1 AND tenant_id = $2"
+            "SELECT * FROM user_profiles WHERE user_id = $1 AND tenant_id = $2",
         )
         .bind(user_id)
         .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(profile)
     }
-    
+
     async fn create(&self, profile: &UserProfile) -> Result<UserProfile, AppError> {
         let profile = sqlx::query_as::<_, UserProfile>(
             r#"
             INSERT INTO user_profiles (
-                profile_id, user_id, tenant_id, 
+                profile_id, user_id, tenant_id,
                 bio, title, department, location, website_url,
                 social_links, language, timezone, date_format, time_format,
                 notification_preferences, profile_visibility, show_email, show_phone,
                 completeness_score, last_completeness_check_at,
-                verified, verified_at, verification_badge, 
+                verified, verified_at, verification_badge,
                 custom_fields, created_at, updated_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
@@ -50,8 +55,8 @@ impl UserProfileRepository for PgUserProfileRepository {
             "#
         )
         .bind(profile.profile_id)
-        .bind(&profile.user_id)
-        .bind(&profile.tenant_id)
+        .bind(profile.user_id)
+        .bind(profile.tenant_id)
         .bind(&profile.bio)
         .bind(&profile.title)
         .bind(&profile.department)
@@ -76,15 +81,20 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(profile.updated_at)
         .fetch_one(&self.pool)
         .await?;
-        
+
         Ok(profile)
     }
-    
-    async fn update(&self, user_id: Uuid, tenant_id: Uuid, request: &UpdateProfileRequest) -> Result<UserProfile, AppError> {
+
+    async fn update(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        request: &UpdateProfileRequest,
+    ) -> Result<UserProfile, AppError> {
         // Build dynamic UPDATE query based on provided fields
         let mut query = String::from("UPDATE user_profiles SET updated_at = NOW()");
         let mut param_count = 3; // Starting from $3 (user_id=$1, tenant_id=$2)
-        
+
         // Build the query dynamically
         if request.bio.is_some() {
             query.push_str(&format!(", bio = ${}", param_count));
@@ -146,14 +156,14 @@ impl UserProfileRepository for PgUserProfileRepository {
             query.push_str(&format!(", custom_fields = ${}", param_count));
             // param_count is not incremented here as it's the last field
         }
-        
+
         query.push_str(" WHERE user_id = $1 AND tenant_id = $2 RETURNING *");
-        
+
         // Build the query with parameters
         let mut q = sqlx::query_as::<_, UserProfile>(&query)
             .bind(user_id)
             .bind(tenant_id);
-        
+
         // Bind parameters in the same order as the query
         if let Some(ref bio) = request.bio {
             q = q.bind(bio);
@@ -171,7 +181,10 @@ impl UserProfileRepository for PgUserProfileRepository {
             q = q.bind(website_url);
         }
         if let Some(ref social_links) = request.social_links {
-            q = q.bind(serde_json::to_value(social_links).map_err(|e| AppError::InternalError(e.to_string()))?);
+            q = q.bind(
+                serde_json::to_value(social_links)
+                    .map_err(|e| AppError::InternalError(e.to_string()))?,
+            );
         }
         if let Some(ref language) = request.language {
             q = q.bind(language);
@@ -186,7 +199,10 @@ impl UserProfileRepository for PgUserProfileRepository {
             q = q.bind(time_format);
         }
         if let Some(ref notification_preferences) = request.notification_preferences {
-            q = q.bind(serde_json::to_value(notification_preferences).map_err(|e| AppError::InternalError(e.to_string()))?);
+            q = q.bind(
+                serde_json::to_value(notification_preferences)
+                    .map_err(|e| AppError::InternalError(e.to_string()))?,
+            );
         }
         if let Some(ref profile_visibility) = request.profile_visibility {
             q = q.bind(profile_visibility);
@@ -198,24 +214,34 @@ impl UserProfileRepository for PgUserProfileRepository {
             q = q.bind(show_phone);
         }
         if let Some(ref custom_fields) = request.custom_fields {
-            q = q.bind(serde_json::to_value(custom_fields).map_err(|e| AppError::InternalError(e.to_string()))?);
+            q = q.bind(
+                serde_json::to_value(custom_fields)
+                    .map_err(|e| AppError::InternalError(e.to_string()))?,
+            );
         }
-        
+
         let profile = q.fetch_optional(&self.pool).await?;
-        
+
         match profile {
             Some(profile) => Ok(profile),
             None => Err(AppError::NotFound("Profile not found".to_string())),
         }
     }
-    
-    async fn update_visibility(&self, user_id: Uuid, tenant_id: Uuid, visibility: &str, show_email: bool, show_phone: bool) -> Result<(), AppError> {
+
+    async fn update_visibility(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        visibility: &str,
+        show_email: bool,
+        show_phone: bool,
+    ) -> Result<(), AppError> {
         let result = sqlx::query(
             r#"
-            UPDATE user_profiles 
+            UPDATE user_profiles
             SET profile_visibility = $3, show_email = $4, show_phone = $5, updated_at = NOW()
             WHERE user_id = $1 AND tenant_id = $2
-            "#
+            "#,
         )
         .bind(user_id)
         .bind(tenant_id)
@@ -224,67 +250,74 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(show_phone)
         .execute(&self.pool)
         .await?;
-        
+
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound("Profile not found".to_string()));
         }
-        
+
         Ok(())
     }
-    
-    async fn update_notification_preferences(&self, user_id: Uuid, tenant_id: Uuid, preferences: &serde_json::Value) -> Result<(), AppError> {
+
+    async fn update_notification_preferences(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        preferences: &serde_json::Value,
+    ) -> Result<(), AppError> {
         let result = sqlx::query(
             r#"
-            UPDATE user_profiles 
+            UPDATE user_profiles
             SET notification_preferences = $3, updated_at = NOW()
             WHERE user_id = $1 AND tenant_id = $2
-            "#
+            "#,
         )
         .bind(user_id)
         .bind(tenant_id)
         .bind(preferences)
         .execute(&self.pool)
         .await?;
-        
+
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound("Profile not found".to_string()));
         }
-        
+
         Ok(())
     }
-    
-    async fn calculate_completeness(&self, user_id: Uuid, tenant_id: Uuid) -> Result<ProfileCompletenessResponse, AppError> {
+
+    async fn calculate_completeness(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+    ) -> Result<ProfileCompletenessResponse, AppError> {
         // Call the database function to calculate completeness
-        let score: i32 = sqlx::query_scalar(
-            "SELECT calculate_profile_completeness($1, $2)"
-        )
-        .bind(user_id)
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await?;
-        
+        let score: i32 = sqlx::query_scalar("SELECT calculate_profile_completeness($1, $2)")
+            .bind(user_id)
+            .bind(tenant_id)
+            .fetch_one(&self.pool)
+            .await?;
+
         // Update the score in the profile
         let result = sqlx::query(
             r#"
-            UPDATE user_profiles 
+            UPDATE user_profiles
             SET completeness_score = $3, last_completeness_check_at = NOW()
             WHERE user_id = $1 AND tenant_id = $2
-            "#
+            "#,
         )
         .bind(user_id)
         .bind(tenant_id)
         .bind(score)
         .execute(&self.pool)
         .await?;
-        
+
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound("Profile not found".to_string()));
         }
-        
+
         // Determine missing fields and suggestions
         let mut missing_fields = Vec::new();
         let mut suggestions = Vec::new();
-        
+
         // Get user and profile data to check what's missing
         let user_data: Option<(Option<String>, Option<String>, Option<String>, bool)> = sqlx::query_as(
             "SELECT full_name, avatar_url, phone, email_verified FROM users WHERE user_id = $1 AND tenant_id = $2"
@@ -293,7 +326,7 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         let profile_data: Option<(Option<String>, Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
             "SELECT bio, title, department, location FROM user_profiles WHERE user_id = $1 AND tenant_id = $2"
         )
@@ -301,7 +334,7 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         if let Some((full_name, avatar_url, phone, email_verified)) = user_data {
             if full_name.is_none() || full_name.as_ref().map(|s| s.is_empty()).unwrap_or(true) {
                 missing_fields.push("full_name".to_string());
@@ -309,7 +342,8 @@ impl UserProfileRepository for PgUserProfileRepository {
             }
             if avatar_url.is_none() || avatar_url.as_ref().map(|s| s.is_empty()).unwrap_or(true) {
                 missing_fields.push("avatar_url".to_string());
-                suggestions.push("Upload a profile picture to personalize your account".to_string());
+                suggestions
+                    .push("Upload a profile picture to personalize your account".to_string());
             }
             if phone.is_none() || phone.as_ref().map(|s| s.is_empty()).unwrap_or(true) {
                 missing_fields.push("phone".to_string());
@@ -320,7 +354,7 @@ impl UserProfileRepository for PgUserProfileRepository {
                 suggestions.push("Verify your email address to unlock all features".to_string());
             }
         }
-        
+
         if let Some((bio, title, department, location)) = profile_data {
             if bio.is_none() || bio.as_ref().map(|s| s.is_empty()).unwrap_or(true) {
                 missing_fields.push("bio".to_string());
@@ -339,14 +373,14 @@ impl UserProfileRepository for PgUserProfileRepository {
                 suggestions.push("Add your location to connect with nearby colleagues".to_string());
             }
         }
-        
+
         Ok(ProfileCompletenessResponse {
             score,
             missing_fields,
             suggestions,
         })
     }
-    
+
     async fn search(
         &self,
         tenant_id: Uuid,
@@ -359,7 +393,7 @@ impl UserProfileRepository for PgUserProfileRepository {
         per_page: i32,
     ) -> Result<(Vec<UserProfile>, i64), AppError> {
         let offset = (page - 1) * per_page;
-        
+
         // Build dynamic WHERE clause for visibility
         // Users can see:
         // - Public profiles (always)
@@ -370,7 +404,7 @@ impl UserProfileRepository for PgUserProfileRepository {
             format!("(up.profile_visibility = 'public' OR up.user_id = $2 OR (up.profile_visibility = 'team_only' AND up.department = (SELECT department FROM user_profiles WHERE user_id = $2 AND tenant_id = $1)))"),
         ];
         let mut param_count = 3;
-        
+
         if query.is_some() {
             where_clauses.push(format!(
                 "(u.full_name ILIKE ${} OR up.title ILIKE ${} OR up.bio ILIKE ${})",
@@ -378,23 +412,23 @@ impl UserProfileRepository for PgUserProfileRepository {
             ));
             param_count += 1;
         }
-        
+
         if department.is_some() {
             where_clauses.push(format!("up.department = ${}", param_count));
             param_count += 1;
         }
-        
+
         if location.is_some() {
             where_clauses.push(format!("up.location = ${}", param_count));
             param_count += 1;
         }
-        
+
         if verified_only {
             where_clauses.push("up.verified = true".to_string());
         }
-        
+
         let where_clause = where_clauses.join(" AND ");
-        
+
         // Count total
         let count_query = format!(
             "SELECT COUNT(*) FROM user_profiles up \
@@ -402,11 +436,11 @@ impl UserProfileRepository for PgUserProfileRepository {
              WHERE {}",
             where_clause
         );
-        
+
         let mut count_q = sqlx::query_scalar::<_, i64>(&count_query)
             .bind(tenant_id)
             .bind(viewer_user_id);
-        
+
         if let Some(q) = query {
             count_q = count_q.bind(format!("%{}%", q));
         }
@@ -416,22 +450,24 @@ impl UserProfileRepository for PgUserProfileRepository {
         if let Some(loc) = location {
             count_q = count_q.bind(loc);
         }
-        
+
         let total = count_q.fetch_one(&self.pool).await?;
-        
+
         // Fetch profiles
         let profiles_query = format!(
             "SELECT up.* FROM user_profiles up \
              JOIN users u ON up.user_id = u.user_id AND up.tenant_id = u.tenant_id \
              WHERE {} \
              ORDER BY up.completeness_score DESC, up.updated_at DESC LIMIT ${} OFFSET ${}",
-            where_clause, param_count, param_count + 1
+            where_clause,
+            param_count,
+            param_count + 1
         );
-        
+
         let mut profiles_q = sqlx::query_as::<_, UserProfile>(&profiles_query)
             .bind(tenant_id)
             .bind(viewer_user_id);
-        
+
         if let Some(q) = query {
             profiles_q = profiles_q.bind(format!("%{}%", q));
         }
@@ -441,17 +477,22 @@ impl UserProfileRepository for PgUserProfileRepository {
         if let Some(loc) = location {
             profiles_q = profiles_q.bind(loc);
         }
-        
+
         profiles_q = profiles_q.bind(per_page).bind(offset);
-        
+
         let profiles = profiles_q.fetch_all(&self.pool).await?;
-        
+
         Ok((profiles, total))
     }
-    
-    async fn get_public_profiles(&self, tenant_id: Uuid, page: i32, per_page: i32) -> Result<(Vec<UserProfile>, i64), AppError> {
+
+    async fn get_public_profiles(
+        &self,
+        tenant_id: Uuid,
+        page: i32,
+        per_page: i32,
+    ) -> Result<(Vec<UserProfile>, i64), AppError> {
         let offset = (page - 1) * per_page;
-        
+
         // Count total public profiles
         let total: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM user_profiles WHERE tenant_id = $1 AND profile_visibility = 'public'"
@@ -459,29 +500,35 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(tenant_id)
         .fetch_one(&self.pool)
         .await?;
-        
+
         // Fetch public profiles
         let profiles = sqlx::query_as::<_, UserProfile>(
             r#"
-            SELECT * FROM user_profiles 
+            SELECT * FROM user_profiles
             WHERE tenant_id = $1 AND profile_visibility = 'public'
             ORDER BY completeness_score DESC, verified DESC, updated_at DESC
             LIMIT $2 OFFSET $3
-            "#
+            "#,
         )
         .bind(tenant_id)
         .bind(per_page)
         .bind(offset)
         .fetch_all(&self.pool)
         .await?;
-        
+
         Ok((profiles, total))
     }
-    
-    async fn update_verification(&self, user_id: Uuid, tenant_id: Uuid, verified: bool, badge: Option<&str>) -> Result<(), AppError> {
+
+    async fn update_verification(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        verified: bool,
+        badge: Option<&str>,
+    ) -> Result<(), AppError> {
         let result = sqlx::query(
             r#"
-            UPDATE user_profiles 
+            UPDATE user_profiles
             SET verified = $3, verification_badge = $4, verified_at = CASE WHEN $3 = true THEN NOW() ELSE NULL END, updated_at = NOW()
             WHERE user_id = $1 AND tenant_id = $2
             "#
@@ -492,11 +539,11 @@ impl UserProfileRepository for PgUserProfileRepository {
         .bind(badge)
         .execute(&self.pool)
         .await?;
-        
+
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound("Profile not found".to_string()));
         }
-        
+
         Ok(())
     }
 }
