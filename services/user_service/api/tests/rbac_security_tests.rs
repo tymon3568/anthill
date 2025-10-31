@@ -11,6 +11,7 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
+use shared_auth::casbin::{CoreApi, MgmtApi};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -287,7 +288,7 @@ async fn test_rbac_expired_jwt_rejection() {
 
     // Create an expired JWT (exp in the past)
     let mut claims = Claims::new_access(user.user_id, tenant.tenant_id, "user".to_string(), 900);
-    claims.exp = (Utc::now() - chrono::Duration::hours(1)).timestamp() as u64;
+    claims.exp = (Utc::now() - chrono::Duration::hours(1)).timestamp();
 
     let jwt_secret = get_test_jwt_secret();
     let expired_token = encode_jwt(&claims, &jwt_secret).expect("Failed to create expired JWT");
@@ -486,7 +487,7 @@ async fn test_rbac_complex_policy_evaluation() {
     }
 
     // Verify policies are enforced correctly
-    let e = enforcer.read().await;
+    let mut e = enforcer.write().await;
 
     let can_get = e.enforce((
         "role:developer",
