@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** Completed
+**Status:** NeedsReview
 **Assignee:**
 **Created Date:** 2025-01-21
 **Last Updated:** 2025-01-21
