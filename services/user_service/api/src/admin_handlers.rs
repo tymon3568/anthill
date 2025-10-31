@@ -226,6 +226,13 @@ pub async fn update_role<S: AuthService>(
         ));
     }
 
+    // Require at least one permission
+    if payload.permissions.is_empty() {
+        return Err(AppError::ValidationError(
+            "Role must have at least one permission".to_string()
+        ));
+    }
+
     let mut enforcer = state.enforcer.write().await;
 
     // Check if role exists
