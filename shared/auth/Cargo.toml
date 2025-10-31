@@ -16,7 +16,7 @@ shared_jwt = {workspace = true}
 shared_types = {workspace = true}
 # Database
 sqlx = {workspace = true}
-sqlx-adapter = "1.8"
+sqlx-adapter = {version = "1.8.0", default-features = false, features = ["postgres", "runtime-tokio-rustls"]}
 # Error handling
 thiserror = {workspace = true}
 # Async runtime

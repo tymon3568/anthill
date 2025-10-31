@@ -12,6 +12,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use user_service_api::AppState;
 use user_service_core::domains::auth::domain::model::{Tenant, User};
+use user_service_core::domains::auth::domain::repository::{TenantRepository, UserRepository};
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
 };
@@ -29,28 +30,16 @@ pub fn get_test_jwt_secret() -> String {
         .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string())
 }
 
-/// Setup test database with migrations
+/// Setup test database pool
 pub async fn setup_test_db() -> PgPool {
     let database_url = get_test_database_url();
-    let pool = shared_db::init_pool(&database_url, 1)
+
+    let pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to connect to test database");
 
-    // Run migrations manually since these are raw SQL files
-    let migration_files = vec![
-        include_str!("../../../../migrations/20250110000001_initial_extensions.sql"),
-        include_str!("../../../../migrations/20250110000002_create_tenants_users.sql"),
-        include_str!("../../../../migrations/20250110000003_create_casbin_tables.sql"),
-        include_str!("../../../../migrations/20250110000004_seed_default_casbin_policies.sql"),
-        include_str!("../../../../migrations/20250110000010_create_user_profiles.sql"),
-    ];
-
-    for migration in migration_files {
-        sqlx::raw_sql(migration)
-            .execute(&pool)
-            .await
-            .expect("Failed to run migration");
-    }
+    // Migrations should already be run on the test database
+    // No need to run them again in tests
 
     pool
 }
@@ -148,9 +137,12 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
 
     let state = AppState {
         auth_service: Arc::new(auth_service),
-        enforcer: shared_auth::enforcer::create_enforcer(&get_test_database_url(), None)
-            .await
-            .expect("Failed to create enforcer"),
+        enforcer: shared_auth::enforcer::create_enforcer(
+            &get_test_database_url(),
+            Some("/home/arch/Project/test/anthill/shared/auth/model.conf"),
+        )
+        .await
+        .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
     };
 
