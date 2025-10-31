@@ -66,6 +66,8 @@ bcrypt = "0.15"
 validator = { version = "0.16", features = ["derive"] }
 sha2 = "0.10"
 zxcvbn = "3.1"
+regex = "1.10"
+lazy_static = "1.4"
 
 # Async traits
 async-trait = "0.1"

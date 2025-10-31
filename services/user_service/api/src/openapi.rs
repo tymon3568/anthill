@@ -1,3 +1,4 @@
+use user_service_core::domains::auth::dto::admin_dto::*;
 use user_service_core::domains::auth::dto::auth_dto::*;
 use utoipa::OpenApi;
 
@@ -12,10 +13,18 @@ use utoipa::OpenApi;
         crate::handlers::logout,
         crate::handlers::list_users,
         crate::handlers::get_user,
+        // Low-level policy management
         crate::handlers::add_policy,
         crate::handlers::remove_policy,
-        crate::handlers::assign_role_to_user,
-        crate::handlers::revoke_role_from_user,
+        // Admin role management endpoints (new comprehensive implementations)
+        crate::admin_handlers::create_role,
+        crate::admin_handlers::list_roles,
+        crate::admin_handlers::update_role,
+        crate::admin_handlers::delete_role,
+        crate::admin_handlers::assign_role_to_user,
+        crate::admin_handlers::remove_role_from_user,
+        crate::admin_handlers::get_user_roles,
+        crate::admin_handlers::list_permissions,
     ),
     components(
         schemas(
@@ -29,8 +38,25 @@ use utoipa::OpenApi;
             ErrorResp,
             crate::handlers::CreatePolicyReq,
             crate::handlers::DeletePolicyReq,
-            crate::handlers::AssignRoleReq,
-            crate::handlers::RevokeRoleReq,
+            // Admin DTOs (comprehensive role management)
+            CreateRoleReq,
+            CreateRoleResp,
+            RoleListResp,
+            RoleInfo,
+            PermissionInfo,
+            PermissionReq,
+            UpdateRoleReq,
+            UpdateRoleResp,
+            DeleteRoleResp,
+            AssignUserRoleReq,
+            AssignUserRoleResp,
+            RemoveUserRoleResp,
+            UserRolesResp,
+            PermissionListResp,
+            AvailablePermission,
+            AddPolicyReq,
+            RemovePolicyReq,
+            PolicyResp,
         )
     ),
     tags(
@@ -38,6 +64,9 @@ use utoipa::OpenApi;
         (name = "auth", description = "Authentication endpoints"),
         (name = "users", description = "User management endpoints"),
         (name = "admin", description = "Admin-only endpoints for role and policy management"),
+        (name = "admin-roles", description = "Role management endpoints (admin only)"),
+        (name = "admin-users", description = "User role assignment endpoints (admin only)"),
+        (name = "admin-permissions", description = "Permission management endpoints (admin only)"),
     ),
     info(
         title = "User Service API",

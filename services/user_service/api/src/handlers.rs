@@ -262,7 +262,7 @@ pub async fn get_user<S: AuthService>(
     Ok(Json(user_info))
 }
 
-// DTOs for role management
+// DTOs for direct policy manipulation (low-level Casbin operations)
 
 #[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
 pub struct CreatePolicyReq {
@@ -284,17 +284,8 @@ pub struct DeletePolicyReq {
     pub action: String,
 }
 
-#[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
-pub struct AssignRoleReq {
-    #[validate(length(min = 1))]
-    pub role: String,
-}
-
-#[derive(Debug, Deserialize, utoipa::ToSchema, validator::Validate)]
-pub struct RevokeRoleReq {
-    #[validate(length(min = 1))]
-    pub role: String,
-}
+// Note: AssignRoleReq and RevokeRoleReq DTOs have been moved to admin_dto.rs
+// as AssignUserRoleReq for better consistency and enhanced validation.
 
 // Role management handlers
 
@@ -390,113 +381,13 @@ pub async fn remove_policy<S: AuthService>(
     }
 }
 
-/// Assign a role to a user (admin only)
-#[utoipa::path(
-    post,
-    path = "/api/v1/admin/users/{user_id}/roles",
-    tag = "admin",
-    operation_id = "admin_assign_role",
-    params(
-        ("user_id" = uuid::Uuid, Path, description = "User ID"),
-    ),
-    request_body = AssignRoleReq,
-    responses(
-        (status = 200, description = "Role assigned successfully"),
-        (status = 400, description = "Invalid request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin only"),
-    ),
-    security(
-        ("bearer_auth" = [])
-    )
-)]
-pub async fn assign_role_to_user<S: AuthService>(
-    RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
-    axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
-    Json(payload): Json<AssignRoleReq>,
-) -> Result<StatusCode, AppError> {
-    // Validate request
-    use validator::Validate;
-    payload
-        .validate()
-        .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    // Verify user exists and belongs to admin's tenant
-    let tenant_id = admin_user.tenant_id;
-    state.auth_service.get_user(user_id, tenant_id).await?;
-    let mut enforcer = state.enforcer.write().await;
-    let added = enforcer
-        .add_grouping_policy(vec![
-            user_id.to_string(),
-            payload.role.trim().to_string(),
-            tenant_id.to_string(),
-        ])
-        .await
-        .map_err(|e| AppError::InternalError(format!("Failed to add grouping policy: {}", e)))?;
-
-    if added {
-        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
-        Ok(StatusCode::OK)
-    } else {
-        Err(AppError::ValidationError("User already has this role".to_string()))
-    }
-}
-
-/// Revoke a role from a user (admin only)
-#[utoipa::path(
-    delete,
-    path = "/api/v1/admin/users/{user_id}/roles",
-    tag = "admin",
-    operation_id = "admin_revoke_role",
-    params(
-        ("user_id" = uuid::Uuid, Path, description = "User ID"),
-    ),
-    request_body = RevokeRoleReq,
-    responses(
-        (status = 200, description = "Role revoked successfully"),
-        (status = 400, description = "Invalid request"),
-        (status = 401, description = "Unauthorized"),
-        (status = 403, description = "Forbidden - Admin only"),
-    ),
-    security(
-        ("bearer_auth" = [])
-    )
-)]
-pub async fn revoke_role_from_user<S: AuthService>(
-    RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
-    axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
-    Json(payload): Json<RevokeRoleReq>,
-) -> Result<StatusCode, AppError> {
-    // Validate request
-    use validator::Validate;
-    payload
-        .validate()
-        .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    // Verify user exists and belongs to admin's tenant
-    let tenant_id = admin_user.tenant_id;
-    state.auth_service.get_user(user_id, tenant_id).await?;
-    let mut enforcer = state.enforcer.write().await;
-    let removed = enforcer
-        .remove_grouping_policy(vec![
-            user_id.to_string(),
-            payload.role.trim().to_string(),
-            tenant_id.to_string(),
-        ])
-        .await
-        .map_err(|e| AppError::InternalError(format!("Failed to remove grouping policy: {}", e)))?;
-
-    if removed {
-        enforcer.save_policy().await.map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
-        Ok(StatusCode::OK)
-    } else {
-        Err(AppError::ValidationError("User does not have this role".to_string()))
-    }
-}
-
-// Note: The endpoint for creating a role (POST /api/v1/admin/roles) is not implemented
-// because a role in Casbin is implicitly created when it is used in a policy.
-// If an explicit list of roles is needed, it should be managed in the application's own database.
+// Note: Legacy assign_role_to_user and revoke_role_from_user handlers have been moved
+// to admin_handlers.rs with enhanced validation and error handling.
+// The new implementations include:
+// - Role existence verification
+// - Prevention of removing user's last role
+// - Better error messages (404 vs 400)
+// See admin_handlers.rs for the current implementations.
 
 
 

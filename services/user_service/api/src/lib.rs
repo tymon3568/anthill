@@ -1,4 +1,5 @@
 // Library exports for integration tests
+pub mod admin_handlers;
 pub mod extractors;
 pub mod handlers;
 pub mod openapi;
@@ -78,14 +79,10 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
         .route("/api/v1/users/:user_id", get(handlers::get_user))
-        // Admin routes for role management
+        // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
             post(handlers::add_policy).delete(handlers::remove_policy),
-        )
-        .route(
-            "/api/v1/admin/users/:user_id/roles",
-            post(handlers::assign_role_to_user).delete(handlers::revoke_role_from_user),
         )
         .layer(shared_auth::CasbinAuthLayer::new(authz_state));
     
