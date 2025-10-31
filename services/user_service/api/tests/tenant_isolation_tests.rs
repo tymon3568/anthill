@@ -76,7 +76,7 @@ async fn test_tenant_isolation_basic_user_data_access() {
 
     assert_eq!(
         response.status(),
-        StatusCode::NOT_FOUND,
+        StatusCode::FORBIDDEN,
         "User from Tenant A should NOT be able to access user from Tenant B"
     );
 
@@ -91,7 +91,7 @@ async fn test_tenant_isolation_basic_user_data_access() {
 
     assert_eq!(
         response.status(),
-        StatusCode::NOT_FOUND,
+        StatusCode::FORBIDDEN,
         "User from Tenant B should NOT be able to access user from Tenant A"
     );
 
@@ -154,7 +154,7 @@ async fn test_tenant_isolation_admin_cannot_cross_tenant() {
 
     assert_eq!(
         response.status(),
-        StatusCode::NOT_FOUND,
+        StatusCode::FORBIDDEN,
         "Admin from Tenant A should NOT be able to access user from Tenant B"
     );
 
@@ -282,7 +282,7 @@ async fn test_tenant_isolation_with_multiple_users() {
 
             assert_eq!(
                 response.status(),
-                StatusCode::NOT_FOUND,
+                StatusCode::FORBIDDEN,
                 "User from Tenant A should NOT access user from Tenant B"
             );
         }
@@ -333,9 +333,10 @@ async fn test_tenant_isolation_sql_injection_prevention() {
             None,
         ).await;
 
-        // Should fail gracefully (bad request or not found, not internal error)
+        // Should fail gracefully (bad request, forbidden, or not found - not internal error)
         assert!(
             response.status() == StatusCode::BAD_REQUEST ||
+            response.status() == StatusCode::FORBIDDEN ||
             response.status() == StatusCode::NOT_FOUND,
             "SQL injection attempt should be safely rejected: {}",
             injection_path

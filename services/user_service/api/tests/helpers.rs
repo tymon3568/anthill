@@ -110,6 +110,10 @@ pub async fn create_test_user(
         .create(&user)
         .await
         .expect("Failed to create test user");
+    
+    // Add default Casbin policies for the user's role and assign user to role
+    add_default_policies(pool, tenant_id, role, user.user_id).await;
+    
     user
 }
 
@@ -118,6 +122,82 @@ pub fn create_test_jwt(user_id: Uuid, tenant_id: Uuid, role: &str) -> String {
     let claims = Claims::new_access(user_id, tenant_id, role.to_string(), 900);
     let jwt_secret = get_test_jwt_secret();
     create_jwt(&claims, &jwt_secret).expect("Failed to create JWT")
+}
+
+/// Add default Casbin policies for a role in a tenant
+async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_id: Uuid) {
+    let role_key = format!("role:{}", role);
+    let tenant_str = tenant_id.to_string();
+    let user_str = user_id.to_string();
+    
+    // First, assign user to role (g rule)
+    sqlx::query!(
+        "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ('g', $1, $2, $3, '', '', '') ON CONFLICT DO NOTHING",
+        user_str, role_key, tenant_str
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to assign user to role");
+    
+    // Add policies based on role
+    match role {
+        "admin" => {
+            // Admins can do everything in their tenant
+            let policies = vec![
+                ("p", &role_key, &tenant_str, "/api/v1/users", "GET"),
+                ("p", &role_key, &tenant_str, "/api/v1/users/*", "GET"),
+                ("p", &role_key, &tenant_str, "/api/v1/users", "POST"),
+                ("p", &role_key, &tenant_str, "/api/v1/users/*", "PUT"),
+                ("p", &role_key, &tenant_str, "/api/v1/users/*", "DELETE"),
+                ("p", &role_key, &tenant_str, "/api/v1/admin/*", "POST"),
+            ];
+            
+            for (ptype, v0, v1, v2, v3) in policies {
+                sqlx::query!(
+                    "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ($1, $2, $3, $4, $5, '', '') ON CONFLICT DO NOTHING",
+                    ptype, v0, v1, v2, v3
+                )
+                .execute(pool)
+                .await
+                .expect("Failed to insert policy");
+            }
+        },
+        "manager" => {
+            // Managers can read and update users
+            let policies = vec![
+                ("p", &role_key, &tenant_str, "/api/v1/users", "GET"),
+                ("p", &role_key, &tenant_str, "/api/v1/users/*", "GET"),
+                ("p", &role_key, &tenant_str, "/api/v1/users/*", "PUT"),
+            ];
+            
+            for (ptype, v0, v1, v2, v3) in policies {
+                sqlx::query!(
+                    "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ($1, $2, $3, $4, $5, '', '') ON CONFLICT DO NOTHING",
+                    ptype, v0, v1, v2, v3
+                )
+                .execute(pool)
+                .await
+                .expect("Failed to insert policy");
+            }
+        },
+        "user" | _ => {
+            // Regular users can only read
+            let policies = vec![
+                ("p", &role_key, &tenant_str, "/api/v1/users", "GET"),
+                ("p", &role_key, &tenant_str, "/api/v1/users/*", "GET"),
+            ];
+            
+            for (ptype, v0, v1, v2, v3) in policies {
+                sqlx::query!(
+                    "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ($1, $2, $3, $4, $5, '', '') ON CONFLICT DO NOTHING",
+                    ptype, v0, v1, v2, v3
+                )
+                .execute(pool)
+                .await
+                .expect("Failed to insert policy");
+            }
+        }
+    }
 }
 
 /// Create test app with all routes
