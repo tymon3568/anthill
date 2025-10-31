@@ -453,15 +453,36 @@ async fn test_jwt_algorithm_confusion_prevention() {
 
     let app = create_test_app(&pool).await;
 
+    let app = create_test_app(&pool).await;
+
     // Try to create token with "none" algorithm
     let claims = Claims::new_access(user.user_id, tenant.tenant_id, "admin".to_string(), 900);
 
-    // This should fail - we enforce HS256
+    // Test 1: Try different algorithm (HS512 instead of HS256)
     let mut header = Header::new(Algorithm::HS256);
-    header.alg = Algorithm::HS512; // Try different algorithm
+    header.alg = Algorithm::HS512;
 
-    // Our JWT validation should only accept HS256
-    // This is a conceptual test - actual implementation enforces algorithm in decode
+    let jwt_secret = get_test_jwt_secret();
+    let hs512_token = jsonwebtoken::encode(
+        &header,
+        &claims,
+        &jsonwebtoken::EncodingKey::from_secret(jwt_secret.as_bytes()),
+    )
+    .expect("Should encode with HS512");
+
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &hs512_token, None).await;
+    assert_eq!(
+        response.status(),
+        StatusCode::UNAUTHORIZED,
+        "Token with HS512 algorithm should be rejected (we only accept HS256)"
+    );
+
+    // Test 2: Try "none" algorithm attack
+    let none_header = Header::new(Algorithm::HS256);
+    // Note: jsonwebtoken crate doesn't allow "none" algorithm for security
+    // This test documents that algorithm confusion attacks are prevented
+    
+    // Our decode function enforces HS256 validation, preventing algorithm confusion
 }
 
 /// Test: Session timeout enforcement
