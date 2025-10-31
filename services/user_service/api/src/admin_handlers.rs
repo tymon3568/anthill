@@ -71,7 +71,7 @@ pub async fn create_role<S: AuthService>(
     // Add all permissions for the role
     let mut added_count = 0;
 
-    for permission in &payload.permissions {
+    for (index, permission) in payload.permissions.iter().enumerate() {
         let policy = vec![
             role_name.clone(),
             tenant_id.to_string(),
@@ -83,7 +83,13 @@ pub async fn create_role<S: AuthService>(
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to add policy: {}", e)))?;
         
-        if added {
+        if !added {
+            // If first permission fails to add, role already exists (race condition)
+            if index == 0 {
+                return Err(AppError::Conflict(format!("Role '{}' already exists", role_name)));
+            }
+            // Skip duplicate permissions for subsequent additions
+        } else {
             added_count += 1;
         }
     }
