@@ -248,9 +248,12 @@ pub async fn update_role<S: AuthService>(
         return Err(AppError::NotFound(format!("Role '{}' not found", role_name)));
     }
 
+    // Backup existing policies for rollback
+    let backup_policies = existing_policies.clone();
+
     // Remove all existing policies for this role in this tenant
-    for policy in existing_policies {
-        enforcer.remove_policy(policy)
+    for policy in &existing_policies {
+        enforcer.remove_policy(policy.clone())
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to remove policy: {}", e)))?;
     }
@@ -266,19 +269,36 @@ pub async fn update_role<S: AuthService>(
             permission.action.clone(),
         ];
 
-        let added = enforcer.add_policy(policy)
-            .await
-            .map_err(|e| AppError::InternalError(format!("Failed to add policy: {}", e)))?;
-        
-        if added {
-            added_count += 1;
+        match enforcer.add_policy(policy).await {
+            Ok(added) => {
+                if added {
+                    added_count += 1;
+                }
+            }
+            Err(e) => {
+                // Rollback: Restore original policies
+                for old_policy in &backup_policies {
+                    let _ = enforcer.add_policy(old_policy.clone()).await;
+                }
+                let _ = enforcer.save_policy().await;
+                return Err(AppError::InternalError(format!("Failed to add policy, rolled back: {}", e)));
+            }
         }
     }
 
     // Save changes
-    enforcer.save_policy()
-        .await
-        .map_err(|e| AppError::InternalError(format!("Failed to save policies: {}", e)))?;
+    if let Err(e) = enforcer.save_policy().await {
+        // Rollback: Restore original policies if save fails
+        let current = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
+        for policy in current {
+            let _ = enforcer.remove_policy(policy).await;
+        }
+        for old_policy in &backup_policies {
+            let _ = enforcer.add_policy(old_policy.clone()).await;
+        }
+        let _ = enforcer.save_policy().await;
+        return Err(AppError::InternalError(format!("Failed to save policies, rolled back: {}", e)));
+    }
 
     drop(enforcer);
 
