@@ -110,10 +110,10 @@ pub async fn create_test_user(
         .create(&user)
         .await
         .expect("Failed to create test user");
-    
+
     // Add default Casbin policies for the user's role and assign user to role
     add_default_policies(pool, tenant_id, role, user.user_id).await;
-    
+
     user
 }
 
@@ -129,7 +129,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
     let role_key = format!("role:{}", role);
     let tenant_str = tenant_id.to_string();
     let user_str = user_id.to_string();
-    
+
     // First, assign user to role (g rule)
     sqlx::query!(
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ('g', $1, $2, $3, '', '', '') ON CONFLICT DO NOTHING",
@@ -138,7 +138,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
     .execute(pool)
     .await
     .expect("Failed to assign user to role");
-    
+
     // Add policies based on role
     match role {
         "admin" => {
@@ -151,7 +151,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
                 ("p", &role_key, &tenant_str, "/api/v1/users/*", "DELETE"),
                 ("p", &role_key, &tenant_str, "/api/v1/admin/*", "POST"),
             ];
-            
+
             for (ptype, v0, v1, v2, v3) in policies {
                 sqlx::query!(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ($1, $2, $3, $4, $5, '', '') ON CONFLICT DO NOTHING",
@@ -169,7 +169,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
                 ("p", &role_key, &tenant_str, "/api/v1/users/*", "GET"),
                 ("p", &role_key, &tenant_str, "/api/v1/users/*", "PUT"),
             ];
-            
+
             for (ptype, v0, v1, v2, v3) in policies {
                 sqlx::query!(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ($1, $2, $3, $4, $5, '', '') ON CONFLICT DO NOTHING",
@@ -186,7 +186,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
                 ("p", &role_key, &tenant_str, "/api/v1/users", "GET"),
                 ("p", &role_key, &tenant_str, "/api/v1/users/*", "GET"),
             ];
-            
+
             for (ptype, v0, v1, v2, v3) in policies {
                 sqlx::query!(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ($1, $2, $3, $4, $5, '', '') ON CONFLICT DO NOTHING",
@@ -219,7 +219,7 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         auth_service: Arc::new(auth_service),
         enforcer: shared_auth::enforcer::create_enforcer(
             &get_test_database_url(),
-            Some("/home/arch/Project/test/anthill/shared/auth/model.conf"),
+            None, // Use default bundled model.conf
         )
         .await
         .expect("Failed to create enforcer"),
