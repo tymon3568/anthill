@@ -479,11 +479,33 @@ async fn test_tenant_isolation_concurrent_access() {
     ).await;
 
     // Verify each tenant only sees their own data
-    for (i, response) in results.iter().enumerate() {
+    for (i, response) in results.into_iter().enumerate() {
         assert_eq!(response.status(), StatusCode::OK);
 
-        let body = response.body();
-        // Note: body is consumed, so we need to handle this differently in real implementation
-        // This is a simplified test
+        // Deserialize response body to verify tenant isolation
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let users_resp: Value = serde_json::from_slice(&body).unwrap();
+        let returned_users = users_resp["users"].as_array().unwrap();
+
+        // Each tenant should only see their own user(s)
+        assert!(
+            !returned_users.is_empty(),
+            "Tenant {} should see at least their own user",
+            i
+        );
+
+        // Verify all returned users belong to the requesting tenant
+        let expected_tenant_id = tenants[i].tenant_id.to_string();
+        for user in returned_users {
+            let user_tenant_id = user["tenant_id"]
+                .as_str()
+                .expect("User should have tenant_id field");
+            
+            assert_eq!(
+                user_tenant_id, expected_tenant_id,
+                "Tenant {} received data from tenant {}! Tenant isolation violated!",
+                expected_tenant_id, user_tenant_id
+            );
+        }
     }
 }
