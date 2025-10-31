@@ -15,6 +15,12 @@ uuid = {workspace = true}
 validator = {workspace = true}
 zxcvbn = {workspace = true}
 
+[dev-dependencies]
+fake = {workspace = true}
+mockall = {workspace = true}
+proptest = {workspace = true}
+tokio = {workspace = true}
+
 [package]
 name = "user_service_core"
 authors.workspace = true

@@ -1,13 +1,15 @@
-# Integration Tests for User Service
+# User Service API Tests
 
 ## Overview
 
-These integration tests verify the complete auth flow including:
+This directory contains integration and security tests for the User Service API:
 - User registration with session creation
 - Token refresh with session rotation
 - Logout with session revocation
 - Tenant isolation (CRITICAL SECURITY)
-- Input validation
+- RBAC enforcement
+- SQL injection prevention
+- Unit tests with mocks
 
 ## Prerequisites
 
@@ -61,17 +63,33 @@ cp .env.example .env
 sqlx migrate run --database-url $DATABASE_URL
 ```
 
+## Test Structure
+
+```
+tests/
+├── helpers.rs                      # Shared test utilities (DB setup, fixtures)
+├── unit_tests.rs                   # Pure unit tests (with mocks, no DB)
+├── security.rs                     # Main security test suite
+├── tenant_isolation_tests.rs       # Multi-tenant isolation (7 tests)
+├── rbac_security_tests.rs          # RBAC enforcement (11 tests)
+├── jwt_session_security_tests.rs   # JWT and sessions (10 tests)
+├── sql_injection_tests.rs          # SQL injection prevention (12 tests)
+└── auth_middleware_test.rs         # Middleware tests
+```
+
 ## Running Tests
 
-### Run All Integration Tests
+### Run All Tests
 
 ```bash
-# From project root
-cargo test --package user_service_api --test integration_test -- --ignored --test-threads=1
+# All API tests (unit + integration)
+cargo test --package user_service_api
 
-# Or from api directory
-cd services/user_service/api
-cargo test --test integration_test -- --ignored --test-threads=1
+# Security tests only (with database)
+cargo test --package user_service_api --test security -- --ignored --test-threads=1
+
+# Unit tests only (no database needed)
+cargo test --package user_service_api --lib
 ```
 
 **Note**: `--test-threads=1` is required because tests share the same database and may interfere with each other if run in parallel.
@@ -88,19 +106,19 @@ cargo test --package user_service_api --test integration_test test_register_crea
 cargo test --package user_service_api --test integration_test -- --ignored --test-threads=1 --nocapture
 ```
 
-## Test Cases
+## Test Coverage Summary
 
-| Test Name | Description |
-|-----------|-------------|
-| `test_register_creates_user_and_session` | Verifies user registration creates user + session with metadata |
-| `test_register_duplicate_email_fails` | Ensures duplicate emails are rejected |
-| `test_refresh_token_rotates_session` | Validates session rotation on token refresh |
-| `test_logout_revokes_session` | Confirms logout revokes session |
-| `test_tenant_isolation_users_cannot_see_other_tenants` | **CRITICAL SECURITY TEST** - Verifies tenant isolation |
-| `test_cross_tenant_access_admin_cannot_access_other_tenant_users` | **CRITICAL SECURITY TEST** - Admin cross-tenant access prevention |
-| `test_tenant_isolation_with_multiple_users_per_tenant` | **CRITICAL SECURITY TEST** - Multi-user tenant isolation |
-| `test_invalid_email_format_fails` | Tests email validation |
-| `test_weak_password_fails` | Tests password length validation |
+| Test Suite | Tests | Description |
+|-----------|-------|-------------|
+| Tenant Isolation | 7 | Multi-tenant data isolation (CRITICAL) |
+| RBAC Security | 11 | Role-based access control |
+| JWT & Sessions | 10 | Token security and session management |
+| SQL Injection | 12 | Input validation and injection prevention |
+| Unit Tests | 8+ | Business logic with mocks |
+
+**Total: 40+ security tests**
+
+See `docs/security_test_report.md` for comprehensive test documentation.
 
 ## Test Verification
 
@@ -159,38 +177,15 @@ sqlx database create --database-url $DATABASE_URL
 sqlx migrate run --database-url $DATABASE_URL
 ```
 
-## CI/CD Integration
+## Documentation
 
-For GitHub Actions:
-
-```yaml
-- name: Setup PostgreSQL for Integration Tests
-  run: |
-    sudo apt-get update
-    sudo apt-get install -y postgresql postgresql-contrib
-    sudo systemctl start postgresql
-    
-    # Create test database if it doesn't exist (idempotent)
-    sudo -u postgres psql -c "SELECT 1 FROM pg_database WHERE datname = 'test_db';" | grep -q 1 || \
-    sudo -u postgres createdb test_db
-    
-    # Set password for postgres user if not already set (idempotent)
-    sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" 2>/dev/null || true
-    
-    # Grant privileges (idempotent)
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;"
-
-- name: Run Integration Tests
-  env:
-    DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
-    JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-  run: |
-    cargo test --test security -- --ignored --test-threads=1 --nocapture
-```
+- **Comprehensive Security Report**: `docs/security_test_report.md`
+- **Test Helpers**: See `helpers.rs` for available fixtures and utilities
+- **Mock Usage**: See `user_service_core/tests/` for mock examples
 
 ## Notes
 
-- Tests use `#[ignore]` attribute to prevent running with unit tests
-- Must be run sequentially (`--test-threads=1`) due to shared database state
-- Each test should ideally clean up after itself, but database can be reset between runs
-- Consider using `sqlx::test` macro in the future for automatic database transactions/rollback
+- Security tests use `#[ignore]` attribute (require database)
+- Unit tests run fast without external dependencies
+- Must run security tests sequentially (`--test-threads=1`)
+- See security_test_report.md for detailed test scenarios and expected results

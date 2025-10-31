@@ -25,10 +25,15 @@ bcrypt = "0.15"
 chrono = {version = "0.4", features = ["serde"]}
 # Configuration
 config = "0.14"
+criterion = {version = "0.5", features = ["html_reports"]}
 dotenvy = "0.15"
+fake = {version = "2.9", features = ["derive", "uuid", "chrono"]}
 # Auth & security
 jsonwebtoken = "9.2"
 lazy_static = "1.4"
+# Testing utilities
+mockall = "0.13"
+proptest = "1.4"
 regex = "1.10"
 # Serde - serialization
 serde = {version = "1.0", features = ["derive"]}
@@ -44,6 +49,7 @@ shared_jwt = {path = "shared/jwt"}
 shared_types = {path = "shared/types"}
 # SQLx - database
 sqlx = {version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"]}
+tarpaulin = "0.31"
 thiserror = "1.0"
 # Tokio - async runtime
 tokio = {version = "1", features = ["full"]}
@@ -62,6 +68,7 @@ utoipa-swagger-ui = {version = "9", features = ["axum"]}
 # UUID & DateTime
 uuid = {version = "1.6", features = ["v4", "v7", "serde"]}
 validator = {version = "0.16", features = ["derive"]}
+wiremock = "0.6"
 zxcvbn = "3.1"
 
 [workspace.package]
