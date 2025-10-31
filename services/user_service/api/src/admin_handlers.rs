@@ -58,17 +58,17 @@ pub async fn create_role<S: AuthService>(
         ));
     }
 
+    // Acquire write lock first to prevent race conditions
+    let mut enforcer = state.enforcer.write().await;
+    
     // Check if role already exists by checking if it has any policies
-    let enforcer = state.enforcer.read().await;
     let existing_policies = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
-    drop(enforcer);
-
+    
     if !existing_policies.is_empty() {
         return Err(AppError::Conflict(format!("Role '{}' already exists", role_name)));
     }
 
     // Add all permissions for the role
-    let mut enforcer = state.enforcer.write().await;
     let mut added_count = 0;
 
     for permission in &payload.permissions {
