@@ -80,3 +80,12 @@ Create a comprehensive unit test framework for the user service with proper mock
   - Fixed code review issues from PR #16 (commit d7058e7)
   - Sub-tasks 1-3 completed successfully
   - Note: mocks.rs from sub-task 2 needs fixing (trait signatures out of sync)
+
+* 2025-11-01 11:00: Fixed mock repository traits by Claude
+  - Commit 308cadf: Synced mocks.rs with core repository traits
+  - UserRepository: Updated to match list(page, page_size, role, status), added email_exists()
+  - TenantRepository: Simplified to find_by_id, create, find_by_name, find_by_slug
+  - SessionRepository: Updated to revoke(), revoke_all_for_user(), delete_expired()
+  - All 51 tests passing (21 mod + 9 db_mocks + 6 mocks + 6 test_utils + 9 unit)
+  - Mock implementations now perfectly aligned with core traits
+  - Ready to proceed with remaining sub-tasks
