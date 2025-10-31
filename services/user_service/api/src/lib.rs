@@ -17,11 +17,48 @@ use shared_config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
+use user_service_core::domains::auth::domain::service::AuthService;
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+/// Create router from app state (for testing)
+pub fn create_router<S: AuthService + 'static>(state: AppState<S>) -> Router {
+    let authz_state = AuthzState {
+        enforcer: state.enforcer.clone(),
+        jwt_secret: state.jwt_secret.clone(),
+    };
+
+    // Public routes (no auth required)
+    let public_routes = Router::new()
+        .route("/api/v1/auth/register", post(handlers::register::<S>))
+        .route("/api/v1/auth/login", post(handlers::login::<S>))
+        .route("/api/v1/auth/refresh", post(handlers::refresh_token::<S>))
+        .route("/api/v1/auth/logout", post(handlers::logout::<S>));
+
+    // Protected routes (require authentication)
+    let protected_routes = Router::new()
+        .route("/api/v1/users", get(handlers::list_users::<S>))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user::<S>))
+        // Low-level policy management (for advanced use cases)
+        .route(
+            "/api/v1/admin/policies",
+            post(handlers::add_policy::<S>).delete(handlers::remove_policy::<S>),
+        )
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state));
+
+    // Combine all API routes
+    let api_routes = public_routes.merge(protected_routes).with_state(state);
+
+    // Build application with routes and Swagger UI
+    Router::new()
+        .route("/health", get(handlers::health_check))
+        .merge(api_routes)
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
+        .layer(TraceLayer::new_for_http())
+}
 
 pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
     // Initialize Casbin enforcer
@@ -79,7 +116,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
     // Protected routes (require authentication)
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
-        .route("/api/v1/users/:user_id", get(handlers::get_user))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
