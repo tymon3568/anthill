@@ -49,7 +49,6 @@ shared_jwt = {path = "shared/jwt"}
 shared_types = {path = "shared/types"}
 # SQLx - database
 sqlx = {version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"]}
-tarpaulin = "0.31"
 thiserror = "1.0"
 # Tokio - async runtime
 tokio = {version = "1", features = ["full"]}

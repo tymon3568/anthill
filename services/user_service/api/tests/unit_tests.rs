@@ -35,7 +35,7 @@ mod auth_logic_tests {
     }
 
     #[tokio::test]
-    async fn test_user_not_found_returns_error() {
+    async fn test_user_not_found_returns_none() {
         let mut mock_repo = MockUserRepo::new();
         let tenant_id = Uuid::now_v7();
 
