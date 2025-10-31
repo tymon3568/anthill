@@ -41,7 +41,7 @@ pub fn create_router<S: AuthService + 'static>(state: AppState<S>) -> Router {
     // Protected routes (require authentication)
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users::<S>))
-        .route("/api/v1/users/:user_id", get(handlers::get_user::<S>))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user::<S>))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
@@ -116,7 +116,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
     // Protected routes (require authentication)
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
-        .route("/api/v1/users/:user_id", get(handlers::get_user))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
