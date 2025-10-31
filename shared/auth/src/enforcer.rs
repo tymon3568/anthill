@@ -207,10 +207,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(
-            e.get_roles_for_user("user1", Some("tenant1")),
-            vec!["admin".to_string()]
-        );
+        assert_eq!(e.get_roles_for_user("user1", Some("tenant1")), vec!["admin".to_string()]);
 
         e.remove_grouping_policy(vec![
             "user1".to_string(),

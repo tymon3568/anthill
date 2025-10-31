@@ -1,11 +1,8 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
-use uuid::Uuid;
-use user_service_core::domains::auth::domain::{
-    model::Session,
-    repository::SessionRepository,
-};
 use shared_error::AppError;
+use sqlx::PgPool;
+use user_service_core::domains::auth::domain::{model::Session, repository::SessionRepository};
+use uuid::Uuid;
 
 /// PostgreSQL implementation of SessionRepository
 pub struct PgSessionRepository {
@@ -32,7 +29,7 @@ impl SessionRepository for PgSessionRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
-            "#
+            "#,
         )
         .bind(session.session_id)
         .bind(session.user_id)
@@ -49,10 +46,10 @@ impl SessionRepository for PgSessionRepository {
         .bind(session.last_used_at)
         .fetch_one(&self.pool)
         .await?;
-        
+
         Ok(session)
     }
-    
+
     async fn find_by_refresh_token(&self, token_hash: &str) -> Result<Option<Session>, AppError> {
         let session = sqlx::query_as::<_, Session>(
             r#"
@@ -60,15 +57,15 @@ impl SessionRepository for PgSessionRepository {
             WHERE refresh_token_hash = $1
               AND NOT revoked
               AND refresh_token_expires_at > NOW()
-            "#
+            "#,
         )
         .bind(token_hash)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(session)
     }
-    
+
     async fn revoke(&self, session_id: Uuid, reason: &str) -> Result<(), AppError> {
         sqlx::query(
             r#"
@@ -77,16 +74,16 @@ impl SessionRepository for PgSessionRepository {
                 revoked_at = NOW(),
                 revoked_reason = $2
             WHERE session_id = $1
-            "#
+            "#,
         )
         .bind(session_id)
         .bind(reason)
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
-    
+
     async fn revoke_all_for_user(&self, user_id: Uuid) -> Result<u64, AppError> {
         let result = sqlx::query(
             r#"
@@ -95,41 +92,41 @@ impl SessionRepository for PgSessionRepository {
                 revoked_at = NOW(),
                 revoked_reason = 'logout_all'
             WHERE user_id = $1 AND NOT revoked
-            "#
+            "#,
         )
         .bind(user_id)
         .execute(&self.pool)
         .await?;
-        
+
         Ok(result.rows_affected())
     }
-    
+
     async fn update_last_used(&self, session_id: Uuid) -> Result<(), AppError> {
         sqlx::query(
             r#"
             UPDATE sessions
             SET last_used_at = NOW()
             WHERE session_id = $1
-            "#
+            "#,
         )
         .bind(session_id)
         .execute(&self.pool)
         .await?;
-        
+
         Ok(())
     }
-    
+
     async fn delete_expired(&self) -> Result<u64, AppError> {
         let result = sqlx::query(
             r#"
             DELETE FROM sessions
             WHERE refresh_token_expires_at < NOW()
                OR (revoked = TRUE AND revoked_at < NOW() - INTERVAL '30 days')
-            "#
+            "#,
         )
         .execute(&self.pool)
         .await?;
-        
+
         Ok(result.rows_affected())
     }
 }

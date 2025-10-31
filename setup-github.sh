@@ -73,7 +73,7 @@ if [ $? -eq 0 ]; then
         echo ""
         echo "🚀 Pushing to GitHub..."
         git push -u origin master
-        
+
         if [ $? -eq 0 ]; then
             echo ""
             echo "🎉 Success! Your repository is now on GitHub!"

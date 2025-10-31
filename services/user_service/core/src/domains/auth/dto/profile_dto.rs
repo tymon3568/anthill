@@ -1,8 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use utoipa::ToSchema;
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use std::collections::HashMap;
 
 /// DTO for getting user profile (combines User + UserProfile data)
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -16,39 +16,39 @@ pub struct ProfileResponse {
     pub phone: Option<String>,
     pub role: String,
     pub email_verified: bool,
-    
+
     // Extended profile info
     pub bio: Option<String>,
     pub title: Option<String>,
     pub department: Option<String>,
     pub location: Option<String>,
     pub website_url: Option<String>,
-    
+
     // Social links
     pub social_links: HashMap<String, String>,
-    
+
     // Preferences
     pub language: String,
     pub timezone: String,
     pub date_format: String,
     pub time_format: String,
-    
+
     // Notification preferences
     pub notification_preferences: NotificationPreferences,
-    
+
     // Privacy settings
     pub profile_visibility: String,
     pub show_email: bool,
     pub show_phone: bool,
-    
+
     // Profile metadata
     pub completeness_score: i32,
     pub verified: bool,
     pub verification_badge: Option<String>,
-    
+
     // Custom fields
     pub custom_fields: HashMap<String, serde_json::Value>,
-    
+
     // Timestamps
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -60,31 +60,31 @@ pub struct UpdateProfileRequest {
     // User basic info (optional updates)
     pub full_name: Option<String>,
     pub phone: Option<String>,
-    
+
     // Extended profile info
     pub bio: Option<String>,
     pub title: Option<String>,
     pub department: Option<String>,
     pub location: Option<String>,
     pub website_url: Option<String>,
-    
+
     // Social links
     pub social_links: Option<HashMap<String, String>>,
-    
+
     // Preferences
     pub language: Option<String>,
     pub timezone: Option<String>,
     pub date_format: Option<String>,
     pub time_format: Option<String>,
-    
+
     // Notification preferences
     pub notification_preferences: Option<NotificationPreferences>,
-    
+
     // Privacy settings
     pub profile_visibility: Option<String>,
     pub show_email: Option<bool>,
     pub show_phone: Option<bool>,
-    
+
     // Custom fields
     pub custom_fields: Option<HashMap<String, serde_json::Value>>,
 }

@@ -1,17 +1,17 @@
-[package]
-name = "inventory_service"
-version = { workspace = true }
-edition = { workspace = true }
-authors = { workspace = true }
-
 [dependencies]
-tokio = { workspace = true }
-axum = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-sqlx = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-config = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
+anyhow = {workspace = true}
+axum = {workspace = true}
+config = {workspace = true}
+serde = {workspace = true}
+serde_json = {workspace = true}
+sqlx = {workspace = true}
+thiserror = {workspace = true}
+tokio = {workspace = true}
+tracing = {workspace = true}
+tracing-subscriber = {workspace = true}
+
+[package]
+authors = {workspace = true}
+edition = {workspace = true}
+name = "inventory_service"
+version = {workspace = true}

@@ -66,9 +66,7 @@ where
             // Parse Bearer token with case-insensitive scheme matching (OAuth spec compliant)
             let token = auth_header
                 .and_then(|value| value.trim().split_once(' '))
-                .and_then(|(scheme, token)| {
-                    scheme.eq_ignore_ascii_case("Bearer").then_some(token)
-                })
+                .and_then(|(scheme, token)| scheme.eq_ignore_ascii_case("Bearer").then_some(token))
                 .filter(|token| !token.is_empty());
 
             if token.is_none() {
@@ -81,7 +79,7 @@ where
                 Err(_) => {
                     let error = AuthError::InvalidToken;
                     return Ok(error.into_response());
-                }
+                },
             };
 
             debug!(
@@ -104,7 +102,7 @@ where
                 Ok(allowed) => allowed,
                 Err(e) => {
                     return Ok(e.into_response());
-                }
+                },
             };
 
             if !allowed {

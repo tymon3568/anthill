@@ -1,22 +1,21 @@
+[dependencies]
+async-trait = {workspace = true}
+bcrypt = {workspace = true}
+chrono = {workspace = true}
+serde_json = {workspace = true}
+sha2 = {workspace = true}
+shared_db = {workspace = true}
+shared_error = {workspace = true}
+shared_jwt = {workspace = true}
+# External deps
+sqlx = {workspace = true}
+tracing = {workspace = true}
+# Internal crates
+user_service_core = {workspace = true}
+uuid = {workspace = true}
+
 [package]
 name = "user_service_infra"
-version.workspace = true
-edition.workspace = true
 authors.workspace = true
-
-[dependencies]
-# Internal crates
-user_service_core = { workspace = true }
-shared_error = { workspace = true }
-shared_jwt = { workspace = true }
-shared_db = { workspace = true }
-
-# External deps
-sqlx = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
-async-trait = { workspace = true }
-bcrypt = { workspace = true }
-tracing = { workspace = true }
-serde_json = { workspace = true }
-sha2 = { workspace = true }
+edition.workspace = true
+version.workspace = true

@@ -6,12 +6,12 @@ Project inventory_saas {
   database_type: 'PostgreSQL'
   Note: '''
     # Inventory SaaS Platform - Database Schema
-    
+
     ## Multi-Tenancy Strategy
     - Shared database with tenant_id in all tables
     - Application-level filtering (no RLS)
     - Repository pattern enforces tenant isolation
-    
+
     ## Key Conventions
     - UUID v7 for all primary keys (timestamp-based)
     - BIGINT for money (cents/xu)
@@ -36,13 +36,13 @@ Table tenants {
   created_at TIMESTAMPTZ [not null, default: `NOW()`]
   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
   deleted_at TIMESTAMPTZ [note: 'Soft delete']
-  
+
   Indexes {
     (slug) [name: 'idx_tenants_slug', where: 'deleted_at IS NULL']
     (status) [name: 'idx_tenants_status', where: 'deleted_at IS NULL']
     (tenant_id) [name: 'idx_tenants_active', where: 'deleted_at IS NULL AND status = active']
   }
-  
+
   Note: 'Tenant organizations in multi-tenant system'
 }
 
@@ -65,7 +65,7 @@ Table users {
   created_at TIMESTAMPTZ [not null, default: `NOW()`]
   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
   deleted_at TIMESTAMPTZ [note: 'Soft delete']
-  
+
   Indexes {
     (tenant_id) [name: 'idx_users_tenant', where: 'deleted_at IS NULL']
     (tenant_id, email) [unique, name: 'idx_users_email', where: 'deleted_at IS NULL']
@@ -73,7 +73,7 @@ Table users {
     (tenant_id, status) [name: 'idx_users_status', where: 'deleted_at IS NULL']
     (tenant_id, user_id) [name: 'idx_users_active', where: 'deleted_at IS NULL AND status = active']
   }
-  
+
   Note: 'User accounts with multi-tenant isolation'
 }
 
@@ -94,7 +94,7 @@ Table sessions {
   revoked_reason VARCHAR(255)
   created_at TIMESTAMPTZ [not null, default: `NOW()`]
   last_used_at TIMESTAMPTZ [not null, default: `NOW()`]
-  
+
   Indexes {
     (user_id) [name: 'idx_sessions_user', where: 'NOT revoked']
     (tenant_id) [name: 'idx_sessions_tenant', where: 'NOT revoked']
@@ -103,7 +103,7 @@ Table sessions {
     (access_token_expires_at) [name: 'idx_sessions_expires', where: 'NOT revoked']
     (created_at) [name: 'idx_sessions_cleanup', where: 'revoked OR access_token_expires_at < NOW()']
   }
-  
+
   Note: 'Active user sessions with JWT token management'
 }
 
@@ -121,7 +121,7 @@ Table casbin_rule {
   v4 VARCHAR(128) [default: '']
   v5 VARCHAR(128) [default: '']
   created_at TIMESTAMPTZ [not null, default: `NOW()`]
-  
+
   Indexes {
     (ptype, v0, v1, v2, v3, v4, v5) [unique, name: 'casbin_rule_unique']
     (ptype) [name: 'idx_casbin_rule_ptype']
@@ -129,7 +129,7 @@ Table casbin_rule {
     (v1) [name: 'idx_casbin_rule_v1']
     (ptype, v0, v1) [name: 'idx_casbin_rule_composite']
   }
-  
+
   Note: 'Casbin RBAC rules storage (policies and role assignments)'
 }
 
@@ -149,7 +149,7 @@ Table casbin_rule {
 //   created_at TIMESTAMPTZ [not null, default: `NOW()`]
 //   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
 //   deleted_at TIMESTAMPTZ
-//   
+//
 //   Indexes {
 //     (tenant_id, sku) [unique, where: 'deleted_at IS NULL']
 //     (tenant_id, product_id) [where: 'deleted_at IS NULL']
@@ -173,7 +173,7 @@ Table casbin_rule {
 //   quantity INTEGER [not null, default: 0]
 //   reserved_quantity INTEGER [not null, default: 0]
 //   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
-//   
+//
 //   Indexes {
 //     (tenant_id, product_id, warehouse_id) [pk]
 //   }

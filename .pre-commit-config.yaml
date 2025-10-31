@@ -1,0 +1,63 @@
+# Pre-commit hooks for Anthill project
+# Install: pre-commit install
+# Run manually: pre-commit run --all-files
+# Skip during commit: git commit --no-verify
+
+repos:
+  # Rust formatting with cargo fmt
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        name: cargo fmt
+        description: Format Rust code with cargo fmt
+        args: ['--all', '--', '--check']
+        pass_filenames: false
+
+      - id: clippy
+        name: cargo clippy
+        description: Lint Rust code with clippy (lib only, skip tests)
+        args: ['--lib', '--all-features', '--workspace', '--', '-D', 'warnings']
+        pass_filenames: false
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+        exclude: '\.md$'
+
+      - id: end-of-file-fixer
+        name: Fix end of files
+        exclude: '\.svg$'
+
+      - id: check-yaml
+        name: Check YAML syntax
+        exclude: '\.github/workflows/'
+
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        args: ['--fix=lf']
+
+  # TOML file formatting
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.14.0
+    hooks:
+      - id: pretty-format-toml
+        name: Format TOML files
+        args: ['--autofix']
+        files: '\.toml$'
+
+# Configuration
+ci:
+  autofix_commit_msg: 'chore: auto-fix pre-commit hooks'
+  autofix_prs: true
+  autoupdate_commit_msg: 'chore: update pre-commit hooks'

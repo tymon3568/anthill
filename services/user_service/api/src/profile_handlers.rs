@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Path, Multipart},
+    extract::{Multipart, Path, State},
     http::StatusCode,
     Json,
 };
@@ -9,9 +9,8 @@ use shared_error::AppError;
 use std::sync::Arc;
 use user_service_core::domains::auth::domain::profile_service::ProfileService;
 use user_service_core::domains::auth::dto::profile_dto::{
-    ProfileResponse, UpdateProfileRequest, ProfileVisibilityRequest,
-    ProfileCompletenessResponse, ProfileSearchRequest, PublicProfileResponse,
-    UploadAvatarRequest, UploadAvatarResponse,
+    ProfileCompletenessResponse, ProfileResponse, ProfileSearchRequest, ProfileVisibilityRequest,
+    PublicProfileResponse, UpdateProfileRequest, UploadAvatarRequest, UploadAvatarResponse,
 };
 use uuid::Uuid;
 
@@ -55,10 +54,11 @@ pub async fn get_profile<S: ProfileService>(
     State(state): State<ProfileAppState<S>>,
     auth_user: AuthUser,
 ) -> Result<Json<ProfileResponse>, AppError> {
-    let profile = state.profile_service
+    let profile = state
+        .profile_service
         .get_profile(auth_user.user_id, auth_user.tenant_id)
         .await?;
-    
+
     Ok(Json(profile))
 }
 
@@ -84,10 +84,11 @@ pub async fn update_profile<S: ProfileService>(
     auth_user: AuthUser,
     Json(request): Json<UpdateProfileRequest>,
 ) -> Result<Json<ProfileResponse>, AppError> {
-    let profile = state.profile_service
+    let profile = state
+        .profile_service
         .update_profile(auth_user.user_id, auth_user.tenant_id, request)
         .await?;
-    
+
     Ok(Json(profile))
 }
 
@@ -117,7 +118,7 @@ pub async fn upload_avatar<S: ProfileService>(
     const MAX_FILE_SIZE: usize = 5 * 1024 * 1024; // 5MB
     const ALLOWED_CONTENT_TYPES: &[&str] = &[
         "image/jpeg",
-        "image/jpg", 
+        "image/jpg",
         "image/png",
         "image/gif",
         "image/webp",
@@ -128,31 +129,36 @@ pub async fn upload_avatar<S: ProfileService>(
     let mut filename: Option<String> = None;
 
     // Parse multipart form data
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| AppError::ValidationError(format!("Failed to read multipart field: {}", e)))? 
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::ValidationError(format!("Failed to read multipart field: {}", e)))?
     {
         let field_name = field.name().unwrap_or("").to_string();
-        
+
         if field_name == "file" || field_name == "avatar" {
             // Get content type
             content_type = field.content_type().map(|ct| ct.to_string());
-            
+
             // Get filename
             filename = field.file_name().map(|f| f.to_string());
-            
+
             // Read file data
-            let data = field.bytes().await
-                .map_err(|e| AppError::ValidationError(format!("Failed to read file data: {}", e)))?;
-            
+            let data = field.bytes().await.map_err(|e| {
+                AppError::ValidationError(format!("Failed to read file data: {}", e))
+            })?;
+
             file_data = Some(data.to_vec());
             break;
         }
     }
 
     // Validate file exists
-    let file_data = file_data.ok_or_else(|| 
-        AppError::ValidationError("No file provided. Please upload a file with field name 'file' or 'avatar'".to_string())
-    )?;
+    let file_data = file_data.ok_or_else(|| {
+        AppError::ValidationError(
+            "No file provided. Please upload a file with field name 'file' or 'avatar'".to_string(),
+        )
+    })?;
 
     // Validate file size
     if file_data.len() > MAX_FILE_SIZE {
@@ -164,11 +170,13 @@ pub async fn upload_avatar<S: ProfileService>(
     }
 
     // Validate content type
-    let content_type = content_type.ok_or_else(|| 
-        AppError::ValidationError("Content-Type header is required".to_string())
-    )?;
+    let content_type = content_type
+        .ok_or_else(|| AppError::ValidationError("Content-Type header is required".to_string()))?;
 
-    if !ALLOWED_CONTENT_TYPES.iter().any(|&ct| content_type.starts_with(ct)) {
+    if !ALLOWED_CONTENT_TYPES
+        .iter()
+        .any(|&ct| content_type.starts_with(ct))
+    {
         return Err(AppError::UnsupportedMediaType(format!(
             "Unsupported file type: {}. Allowed types: JPEG, PNG, GIF, WebP",
             content_type
@@ -183,13 +191,9 @@ pub async fn upload_avatar<S: ProfileService>(
     };
 
     // Upload to service
-    let response = state.profile_service
-        .upload_avatar(
-            auth_user.user_id,
-            auth_user.tenant_id,
-            request,
-            file_data,
-        )
+    let response = state
+        .profile_service
+        .upload_avatar(auth_user.user_id, auth_user.tenant_id, request, file_data)
         .await?;
 
     Ok(Json(response))
@@ -217,10 +221,11 @@ pub async fn update_visibility<S: ProfileService>(
     auth_user: AuthUser,
     Json(request): Json<ProfileVisibilityRequest>,
 ) -> Result<StatusCode, AppError> {
-    state.profile_service
+    state
+        .profile_service
         .update_visibility(auth_user.user_id, auth_user.tenant_id, request)
         .await?;
-    
+
     Ok(StatusCode::OK)
 }
 
@@ -242,10 +247,11 @@ pub async fn get_completeness<S: ProfileService>(
     State(state): State<ProfileAppState<S>>,
     auth_user: AuthUser,
 ) -> Result<Json<ProfileCompletenessResponse>, AppError> {
-    let completeness = state.profile_service
+    let completeness = state
+        .profile_service
         .get_completeness(auth_user.user_id, auth_user.tenant_id)
         .await?;
-    
+
     Ok(Json(completeness))
 }
 
@@ -269,14 +275,12 @@ pub async fn search_profiles<S: ProfileService>(
     auth_user: AuthUser,
     Json(request): Json<ProfileSearchRequest>,
 ) -> Result<Json<ProfileSearchResponse>, AppError> {
-    let (profiles, total) = state.profile_service
+    let (profiles, total) = state
+        .profile_service
         .search_profiles(auth_user.tenant_id, auth_user.user_id, request)
         .await?;
-    
-    Ok(Json(ProfileSearchResponse {
-        profiles,
-        total,
-    }))
+
+    Ok(Json(ProfileSearchResponse { profiles, total }))
 }
 
 /// Get public profile by user ID
@@ -303,10 +307,11 @@ pub async fn get_public_profile<S: ProfileService>(
     auth_user: AuthUser,
     Path(user_id): Path<Uuid>,
 ) -> Result<Json<PublicProfileResponse>, AppError> {
-    let profile = state.profile_service
+    let profile = state
+        .profile_service
         .get_public_profile(user_id, auth_user.tenant_id)
         .await?;
-    
+
     Ok(Json(profile))
 }
 
@@ -340,11 +345,12 @@ pub async fn update_verification<S: ProfileService>(
     if auth_user.role != "admin" && auth_user.role != "super_admin" {
         return Err(AppError::Forbidden("Admin access required".to_string()));
     }
-    
-    state.profile_service
+
+    state
+        .profile_service
         .update_verification(user_id, auth_user.tenant_id, request.verified, request.badge)
         .await?;
-    
+
     Ok(StatusCode::OK)
 }
 

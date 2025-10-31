@@ -189,10 +189,7 @@ where
             return Err(StatusCode::FORBIDDEN);
         }
 
-        debug!(
-            "Role check passed for role '{}': user {}",
-            required_role, user.user_id
-        );
+        debug!("Role check passed for role '{}': user {}", required_role, user.user_id);
         Ok(RequireRole {
             user,
             _phantom: PhantomData,
@@ -204,21 +201,13 @@ where
 pub struct AdminRole;
 impl Role for AdminRole {
     /// Provides the canonical name for the admin role.
-    
     ///
-    
     /// This function returns the static role identifier used to represent administrative users.
-    
     ///
-    
     /// # Examples
-    
     ///
-    
     /// ```
-    
     /// assert_eq!(AdminRole::name(), "admin");
-    
     /// ```
     fn name() -> &'static str {
         "admin"
@@ -343,12 +332,7 @@ where
         // Check permission with Casbin
         let e = enforcer.read().await;
         let allowed = e
-            .enforce((
-                user.user_id.to_string(),
-                user.tenant_id.to_string(),
-                &resource,
-                &action,
-            ))
+            .enforce((user.user_id.to_string(), user.tenant_id.to_string(), &resource, &action))
             .map_err(|e| {
                 warn!("Casbin error: {}", e);
                 StatusCode::INTERNAL_SERVER_ERROR

@@ -1,62 +1,57 @@
-[package]
-name = "user_service_api"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
+[[bin]]
+name = "user-service"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = {workspace = true}
+# Axum & web
+axum = {workspace = true}
+chrono = {workspace = true}
+# Serialization
+serde = {workspace = true}
+serde_json = {workspace = true}
+serde_yaml = {workspace = true}
+shared-auth = {workspace = true}
+shared_config = {workspace = true}
+shared_db = {workspace = true}
+shared_error = {workspace = true}
+sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"]}
+# Async runtime
+tokio = {workspace = true}
+tower = {workspace = true}
+tower-http = {workspace = true}
+# Logging
+tracing = {workspace = true}
+tracing-subscriber = {workspace = true}
+# Internal crates
+user_service_core = {workspace = true}
+user_service_infra = {workspace = true}
+utoipa = {workspace = true}
+utoipa-swagger-ui = {workspace = true}
+# Other
+uuid = {workspace = true}
+validator = {workspace = true}
+
+[dev-dependencies]
+bcrypt = {workspace = true}
+http-body-util = "0.1"
+shared_jwt = {workspace = true}
+sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"]}
+tokio-test = "0.4"
+# Test dependencies
+tower = {workspace = true}
+
+[features]
+default = []
+export-spec = []
 
 # Library for integration tests
 [lib]
 name = "user_service_api"
 path = "src/lib.rs"
 
-[[bin]]
-name = "user-service"
-path = "src/main.rs"
-
-[dependencies]
-# Internal crates
-user_service_core = { workspace = true }
-user_service_infra = { workspace = true }
-shared_error = { workspace = true }
-shared_config = { workspace = true }
-shared_db = { workspace = true }
-shared-auth = { workspace = true }
-
-# Axum & web
-axum = { workspace = true }
-tower = { workspace = true }
-tower-http = { workspace = true }
-utoipa = { workspace = true }
-utoipa-swagger-ui = { workspace = true }
-
-# Async runtime
-tokio = { workspace = true }
-
-# Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-
-# Logging
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-
-# Other
-uuid = { workspace = true }
-chrono = { workspace = true }
-validator = { workspace = true }
-async-trait = { workspace = true }
-sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"] }
-
-[dev-dependencies]
-shared_jwt = { workspace = true }
-# Test dependencies
-tower = { workspace = true }
-http-body-util = "0.1"
-sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"] }
-tokio-test = "0.4"
-bcrypt = { workspace = true }
-
-[features]
-default = []
-export-spec = []
+[package]
+name = "user_service_api"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true

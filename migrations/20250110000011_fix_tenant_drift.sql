@@ -9,13 +9,13 @@
 
 -- Note: This constraint is now created in migration 20250110000010_create_user_profiles.sql
 -- This step is kept for backwards compatibility with existing databases
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
+        SELECT 1 FROM pg_constraint
         WHERE conname = 'users_user_tenant_unique'
     ) THEN
-        ALTER TABLE users 
+        ALTER TABLE users
         ADD CONSTRAINT users_user_tenant_unique UNIQUE (user_id, tenant_id);
     END IF;
 END $$;
@@ -31,7 +31,7 @@ BEGIN
     IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_id_key' AND conrelid = 'user_profiles'::regclass) THEN
         ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_user_id_key;
     END IF;
-    
+
     -- Drop user_id_fkey if exists
     IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_id_fkey' AND conrelid = 'user_profiles'::regclass) THEN
         ALTER TABLE user_profiles DROP CONSTRAINT user_profiles_user_id_fkey;
@@ -42,15 +42,15 @@ END $$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_tenant_fk' AND conrelid = 'user_profiles'::regclass) THEN
-        ALTER TABLE user_profiles 
-        ADD CONSTRAINT user_profiles_user_tenant_fk 
-            FOREIGN KEY (user_id, tenant_id) 
-            REFERENCES users(user_id, tenant_id) 
+        ALTER TABLE user_profiles
+        ADD CONSTRAINT user_profiles_user_tenant_fk
+            FOREIGN KEY (user_id, tenant_id)
+            REFERENCES users(user_id, tenant_id)
             ON DELETE CASCADE;
     END IF;
-    
+
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_profiles_user_tenant_unique' AND conrelid = 'user_profiles'::regclass) THEN
-        ALTER TABLE user_profiles 
+        ALTER TABLE user_profiles
         ADD CONSTRAINT user_profiles_user_tenant_unique UNIQUE (user_id, tenant_id);
     END IF;
 END $$;
@@ -79,7 +79,7 @@ BEGIN
     FROM user_profiles up
     LEFT JOIN users u ON up.user_id = u.user_id AND up.tenant_id = u.tenant_id
     WHERE u.user_id IS NULL;
-    
+
     IF invalid_count > 0 THEN
         RAISE EXCEPTION 'Found % user_profiles records with tenant drift', invalid_count;
     END IF;

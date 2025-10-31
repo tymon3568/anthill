@@ -1,4 +1,8 @@
-use axum::{extract::{Path, State}, http::StatusCode, Json};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    Json,
+};
 use shared_auth::casbin::{CoreApi, MgmtApi};
 use shared_auth::extractors::RequireAdmin;
 use shared_error::AppError;
@@ -38,7 +42,8 @@ pub async fn create_role<S: AuthService>(
     Json(payload): Json<CreateRoleReq>,
 ) -> Result<(StatusCode, Json<CreateRoleResp>), AppError> {
     // Validate request
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
     let tenant_id = admin_user.tenant_id;
@@ -46,24 +51,23 @@ pub async fn create_role<S: AuthService>(
 
     // Prevent creating system roles
     if role_name == "admin" || role_name == "user" {
-        return Err(AppError::Forbidden(
-            "Cannot create system roles (admin, user)".to_string()
-        ));
+        return Err(AppError::Forbidden("Cannot create system roles (admin, user)".to_string()));
     }
 
     // Require at least one permission
     if payload.permissions.is_empty() {
         return Err(AppError::ValidationError(
-            "Role must have at least one permission".to_string()
+            "Role must have at least one permission".to_string(),
         ));
     }
 
     // Acquire write lock first to prevent race conditions
     let mut enforcer = state.enforcer.write().await;
-    
+
     // Check if role already exists by checking if it has any policies
-    let existing_policies = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
-    
+    let existing_policies =
+        enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
+
     if !existing_policies.is_empty() {
         return Err(AppError::Conflict(format!("Role '{}' already exists", role_name)));
     }
@@ -79,10 +83,11 @@ pub async fn create_role<S: AuthService>(
             permission.action.clone(),
         ];
 
-        let added = enforcer.add_policy(policy)
+        let added = enforcer
+            .add_policy(policy)
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to add policy: {}", e)))?;
-        
+
         if !added {
             // If first permission fails to add, role already exists (race condition)
             if index == 0 {
@@ -95,18 +100,25 @@ pub async fn create_role<S: AuthService>(
     }
 
     // Save policies to database
-    enforcer.save_policy()
+    enforcer
+        .save_policy()
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to save policies: {}", e)))?;
 
     drop(enforcer);
 
-    Ok((StatusCode::CREATED, Json(CreateRoleResp {
-        role_name: role_name.clone(),
-        description: payload.description,
-        permissions_count: added_count,
-        message: format!("Role '{}' created successfully with {} permissions", role_name, added_count),
-    })))
+    Ok((
+        StatusCode::CREATED,
+        Json(CreateRoleResp {
+            role_name: role_name.clone(),
+            description: payload.description,
+            permissions_count: added_count,
+            message: format!(
+                "Role '{}' created successfully with {} permissions",
+                role_name, added_count
+            ),
+        }),
+    ))
 }
 
 /// List all roles in the tenant
@@ -134,7 +146,7 @@ pub async fn list_roles<S: AuthService>(
 
     // Get all policies for this tenant
     let all_policies = enforcer.get_policy();
-    
+
     // Get all grouping policies (user-role assignments) for this tenant
     let all_groupings = enforcer.get_grouping_policy();
 
@@ -154,7 +166,7 @@ pub async fn list_roles<S: AuthService>(
 
             role_permissions_map
                 .entry(role)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(permission);
         }
     }
@@ -219,7 +231,8 @@ pub async fn update_role<S: AuthService>(
     Json(payload): Json<UpdateRoleReq>,
 ) -> Result<Json<UpdateRoleResp>, AppError> {
     // Validate request
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
     let tenant_id = admin_user.tenant_id;
@@ -227,23 +240,22 @@ pub async fn update_role<S: AuthService>(
 
     // Prevent modifying system roles
     if role_name == "admin" || role_name == "user" {
-        return Err(AppError::Forbidden(
-            "Cannot modify system roles (admin, user)".to_string()
-        ));
+        return Err(AppError::Forbidden("Cannot modify system roles (admin, user)".to_string()));
     }
 
     // Require at least one permission
     if payload.permissions.is_empty() {
         return Err(AppError::ValidationError(
-            "Role must have at least one permission".to_string()
+            "Role must have at least one permission".to_string(),
         ));
     }
 
     let mut enforcer = state.enforcer.write().await;
 
     // Check if role exists
-    let existing_policies = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
-    
+    let existing_policies =
+        enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
+
     if existing_policies.is_empty() {
         return Err(AppError::NotFound(format!("Role '{}' not found", role_name)));
     }
@@ -253,7 +265,8 @@ pub async fn update_role<S: AuthService>(
 
     // Remove all existing policies for this role in this tenant
     for policy in &existing_policies {
-        enforcer.remove_policy(policy.clone())
+        enforcer
+            .remove_policy(policy.clone())
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to remove policy: {}", e)))?;
     }
@@ -274,22 +287,26 @@ pub async fn update_role<S: AuthService>(
                 if added {
                     added_count += 1;
                 }
-            }
+            },
             Err(e) => {
                 // Rollback: Restore original policies
                 for old_policy in &backup_policies {
                     let _ = enforcer.add_policy(old_policy.clone()).await;
                 }
                 let _ = enforcer.save_policy().await;
-                return Err(AppError::InternalError(format!("Failed to add policy, rolled back: {}", e)));
-            }
+                return Err(AppError::InternalError(format!(
+                    "Failed to add policy, rolled back: {}",
+                    e
+                )));
+            },
         }
     }
 
     // Save changes
     if let Err(e) = enforcer.save_policy().await {
         // Rollback: Restore original policies if save fails
-        let current = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
+        let current =
+            enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
         for policy in current {
             let _ = enforcer.remove_policy(policy).await;
         }
@@ -297,7 +314,10 @@ pub async fn update_role<S: AuthService>(
             let _ = enforcer.add_policy(old_policy.clone()).await;
         }
         let _ = enforcer.save_policy().await;
-        return Err(AppError::InternalError(format!("Failed to save policies, rolled back: {}", e)));
+        return Err(AppError::InternalError(format!(
+            "Failed to save policies, rolled back: {}",
+            e
+        )));
     }
 
     drop(enforcer);
@@ -340,38 +360,42 @@ pub async fn delete_role<S: AuthService>(
 
     // Prevent deleting system roles
     if role_name == "admin" || role_name == "user" {
-        return Err(AppError::Forbidden(
-            "Cannot delete system roles (admin, user)".to_string()
-        ));
+        return Err(AppError::Forbidden("Cannot delete system roles (admin, user)".to_string()));
     }
 
     let mut enforcer = state.enforcer.write().await;
 
     // Check if role exists
-    let existing_policies = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
-    
+    let existing_policies =
+        enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
+
     if existing_policies.is_empty() {
         return Err(AppError::NotFound(format!("Role '{}' not found", role_name)));
     }
 
     // Check if role is assigned to any users
-    let user_assignments = enforcer.get_filtered_grouping_policy(1, vec![role_name.clone(), tenant_id.to_string()]);
-    
+    let user_assignments =
+        enforcer.get_filtered_grouping_policy(1, vec![role_name.clone(), tenant_id.to_string()]);
+
     if !user_assignments.is_empty() {
-        return Err(AppError::Conflict(
-            format!("Cannot delete role '{}': it is assigned to {} user(s)", role_name, user_assignments.len())
-        ));
+        return Err(AppError::Conflict(format!(
+            "Cannot delete role '{}': it is assigned to {} user(s)",
+            role_name,
+            user_assignments.len()
+        )));
     }
 
     // Remove all policies for this role
     for policy in existing_policies {
-        enforcer.remove_policy(policy)
+        enforcer
+            .remove_policy(policy)
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to remove policy: {}", e)))?;
     }
 
     // Save changes
-    enforcer.save_policy()
+    enforcer
+        .save_policy()
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to save policies: {}", e)))?;
 
@@ -416,7 +440,8 @@ pub async fn assign_role_to_user<S: AuthService>(
     Json(payload): Json<AssignUserRoleReq>,
 ) -> Result<Json<AssignUserRoleResp>, AppError> {
     // Validate request
-    payload.validate()
+    payload
+        .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
     let tenant_id = admin_user.tenant_id;
@@ -428,8 +453,9 @@ pub async fn assign_role_to_user<S: AuthService>(
     let mut enforcer = state.enforcer.write().await;
 
     // Verify role exists in this tenant
-    let role_policies = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
-    
+    let role_policies =
+        enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
+
     if role_policies.is_empty() {
         return Err(AppError::NotFound(format!("Role '{}' not found", role_name)));
     }
@@ -441,18 +467,18 @@ pub async fn assign_role_to_user<S: AuthService>(
         tenant_id.to_string(),
     ];
 
-    let added = enforcer.add_grouping_policy(grouping)
+    let added = enforcer
+        .add_grouping_policy(grouping)
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to add grouping policy: {}", e)))?;
 
     if !added {
-        return Err(AppError::Conflict(
-            format!("User already has role '{}'", role_name)
-        ));
+        return Err(AppError::Conflict(format!("User already has role '{}'", role_name)));
     }
 
     // Save changes
-    enforcer.save_policy()
+    enforcer
+        .save_policy()
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
 
@@ -507,16 +533,17 @@ pub async fn remove_role_from_user<S: AuthService>(
         .collect();
 
     // Check if user has the role we're trying to remove (before checking count)
-    if !tenant_roles.iter().any(|g| g.get(1).map(|r| r == &role_name).unwrap_or(false)) {
-        return Err(AppError::NotFound(
-            format!("User does not have role '{}'", role_name)
-        ));
+    if !tenant_roles
+        .iter()
+        .any(|g| g.get(1).map(|r| r == &role_name).unwrap_or(false))
+    {
+        return Err(AppError::NotFound(format!("User does not have role '{}'", role_name)));
     }
 
     // Prevent removing user's last role
     if tenant_roles.len() <= 1 {
         return Err(AppError::ValidationError(
-            "Cannot remove user's only role. Users must have at least one role.".to_string()
+            "Cannot remove user's only role. Users must have at least one role.".to_string(),
         ));
     }
 
@@ -527,13 +554,15 @@ pub async fn remove_role_from_user<S: AuthService>(
         tenant_id.to_string(),
     ];
 
-    let removed = enforcer.remove_grouping_policy(grouping)
+    let removed = enforcer
+        .remove_grouping_policy(grouping)
         .await
         .map_err(|e| AppError::InternalError(format!("Failed to remove grouping policy: {}", e)))?;
 
     // Save changes (removed check should always be true since we verified above)
     if removed {
-        enforcer.save_policy()
+        enforcer
+            .save_policy()
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
     }
@@ -580,7 +609,7 @@ pub async fn get_user_roles<S: AuthService>(
 
     // Get all roles for this user in this tenant
     let user_roles = enforcer.get_filtered_grouping_policy(0, vec![user_id.to_string()]);
-    
+
     let roles: Vec<String> = user_roles
         .into_iter()
         .filter(|g| g.len() >= 3 && g[2] == tenant_id.to_string())
@@ -589,10 +618,7 @@ pub async fn get_user_roles<S: AuthService>(
 
     drop(enforcer);
 
-    Ok(Json(UserRolesResp {
-        user_id,
-        roles,
-    }))
+    Ok(Json(UserRolesResp { user_id, roles }))
 }
 
 // ============================================================================
@@ -623,32 +649,61 @@ pub async fn list_permissions<S: AuthService>(
     let permissions = vec![
         AvailablePermission {
             resource: "users".to_string(),
-            actions: vec!["read".to_string(), "write".to_string(), "delete".to_string()],
+            actions: vec![
+                "read".to_string(),
+                "write".to_string(),
+                "delete".to_string(),
+            ],
             description: "Manage user accounts and profiles".to_string(),
         },
         AvailablePermission {
             resource: "products".to_string(),
-            actions: vec!["read".to_string(), "write".to_string(), "delete".to_string(), "import".to_string()],
+            actions: vec![
+                "read".to_string(),
+                "write".to_string(),
+                "delete".to_string(),
+                "import".to_string(),
+            ],
             description: "Manage product catalog and inventory".to_string(),
         },
         AvailablePermission {
             resource: "orders".to_string(),
-            actions: vec!["read".to_string(), "write".to_string(), "delete".to_string(), "approve".to_string(), "fulfill".to_string()],
+            actions: vec![
+                "read".to_string(),
+                "write".to_string(),
+                "delete".to_string(),
+                "approve".to_string(),
+                "fulfill".to_string(),
+            ],
             description: "Manage customer orders and fulfillment".to_string(),
         },
         AvailablePermission {
             resource: "inventory".to_string(),
-            actions: vec!["read".to_string(), "write".to_string(), "adjust".to_string(), "transfer".to_string()],
+            actions: vec![
+                "read".to_string(),
+                "write".to_string(),
+                "adjust".to_string(),
+                "transfer".to_string(),
+            ],
             description: "Manage stock levels and transfers".to_string(),
         },
         AvailablePermission {
             resource: "integrations".to_string(),
-            actions: vec!["read".to_string(), "write".to_string(), "delete".to_string(), "sync".to_string()],
+            actions: vec![
+                "read".to_string(),
+                "write".to_string(),
+                "delete".to_string(),
+                "sync".to_string(),
+            ],
             description: "Manage third-party integrations".to_string(),
         },
         AvailablePermission {
             resource: "payments".to_string(),
-            actions: vec!["read".to_string(), "write".to_string(), "refund".to_string()],
+            actions: vec![
+                "read".to_string(),
+                "write".to_string(),
+                "refund".to_string(),
+            ],
             description: "Manage payment transactions".to_string(),
         },
         AvailablePermission {

@@ -12,7 +12,10 @@ use validator::Validate;
 pub struct CreateRoleReq {
     /// Role name (e.g., "inventory_manager", "sales_staff")
     #[validate(length(min = 1, max = 100))]
-    #[validate(regex(path = "RE_ROLE_NAME", message = "Role name must be lowercase alphanumeric with underscores"))]
+    #[validate(regex(
+        path = "RE_ROLE_NAME",
+        message = "Role name must be lowercase alphanumeric with underscores"
+    ))]
     pub role_name: String,
 
     /// Human-readable role description
@@ -162,10 +165,10 @@ pub struct AvailablePermission {
 pub struct AddPolicyReq {
     #[validate(length(min = 1, max = 255))]
     pub role: String,
-    
+
     #[validate(length(min = 1, max = 255))]
     pub resource: String,
-    
+
     #[validate(length(min = 1, max = 255))]
     pub action: String,
 }
@@ -175,10 +178,10 @@ pub struct AddPolicyReq {
 pub struct RemovePolicyReq {
     #[validate(length(min = 1))]
     pub role: String,
-    
+
     #[validate(length(min = 1))]
     pub resource: String,
-    
+
     #[validate(length(min = 1))]
     pub action: String,
 }

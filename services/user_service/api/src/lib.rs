@@ -27,16 +27,17 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
     // Initialize Casbin enforcer
     // Try multiple paths to find the model file
     let model_paths = [
-        "shared/auth/model.conf",                                      // From workspace root
-        "../../../shared/auth/model.conf",                            // From services/user_service/api
-        "../../../../shared/auth/model.conf",                          // From target/debug
+        "shared/auth/model.conf",             // From workspace root
+        "../../../shared/auth/model.conf",    // From services/user_service/api
+        "../../../../shared/auth/model.conf", // From target/debug
     ];
-    
-    let model_path = model_paths.iter()
+
+    let model_path = model_paths
+        .iter()
         .find(|p| std::path::Path::new(p).exists())
         .copied()
         .unwrap_or("shared/auth/model.conf");
-    
+
     let enforcer = create_enforcer(&config.database_url, Some(model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
@@ -85,7 +86,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
             post(handlers::add_policy).delete(handlers::remove_policy),
         )
         .layer(shared_auth::CasbinAuthLayer::new(authz_state));
-    
+
     // Combine all API routes
     let api_routes = public_routes.merge(protected_routes).with_state(state);
 

@@ -9,7 +9,7 @@ DROP VIEW IF EXISTS casbin_role_assignments CASCADE;
 
 -- Recreate views with correct structure
 CREATE OR REPLACE VIEW casbin_policies AS
-SELECT 
+SELECT
     id,
     v0 AS role,
     v1 AS tenant_id,
@@ -20,7 +20,7 @@ WHERE ptype = 'p'
 ORDER BY v0, v2, v3;
 
 CREATE OR REPLACE VIEW casbin_role_assignments AS
-SELECT 
+SELECT
     id,
     v0 AS user_id,
     v1 AS role,

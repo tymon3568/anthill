@@ -1,11 +1,11 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
-use uuid::Uuid;
-use user_service_core::domains::auth::domain::{
-    model::{User, Tenant},
-    repository::{UserRepository, TenantRepository},
-};
 use shared_error::AppError;
+use sqlx::PgPool;
+use user_service_core::domains::auth::domain::{
+    model::{Tenant, User},
+    repository::{TenantRepository, UserRepository},
+};
+use uuid::Uuid;
 
 /// PostgreSQL implementation of UserRepository
 #[derive(Clone)]
@@ -29,10 +29,10 @@ impl UserRepository for PgUserRepository {
         .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(user)
     }
-    
+
     async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError> {
         let user = sqlx::query_as::<_, User>(
             "SELECT * FROM users WHERE user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL"
@@ -41,10 +41,10 @@ impl UserRepository for PgUserRepository {
         .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(user)
     }
-    
+
     async fn create(&self, user: &User) -> Result<User, AppError> {
         let user = sqlx::query_as::<_, User>(
             r#"
@@ -56,7 +56,7 @@ impl UserRepository for PgUserRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             RETURNING *
-            "#
+            "#,
         )
         .bind(user.user_id)
         .bind(user.tenant_id)
@@ -78,20 +78,20 @@ impl UserRepository for PgUserRepository {
         .bind(user.deleted_at)
         .fetch_one(&self.pool)
         .await?;
-        
+
         Ok(user)
     }
-    
+
     async fn update(&self, user: &User) -> Result<User, AppError> {
         let user = sqlx::query_as::<_, User>(
             r#"
             UPDATE users
-            SET email = $2, 
-                password_hash = $3, 
-                full_name = $4, 
+            SET email = $2,
+                password_hash = $3,
+                full_name = $4,
                 avatar_url = $5,
                 phone = $6,
-                role = $7, 
+                role = $7,
                 status = $8,
                 email_verified = $9,
                 email_verified_at = $10,
@@ -102,7 +102,7 @@ impl UserRepository for PgUserRepository {
                 updated_at = NOW()
             WHERE user_id = $1 AND tenant_id = $15 AND deleted_at IS NULL
             RETURNING *
-            "#
+            "#,
         )
         .bind(user.user_id)
         .bind(&user.email)
@@ -121,14 +121,21 @@ impl UserRepository for PgUserRepository {
         .bind(user.tenant_id)
         .fetch_one(&self.pool)
         .await?;
-        
+
         Ok(user)
     }
-    
-    async fn list(&self, tenant_id: Uuid, page: i32, page_size: i32, role: Option<String>, status: Option<String>) -> Result<(Vec<User>, i64), AppError> {
+
+    async fn list(
+        &self,
+        tenant_id: Uuid,
+        page: i32,
+        page_size: i32,
+        role: Option<String>,
+        status: Option<String>,
+    ) -> Result<(Vec<User>, i64), AppError> {
         // Clamp page to minimum of 1 and page_size to safe bounds (1-100)
         let page = page.max(1);
-        let page_size = page_size.max(1).min(100);
+        let page_size = page_size.clamp(1, 100);
 
         // Use saturating arithmetic and convert to u64 for database offset
         let offset: u64 = ((page as u64).saturating_sub(1)).saturating_mul(page_size as u64);
@@ -138,7 +145,8 @@ impl UserRepository for PgUserRepository {
         query_builder.push_bind(tenant_id);
         query_builder.push(" AND deleted_at IS NULL");
 
-        let mut count_builder = sqlx::QueryBuilder::new("SELECT COUNT(*) FROM users WHERE tenant_id = ");
+        let mut count_builder =
+            sqlx::QueryBuilder::new("SELECT COUNT(*) FROM users WHERE tenant_id = ");
         count_builder.push_bind(tenant_id);
         count_builder.push(" AND deleted_at IS NULL");
 
@@ -184,16 +192,16 @@ impl UserRepository for PgUserRepository {
 
         Ok((users, total.0))
     }
-    
+
     async fn email_exists(&self, email: &str, tenant_id: Uuid) -> Result<bool, AppError> {
         let exists: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND tenant_id = $2)"
+            "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND tenant_id = $2)",
         )
         .bind(email)
         .bind(tenant_id)
         .fetch_one(&self.pool)
         .await?;
-        
+
         Ok(exists.0)
     }
 }
@@ -218,20 +226,20 @@ impl TenantRepository for PgTenantRepository {
         .bind(id)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(tenant)
     }
-    
+
     async fn create(&self, tenant: &Tenant) -> Result<Tenant, AppError> {
         let tenant = sqlx::query_as::<_, Tenant>(
             r#"
             INSERT INTO tenants (
-                tenant_id, name, slug, plan, plan_expires_at, 
+                tenant_id, name, slug, plan, plan_expires_at,
                 status, settings, created_at, updated_at, deleted_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
-            "#
+            "#,
         )
         .bind(tenant.tenant_id)
         .bind(&tenant.name)
@@ -245,29 +253,29 @@ impl TenantRepository for PgTenantRepository {
         .bind(tenant.deleted_at)
         .fetch_one(&self.pool)
         .await?;
-        
+
         Ok(tenant)
     }
-    
+
     async fn find_by_name(&self, name: &str) -> Result<Option<Tenant>, AppError> {
         let tenant = sqlx::query_as::<_, Tenant>(
-            "SELECT * FROM tenants WHERE name = $1 AND status = 'active' AND deleted_at IS NULL"
+            "SELECT * FROM tenants WHERE name = $1 AND status = 'active' AND deleted_at IS NULL",
         )
         .bind(name)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(tenant)
     }
-    
+
     async fn find_by_slug(&self, slug: &str) -> Result<Option<Tenant>, AppError> {
         let tenant = sqlx::query_as::<_, Tenant>(
-            "SELECT * FROM tenants WHERE slug = $1 AND status = 'active' AND deleted_at IS NULL"
+            "SELECT * FROM tenants WHERE slug = $1 AND status = 'active' AND deleted_at IS NULL",
         )
         .bind(slug)
         .fetch_optional(&self.pool)
         .await?;
-        
+
         Ok(tenant)
     }
 }

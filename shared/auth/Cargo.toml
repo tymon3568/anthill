@@ -1,48 +1,38 @@
-[package]
-name = "shared-auth"
-version.workspace = true
-edition.workspace = true
-authors.workspace = true
-
 [dependencies]
-# Casbin core
-casbin = { version = "2.0", default-features = false, features = ["runtime-tokio", "logging", "incremental"] }
-sqlx-adapter = "1.8"
-
+anyhow = {workspace = true}
 # Axum
-axum = { workspace = true }
-tower = { workspace = true }
-
-# Async runtime
-tokio = { workspace = true }
-
-# Database
-sqlx = { workspace = true }
-
-# Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
-
-# Error handling
-thiserror = { workspace = true }
-anyhow = { workspace = true }
-
+axum = {workspace = true}
+# Casbin core
+casbin = {version = "2.0", default-features = false, features = ["runtime-tokio", "logging", "incremental"]}
+futures-util = "0.3"
 # HTTP types
 http = "1.0"
-
-# UUID
-uuid = { workspace = true }
-
+# Serialization
+serde = {workspace = true}
+serde_json = {workspace = true}
 # Shared crates
-shared_error = { workspace = true }
-shared_jwt = { workspace = true }
-shared_types = { workspace = true }
-
+shared_error = {workspace = true}
+shared_jwt = {workspace = true}
+shared_types = {workspace = true}
+# Database
+sqlx = {workspace = true}
+sqlx-adapter = "1.8"
+# Error handling
+thiserror = {workspace = true}
+# Async runtime
+tokio = {workspace = true}
+tower = {workspace = true}
 # Logging
-tracing = { workspace = true }
-
-futures-util = "0.3"
+tracing = {workspace = true}
+# UUID
+uuid = {workspace = true}
 
 [dev-dependencies]
+sqlx = {workspace = true, features = ["sqlite", "runtime-tokio-rustls"]}
 tokio-test = "0.4"
-sqlx = { workspace = true, features = ["sqlite", "runtime-tokio-rustls"] }
+
+[package]
+name = "shared-auth"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true

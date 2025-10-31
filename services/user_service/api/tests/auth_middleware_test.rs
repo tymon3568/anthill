@@ -22,7 +22,7 @@ async fn setup_test_app() -> (Router, PgPool, Config) {
         host: "0.0.0.0".to_string(),
         port: 8000,
     };
-    
+
     let db_pool = helpers::setup_test_db(&mut config).await;
     let app = get_app(db_pool.clone(), &config).await;
     (app, db_pool, config)
@@ -32,10 +32,11 @@ async fn setup_test_app() -> (Router, PgPool, Config) {
 async fn test_admin_can_access_admin_route() {
     let (app, db_pool, config) = setup_test_app().await;
 
-    let admin_user = sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'admin@test.com'")
-        .fetch_one(&db_pool)
-        .await
-        .expect("Failed to fetch admin user");
+    let admin_user =
+        sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'admin@test.com'")
+            .fetch_one(&db_pool)
+            .await
+            .expect("Failed to fetch admin user");
 
     let admin_token =
         helpers::generate_jwt(admin_user.user_id, admin_user.tenant_id, "role:admin", &config);
@@ -44,10 +45,7 @@ async fn test_admin_can_access_admin_route() {
         .uri("/api/v1/admin/policies")
         .method(http::Method::POST)
         .header(http::header::CONTENT_TYPE, "application/json")
-        .header(
-            http::header::AUTHORIZATION,
-            format!("Bearer {}", admin_token),
-        )
+        .header(http::header::AUTHORIZATION, format!("Bearer {}", admin_token))
         .body(Body::from(
             json!({
                 "ptype": "p",
@@ -85,10 +83,7 @@ async fn test_manager_cannot_access_admin_route() {
         .uri("/api/v1/admin/policies")
         .method(http::Method::POST)
         .header(http::header::CONTENT_TYPE, "application/json")
-        .header(
-            http::header::AUTHORIZATION,
-            format!("Bearer {}", manager_token),
-        )
+        .header(http::header::AUTHORIZATION, format!("Bearer {}", manager_token))
         .body(Body::from(
             json!({
                 "ptype": "p",
@@ -119,10 +114,7 @@ async fn test_user_can_access_read_only_route() {
     let request = Request::builder()
         .uri("/api/v1/users")
         .method(http::Method::GET)
-        .header(
-            http::header::AUTHORIZATION,
-            format!("Bearer {}", user_token),
-        )
+        .header(http::header::AUTHORIZATION, format!("Bearer {}", user_token))
         .body(Body::empty())
         .unwrap();
 
@@ -144,15 +136,13 @@ async fn test_tenant_isolation() {
         .await
         .expect("Failed to fetch user_b");
 
-    let user_a_token = helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
+    let user_a_token =
+        helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
 
     let request = Request::builder()
         .uri(format!("/api/v1/users/{}", user_b.user_id))
         .method(http::Method::GET)
-        .header(
-            http::header::AUTHORIZATION,
-            format!("Bearer {}", user_a_token),
-        )
+        .header(http::header::AUTHORIZATION, format!("Bearer {}", user_a_token))
         .body(Body::empty())
         .unwrap();
 
@@ -169,20 +159,19 @@ async fn test_tenant_isolation_reverse() {
         .await
         .expect("Failed to fetch user_a");
 
-    let user_b = sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'user_b@test.com'")
-        .fetch_one(&db_pool)
-        .await
-        .expect("Failed to fetch user_b");
+    let user_b =
+        sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'user_b@test.com'")
+            .fetch_one(&db_pool)
+            .await
+            .expect("Failed to fetch user_b");
 
-    let user_b_token = helpers::generate_jwt(user_b.user_id, user_b.tenant_id, "role:user", &config);
+    let user_b_token =
+        helpers::generate_jwt(user_b.user_id, user_b.tenant_id, "role:user", &config);
 
     let request = Request::builder()
         .uri(format!("/api/v1/users/{}", user_a.user_id))
         .method(http::Method::GET)
-        .header(
-            http::header::AUTHORIZATION,
-            format!("Bearer {}", user_b_token),
-        )
+        .header(http::header::AUTHORIZATION, format!("Bearer {}", user_b_token))
         .body(Body::empty())
         .unwrap();
 
@@ -199,15 +188,13 @@ async fn test_list_users_tenant_isolation() {
         .await
         .expect("Failed to fetch user_a");
 
-    let user_a_token = helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
+    let user_a_token =
+        helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
 
     let request = Request::builder()
         .uri("/api/v1/users")
         .method(http::Method::GET)
-        .header(
-            http::header::AUTHORIZATION,
-            format!("Bearer {}", user_a_token),
-        )
+        .header(http::header::AUTHORIZATION, format!("Bearer {}", user_a_token))
         .body(Body::empty())
         .unwrap();
 

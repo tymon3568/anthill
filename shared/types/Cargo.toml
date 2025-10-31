@@ -1,10 +1,10 @@
+[dependencies]
+chrono = {workspace = true}
+serde = {workspace = true}
+uuid = {workspace = true}
+
 [package]
 name = "shared_types"
-version.workspace = true
-edition.workspace = true
 authors.workspace = true
-
-[dependencies]
-serde = { workspace = true }
-uuid = { workspace = true }
-chrono = { workspace = true }
+edition.workspace = true
+version.workspace = true

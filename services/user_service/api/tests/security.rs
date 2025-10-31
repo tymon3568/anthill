@@ -13,7 +13,10 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use user_service_api::AppState;
 use user_service_core::domains::auth::{
-    domain::{model::{User, Tenant}, repository::{UserRepository, TenantRepository}},
+    domain::{
+        model::{Tenant, User},
+        repository::{TenantRepository, UserRepository},
+    },
     dto::auth_dto::RegisterReq,
 };
 use user_service_infra::auth::{
@@ -78,7 +81,10 @@ async fn create_test_tenant(pool: &PgPool, name: &str) -> Tenant {
     };
 
     let tenant_repo = PgTenantRepository::new(pool.clone());
-    tenant_repo.create(&tenant).await.expect("Failed to create test tenant");
+    tenant_repo
+        .create(&tenant)
+        .await
+        .expect("Failed to create test tenant");
     tenant
 }
 
@@ -92,8 +98,8 @@ async fn create_test_user(
 ) -> User {
     let user_id = Uuid::new_v4();
     let now = chrono::Utc::now();
-    let password_hash = bcrypt::hash("TestPass123!", bcrypt::DEFAULT_COST)
-        .expect("Failed to hash password");
+    let password_hash =
+        bcrypt::hash("TestPass123!", bcrypt::DEFAULT_COST).expect("Failed to hash password");
 
     let user = User {
         user_id,
@@ -117,13 +123,16 @@ async fn create_test_user(
     };
 
     let user_repo = PgUserRepository::new(pool.clone());
-    user_repo.create(&user).await.expect("Failed to create test user");
+    user_repo
+        .create(&user)
+        .await
+        .expect("Failed to create test user");
     user
 }
 
 /// Helper function to create JWT token for user
 fn create_test_jwt(user_id: Uuid, tenant_id: Uuid, role: &str) -> String {
-    use shared_jwt::{Claims, encode_jwt};
+    use shared_jwt::{encode_jwt, Claims};
 
     let claims = Claims::new_access(user_id, tenant_id, role.to_string(), 900);
     let jwt_secret = get_test_jwt_secret();
@@ -139,7 +148,9 @@ async fn make_authenticated_request(
     token: &str,
     body: Option<Value>,
 ) -> Response<Body> {
-    let request_body = body.map(|b| serde_json::to_string(&b).unwrap()).unwrap_or_default();
+    let request_body = body
+        .map(|b| serde_json::to_string(&b).unwrap())
+        .unwrap_or_default();
 
     let request = Request::builder()
         .method(method)
@@ -167,8 +178,10 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
     let tenant_b = create_test_tenant(&pool, "Tenant B").await;
 
     // Create users in each tenant
-    let user_a = create_test_user(&pool, tenant_a.tenant_id, "user_a@test.com", "User A", "user").await;
-    let user_b = create_test_user(&pool, tenant_b.tenant_id, "user_b@test.com", "User B", "user").await;
+    let user_a =
+        create_test_user(&pool, tenant_a.tenant_id, "user_a@test.com", "User A", "user").await;
+    let user_b =
+        create_test_user(&pool, tenant_b.tenant_id, "user_b@test.com", "User B", "user").await;
 
     // Setup auth service and router
     let user_repo = PgUserRepository::new(pool.clone());
@@ -180,7 +193,7 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
         tenant_repo,
         session_repo,
         get_test_jwt_secret(),
-        900,   // 15 minutes
+        900,    // 15 minutes
         604800, // 7 days
     );
 
@@ -211,21 +224,20 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
     )
     .await;
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND,
-        "User A should not be able to access User B from different tenant - expected 404");
+    assert_eq!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "User A should not be able to access User B from different tenant - expected 404"
+    );
 
     // Test 2: User A should NOT be able to list users from Tenant B
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token_a,
-        None,
-    )
-    .await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token_a, None).await;
 
-    assert_eq!(response.status(), StatusCode::OK,
-        "User A should be able to list users from their own tenant");
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "User A should be able to list users from their own tenant"
+    );
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let users_response: Value = serde_json::from_slice(&body).unwrap();
@@ -233,8 +245,11 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
     // User A should only see themselves in the list
     let users = users_response["users"].as_array().unwrap();
     assert_eq!(users.len(), 1, "User A should only see one user in their tenant");
-    assert_eq!(users[0]["id"], user_a.user_id.to_string(),
-        "User A should only see themselves in the user list");
+    assert_eq!(
+        users[0]["id"],
+        user_a.user_id.to_string(),
+        "User A should only see themselves in the user list"
+    );
 
     // Test 3: User B should NOT be able to see User A's details
     let response = make_authenticated_request(
@@ -246,29 +261,31 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
     )
     .await;
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND,
-        "User B should not be able to access User A from different tenant - expected 404");
+    assert_eq!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "User B should not be able to access User A from different tenant - expected 404"
+    );
 
     // Test 4: User B should only see themselves in their own tenant
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token_b,
-        None,
-    )
-    .await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token_b, None).await;
 
-    assert_eq!(response.status(), StatusCode::OK,
-        "User B should be able to list users from their own tenant");
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "User B should be able to list users from their own tenant"
+    );
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let users_response: Value = serde_json::from_slice(&body).unwrap();
 
     let users = users_response["users"].as_array().unwrap();
     assert_eq!(users.len(), 1, "User B should only see one user in their tenant");
-    assert_eq!(users[0]["id"], user_b.user_id.to_string(),
-        "User B should only see themselves in the user list");
+    assert_eq!(
+        users[0]["id"],
+        user_b.user_id.to_string(),
+        "User B should only see themselves in the user list"
+    );
 }
 
 #[tokio::test]
@@ -282,8 +299,10 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
     let tenant_b = create_test_tenant(&pool, "Tenant B Corp").await;
 
     // Create admin users in each tenant
-    let admin_a = create_test_user(&pool, tenant_a.tenant_id, "admin_a@test.com", "Admin A", "admin").await;
-    let user_b = create_test_user(&pool, tenant_b.tenant_id, "user_b@test.com", "User B", "user").await;
+    let admin_a =
+        create_test_user(&pool, tenant_a.tenant_id, "admin_a@test.com", "Admin A", "admin").await;
+    let user_b =
+        create_test_user(&pool, tenant_b.tenant_id, "user_b@test.com", "User B", "user").await;
 
     // Setup auth service and router (same as above)
     let user_repo = PgUserRepository::new(pool.clone());
@@ -326,18 +345,15 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
     )
     .await;
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND,
-        "Admin A should not be able to access User B from different tenant - expected 404");
+    assert_eq!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "Admin A should not be able to access User B from different tenant - expected 404"
+    );
 
     // Test: Admin A should NOT see User B in their user list
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token_admin_a,
-        None,
-    )
-    .await;
+    let response =
+        make_authenticated_request(&app, "GET", "/api/v1/users", &token_admin_a, None).await;
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -346,8 +362,11 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
 
     let users = users_response["users"].as_array().unwrap();
     assert_eq!(users.len(), 1, "Admin A should only see users from their own tenant");
-    assert_eq!(users[0]["id"], admin_a.user_id.to_string(),
-        "Admin A should only see themselves in the user list");
+    assert_eq!(
+        users[0]["id"],
+        admin_a.user_id.to_string(),
+        "Admin A should only see themselves in the user list"
+    );
 
     // Test: User B should NOT be able to access Admin A (even though User B is regular user)
     let response = make_authenticated_request(
@@ -359,8 +378,11 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
     )
     .await;
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND,
-        "User B should not be able to access Admin A from different tenant - expected 404");
+    assert_eq!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "User B should not be able to access Admin A from different tenant - expected 404"
+    );
 }
 
 #[tokio::test]
@@ -374,12 +396,17 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
     let tenant_b = create_test_tenant(&pool, "Multi-User Tenant B").await;
 
     // Create multiple users in each tenant
-    let user_a1 = create_test_user(&pool, tenant_a.tenant_id, "user_a1@test.com", "User A1", "user").await;
-    let user_a2 = create_test_user(&pool, tenant_a.tenant_id, "user_a2@test.com", "User A2", "manager").await;
-    let user_a3 = create_test_user(&pool, tenant_a.tenant_id, "user_a3@test.com", "User A3", "user").await;
+    let user_a1 =
+        create_test_user(&pool, tenant_a.tenant_id, "user_a1@test.com", "User A1", "user").await;
+    let user_a2 =
+        create_test_user(&pool, tenant_a.tenant_id, "user_a2@test.com", "User A2", "manager").await;
+    let user_a3 =
+        create_test_user(&pool, tenant_a.tenant_id, "user_a3@test.com", "User A3", "user").await;
 
-    let user_b1 = create_test_user(&pool, tenant_b.tenant_id, "user_b1@test.com", "User B1", "user").await;
-    let user_b2 = create_test_user(&pool, tenant_b.tenant_id, "user_b2@test.com", "User B2", "user").await;
+    let user_b1 =
+        create_test_user(&pool, tenant_b.tenant_id, "user_b1@test.com", "User B1", "user").await;
+    let user_b2 =
+        create_test_user(&pool, tenant_b.tenant_id, "user_b2@test.com", "User B2", "user").await;
 
     // Setup auth service and router (same as above)
     let user_repo = PgUserRepository::new(pool.clone());
@@ -413,14 +440,7 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
     let token_b1 = create_test_jwt(user_b1.user_id, tenant_b.tenant_id, &user_b1.role);
 
     // Test: User A1 should see all 3 users from Tenant A
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token_a1,
-        None,
-    )
-    .await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token_a1, None).await;
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -431,7 +451,8 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
     assert_eq!(users.len(), 3, "User A1 should see all 3 users from Tenant A");
 
     // Verify all users are from Tenant A
-    let user_ids: Vec<String> = users.iter()
+    let user_ids: Vec<String> = users
+        .iter()
         .map(|u| u["id"].as_str().unwrap().to_string())
         .collect();
     assert!(user_ids.contains(&user_a1.user_id.to_string()));
@@ -448,18 +469,14 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
     )
     .await;
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND,
-        "User A1 should not be able to access User B1 from different tenant - expected 404");
+    assert_eq!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "User A1 should not be able to access User B1 from different tenant - expected 404"
+    );
 
     // Test: User B1 should see all 2 users from Tenant B
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token_b1,
-        None,
-    )
-    .await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token_b1, None).await;
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -470,7 +487,8 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
     assert_eq!(users.len(), 2, "User B1 should see all 2 users from Tenant B");
 
     // Verify all users are from Tenant B
-    let user_ids: Vec<String> = users.iter()
+    let user_ids: Vec<String> = users
+        .iter()
         .map(|u| u["id"].as_str().unwrap().to_string())
         .collect();
     assert!(user_ids.contains(&user_b1.user_id.to_string()));
