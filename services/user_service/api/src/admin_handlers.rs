@@ -44,6 +44,20 @@ pub async fn create_role<S: AuthService>(
     let tenant_id = admin_user.tenant_id;
     let role_name = payload.role_name.trim().to_lowercase();
 
+    // Prevent creating system roles
+    if role_name == "admin" || role_name == "user" {
+        return Err(AppError::Forbidden(
+            "Cannot create system roles (admin, user)".to_string()
+        ));
+    }
+
+    // Require at least one permission
+    if payload.permissions.is_empty() {
+        return Err(AppError::ValidationError(
+            "Role must have at least one permission".to_string()
+        ));
+    }
+
     // Check if role already exists by checking if it has any policies
     let enforcer = state.enforcer.read().await;
     let existing_policies = enforcer.get_filtered_policy(0, vec![role_name.clone(), tenant_id.to_string()]);
