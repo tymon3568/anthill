@@ -95,14 +95,14 @@ fi
 # Reset database if requested
 if [[ "$RESET" == true ]]; then
     echo -e "${YELLOW}Dropping database ${DB_NAME}...${NC}"
-    
+
     # Try with psql first, fallback to sqlx
     if command -v psql &> /dev/null; then
         PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d postgres -c "DROP DATABASE IF EXISTS ${DB_NAME};" || true
     else
         sqlx database drop -y --database-url "${DATABASE_URL}" || true
     fi
-    
+
     echo -e "${GREEN}✓ Database dropped${NC}"
     echo ""
 fi
@@ -131,13 +131,13 @@ echo ""
 # Clean test data if requested
 if [[ "$CLEAN" == true ]]; then
     echo -e "${BLUE}Cleaning test data...${NC}"
-    
+
     if command -v psql &> /dev/null; then
         PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT cleanup_test_data();"
     else
         sqlx query "SELECT cleanup_test_data();" --database-url "${DATABASE_URL}"
     fi
-    
+
     echo -e "${GREEN}✓ Test data cleaned${NC}"
     echo ""
 fi
@@ -145,10 +145,10 @@ fi
 # Seed test fixtures if requested
 if [[ "$SEED" == true ]]; then
     echo -e "${BLUE}Seeding test fixtures...${NC}"
-    
+
     # Create test tenant
     TENANT_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
-    
+
     if command -v psql &> /dev/null; then
         PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" <<SQL
 -- Create test tenant
@@ -167,8 +167,15 @@ VALUES (
 -- Generate test users
 SELECT generate_test_users('${TENANT_ID}'::uuid, 10);
 SQL
+    else
+        # Fallback to sqlx-cli if psql not available
+        echo -e "${YELLOW}psql not found, using sqlx-cli...${NC}"
+        sqlx query --database-url "${DATABASE_URL}" \
+            "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ('${TENANT_ID}', 'Test Corporation', 'test-corp', 'free', 'active', '{}'::jsonb, NOW(), NOW()) ON CONFLICT (slug) DO NOTHING;" 2>/dev/null || true
+        sqlx query --database-url "${DATABASE_URL}" \
+            "SELECT generate_test_users('${TENANT_ID}'::uuid, 10);" 2>/dev/null || true
     fi
-    
+
     echo -e "${GREEN}✓ Test fixtures seeded${NC}"
     echo -e "${BLUE}Test Tenant ID: ${TENANT_ID}${NC}"
     echo ""

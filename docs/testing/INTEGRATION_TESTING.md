@@ -275,20 +275,23 @@ async fn test_tenant_data_isolation() {
 #[ignore]
 async fn test_concurrent_user_creation() {
     use tokio::task::JoinSet;
+    use std::sync::Arc;
 
     let ctx = IntegrationTestContext::new().await;
     let tenant_id = ctx.db.create_test_tenant("Concurrent Test").await;
 
     let mut tasks = JoinSet::new();
-    let pool = ctx.db.pool().clone();
+    
+    // Wrap TestDatabase in Arc to share across tasks
+    let db = Arc::new(ctx.db);
 
     // Spawn 100 concurrent tasks
     for i in 0..100 {
-        let pool_clone = pool.clone();
+        let db_clone = Arc::clone(&db);
         let tid = tenant_id;
 
         tasks.spawn(async move {
-            ctx.db.create_test_user(tid, &format!("user{}@test.com", i), "user").await
+            db_clone.create_test_user(tid, &format!("user{}@test.com", i), "user").await
         });
     }
 
@@ -296,10 +299,10 @@ async fn test_concurrent_user_creation() {
     while let Some(_) = tasks.join_next().await {}
 
     // Verify all created
-    let snapshot = ctx.db.snapshot_tenant(tenant_id).await;
+    let snapshot = db.snapshot_tenant(tenant_id).await;
     assert_eq!(snapshot.users_count, 100);
 
-    ctx.cleanup().await;
+    db.cleanup().await;
 }
 ```
 

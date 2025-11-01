@@ -101,6 +101,18 @@ impl MockDbPool {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<User>, AppError> {
+        // Validate pagination parameters (match PostgreSQL behavior)
+        if limit < 0 {
+            return Err(AppError::ValidationError(
+                "LIMIT must not be negative".to_string(),
+            ));
+        }
+        if offset < 0 {
+            return Err(AppError::ValidationError(
+                "OFFSET must not be negative".to_string(),
+            ));
+        }
+
         let users = self.users.lock().await;
         let filtered: Vec<User> = users
             .iter()

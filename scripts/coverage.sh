@@ -135,20 +135,14 @@ if [[ "$UPLOAD" == true ]]; then
         echo -e "${YELLOW}Warning: CODECOV_TOKEN not set. Upload may fail for private repos.${NC}"
     fi
 
-    # Check if codecov CLI is installed
-    if ! command -v codecov &> /dev/null; then
-        echo -e "${YELLOW}codecov CLI not found. Installing...${NC}"
-        # Install codecov uploader
-        curl -Os https://uploader.codecov.io/latest/linux/codecov
-        chmod +x codecov
-        sudo mv codecov /usr/local/bin/
-    fi
+    # Use bash uploader (no installation needed, more secure)
+    echo -e "${BLUE}Uploading to Codecov...${NC}"
 
-    # Upload to codecov
+    # Upload to codecov using bash uploader
     if [[ -n "$CODECOV_TOKEN" ]]; then
-        codecov -t "$CODECOV_TOKEN" -f target/coverage/lcov.info -F unittests
+        bash <(curl -s https://codecov.io/bash) -t "$CODECOV_TOKEN" -f target/coverage/lcov.info -F unittests
     else
-        codecov -f target/coverage/lcov.info -F unittests
+        bash <(curl -s https://codecov.io/bash) -f target/coverage/lcov.info -F unittests
     fi
 
     echo -e "${GREEN}✓ Coverage uploaded to Codecov${NC}"

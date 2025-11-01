@@ -187,16 +187,23 @@ mod tests {
     async fn setup_test_enforcer() -> Enforcer {
         // Load model from file - use absolute path from workspace root
         let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
-            .map(|p| std::path::PathBuf::from(p).parent().unwrap().parent().unwrap().to_path_buf())
-            .unwrap_or_else(|_| std::path::PathBuf::from("."));
+            .ok()
+            .and_then(|p| {
+                let path = std::path::PathBuf::from(p);
+                path.parent()?.parent().map(|p| p.to_path_buf())
+            })
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
         let model_path = workspace_root.join("shared/auth/model.conf");
-        let model = DefaultModel::from_file(model_path.to_str().unwrap())
-            .await
-            .expect("Failed to load Casbin model");
+        let model = DefaultModel::from_file(
+            model_path.to_str().expect("Invalid UTF-8 in model path"),
+        )
+        .await
+        .expect("Failed to load Casbin model");
 
-        // Use PostgreSQL for testing (matching the adapter type)
-        let database_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://anthill_user:anthill_password@localhost:5433/anthill_test".to_string());
+        // Use PostgreSQL for testing (standard port 5432)
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgresql://anthill:anthill_password@localhost:5432/anthill_test".to_string()
+        });
 
         let pool = PgPoolOptions::new()
             .max_connections(1)

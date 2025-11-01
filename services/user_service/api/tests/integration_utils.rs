@@ -38,7 +38,12 @@ impl TestDatabase {
     /// Create a test tenant and track it for cleanup
     pub async fn create_test_tenant(&self, name: &str) -> Uuid {
         let tenant_id = Uuid::now_v7();
-        let slug = format!("test-{}", name.to_lowercase().replace(" ", "-"));
+        // Add UUID to slug to ensure uniqueness
+        let slug = format!(
+            "test-{}-{}",
+            name.to_lowercase().replace(" ", "-"),
+            tenant_id
+        );
 
         sqlx::query!(
             r#"
@@ -137,7 +142,7 @@ impl TestDatabase {
             SELECT
                 (SELECT COUNT(*) FROM users WHERE tenant_id = $1) as "users_count!",
                 (SELECT COUNT(*) FROM sessions WHERE tenant_id = $1) as "sessions_count!",
-                (SELECT COUNT(*) FROM user_profiles WHERE user_id IN 
+                (SELECT COUNT(*) FROM user_profiles WHERE user_id IN
                     (SELECT user_id FROM users WHERE tenant_id = $1)) as "profiles_count!",
                 (SELECT status FROM tenants WHERE tenant_id = $1) as "tenant_status!"
             "#,
@@ -204,8 +209,9 @@ impl IntegrationTestContext {
     pub fn create_jwt(&self, user_id: Uuid, tenant_id: Uuid, role: &str) -> String {
         use shared_jwt::{encode_jwt, Claims};
 
-        let exp = (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp();
-        let claims = Claims::new_access(user_id, tenant_id, role.to_string(), exp);
+        // Claims::new_access expects duration in seconds, not absolute timestamp
+        let expiration_secs = 3600; // 1 hour
+        let claims = Claims::new_access(user_id, tenant_id, role.to_string(), expiration_secs);
 
         encode_jwt(&claims, &self.jwt_secret).expect("Failed to create test JWT")
     }
