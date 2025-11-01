@@ -81,8 +81,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Index for faster test cleanup
+-- Partial index on tenants with test slugs
 CREATE INDEX IF NOT EXISTS idx_tenants_test_slug ON tenants(slug) WHERE slug LIKE 'test-%';
-CREATE INDEX IF NOT EXISTS idx_users_tenant_test ON users(tenant_id) WHERE tenant_id IN (SELECT tenant_id FROM tenants WHERE slug LIKE 'test-%');
+
+-- Regular index on users.tenant_id for efficient cleanup joins
+CREATE INDEX IF NOT EXISTS idx_users_tenant_test ON users(tenant_id);
 
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION cleanup_test_data() TO anthill;

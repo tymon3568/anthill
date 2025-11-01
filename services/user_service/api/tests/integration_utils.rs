@@ -1,7 +1,7 @@
 // Integration Test Utilities
 // Common utilities and helpers for integration tests with real database
 
-use sqlx::{PgPool, Executor};
+use sqlx::PgPool;
 use uuid::Uuid;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -257,7 +257,7 @@ mod tests {
         let db = TestDatabase::new().await;
 
         let tenant_id = db.create_test_tenant("User Test Tenant").await;
-        let user_id = db.create_test_user(tenant_id, "test@example.com", "user").await;
+        let _user_id = db.create_test_user(tenant_id, "test@example.com", "user").await;
 
         // Verify user exists
         let snapshot = db.snapshot_tenant(tenant_id).await;

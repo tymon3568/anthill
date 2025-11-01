@@ -4,7 +4,7 @@
 
 mod integration_utils;
 
-use integration_utils::{IntegrationTestContext, TenantSnapshot};
+use integration_utils::IntegrationTestContext;
 use uuid::Uuid;
 
 /// Setup: Run before tests
@@ -81,7 +81,7 @@ async fn test_multi_tenant_isolation() {
     .await
     .unwrap();
 
-    assert_eq!(user_a1_tenant, Some(tenant_a_id));
+    assert_eq!(user_a1_tenant, tenant_a_id);
 
     let user_b1_tenant = sqlx::query_scalar!(
         "SELECT tenant_id FROM users WHERE user_id = $1",
@@ -91,7 +91,7 @@ async fn test_multi_tenant_isolation() {
     .await
     .unwrap();
 
-    assert_eq!(user_b1_tenant, Some(tenant_b_id));
+    assert_eq!(user_b1_tenant, tenant_b_id);
 
     // Cleanup
     ctx.cleanup().await;
