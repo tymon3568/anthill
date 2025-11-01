@@ -1,0 +1,509 @@
+// Test Database Module
+// Provides test database setup, teardown, and utilities for integration testing
+// This module ensures test isolation and proper cleanup
+
+use sqlx::{PgPool, Postgres, Transaction};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use uuid::Uuid;
+
+/// Test database configuration and management
+pub struct TestDatabaseConfig {
+    /// Database connection pool
+    pool: PgPool,
+
+    /// Track created resources for cleanup
+    tracked_tenants: Arc<Mutex<Vec<Uuid>>>,
+    tracked_users: Arc<Mutex<Vec<Uuid>>>,
+    tracked_sessions: Arc<Mutex<Vec<Uuid>>>,
+
+    /// Whether to automatically cleanup on drop
+    auto_cleanup: bool,
+}
+
+impl TestDatabaseConfig {
+    /// Create a new test database configuration
+    pub async fn new() -> Self {
+        let database_url = Self::get_test_database_url();
+
+        let pool = PgPool::connect(&database_url)
+            .await
+            .expect("Failed to connect to test database. Run: docker-compose -f docker-compose.test.yml up -d && ./scripts/setup-test-db.sh");
+
+        Self {
+            pool,
+            tracked_tenants: Arc::new(Mutex::new(Vec::new())),
+            tracked_users: Arc::new(Mutex::new(Vec::new())),
+            tracked_sessions: Arc::new(Mutex::new(Vec::new())),
+            auto_cleanup: true,
+        }
+    }
+
+    /// Create instance without auto-cleanup (for manual control)
+    pub async fn new_no_cleanup() -> Self {
+        let mut config = Self::new().await;
+        config.auto_cleanup = false;
+        config
+    }
+
+    /// Get test database URL from environment or use default
+    pub fn get_test_database_url() -> String {
+        std::env::var("TEST_DATABASE_URL")
+            .or_else(|_| std::env::var("DATABASE_URL"))
+            .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5433/anthill_test".to_string())
+    }
+
+    /// Get reference to database pool
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+
+    /// Begin a transaction for testing rollback scenarios
+    pub async fn begin_transaction(&self) -> Result<Transaction<'_, Postgres>, sqlx::Error> {
+        self.pool.begin().await
+    }
+
+    /// Track a tenant for cleanup
+    async fn track_tenant(&self, tenant_id: Uuid) {
+        self.tracked_tenants.lock().await.push(tenant_id);
+    }
+
+    /// Track a user for cleanup
+    async fn track_user(&self, user_id: Uuid) {
+        self.tracked_users.lock().await.push(user_id);
+    }
+
+    /// Track a session for cleanup
+    async fn track_session(&self, session_id: Uuid) {
+        self.tracked_sessions.lock().await.push(session_id);
+    }
+
+    /// Create a test tenant with automatic tracking
+    pub async fn create_tenant(&self, name: &str, slug_suffix: Option<&str>) -> Uuid {
+        let tenant_id = Uuid::now_v7();
+
+        // Generate unique slug to avoid conflicts
+        let base_slug = name.to_lowercase().replace(" ", "-");
+        let slug = match slug_suffix {
+            Some(suffix) => format!("{}-{}", base_slug, suffix),
+            None => format!("{}-{}", base_slug, &tenant_id.to_string()[..8]),
+        };
+
+        sqlx::query!(
+            r#"
+            INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
+            VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
+            "#,
+            tenant_id,
+            name,
+            slug
+        )
+        .execute(&self.pool)
+        .await
+        .expect("Failed to create test tenant");
+
+        self.track_tenant(tenant_id).await;
+        tenant_id
+    }
+
+    /// Create a test user with automatic tracking
+    pub async fn create_user(
+        &self,
+        tenant_id: Uuid,
+        email: &str,
+        password_hash: &str,
+        role: &str,
+        full_name: Option<&str>,
+    ) -> Uuid {
+        let user_id = Uuid::now_v7();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO users (
+                user_id, tenant_id, email, password_hash, role, status,
+                email_verified, email_verified_at, full_name, created_at, updated_at
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, 'active',
+                true, NOW(), $6, NOW(), NOW()
+            )
+            "#,
+            user_id,
+            tenant_id,
+            email,
+            password_hash,
+            role,
+            full_name
+        )
+        .execute(&self.pool)
+        .await
+        .expect("Failed to create test user");
+
+        self.track_user(user_id).await;
+        user_id
+    }
+
+    /// Create a test session with automatic tracking
+    pub async fn create_session(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        access_token_hash: &str,
+        refresh_token_hash: &str,
+        access_expires_at: chrono::DateTime<chrono::Utc>,
+        refresh_expires_at: chrono::DateTime<chrono::Utc>,
+    ) -> Uuid {
+        let session_id = Uuid::now_v7();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO sessions (
+                session_id, user_id, tenant_id,
+                access_token_hash, refresh_token_hash,
+                access_token_expires_at, refresh_token_expires_at,
+                revoked, created_at, last_used_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW(), NOW())
+            "#,
+            session_id,
+            user_id,
+            tenant_id,
+            access_token_hash,
+            refresh_token_hash,
+            access_expires_at,
+            refresh_expires_at
+        )
+        .execute(&self.pool)
+        .await
+        .expect("Failed to create test session");
+
+        self.track_session(session_id).await;
+        session_id
+    }
+
+    /// Clean up all tracked resources
+    pub async fn cleanup(&self) {
+        // Clean sessions first (foreign key to users)
+        let session_ids = self.tracked_sessions.lock().await.clone();
+        for session_id in session_ids {
+            let _ = sqlx::query!("DELETE FROM sessions WHERE session_id = $1", session_id)
+                .execute(&self.pool)
+                .await;
+        }
+        self.tracked_sessions.lock().await.clear();
+
+        // Clean user profiles (foreign key to users)
+        let user_ids = self.tracked_users.lock().await.clone();
+        for user_id in &user_ids {
+            let _ = sqlx::query!("DELETE FROM user_profiles WHERE user_id = $1", user_id)
+                .execute(&self.pool)
+                .await;
+        }
+
+        // Clean users
+        for user_id in user_ids {
+            let _ = sqlx::query!("DELETE FROM users WHERE user_id = $1", user_id)
+                .execute(&self.pool)
+                .await;
+        }
+        self.tracked_users.lock().await.clear();
+
+        // Clean tenants last
+        let tenant_ids = self.tracked_tenants.lock().await.clone();
+        for tenant_id in tenant_ids {
+            let _ = sqlx::query!("DELETE FROM tenants WHERE tenant_id = $1", tenant_id)
+                .execute(&self.pool)
+                .await;
+        }
+        self.tracked_tenants.lock().await.clear();
+    }
+
+    /// Clean up all test data using SQL function
+    pub async fn cleanup_all_test_data(&self) {
+        sqlx::query!("SELECT cleanup_test_data()")
+            .execute(&self.pool)
+            .await
+            .expect("Failed to cleanup all test data");
+    }
+
+    /// Verify database is in clean state
+    pub async fn verify_clean(&self) -> bool {
+        let count: i64 = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) as "count!" FROM tenants WHERE slug LIKE 'test-%' OR slug LIKE '%-test-%'"#
+        )
+        .fetch_one(&self.pool)
+        .await
+        .expect("Failed to verify clean state");
+
+        count == 0
+    }
+
+    /// Get count of resources in database
+    pub async fn get_resource_counts(&self) -> ResourceCounts {
+        let result = sqlx::query!(
+            r#"
+            SELECT
+                (SELECT COUNT(*) FROM tenants) as "tenant_count!",
+                (SELECT COUNT(*) FROM users) as "user_count!",
+                (SELECT COUNT(*) FROM sessions) as "session_count!",
+                (SELECT COUNT(*) FROM user_profiles) as "profile_count!"
+            "#
+        )
+        .fetch_one(&self.pool)
+        .await
+        .expect("Failed to get resource counts");
+
+        ResourceCounts {
+            tenants: result.tenant_count,
+            users: result.user_count,
+            sessions: result.session_count,
+            profiles: result.profile_count,
+        }
+    }
+
+    /// Get tenant details
+    pub async fn get_tenant(&self, tenant_id: Uuid) -> Option<TenantDetails> {
+        sqlx::query_as!(
+            TenantDetails,
+            r#"
+            SELECT
+                tenant_id,
+                name,
+                slug,
+                plan,
+                status,
+                (SELECT COUNT(*) FROM users WHERE tenant_id = $1) as "user_count!",
+                (SELECT COUNT(*) FROM sessions WHERE tenant_id = $1) as "session_count!"
+            FROM tenants
+            WHERE tenant_id = $1
+            "#,
+            tenant_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .expect("Failed to fetch tenant details")
+    }
+
+    /// Get user details
+    pub async fn get_user(&self, user_id: Uuid) -> Option<UserDetails> {
+        sqlx::query_as!(
+            UserDetails,
+            r#"
+            SELECT
+                user_id,
+                tenant_id,
+                email,
+                role,
+                status,
+                email_verified,
+                full_name
+            FROM users
+            WHERE user_id = $1
+            "#,
+            user_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .expect("Failed to fetch user details")
+    }
+
+    /// Check if email exists in tenant
+    pub async fn email_exists(&self, tenant_id: Uuid, email: &str) -> bool {
+        sqlx::query_scalar!(
+            "SELECT EXISTS(SELECT 1 FROM users WHERE tenant_id = $1 AND email = $2)",
+            tenant_id,
+            email
+        )
+        .fetch_one(&self.pool)
+        .await
+        .expect("Failed to check email existence")
+        .unwrap_or(false)
+    }
+
+    /// Reset auto_increment sequences (useful for predictable IDs in tests)
+    pub async fn reset_sequences(&self) {
+        // Note: UUID v7 doesn't use sequences, but this is here for future use
+        // if we add any serial/sequence-based IDs
+    }
+}
+
+impl Drop for TestDatabaseConfig {
+    fn drop(&mut self) {
+        if self.auto_cleanup {
+            // Spawn cleanup task in background
+            let pool = self.pool.clone();
+            let tenants = self.tracked_tenants.clone();
+            let users = self.tracked_users.clone();
+            let sessions = self.tracked_sessions.clone();
+
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async move {
+                    // Clean sessions
+                    let session_ids = sessions.lock().await.clone();
+                    for session_id in session_ids {
+                        let _ = sqlx::query!("DELETE FROM sessions WHERE session_id = $1", session_id)
+                            .execute(&pool)
+                            .await;
+                    }
+
+                    // Clean user profiles
+                    let user_ids = users.lock().await.clone();
+                    for user_id in &user_ids {
+                        let _ = sqlx::query!("DELETE FROM user_profiles WHERE user_id = $1", user_id)
+                            .execute(&pool)
+                            .await;
+                    }
+
+                    // Clean users
+                    for user_id in user_ids {
+                        let _ = sqlx::query!("DELETE FROM users WHERE user_id = $1", user_id)
+                            .execute(&pool)
+                            .await;
+                    }
+
+                    // Clean tenants
+                    let tenant_ids = tenants.lock().await.clone();
+                    for tenant_id in tenant_ids {
+                        let _ = sqlx::query!("DELETE FROM tenants WHERE tenant_id = $1", tenant_id)
+                            .execute(&pool)
+                            .await;
+                    }
+                });
+            });
+        }
+    }
+}
+
+/// Resource counts in database
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResourceCounts {
+    pub tenants: i64,
+    pub users: i64,
+    pub sessions: i64,
+    pub profiles: i64,
+}
+
+/// Tenant details for verification
+#[derive(Debug, Clone)]
+pub struct TenantDetails {
+    pub tenant_id: Uuid,
+    pub name: String,
+    pub slug: String,
+    pub plan: String,
+    pub status: String,
+    pub user_count: i64,
+    pub session_count: i64,
+}
+
+/// User details for verification
+#[derive(Debug, Clone)]
+pub struct UserDetails {
+    pub user_id: Uuid,
+    pub tenant_id: Uuid,
+    pub email: String,
+    pub role: String,
+    pub status: String,
+    pub email_verified: bool,
+    pub full_name: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_database_config_creation() {
+        let config = TestDatabaseConfig::new().await;
+        assert!(config.pool().acquire().await.is_ok());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_tenant_creation_and_cleanup() {
+        let config = TestDatabaseConfig::new().await;
+
+        let tenant_id = config.create_tenant("Test Tenant", None).await;
+
+        // Verify tenant exists
+        let tenant = config.get_tenant(tenant_id).await;
+        assert!(tenant.is_some());
+        assert_eq!(tenant.unwrap().name, "Test Tenant");
+
+        // Cleanup
+        config.cleanup().await;
+
+        // Verify tenant removed
+        let tenant = config.get_tenant(tenant_id).await;
+        assert!(tenant.is_none());
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_user_creation() {
+        let config = TestDatabaseConfig::new().await;
+
+        let tenant_id = config.create_tenant("User Test Tenant", None).await;
+        let user_id = config.create_user(
+            tenant_id,
+            "test@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "user",
+            Some("Test User"),
+        ).await;
+
+        // Verify user exists
+        let user = config.get_user(user_id).await;
+        assert!(user.is_some());
+
+        let user = user.unwrap();
+        assert_eq!(user.email, "test@example.com");
+        assert_eq!(user.role, "user");
+
+        // Cleanup
+        config.cleanup().await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_transaction_rollback() {
+        let config = TestDatabaseConfig::new().await;
+
+        let tenant_id = config.create_tenant("Transaction Test", None).await;
+
+        // Begin transaction
+        let mut tx = config.begin_transaction().await.unwrap();
+
+        // Create user in transaction
+        let user_id = Uuid::now_v7();
+        sqlx::query!(
+            r#"
+            INSERT INTO users (
+                user_id, tenant_id, email, password_hash, role, status,
+                email_verified, email_verified_at, full_name, created_at, updated_at
+            )
+            VALUES (
+                $1, $2, 'rollback@test.com', $3, 'user', 'active',
+                true, NOW(), 'Rollback User', NOW(), NOW()
+            )
+            "#,
+            user_id,
+            tenant_id,
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test"
+        )
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+
+        // Rollback
+        tx.rollback().await.unwrap();
+
+        // Verify user was not created
+        let user = config.get_user(user_id).await;
+        assert!(user.is_none());
+
+        // Cleanup
+        config.cleanup().await;
+    }
+}

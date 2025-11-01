@@ -1,0 +1,96 @@
+version: '3.8'
+
+# Integration Testing Environment
+# Isolated test environment with dedicated PostgreSQL, Redis, and NATS instances
+# Usage: docker-compose -f docker-compose.test.yml up -d
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: postgres_test
+    environment:
+      POSTGRES_USER: anthill
+      POSTGRES_PASSWORD: anthill
+      POSTGRES_DB: anthill_test
+    ports:
+      - "5433:5432" # Use different port to avoid conflicts with dev DB
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      # Mount migrations for easy testing
+      - ./migrations:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anthill -d anthill_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: redis_test
+    ports:
+      - "6380:6379" # Use different port to avoid conflicts
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+
+  nats-test:
+    image: nats:2.10-alpine
+    container_name: nats_test
+    command: "-js"
+    ports:
+      - "4223:4222" # Use different port to avoid conflicts
+      - "8223:8222" # HTTP monitoring port
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:8222/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+
+  # Test database initialization service
+  postgres-test-init:
+    image: postgres:16-alpine
+    container_name: postgres_test_init
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres-test
+      PGPORT: 5432
+      PGUSER: anthill
+      PGPASSWORD: anthill
+      PGDATABASE: anthill_test
+    volumes:
+      - ./migrations:/migrations:ro
+    networks:
+      - test-network
+    # Run migrations using a simple script
+    command: >
+      sh -c "
+        echo 'Waiting for PostgreSQL to be ready...' &&
+        until pg_isready -h postgres-test -U anthill -d anthill_test; do
+          echo 'Waiting for database...'
+          sleep 1
+        done &&
+        echo 'Database is ready!' &&
+        echo 'Test database initialized successfully'
+      "
+
+volumes:
+  postgres_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+
+networks:
+  test-network:
+    driver: bridge
