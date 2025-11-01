@@ -1,5 +1,73 @@
 # GitHub Actions Workflows
 
+This directory contains GitHub Actions workflows for CI/CD automation.
+
+## Workflows Overview
+
+| Workflow | File | Purpose | Triggers |
+|----------|------|---------|----------|
+| **CI Testing Pipeline** | `ci-testing.yml` | Comprehensive testing (unit, integration, security, coverage) | Push, PR |
+| **Test Coverage** | `test-coverage.yml` | Coverage reporting with Codecov | Push, PR |
+| **OpenAPI Export** | `openapi-export.yml` | API documentation generation | Push, PR |
+
+---
+
+## CI Testing Pipeline
+
+**File**: `ci-testing.yml` ⭐ **PRIMARY WORKFLOW**
+
+### Overview
+
+Comprehensive automated testing pipeline that runs on every push and pull request.
+
+### Pipeline Stages
+
+```
+Lint & Format
+    ├─→ Unit Tests ───┐
+    ├─→ Integration Tests ─┤
+    ├─→ Security Tests ────┤─→ Coverage Report ─→ Test Summary
+    └─→ Build Check ───────┘
+```
+
+### Jobs
+
+1. **Lint & Format Check** (~2 min) - Code quality validation
+2. **Unit Tests** (~5 min) - Fast tests with mocks
+3. **Integration Tests** (~8 min) - Real PostgreSQL database
+4. **Security Tests** (~6 min) - SQL injection, tenant isolation, auth
+5. **Coverage Report** (~10 min) - LLVM coverage + Codecov
+6. **Build Check** (~15 min) - All services compile
+7. **Test Summary** - Aggregate results + PR comments
+
+### Usage
+
+**Local Simulation**:
+```bash
+# Run complete pipeline
+./scripts/ci-helper.sh all
+
+# Individual stages
+./scripts/ci-helper.sh lint
+./scripts/ci-helper.sh unit --verbose
+./scripts/ci-helper.sh integration
+./scripts/ci-helper.sh coverage --open
+```
+
+### Documentation
+
+See [docs/testing/CI_CD_PIPELINE.md](../../docs/testing/CI_CD_PIPELINE.md) for detailed documentation.
+
+---
+
+## Test Coverage Workflow
+
+**File**: `test-coverage.yml`
+
+Legacy coverage workflow with service-specific breakdown. Runs in parallel with CI testing pipeline.
+
+---
+
 ## OpenAPI Export Workflow
 
 **File**: `openapi-export.yml`
