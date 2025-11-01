@@ -162,14 +162,14 @@ impl TestDatabase {
 
     /// Verify database is in clean state (no leftover test data)
     pub async fn verify_clean(&self) -> bool {
-        let count = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM tenants WHERE slug LIKE 'test-%'"
+        let count: i64 = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) as "count!" FROM tenants WHERE slug LIKE 'test-%'"#
         )
         .fetch_one(&self.pool)
         .await
-        .unwrap_or(Some(0));
+        .expect("Failed to verify clean state - database connection or query error");
 
-        count.unwrap_or(0) == 0
+        count == 0
     }
 }
 

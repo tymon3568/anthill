@@ -201,8 +201,9 @@ mod tests {
         .expect("Failed to load Casbin model");
 
         // Use PostgreSQL for testing (standard port 5432)
+        // Credentials aligned with integration_utils.rs and setup scripts
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgresql://anthill:anthill_password@localhost:5432/anthill_test".to_string()
+            "postgres://anthill:anthill@localhost:5432/anthill_test".to_string()
         });
 
         let pool = PgPoolOptions::new()
