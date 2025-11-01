@@ -236,15 +236,100 @@ where
 
     async fn login(
         &self,
-        _req: LoginReq,
-        _ip_address: Option<String>,
-        _user_agent: Option<String>,
+        req: LoginReq,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
     ) -> Result<AuthResp, AppError> {
         // TODO: In production, implement tenant resolution from email domain or subdomain
         // For now, we'll search across all tenants (not production-ready)
 
-        // This is a simplified implementation - in production, you'd need proper tenant isolation
-        return Err(AppError::InvalidCredentials);
+        // TEMPORARY: Search user by email across all tenants for development
+        // In production, tenant should be resolved from subdomain/domain or context
+        // We'll try to find user in any tenant for now
+        let user = self.user_repo
+            .find_by_email_global(&req.email)
+            .await?
+            .ok_or(AppError::InvalidCredentials)?;
+
+        // Verify password
+        let valid = bcrypt::verify(&req.password, &user.password_hash)
+            .map_err(|e| AppError::InternalError(format!("Password verification failed: {}", e)))?;
+
+        if !valid {
+            return Err(AppError::InvalidCredentials);
+        }
+
+        // Check if account is active
+        if user.status != "active" {
+            return Err(AppError::InvalidCredentials);
+        }
+
+        // Check if account is locked
+        if let Some(locked_until) = user.locked_until {
+            if locked_until > chrono::Utc::now() {
+                return Err(AppError::ValidationError("Account is temporarily locked".to_string()));
+            }
+        }
+
+        // Generate JWT tokens
+        let access_claims = Claims::new_access(
+            user.user_id,
+            user.tenant_id,
+            user.role.clone(),
+            self.jwt_expiration,
+        );
+        let refresh_claims = Claims::new_refresh(
+            user.user_id,
+            user.tenant_id,
+            user.role.clone(),
+            self.jwt_refresh_expiration,
+        );
+
+        let access_token = encode_jwt(&access_claims, &self.jwt_secret)?;
+        let refresh_token = encode_jwt(&refresh_claims, &self.jwt_secret)?;
+
+        // Hash tokens before storing in database (SHA-256)
+        let access_token_hash = format!("{:x}", Sha256::digest(access_token.as_bytes()));
+        let refresh_token_hash = format!("{:x}", Sha256::digest(refresh_token.as_bytes()));
+
+        // Create session
+        let session = Session {
+            session_id: Uuid::now_v7(),
+            user_id: user.user_id,
+            tenant_id: user.tenant_id,
+            access_token_hash,
+            refresh_token_hash,
+            ip_address,
+            user_agent,
+            device_info: None,
+            access_token_expires_at: chrono::Utc::now() + chrono::Duration::seconds(self.jwt_expiration as i64),
+            refresh_token_expires_at: chrono::Utc::now() + chrono::Duration::seconds(self.jwt_refresh_expiration as i64),
+            revoked: false,
+            revoked_at: None,
+            revoked_reason: None,
+            created_at: chrono::Utc::now(),
+            last_used_at: chrono::Utc::now(),
+        };
+
+        self.session_repo.create(&session).await?;
+
+        // Update last login timestamp (via repository if available, otherwise skip for now)
+        // TODO: Add update_last_login to UserRepository
+
+        Ok(AuthResp {
+            access_token,
+            refresh_token,
+            token_type: "Bearer".to_string(),
+            expires_in: self.jwt_expiration,
+            user: UserInfo {
+                id: user.user_id,
+                tenant_id: user.tenant_id,
+                email: user.email,
+                full_name: user.full_name,
+                role: user.role,
+                created_at: user.created_at,
+            },
+        })
 
         /* Production implementation would be:
         // 1. Resolve tenant from email domain or request context

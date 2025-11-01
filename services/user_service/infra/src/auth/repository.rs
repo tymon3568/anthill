@@ -33,6 +33,19 @@ impl UserRepository for PgUserRepository {
         Ok(user)
     }
 
+    async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, AppError> {
+        // TEMPORARY: Find user by email across all tenants for development
+        // TODO: Remove in production, always scope by tenant
+        let user = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE email = $1 AND status = 'active' AND deleted_at IS NULL LIMIT 1"
+        )
+        .bind(email)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(user)
+    }
+
     async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError> {
         let user = sqlx::query_as::<_, User>(
             "SELECT * FROM users WHERE user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL"

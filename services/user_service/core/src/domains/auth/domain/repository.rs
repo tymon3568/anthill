@@ -12,6 +12,10 @@ pub trait UserRepository: Send + Sync {
     /// Find user by email within a tenant
     async fn find_by_email(&self, email: &str, tenant_id: Uuid) -> Result<Option<User>, AppError>;
 
+    /// Find user by email globally (across all tenants) - TEMPORARY for development
+    /// TODO: Remove this in production, always scope by tenant
+    async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, AppError>;
+
     /// Find user by ID within a tenant
     async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError>;
 
