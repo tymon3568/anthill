@@ -175,8 +175,40 @@ impl TestDatabase {
 
 impl Drop for TestDatabase {
     fn drop(&mut self) {
-        // Cleanup will happen via explicit cleanup() call in tests
-        // or via test teardown hooks
+        // Best-effort cleanup on drop to prevent test pollution
+        // Spawn blocking cleanup task since Drop cannot be async
+        let pool = self.pool.clone();
+        let tenant_ids: Vec<Uuid> = self
+            .test_tenants
+            .try_lock()
+            .map(|guard| guard.clone())
+            .unwrap_or_default();
+
+        if !tenant_ids.is_empty() {
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async move {
+                    for tenant_id in tenant_ids {
+                        // Delete in correct order (foreign key constraints)
+                        let _ = sqlx::query!("DELETE FROM sessions WHERE tenant_id = $1", tenant_id)
+                            .execute(&pool)
+                            .await;
+                        let _ = sqlx::query!(
+                            "DELETE FROM user_profiles WHERE user_id IN (SELECT user_id FROM users WHERE tenant_id = $1)",
+                            tenant_id
+                        )
+                        .execute(&pool)
+                        .await;
+                        let _ = sqlx::query!("DELETE FROM users WHERE tenant_id = $1", tenant_id)
+                            .execute(&pool)
+                            .await;
+                        let _ = sqlx::query!("DELETE FROM tenants WHERE tenant_id = $1", tenant_id)
+                            .execute(&pool)
+                            .await;
+                    }
+                });
+            });
+        }
     }
 }
 
