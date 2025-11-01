@@ -20,6 +20,15 @@ fake = {workspace = true}
 mockall = {workspace = true}
 proptest = {workspace = true}
 tokio = {workspace = true}
+criterion = {workspace = true}
+
+[[bench]]
+name = "password_benchmarks"
+harness = false
+
+[[bench]]
+name = "database_benchmarks"
+harness = false
 
 [package]
 name = "user_service_core"

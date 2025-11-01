@@ -1,0 +1,525 @@
+name: CI Testing Pipeline
+
+on:
+  push:
+    branches: [master, main, develop, 'feature/**']
+    paths:
+      - 'services/**/*.rs'
+      - 'services/**/Cargo.toml'
+      - 'shared/**/*.rs'
+      - 'shared/**/Cargo.toml'
+      - 'migrations/**/*.sql'
+      - '.github/workflows/ci-testing.yml'
+  pull_request:
+    paths:
+      - 'services/**/*.rs'
+      - 'services/**/Cargo.toml'
+      - 'shared/**/*.rs'
+      - 'shared/**/Cargo.toml'
+      - 'migrations/**/*.sql'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "--cfg uuid_unstable"
+  # Test database configuration
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: anthill_test
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/anthill_test
+
+jobs:
+  # Job 1: Linting and code quality
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  # Job 2: Unit tests (fast, no database)
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: |
+          cargo test --workspace --lib --bins \
+            --exclude integration_tests \
+            -- --nocapture --test-threads=4
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: target/debug/deps/*.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Job 3: Integration tests with PostgreSQL
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anthill_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install sqlx-cli
+        run: |
+          cargo install sqlx-cli \
+            --no-default-features \
+            --features postgres \
+            --version 0.8.2 \
+            || echo "sqlx-cli already installed"
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Setup test database
+        run: |
+          # Run migrations
+          sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
+          
+          # Verify database setup
+          psql "${{ env.DATABASE_URL }}" -c "\dt" || true
+          psql "${{ env.DATABASE_URL }}" -c "SELECT version();"
+
+      - name: Run integration tests
+        run: |
+          cargo test --workspace --test '*' -- --ignored --nocapture --test-threads=1
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_SECRET: test-secret-key-min-32-chars-long-for-testing
+
+      - name: Cleanup test data
+        if: always()
+        run: |
+          psql "${{ env.DATABASE_URL }}" -c "SELECT cleanup_test_data();" || echo "Cleanup function not available"
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: target/debug/deps/*.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Job 4: Security tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anthill_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install sqlx-cli
+        run: |
+          cargo install sqlx-cli \
+            --no-default-features \
+            --features postgres \
+            --version 0.8.2 \
+            || echo "sqlx-cli already installed"
+
+      - name: Setup test database
+        run: |
+          sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
+
+      - name: Run security tests
+        run: |
+          # SQL injection tests
+          cargo test --package user_service_api sql_injection -- --ignored --nocapture
+          
+          # Tenant isolation tests
+          cargo test --package user_service_api tenant_isolation -- --ignored --nocapture
+          
+          # Auth/JWT security tests
+          cargo test --package user_service_api security -- --ignored --nocapture
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_SECRET: test-secret-key-min-32-chars-long-for-testing
+
+      - name: Upload security test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-test-results
+          path: |
+            target/debug/deps/*.xml
+            docs/security_test_report.md
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # Job 5: Coverage report
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anthill_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install sqlx-cli
+        run: |
+          cargo install sqlx-cli \
+            --no-default-features \
+            --features postgres \
+            --version 0.8.2 \
+            || echo "sqlx-cli already installed"
+
+      - name: Setup test database
+        run: |
+          sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
+
+      - name: Run tests with coverage
+        run: |
+          cargo llvm-cov --workspace \
+            --all-features \
+            --lcov \
+            --output-path lcov.info \
+            -- --include-ignored
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          JWT_SECRET: test-secret-key-min-32-chars-long-for-testing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./lcov.info
+          flags: all-tests
+          name: comprehensive-coverage
+          fail_ci_if_error: false
+          verbose: true
+
+      - name: Generate coverage HTML report
+        run: |
+          cargo llvm-cov report --html
+          mkdir -p coverage-html
+          mv target/llvm-cov/html/* coverage-html/ 2>/dev/null || true
+
+      - name: Upload coverage HTML artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-report
+          path: coverage-html/
+          retention-days: 30
+
+      - name: Check coverage thresholds
+        run: |
+          COVERAGE=$(cargo llvm-cov report --summary-only | grep -oP '\d+\.\d+(?=%)' | head -1)
+          echo "Current coverage: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < 70.0" | bc -l) )); then
+            echo "⚠️  Warning: Coverage is below 70% (current: ${COVERAGE}%)"
+            echo "::warning::Coverage is ${COVERAGE}%, target is 80%"
+          elif (( $(echo "$COVERAGE < 80.0" | bc -l) )); then
+            echo "✅ Coverage is acceptable but below target: ${COVERAGE}%"
+          else
+            echo "✅ Coverage meets target: ${COVERAGE}%"
+          fi
+
+  # Job 6: Test summary and reporting
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, security-tests, coverage]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate test summary
+        run: |
+          echo "# 🧪 Test Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Unit tests
+          if [ "${{ needs.unit-tests.result }}" == "success" ]; then
+            echo "- ✅ **Unit Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ **Unit Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Integration tests
+          if [ "${{ needs.integration-tests.result }}" == "success" ]; then
+            echo "- ✅ **Integration Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ **Integration Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Security tests
+          if [ "${{ needs.security-tests.result }}" == "success" ]; then
+            echo "- ✅ **Security Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ **Security Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Coverage
+          if [ "${{ needs.coverage.result }}" == "success" ]; then
+            echo "- ✅ **Coverage Report**: GENERATED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ **Coverage Report**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View detailed coverage at: [Codecov](https://codecov.io/gh/${{ github.repository }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage HTML Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Security Test Results" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const unitTests = '${{ needs.unit-tests.result }}' === 'success' ? '✅' : '❌';
+            const integrationTests = '${{ needs.integration-tests.result }}' === 'success' ? '✅' : '❌';
+            const securityTests = '${{ needs.security-tests.result }}' === 'success' ? '✅' : '❌';
+            const coverage = '${{ needs.coverage.result }}' === 'success' ? '✅' : '❌';
+            
+            const body = `## 🧪 Test Pipeline Results
+
+            | Test Suite | Status |
+            |------------|--------|
+            | Unit Tests | ${unitTests} |
+            | Integration Tests | ${integrationTests} |
+            | Security Tests | ${securityTests} |
+            | Coverage Report | ${coverage} |
+
+            ### 📊 Coverage Report
+            View the detailed coverage report on [Codecov](https://codecov.io/gh/${context.repo.owner}/${context.repo.repo}/pull/${context.issue.number})
+
+            ### 📦 Test Artifacts
+            - Coverage HTML Report
+            - Unit Test Results
+            - Integration Test Results  
+            - Security Test Results
+
+            *All artifacts are available in the workflow run.*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # Job 7: Build check (ensure all services compile)
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: lint
+
+    strategy:
+      matrix:
+        service:
+          - user_service
+          - inventory_service
+          - order_service
+          - payment_service
+          - integration_service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/${{ matrix.service }}
+
+      - name: Check service builds
+        run: |
+          cd services/${{ matrix.service }}
+          cargo check --all-features
+          cargo build --release
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.service }}-binary
+          path: target/release/${{ matrix.service }}
+          retention-days: 1
+          if-no-files-found: ignore

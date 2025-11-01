@@ -56,12 +56,18 @@ jobs:
         with:
           tool: cargo-llvm-cov
 
+      - name: Install cargo-tarpaulin (alternative coverage tool)
+        run: |
+          cargo install cargo-tarpaulin || echo "Tarpaulin installation skipped (optional)"
+
       - name: Run tests with coverage
         run: |
           cargo llvm-cov --workspace \
             --all-features \
             --lcov \
             --output-path lcov.info
+        env:
+          RUSTFLAGS: "--cfg uuid_unstable"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

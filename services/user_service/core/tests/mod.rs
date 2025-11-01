@@ -1,10 +1,12 @@
-//! Test module for user_service_core
+//! Test utilities and mocks
 //!
 //! Provides test utilities, mocks, and fixtures for unit testing
 
-pub mod test_utils;
+pub mod db_mocks;
 pub mod mocks;
+pub mod test_utils;
 
 // Re-export commonly used items
-pub use test_utils::{UserBuilder, TenantBuilder, create_test_users, create_role_based_users};
-pub use mocks::{MockUserRepo, MockTenantRepo, MockSessionRepo};
+pub use db_mocks::{MockDbPool, MockQueryResult, TestTransaction};
+pub use mocks::{MockSessionRepo, MockTenantRepo, MockUserRepo};
+pub use test_utils::{create_role_based_users, create_test_users, TenantBuilder, UserBuilder};

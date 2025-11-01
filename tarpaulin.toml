@@ -1,0 +1,42 @@
+# Tarpaulin Configuration for Anthill
+# Generates code coverage reports and uploads to Codecov
+# https://github.com/xd009642/tarpaulin
+
+[config]
+all = false
+all-features = false
+branch = false
+# Coverage precision
+count = true
+debug = false
+dump-traces = false
+# Engine - llvm is more accurate but slower
+engine = "llvm"
+# Include/Exclude
+exclude-files = [
+  "target/*",
+  "*/build.rs"
+]
+fail-under = 0  # Don't fail build on low coverage yet
+# Coverage options
+follow-exec = true
+forward-signals = true
+ignore-panics = true
+# Exclude test code from coverage metrics
+ignore-tests = true
+line = true
+no-default-features = false
+# Output formats - Codecov uses lcov format
+out = ["Lcov", "Html", "Json"]
+output-dir = "target/coverage"
+post-test-delay = 0
+release = false
+# Don't run doctests (Rust-specific, we focus on unit/integration tests)
+run-types = ["Tests"]
+# Target user_service specifically
+target-dir = "target/tarpaulin"
+timeout = "5m"
+# Verbose output for CI
+verbose = true
+# Run coverage on entire workspace
+workspace = true

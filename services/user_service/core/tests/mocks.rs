@@ -1,6 +1,7 @@
-//! Mock implementations of repositories for unit testing
+//! Mock implementations of repository traits for testing
 //!
-//! These mocks allow testing business logic without database dependencies
+//! Uses mockall to create mock implementations that can be configured
+//! to return specific values or verify interactions in tests.
 
 use async_trait::async_trait;
 use mockall::mock;
@@ -11,70 +12,94 @@ use user_service_core::domains::auth::domain::repository::{
 };
 use uuid::Uuid;
 
-// Mock UserRepository
+/// Mock implementation of UserRepository
+///
+/// Matches the exact trait signature in core/src/domains/auth/domain/repository.rs
 mock! {
     pub UserRepo {}
 
     #[async_trait]
     impl UserRepository for UserRepo {
-        async fn find_by_id(&self, user_id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError>;
         async fn find_by_email(&self, email: &str, tenant_id: Uuid) -> Result<Option<User>, AppError>;
+        async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError>;
         async fn create(&self, user: &User) -> Result<User, AppError>;
         async fn update(&self, user: &User) -> Result<User, AppError>;
-        async fn delete(&self, user_id: Uuid, tenant_id: Uuid) -> Result<(), AppError>;
-        async fn list_by_tenant(&self, tenant_id: Uuid, limit: i64, offset: i64) -> Result<Vec<User>, AppError>;
-        async fn count_by_tenant(&self, tenant_id: Uuid) -> Result<i64, AppError>;
-        async fn update_failed_login_attempts(&self, user_id: Uuid, tenant_id: Uuid, attempts: i32) -> Result<(), AppError>;
-        async fn lock_user(&self, user_id: Uuid, tenant_id: Uuid, locked_until: chrono::DateTime<chrono::Utc>) -> Result<(), AppError>;
-        async fn update_last_login(&self, user_id: Uuid, tenant_id: Uuid) -> Result<(), AppError>;
-        async fn verify_email(&self, user_id: Uuid, tenant_id: Uuid) -> Result<(), AppError>;
-        async fn update_password(&self, user_id: Uuid, tenant_id: Uuid, password_hash: &str) -> Result<(), AppError>;
+        async fn list(
+            &self,
+            tenant_id: Uuid,
+            page: i32,
+            page_size: i32,
+            role: Option<String>,
+            status: Option<String>,
+        ) -> Result<(Vec<User>, i64), AppError>;
+        async fn email_exists(&self, email: &str, tenant_id: Uuid) -> Result<bool, AppError>;
     }
 }
 
-// Mock TenantRepository
+/// Mock implementation of TenantRepository
+///
+/// Matches the exact trait signature in core/src/domains/auth/domain/repository.rs
 mock! {
     pub TenantRepo {}
 
     #[async_trait]
     impl TenantRepository for TenantRepo {
-        async fn find_by_id(&self, tenant_id: Uuid) -> Result<Option<Tenant>, AppError>;
-        async fn find_by_slug(&self, slug: &str) -> Result<Option<Tenant>, AppError>;
+        async fn find_by_id(&self, id: Uuid) -> Result<Option<Tenant>, AppError>;
         async fn create(&self, tenant: &Tenant) -> Result<Tenant, AppError>;
-        async fn update(&self, tenant: &Tenant) -> Result<Tenant, AppError>;
-        async fn delete(&self, tenant_id: Uuid) -> Result<(), AppError>;
-        async fn list(&self, limit: i64, offset: i64) -> Result<Vec<Tenant>, AppError>;
-        async fn count(&self) -> Result<i64, AppError>;
+        async fn find_by_name(&self, name: &str) -> Result<Option<Tenant>, AppError>;
+        async fn find_by_slug(&self, slug: &str) -> Result<Option<Tenant>, AppError>;
     }
 }
 
-// Mock SessionRepository
+/// Mock implementation of SessionRepository
+///
+/// Matches the exact trait signature in core/src/domains/auth/domain/repository.rs
 mock! {
     pub SessionRepo {}
 
     #[async_trait]
     impl SessionRepository for SessionRepo {
         async fn create(&self, session: &Session) -> Result<Session, AppError>;
-        async fn find_by_refresh_token(&self, refresh_token: &str) -> Result<Option<Session>, AppError>;
-        async fn delete_by_refresh_token(&self, refresh_token: &str) -> Result<(), AppError>;
-        async fn delete_all_for_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<(), AppError>;
-        async fn cleanup_expired(&self) -> Result<u64, AppError>;
+        async fn find_by_refresh_token(&self, token_hash: &str) -> Result<Option<Session>, AppError>;
+        async fn revoke(&self, session_id: Uuid, reason: &str) -> Result<(), AppError>;
+        async fn revoke_all_for_user(&self, user_id: Uuid) -> Result<u64, AppError>;
+        async fn update_last_used(&self, session_id: Uuid) -> Result<(), AppError>;
+        async fn delete_expired(&self) -> Result<u64, AppError>;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::UserBuilder;
 
     #[tokio::test]
-    async fn test_mock_user_repository() {
+    async fn test_mock_user_repository_find_by_email() {
+        use chrono::Utc;
+
         let mut mock_repo = MockUserRepo::new();
-        let tenant_id = Uuid::now_v7();
-        let user = UserBuilder::new()
-            .with_tenant_id(tenant_id)
-            .with_email("test@example.com")
-            .build();
+        let tenant_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        let user = User {
+            user_id: Uuid::new_v4(),
+            tenant_id,
+            email: "test@example.com".to_string(),
+            password_hash: "hashed".to_string(),
+            email_verified: false,
+            email_verified_at: None,
+            full_name: Some("Test User".to_string()),
+            avatar_url: None,
+            phone: None,
+            role: "user".to_string(),
+            status: "active".to_string(),
+            last_login_at: None,
+            failed_login_attempts: 0,
+            locked_until: None,
+            password_changed_at: Some(now),
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
+        };
 
         // Setup expectation
         let user_clone = user.clone();
@@ -97,9 +122,56 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_mock_user_repository_email_exists() {
+        let mut mock_repo = MockUserRepo::new();
+        let tenant_id = Uuid::new_v4();
+
+        // Setup expectation
+        mock_repo
+            .expect_email_exists()
+            .with(
+                mockall::predicate::eq("existing@example.com"),
+                mockall::predicate::eq(tenant_id),
+            )
+            .times(1)
+            .returning(|_, _| Ok(true));
+
+        // Test
+        let exists = mock_repo
+            .email_exists("existing@example.com", tenant_id)
+            .await
+            .unwrap();
+        assert!(exists);
+    }
+
+    #[tokio::test]
+    async fn test_mock_user_repository_list() {
+        let mut mock_repo = MockUserRepo::new();
+        let tenant_id = Uuid::new_v4();
+
+        // Setup expectation - return empty list
+        mock_repo
+            .expect_list()
+            .with(
+                mockall::predicate::eq(tenant_id),
+                mockall::predicate::eq(1),
+                mockall::predicate::eq(10),
+                mockall::predicate::eq(None::<String>),
+                mockall::predicate::eq(None::<String>),
+            )
+            .times(1)
+            .returning(|_, _, _, _, _| Ok((vec![], 0)));
+
+        // Test
+        let (users, count) = mock_repo.list(tenant_id, 1, 10, None, None).await.unwrap();
+        assert_eq!(users.len(), 0);
+        assert_eq!(count, 0);
+    }
+
+    #[tokio::test]
     async fn test_mock_tenant_repository() {
         let mut mock_repo = MockTenantRepo::new();
-        let tenant_id = Uuid::now_v7();
+        let tenant_id = Uuid::new_v4();
 
         // Setup expectation
         mock_repo
@@ -111,5 +183,40 @@ mod tests {
         // Test
         let result = mock_repo.find_by_id(tenant_id).await.unwrap();
         assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_mock_session_repository() {
+        let mut mock_repo = MockSessionRepo::new();
+        let session_id = Uuid::new_v4();
+
+        // Setup expectation
+        mock_repo
+            .expect_revoke()
+            .with(
+                mockall::predicate::eq(session_id),
+                mockall::predicate::eq("user_logout"),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        // Test
+        let result = mock_repo.revoke(session_id, "user_logout").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_session_repository_delete_expired() {
+        let mut mock_repo = MockSessionRepo::new();
+
+        // Setup expectation - deleted 5 expired sessions
+        mock_repo
+            .expect_delete_expired()
+            .times(1)
+            .returning(|| Ok(5));
+
+        // Test
+        let deleted = mock_repo.delete_expired().await.unwrap();
+        assert_eq!(deleted, 5);
     }
 }
