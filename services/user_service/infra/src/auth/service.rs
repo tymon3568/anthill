@@ -240,12 +240,33 @@ where
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> Result<AuthResp, AppError> {
-        // TODO: In production, implement tenant resolution from email domain or subdomain
-        // For now, we'll search across all tenants (not production-ready)
+        // ⚠️ DEVELOPMENT ONLY: Using global email lookup
+        //
+        // **Current Implementation** (Integration Testing Phase):
+        //   - Uses find_by_email_global() to bypass tenant resolution
+        //   - Allows email-only login without subdomain/domain detection
+        //   - Sufficient for testing authentication flows in isolation
+        //
+        // **Production Implementation Required**:
+        //   1. Extract tenant identifier from request:
+        //      - Subdomain: acme.anthill.io → resolve to tenant "acme"
+        //      - Custom domain: acme.com → lookup tenant by domain mapping
+        //      - API header: X-Tenant-ID (for API clients)
+        //   2. Resolve tenant_id from identifier
+        //   3. Use tenant-scoped lookup: find_by_email(email, tenant_id)
+        //   4. Prevent cross-tenant authentication attempts
+        //
+        // **Example Production Code**:
+        // ```rust
+        // let tenant_id = resolve_tenant_from_request(&req)?; // From subdomain/domain
+        // let user = self.user_repo
+        //     .find_by_email(&req.email, tenant_id)
+        //     .await?
+        //     .ok_or(AppError::InvalidCredentials)?;
+        // ```
+        //
+        // TODO: Implement tenant resolution before production deployment
 
-        // TEMPORARY: Search user by email across all tenants for development
-        // In production, tenant should be resolved from subdomain/domain or context
-        // We'll try to find user in any tenant for now
         let user = self.user_repo
             .find_by_email_global(&req.email)
             .await?
@@ -302,8 +323,10 @@ where
             ip_address,
             user_agent,
             device_info: None,
-            access_token_expires_at: chrono::Utc::now() + chrono::Duration::seconds(self.jwt_expiration as i64),
-            refresh_token_expires_at: chrono::Utc::now() + chrono::Duration::seconds(self.jwt_refresh_expiration as i64),
+            access_token_expires_at: chrono::Utc::now()
+                + chrono::Duration::seconds(self.jwt_expiration),
+            refresh_token_expires_at: chrono::Utc::now()
+                + chrono::Duration::seconds(self.jwt_refresh_expiration),
             revoked: false,
             revoked_at: None,
             revoked_reason: None,

@@ -95,7 +95,10 @@ if [[ "$SETUP_DB" == true ]]; then
         cargo install sqlx-cli --no-default-features --features postgres
     fi
 
-    sqlx migrate run --source migrations
+    if ! sqlx migrate run --source migrations; then
+        echo -e "${RED}✗ Database migration failed${NC}"
+        exit 1
+    fi
 
     echo -e "${GREEN}✓ Database setup complete${NC}"
     echo ""
@@ -123,16 +126,6 @@ echo ""
 echo -e "${BLUE}[3/5] Running integration tests...${NC}"
 echo ""
 
-# Determine which tests to run
-TEST_CMD="cargo test --package user_service_api --test"
-
-if [[ -n "$TEST_FILTER" ]]; then
-    echo -e "${YELLOW}Running filtered tests: ${TEST_FILTER}${NC}"
-    TEST_CMD="$TEST_CMD -- --ignored $TEST_FILTER"
-else
-    echo -e "${YELLOW}Running all integration tests${NC}"
-fi
-
 # Run tests
 TEST_EXIT_CODE=0
 
@@ -154,10 +147,19 @@ if [[ "$VERBOSE" == true ]]; then
     cargo test --package user_service_api --test integration_tests -- --ignored --nocapture || TEST_EXIT_CODE=$?
 else
     # Run all tests quietly
-    cargo test --package user_service_api --test api_endpoint_tests -- --ignored || TEST_EXIT_CODE=$?
-    cargo test --package user_service_api --test auth_flow_tests -- --ignored || TEST_EXIT_CODE=$?
-    cargo test --package user_service_api --test error_handling_tests -- --ignored || TEST_EXIT_CODE=$?
-    cargo test --package user_service_api --test integration_tests -- --ignored || TEST_EXIT_CODE=$?
+    if [[ -n "$TEST_FILTER" ]]; then
+        echo -e "${YELLOW}Running filtered tests: ${TEST_FILTER}${NC}"
+        cargo test --package user_service_api --test api_endpoint_tests -- --ignored "$TEST_FILTER" || TEST_EXIT_CODE=$?
+        cargo test --package user_service_api --test auth_flow_tests -- --ignored "$TEST_FILTER" || TEST_EXIT_CODE=$?
+        cargo test --package user_service_api --test error_handling_tests -- --ignored "$TEST_FILTER" || TEST_EXIT_CODE=$?
+        cargo test --package user_service_api --test integration_tests -- --ignored "$TEST_FILTER" || TEST_EXIT_CODE=$?
+    else
+        echo -e "${YELLOW}Running all integration tests${NC}"
+        cargo test --package user_service_api --test api_endpoint_tests -- --ignored || TEST_EXIT_CODE=$?
+        cargo test --package user_service_api --test auth_flow_tests -- --ignored || TEST_EXIT_CODE=$?
+        cargo test --package user_service_api --test error_handling_tests -- --ignored || TEST_EXIT_CODE=$?
+        cargo test --package user_service_api --test integration_tests -- --ignored || TEST_EXIT_CODE=$?
+    fi
 fi
 
 echo ""
@@ -166,9 +168,11 @@ echo ""
 if [[ "$CLEANUP_DATA" == true ]]; then
     echo -e "${BLUE}[4/5] Cleaning up test data...${NC}"
 
-    docker-compose -f docker-compose.test.yml exec -T postgres-test psql -U anthill -d anthill_test -c "SELECT cleanup_test_data();" || true
-
-    echo -e "${GREEN}✓ Test data cleaned${NC}"
+    if ! docker-compose -f docker-compose.test.yml exec -T postgres-test psql -U anthill -d anthill_test -c "SELECT cleanup_test_data();"; then
+        echo -e "${YELLOW}⚠ Warning: Test data cleanup failed (may not affect test results)${NC}"
+    else
+        echo -e "${GREEN}✓ Test data cleaned${NC}"
+    fi
     echo ""
 fi
 

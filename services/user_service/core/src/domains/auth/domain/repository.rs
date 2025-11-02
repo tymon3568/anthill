@@ -12,8 +12,23 @@ pub trait UserRepository: Send + Sync {
     /// Find user by email within a tenant
     async fn find_by_email(&self, email: &str, tenant_id: Uuid) -> Result<Option<User>, AppError>;
 
-    /// Find user by email globally (across all tenants) - TEMPORARY for development
-    /// TODO: Remove this in production, always scope by tenant
+    /// **DEVELOPMENT ONLY**: Find user by email globally (across all tenants)
+    ///
+    /// ⚠️ **SECURITY WARNING**: This method bypasses tenant isolation!
+    ///
+    /// **Purpose**: Enable integration testing without complex tenant resolution setup.
+    /// **Usage**: Login endpoint during development to allow email-only authentication.
+    /// **Production Plan**:
+    ///   1. Implement tenant resolution from subdomain/domain (e.g., acme.anthill.io → acme tenant)
+    ///   2. Replace all calls with `find_by_email(email, tenant_id)`
+    ///   3. Remove this method entirely (compile error will catch remaining usage)
+    ///
+    /// **Why it's currently safe in dev**:
+    ///   - Test database is isolated (port 5433)
+    ///   - Not exposed in production deployments
+    ///   - Integration tests verify tenant isolation at application layer
+    ///
+    /// TODO: Remove before production release (search codebase for `find_by_email_global`)
     async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, AppError>;
 
     /// Find user by ID within a tenant

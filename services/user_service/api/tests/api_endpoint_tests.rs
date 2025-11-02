@@ -40,16 +40,13 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
 
     let database_url = TestDatabaseConfig::get_test_database_url();
 
-    // Use absolute path to model.conf from workspace root
-    // When running tests, current_dir is the package directory (services/user_service/api)
-    // Need to go up 3 levels to workspace root
-    let workspace_root = std::env::current_dir()
-        .expect("Failed to get current directory")
-        .parent().unwrap()
-        .parent().unwrap()
-        .parent().unwrap()
-        .to_path_buf();
-    let model_path = workspace_root.join("shared/auth/model.conf");
+    // Use CARGO_MANIFEST_DIR to get reliable path to workspace root
+    // CARGO_MANIFEST_DIR points to the directory containing the package's Cargo.toml
+    // From services/user_service/api, go up 3 levels to workspace root
+    let model_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../shared/auth/model.conf")
+        .canonicalize()
+        .expect("Failed to resolve shared/auth/model.conf");
 
     let state = AppState {
         auth_service: Arc::new(auth_service),
