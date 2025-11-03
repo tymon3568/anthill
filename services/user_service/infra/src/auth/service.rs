@@ -188,6 +188,8 @@ where
             failed_login_attempts: 0,
             locked_until: None,
             password_changed_at: Some(now), // Password just set
+            kanidm_user_id: None,           // Not from Kanidm
+            kanidm_synced_at: None,
             created_at: now,
             updated_at: now,
             deleted_at: None,

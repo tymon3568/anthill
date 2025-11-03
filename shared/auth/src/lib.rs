@@ -16,7 +16,10 @@ pub use middleware::{casbin_middleware, AuthError, AuthzState};
 pub use layer::CasbinAuthLayer;
 
 // Re-export extractors
-pub use extractors::{AuthUser, RequireAdmin, RequirePermission};
+pub use extractors::{
+    AuthProvider, AuthUser, JwtSecretProvider, KanidmClientProvider, RequireAdmin,
+    RequirePermission,
+};
 
 // Re-export Casbin types for convenience
 pub use casbin;

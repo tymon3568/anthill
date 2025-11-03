@@ -24,6 +24,18 @@ pub struct Config {
     /// Server port
     #[serde(default = "default_port")]
     pub port: u16,
+
+    /// Kanidm server URL (optional - for OAuth2/OIDC integration)
+    pub kanidm_url: Option<String>,
+
+    /// Kanidm OAuth2 client ID (optional)
+    pub kanidm_client_id: Option<String>,
+
+    /// Kanidm OAuth2 client secret (optional)
+    pub kanidm_client_secret: Option<String>,
+
+    /// Kanidm redirect URL (optional)
+    pub kanidm_redirect_url: Option<String>,
 }
 
 fn default_jwt_expiration() -> i64 {

@@ -35,3 +35,6 @@ name = "user_service_core"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true
+
+[features]
+openapi = []

@@ -15,6 +15,7 @@ shared-auth = {workspace = true}
 shared_config = {workspace = true}
 shared_db = {workspace = true}
 shared_error = {workspace = true}
+shared_kanidm_client = {workspace = true}
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"]}
 # Async runtime
 tokio = {workspace = true}
@@ -24,7 +25,7 @@ tower-http = {workspace = true}
 tracing = {workspace = true}
 tracing-subscriber = {workspace = true}
 # Internal crates
-user_service_core = {workspace = true}
+user_service_core = {workspace = true, features = ["openapi"]}
 user_service_infra = {workspace = true}
 utoipa = {workspace = true}
 utoipa-swagger-ui = {workspace = true}

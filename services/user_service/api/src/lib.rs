@@ -2,6 +2,7 @@
 pub mod admin_handlers;
 pub mod extractors;
 pub mod handlers;
+pub mod oauth_handlers;
 pub mod openapi;
 pub mod profile_handlers;
 
@@ -14,6 +15,7 @@ use axum::Router;
 use shared_auth::enforcer::create_enforcer;
 use shared_auth::AuthzState;
 use shared_config::Config;
+use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -23,6 +25,22 @@ use user_service_infra::auth::{
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+/// Create a dev Kanidm client for testing (JWT validation disabled)
+fn create_dev_kanidm_client() -> KanidmClient {
+    let config = KanidmConfig {
+        kanidm_url: "http://localhost:8300".to_string(),
+        client_id: "dev".to_string(),
+        client_secret: "dev".to_string(),
+        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+        scopes: vec!["openid".to_string()],
+        skip_jwt_verification: true, // DEV/TEST MODE ONLY
+        allowed_issuers: vec!["http://localhost:8300".to_string()],
+        expected_audience: Some("dev".to_string()),
+    };
+    
+    KanidmClient::new(config).expect("Failed to create dev Kanidm client")
+}
 
 /// Create router from app state (for testing)
 pub fn create_router<S: AuthService + 'static>(state: AppState<S>) -> Router {
@@ -36,7 +54,11 @@ pub fn create_router<S: AuthService + 'static>(state: AppState<S>) -> Router {
         .route("/api/v1/auth/register", post(handlers::register::<S>))
         .route("/api/v1/auth/login", post(handlers::login::<S>))
         .route("/api/v1/auth/refresh", post(handlers::refresh_token::<S>))
-        .route("/api/v1/auth/logout", post(handlers::logout::<S>));
+        .route("/api/v1/auth/logout", post(handlers::logout::<S>))
+        // OAuth2 endpoints
+        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<S>))
+        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<S>))
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<S>));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
@@ -86,8 +108,8 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
 
     // Initialize service
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        user_repo.clone(),
+        tenant_repo.clone(),
         session_repo,
         config.jwt_secret.clone(),
         config.jwt_expiration,
@@ -99,6 +121,9 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
         auth_service: Arc::new(auth_service),
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
+        kanidm_client: create_dev_kanidm_client(),
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     let authz_state = AuthzState {
@@ -111,7 +136,11 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
         .route("/api/v1/auth/register", post(handlers::register))
         .route("/api/v1/auth/login", post(handlers::login))
         .route("/api/v1/auth/refresh", post(handlers::refresh_token))
-        .route("/api/v1/auth/logout", post(handlers::logout));
+        .route("/api/v1/auth/logout", post(handlers::logout))
+        // OAuth2 endpoints
+        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize))
+        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback))
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()

@@ -48,9 +48,6 @@ anthill/
 │   ├── error/                       # Common error types
 │   │   ├── src/lib.rs              # AppError + IntoResponse
 │   │   └── Cargo.toml
-│   ├── jwt/                         # JWT utilities
-│   │   ├── src/lib.rs              # encode_jwt, decode_jwt, Claims
-│   │   └── Cargo.toml
 │   ├── config/                      # Configuration loading
 │   │   ├── src/lib.rs              # Config struct + from_env
 │   │   └── Cargo.toml
@@ -59,6 +56,16 @@ anthill/
 │   │   └── Cargo.toml
 │   ├── db/                          # Database utilities
 │   │   ├── src/lib.rs              # init_pool function
+│   │   └── Cargo.toml
+│   ├── auth/                        # Authentication & Authorization
+│   │   ├── src/
+│   │   │   ├── lib.rs              # Re-exports
+│   │   │   ├── casbin/             # Casbin RBAC (KEPT)
+│   │   │   ├── extractors.rs      # AuthUser extractor (uses Kanidm JWT)
+│   │   │   └── kanidm.rs           # Kanidm JWT validation (NEW)
+│   │   └── Cargo.toml
+│   ├── kanidm_client/               # Kanidm OAuth2/OIDC client (NEW)
+│   │   ├── src/lib.rs              # OAuth2 flow, token validation
 │   │   └── Cargo.toml
 │   └── openapi/                     # OpenAPI specs (CI/CD exports)
 │       ├── user.yaml               # User service spec
@@ -119,9 +126,9 @@ api ──> infra ──> core ──> shared/*
 ```bash
 # 1. Setup environment
 export DATABASE_URL="postgresql://localhost/anthill"
-export JWT_SECRET="your-secret-key-here"
-export JWT_EXPIRATION=900
-export JWT_REFRESH_EXPIRATION=604800
+export KANIDM_URL="https://idm.example.com"
+export KANIDM_OAUTH2_CLIENT_ID="anthill"
+export KANIDM_OAUTH2_CLIENT_SECRET="your-client-secret"
 export HOST="0.0.0.0"
 export PORT=3000
 
@@ -134,6 +141,9 @@ cargo run --bin user-service
 # 4. Access API
 curl http://localhost:3000/health
 open http://localhost:3000/docs  # Swagger UI
+
+# 5. OAuth2 login flow
+# Redirect to: https://idm.example.com/ui/oauth2?client_id=anthill&...
 ```
 
 ## 📦 Workspace Members
@@ -145,10 +155,11 @@ open http://localhost:3000/docs  # Swagger UI
 
 ### Shared Libraries:
 - `shared/error` - Error handling
-- `shared/jwt` - JWT utilities
 - `shared/config` - Configuration
 - `shared/types` - Common types
 - `shared/db` - Database utilities
+- `shared/auth` - Casbin RBAC + Kanidm JWT validation
+- `shared/kanidm_client` - Kanidm OAuth2/OIDC integration
 
 ## 🔧 Development Workflow
 
@@ -173,7 +184,8 @@ cargo build --features export-spec
 
 - **Framework**: Axum 0.8
 - **Database**: PostgreSQL (via sqlx)
-- **Auth**: JWT (jsonwebtoken) + bcrypt
+- **Auth**: Kanidm (OAuth2/OIDC) + Casbin (RBAC)
+- **Token Validation**: JWT (Kanidm-issued)
 - **API Docs**: OpenAPI 3.0 (utoipa)
 - **Validation**: validator
 - **Logging**: tracing + tracing-subscriber

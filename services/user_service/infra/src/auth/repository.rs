@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use shared_error::AppError;
 use sqlx::PgPool;
 use user_service_core::domains::auth::domain::{
@@ -232,9 +233,88 @@ impl UserRepository for PgUserRepository {
 
         Ok(exists.0)
     }
+
+    async fn find_by_kanidm_id(&self, kanidm_user_id: &str) -> Result<Option<User>, AppError> {
+        let user = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE kanidm_user_id = $1 AND deleted_at IS NULL",
+        )
+        .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
+            AppError::ValidationError("Invalid Kanidm user ID format".to_string())
+        })?)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(user)
+    }
+
+    async fn upsert_from_kanidm(
+        &self,
+        kanidm_user_id: &str,
+        email: Option<&str>,
+        _username: Option<&str>,
+        tenant_id: Uuid,
+    ) -> Result<(User, bool), AppError> {
+        let kanidm_uuid = Uuid::parse_str(kanidm_user_id).map_err(|_| {
+            AppError::ValidationError("Invalid Kanidm user ID format".to_string())
+        })?;
+
+        // Try to find existing user by kanidm_user_id
+        if let Some(mut user) = self.find_by_kanidm_id(kanidm_user_id).await? {
+            // Update existing user
+            user.kanidm_synced_at = Some(chrono::Utc::now());
+            user.updated_at = chrono::Utc::now();
+
+            let updated_user = sqlx::query_as::<_, User>(
+                r#"
+                UPDATE users
+                SET kanidm_synced_at = $1, updated_at = $2
+                WHERE user_id = $3
+                RETURNING *
+                "#,
+            )
+            .bind(user.kanidm_synced_at)
+            .bind(user.updated_at)
+            .bind(user.user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+            return Ok((updated_user, false));
+        }
+
+        // Create new user
+        let user_id = Uuid::now_v7();
+        let now = chrono::Utc::now();
+
+        let user = sqlx::query_as::<_, User>(
+            r#"
+            INSERT INTO users (
+                user_id, tenant_id, email, password_hash,
+                role, status, kanidm_user_id, kanidm_synced_at,
+                created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING *
+            "#,
+        )
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(email.unwrap_or(&format!("{}@kanidm.local", kanidm_user_id)))
+        .bind("") // Empty password hash for Kanidm users
+        .bind("member") // Default role
+        .bind("active")
+        .bind(kanidm_uuid)
+        .bind(now)
+        .bind(now)
+        .bind(now)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok((user, true))
+    }
 }
 
 /// PostgreSQL implementation of TenantRepository
+#[derive(Clone)]
 pub struct PgTenantRepository {
     pool: PgPool,
 }
@@ -305,5 +385,58 @@ impl TenantRepository for PgTenantRepository {
         .await?;
 
         Ok(tenant)
+    }
+
+    async fn find_by_kanidm_group(
+        &self,
+        group_name: &str,
+    ) -> Result<Option<(Tenant, String)>, AppError> {
+        // Use dynamic query to avoid compile-time database check
+        let result = sqlx::query_as::<_, (
+            Uuid,
+            String,
+            String,
+            String,
+            Option<DateTime<Utc>>,
+            sqlx::types::Json<serde_json::Value>,
+            String,
+            DateTime<Utc>,
+            DateTime<Utc>,
+            Option<DateTime<Utc>>,
+            String,
+        )>(
+            r#"
+            SELECT t.tenant_id, t.name, t.slug, t.plan, t.plan_expires_at,
+                   t.settings, t.status, t.created_at, t.updated_at, t.deleted_at,
+                   ktg.role
+            FROM tenants t
+            INNER JOIN kanidm_tenant_groups ktg ON t.tenant_id = ktg.tenant_id
+            WHERE ktg.kanidm_group_name = $1
+              AND t.status = 'active'
+              AND t.deleted_at IS NULL
+            LIMIT 1
+            "#,
+        )
+        .bind(group_name)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some(row) = result {
+            let tenant = Tenant {
+                tenant_id: row.0,
+                name: row.1,
+                slug: row.2,
+                plan: row.3,
+                plan_expires_at: row.4,
+                settings: row.5,
+                status: row.6,
+                created_at: row.7,
+                updated_at: row.8,
+                deleted_at: row.9,
+            };
+            Ok(Some((tenant, row.10)))
+        } else {
+            Ok(None)
+        }
     }
 }

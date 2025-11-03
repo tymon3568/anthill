@@ -1,0 +1,32 @@
+# Kanidm Server Configuration for Anthill (Development)
+# ⚠️ DO NOT use these settings in production!
+
+# Server Bind Address
+bindaddress = "[::]:8300"
+db_path = "/data/kanidm.db"
+# Database Configuration (SQLite for dev, PostgreSQL for prod)
+db_type = "sqlite"
+# Domain and Origin
+domain = "localhost"
+# Logging
+log_level = "info"
+origin = "http://localhost:8300"
+# Role settings
+role = "WriteReplica"
+# Trust the X-Forwarded-For header (only for dev behind reverse proxy)
+trust_x_forward_for = false
+
+# OAuth2 Settings
+[oauth2]
+refresh_token_expiry = 2592000  # 30 days
+# Token expiration (in seconds)
+token_expiry = 3600  # 1 hour
+
+# SMTP Settings (for password reset emails)
+# [smtp]
+# from = "noreply@example.com"
+# server = "smtp.example.com"
+# port = 587
+# starttls = true
+# username = "smtp_user"
+# password = "smtp_password"

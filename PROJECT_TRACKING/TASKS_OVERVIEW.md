@@ -46,14 +46,20 @@
           → Completed: 2025-01-10
           → 3/3 migrations applied and tested
 
-### [🔄] Phase 3: User Service (Auth & Tenancy) - `In Progress 95%`
+### [🔄] Phase 3: User Service (Kanidm Integration & Tenancy) - `In Progress 60%`
+
+> **Timeline**: Weeks 3-5 (21 days)  
+> **Dependencies**: Phase 1, 2 completed, Kanidm server
+
     - [✅] 3.0 Architecture Implementation - `Completed`
           → [View folder](./V1_MVP/03_User_Service/3.0_Architecture/)
           → Completed: 2025-01-09
 
-    - [✅] 3.1 Core Authentication - `Completed`
-          → [View folder](./V1_MVP/03_User_Service/3.1_Core_Authentication/)
-          → Completed: 2025-01-10
+    - [🔄] 3.1 Kanidm Integration - `In Progress`
+          → [View folder](./V1_MVP/03_User_Service/3.1_Kanidm_Integration/)
+          → Replaces custom JWT auth with Kanidm OAuth2/OIDC
+          → Started: 2025-01-10
+          → Progress: 0/6 tasks completed
 
     - [🔄] 3.2 Authorization with Casbin - `In Progress`
           → [View folder](./V1_MVP/03_User_Service/3.2_Casbin_Authorization/)
@@ -137,8 +143,9 @@
           → [View folder](./V1_MVP/08_Frontend/8.1_Project_Setup/)
           → Progress: 0/2 tasks completed
 
-    - [⏳] 8.2 Authentication UI - `Todo`
+    - [⏳] 8.2 Authentication UI (OAuth2) - `Todo - Needs Update for Kanidm`
           → [View folder](./V1_MVP/08_Frontend/8.2_Authentication_UI/)
+          → Must implement OAuth2 flow instead of traditional login
           → Progress: 0/4 tasks completed
 
     - [⏳] 8.3 Dashboard - `Todo`
@@ -236,7 +243,7 @@
 #### By Phase:
 - **Phase 1** (Infrastructure): ✅ 95% - Production ready
 - **Phase 2** (Database): ✅ 100% - Foundation complete
-- **Phase 3** (User Service): 🔄 95% - Authentication done, authorization in progress
+- **Phase 3** (User Service): 🔄 60% - Migrating to Kanidm auth, authorization in progress
 - **Phase 4** (Inventory): ⏳ 0% - Not started (core business logic)
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
@@ -255,7 +262,8 @@
 ### 🎯 Critical Path for MVP
 
 **Immediate Next Steps** (P0 tasks that block MVP):
-1. **Casbin Authorization** (3.2.x) - Multi-tenant RBAC middleware
+1. **Kanidm Integration** (3.1.x) - OAuth2/OIDC authentication with Kanidm
+2. **Casbin Authorization** (3.2.x) - Multi-tenant RBAC middleware (works with Kanidm JWT)
 2. **User Management** (3.3.x) - Basic CRUD operations with tenant isolation
 3. **Security Testing** (3.4.x) - Critical tenant isolation validation
 4. **Core Inventory** (4.1-4.3) - Product catalog and stock tracking
@@ -269,8 +277,11 @@
 ### Development Environment
 ```bash
 # 1. Setup environment variables
-export DATABASE_URL="postgresql://localhost/anthill"
-export JWT_SECRET="your-secret-key-here"
+export DATABASE_URL="postgresql://user:pass@localhost/anthill"
+export KANIDM_URL="https://idm.example.com"
+export KANIDM_OAUTH2_CLIENT_ID="anthill"
+export KANIDM_OAUTH2_CLIENT_SECRET="your-client-secret"
+export REDIS_URL="redis://localhost:6379"
 
 # 2. Run database migrations
 ./scripts/migrate.sh run
@@ -311,7 +322,9 @@ open http://localhost:3000/docs  # Swagger UI
 
 ## 🔄 Current Sprint Focus
 
-**Sprint Goal**: Complete Phase 3 User Service authorization and user management
+**Sprint Goal**: Complete Kanidm integration and Casbin authorization
+
+**Note**: Authentication strategy changed to use Kanidm (Identity Provider) instead of custom JWT. This provides better security, OAuth2/OIDC compliance, and advanced features like Passkeys/WebAuthn.
 
 **Sprint Tasks**:
 1. Implement Casbin multi-tenant RBAC (10 tasks)
@@ -320,8 +333,10 @@ open http://localhost:3000/docs  # Swagger UI
 4. Integration testing (3 tasks)
 
 **Success Criteria**:
-- ✅ User registration/login fully functional
-- ✅ Multi-tenant authorization working
+**Achievements**:
+- ✅ Kanidm server deployed and configured
+- 🔄 OAuth2/OIDC integration in progress
+- ✅ Multi-tenant authorization (Casbin) working
 - ✅ User management with proper tenant isolation
 - ✅ Security testing validates tenant isolation
 - ✅ All P0 tasks for Phase 3 completed
@@ -329,18 +344,27 @@ open http://localhost:3000/docs  # Swagger UI
 ## 📈 Progress Tracking
 
 ### Weekly Updates
-- **Week 1**: Casbin setup and model configuration
-- **Week 2**: Authorization middleware implementation
+- **Week 1**: Kanidm server setup and OAuth2 client configuration
+- **Week 2**: Kanidm client library and OAuth2 endpoints
+- **Week 3**: Group-tenant mapping and auth extractors update
 - **Week 3**: User management endpoints
 - **Week 4**: Security testing and validation
 
 ### Milestone Targets
-- **Milestone 1** (Week 2): Casbin authorization functional
+- **Milestone 1** (Week 2): OAuth2 authentication flow working
+- **Milestone 2** (Week 3): Casbin authorization with Kanidm JWT
 - **Milestone 2** (Week 4): Complete user management system
 - **Milestone 3** (Week 6): Security validation complete
 
 ---
 
 **Last Updated**: 2025-01-18
-**Project Status**: In Progress (Phase 3 Authorization)
+**Project Status**: In Progress (Phase 3 Kanidm Integration)
+
+**Recent Changes (2025-11-03)**:
+- 🔄 Migrating from custom JWT authentication to Kanidm (OAuth2/OIDC)
+- ✅ Created 6 new tasks for Kanidm integration
+- ❌ Deprecated old authentication implementation tasks
+- 📚 Updated all documentation (ARCHITECTURE.md, README.md, etc.)
+- 📋 See `docs/KANIDM_MIGRATION_PLAN.md` for detailed migration plan
 **Next Milestone**: Casbin RBAC Implementation (Week 2)
