@@ -317,7 +317,12 @@ p, tenant_acme_admins@123-456, 123-456, *, *
 **Status**: Kanidm server ready, OAuth2 client configured, test environment setup
 
 ### Phase 3: Code Refactoring 🚧 IN PROGRESS
-- [ ] Create `shared/kanidm_client` crate
+- [x] Create `shared/kanidm_client` crate (commit: 2c5a1e7)
+  - OAuth2 Authorization Code Flow with PKCE (S256)
+  - JWT validation with JWKS from Kanidm
+  - Multi-tenant group extraction
+  - All endpoints verified via Context7 documentation
+  - 6/6 unit tests passing
 - [ ] Refactor `shared/auth` (remove JWT gen, add validation)
 - [ ] Delete `shared/jwt` crate
 - [ ] Modify `user_service/core` (AuthService trait)
@@ -326,7 +331,9 @@ p, tenant_acme_admins@123-456, 123-456, *, *
 - [ ] Update Cargo.toml dependencies
 
 **Started**: 2025-11-03  
-**Current Focus**: Creating shared/kanidm_client crate
+**Completion**: 50% (1/7 tasks)
+**Latest Commit**: 2c5a1e7 - shared/kanidm_client crate with official endpoints  
+**Current Focus**: Refactoring shared/auth for Kanidm integration
 
 ### Phase 4: Database Migration
 - [ ] Create migration: add kanidm_user_id to users
