@@ -10,7 +10,8 @@ members = [
   "shared/config",
   "shared/types",
   "shared/db",
-  "shared/auth"
+  "shared/auth",
+  "shared/kanidm_client"
 ]
 resolver = "2"
 
@@ -46,6 +47,7 @@ shared_db = {path = "shared/db"}
 # Shared crates (internal)
 shared_error = {path = "shared/error"}
 shared_jwt = {path = "shared/jwt"}
+shared_kanidm_client = {path = "shared/kanidm_client"}
 shared_types = {path = "shared/types"}
 # SQLx - database
 sqlx = {version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"]}
