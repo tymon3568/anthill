@@ -390,10 +390,12 @@ p, tenant_acme_admins@123-456, 123-456, *, *
   - scripts/setup-kanidm-tenant-groups.sh (create groups + DB mapping)
   - scripts/migrate-users-to-kanidm.sh (automated migration with dry-run)
   - ✅ All scripts ready, support dry-run and rollback
-- [ ] Phase 4.3: Update code for nullable password_hash
-  - Update User model (auth_method field)
-  - Update repositories (handle NULL password_hash)
-  - Update auth service (dual authentication logic)
+- [x] Phase 4.3: Update code for nullable password_hash (commit: 581481f)
+  - User model: password_hash → Option<String>, added auth_method
+  - Repository: Updated create/update/upsert queries
+  - Auth service: Login checks auth_method, dual auth logic
+  - Test utilities: Updated all mocks and builders
+  - ✅ All code compiling successfully
 - [ ] Phase 4.4: Run migrations locally
   - sqlx migrate run (test all 3 migrations)
   - Verify schema changes
@@ -404,10 +406,10 @@ p, tenant_acme_admins@123-456, 123-456, *, *
   - Performance testing
 
 **Started**: 2025-11-03  
-**Completion**: 40% (2/5 sub-phases)  
-**Latest Commit**: a245785 - Database migrations and scripts  
-**Status**: ✅ Schema and scripts ready  
-**Next Focus**: Update Rust code for nullable password_hash  
+**Completion**: 60% (3/5 sub-phases)  
+**Latest Commit**: 581481f - Code updates complete  
+**Status**: ✅ Code ready for migration testing  
+**Next Focus**: Run migrations locally, test dual authentication  
 **Full Guide**: See [PHASE_4_DATABASE_MIGRATION.md](./PHASE_4_DATABASE_MIGRATION.md)
 
 ### Phase 5: Testing
