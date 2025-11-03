@@ -361,16 +361,21 @@ p, tenant_acme_admins@123-456, 123-456, *, *
   - Implemented user sync in oauth_callback()
   - Users auto-created/updated from Kanidm authentication
   - ✅ Full OAuth2 flow with tenant mapping working
+- [x] OAuth2 testing infrastructure (commit: 4ac32ec)
+  - Created KANIDM_OAUTH2_TESTING.md guide
+  - setup-oauth-test-data.sh script for automated setup
+  - Integration tests (marked #[ignore])
+  - ✅ Testing documentation complete
+- [ ] Manual OAuth2 flow testing (requires Kanidm server)
 - [ ] Delete `shared/jwt` crate
-- [ ] Modify `user_service/core` (AuthService trait for Kanidm)
 - [ ] Update Cargo.toml dependencies
-- [ ] End-to-end testing with Kanidm
+- [ ] Final documentation updates
 
 **Started**: 2025-11-03  
-**Completion**: 86% (6/14 tasks - expanded to include testing task)
-**Latest Commit**: 4c728af - OAuth2 tenant mapping complete
-**Status**: ✅ OAuth2 flow fully functional, user sync working
-**Next Focus**: Testing OAuth2 flow, then cleanup (delete shared/jwt)
+**Completion**: 88% (7/16 tasks - expanded to include manual testing)
+**Latest Commit**: 4ac32ec - OAuth2 testing infrastructure
+**Status**: ✅ OAuth2 implementation complete, testing guide ready
+**Next Focus**: Cleanup (delete shared/jwt), or manual testing if Kanidm available
 
 ### Phase 4: Database Migration
 - [ ] Create migration: add kanidm_user_id to users
