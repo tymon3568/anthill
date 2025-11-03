@@ -349,18 +349,26 @@ async fn test_migration_progress_view() {
     assert_eq!(progress.password_only.unwrap(), 2);
     assert_eq!(progress.kanidm_only.unwrap(), 1);
     assert_eq!(progress.dual_auth.unwrap(), 1);
-    // migration_percent is Numeric type, compare as BigDecimal or String
-    let percent = progress.migration_percent.unwrap().to_string();
-    assert!(percent.starts_with("50"), "Expected ~50%, got {}", percent);
-
-    println!("✅ Migration progress view working correctly");
-    println!("   Total: {}, Password: {}, Kanidm: {}, Dual: {}, Progress: {}%",
-        progress.total_users.unwrap(),
-        progress.password_only.unwrap(),
-        progress.kanidm_only.unwrap(),
-        progress.dual_auth.unwrap(),
-        percent
-    );
+    // migration_percent is Numeric type (BigDecimal)
+    if let Some(percent) = progress.migration_percent {
+        let percent_str = percent.to_string();
+        assert!(
+            percent_str.starts_with("50"),
+            "Expected ~50%, got {}",
+            percent_str
+        );
+        println!("✅ Migration progress view working correctly");
+        println!(
+            "   Total: {}, Password: {}, Kanidm: {}, Dual: {}, Progress: {}%",
+            progress.total_users.unwrap(),
+            progress.password_only.unwrap(),
+            progress.kanidm_only.unwrap(),
+            progress.dual_auth.unwrap(),
+            percent_str
+        );
+    } else {
+        panic!("migration_percent should not be null");
+    }
 }
 
 /// Test: Pending migration users are tracked
