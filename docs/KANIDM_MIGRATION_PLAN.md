@@ -323,12 +323,17 @@ p, tenant_acme_admins@123-456, 123-456, *, *
   - Multi-tenant group extraction
   - All endpoints verified via Context7 documentation
   - 6/6 unit tests passing
-- [x] Refactor `shared/auth` (commit: 714e8c1) - PARTIAL
+- [x] Refactor `shared/auth` (commit: 714e8c1)
   - Added KanidmClientProvider trait
   - Updated AuthUser with kanidm_user_id and email fields
   - Implemented dual JWT validation (Kanidm + legacy)
-  - **BREAKING**: Requires KanidmClientProvider implementation in AppState
-- [ ] Fix user_service AppState (implement KanidmClientProvider)
+  - 3/3 unit tests passing
+- [x] Fix user_service AppState (commit: 27fdac7)
+  - Implemented KanidmClientProvider for AppState
+  - Added kanidm_client field to AppState
+  - Updated shared/config with Kanidm fields
+  - Initialize KanidmClient in main.rs (dev mode fallback)
+  - ✅ Compilation fixed - dual JWT validation working
 - [ ] Delete `shared/jwt` crate
 - [ ] Modify `user_service/core` (AuthService trait)
 - [ ] Modify `user_service/infra` (OAuth2 integration)
@@ -336,10 +341,10 @@ p, tenant_acme_admins@123-456, 123-456, *, *
 - [ ] Update Cargo.toml dependencies
 
 **Started**: 2025-11-03  
-**Completion**: 60% (2/8 tasks)
-**Latest Commit**: 714e8c1 - shared/auth with Kanidm support (WIP)
-**Current Issue**: user_service compilation broken - needs KanidmClientProvider impl
-**Next Focus**: Implement KanidmClientProvider for user_service AppState
+**Completion**: 75% (3/8 tasks)
+**Latest Commit**: 27fdac7 - user_service KanidmClientProvider implementation
+**Status**: ✅ Compilation working, dual JWT validation enabled
+**Next Focus**: Create OAuth2 endpoints for Kanidm authentication flow
 
 ### Phase 4: Database Migration
 - [ ] Create migration: add kanidm_user_id to users
