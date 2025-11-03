@@ -7,6 +7,7 @@ Kiến trúc này được thiết kế dựa trên triết lý thực dụng: *
 - **Đơn giản & Hiệu quả**: Tận dụng tối đa các tính năng tự động của CapRover để giảm thiểu công sức quản lý hạ tầng.
 - **Hiệu năng cao**: Sử dụng các công cụ tiêu chuẩn ngành (NGINX, Docker Swarm, PostgreSQL, Redis) kết hợp với các microservice viết bằng Rust.
 - **An toàn & Bảo mật**: Tận dụng mạng nội bộ của Docker và các cơ chế bảo mật của CapRover, kết hợp với sự an toàn bộ nhớ của Rust.
+- **Chuyên nghiệp hóa Authentication**: Sử dụng **Kanidm** - một Identity Provider chuyên nghiệp thay vì tự code authentication, đảm bảo tuân thủ chuẩn OAuth2/OIDC.
 
 ## 🏗️ Kiến Trúc Tổng Thể trên CapRover
 
@@ -15,29 +16,39 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 ```
                  Internet
                      │
-┌────────────────────▼─────────────────────┐
-│              CapRover Cluster            │
-│          (1 hoặc nhiều server)           │
-│ ┌──────────────────────────────────────┐ │
-│ │     CapRover NGINX Ingress Proxy     │ │ (Gateway Tự Động)
-│ │   (Load Balancing, SSL, Routing)     │ │
-│ └──────────────────┬───────────────────┘ │
-│                    │ (Route tới app qua Hostname)
-│ ┌──────────────────┴───────────────────┐ │
-│ │       Docker Swarm Overlay Network     │ │ (Mạng nội bộ an toàn)
-│ │                                      │ │
-│ │ ┌──────────────┐   ┌───────────────┐ │ │
-│ │ │  Rust Service  │   │ Rust Service  │ │ │
-│ │ │   (App 1)      ├─► │   (App 2)     │ │ │  (Core Logic)
-│ │ │ inventory-svc  │   │  order-svc    │ │ │
-│ │ └──────▲───────┘   └───────▲───────┘ │ │
-│ │        │                   │         │ │
-│ │ ┌──────┴─────────┐  ┌──────┴───────┐ │ │
-│ │ │   PostgreSQL   │  │ NATS / Redis │ │ │  (Stateful Services)
-│ │ │ (One-Click App)│  │(One-Click App)│ │ │
-│ │ └────────────────┘  └──────────────┘ │ │
-│ └──────────────────────────────────────┘ │
-└──────────────────────────────────────────┘
+┌────────────────────▼─────────────────────────────────────┐
+│              CapRover Cluster                            │
+│          (1 hoặc nhiều server)                           │
+│ ┌────────────────────────────────────────────────────┐   │
+│ │     CapRover NGINX Ingress Proxy                   │   │ (Gateway Tự Động)
+│ │   (Load Balancing, SSL, Routing)                   │   │
+│ └──────────────────┬─────────────────────────────────┘   │
+│                    │ (Route tới app qua Hostname)        │
+│ ┌──────────────────┴─────────────────────────────────┐   │
+│ │       Docker Swarm Overlay Network                 │   │ (Mạng nội bộ an toàn)
+│ │                                                    │   │
+│ │ ┌──────────────┐   ┌───────────────┐              │   │
+│ │ │  Kanidm      │   │  Rust Service │              │   │
+│ │ │  (IdP)       │◄──┤   User Svc    │              │   │  (Auth & Core Logic)
+│ │ │ OAuth2/OIDC  │   │  + Casbin     │              │   │
+│ │ └──────────────┘   └───────▲───────┘              │   │
+│ │                            │                       │   │
+│ │                    ┌───────┴───────┐              │   │
+│ │                    │  Rust Service │              │   │
+│ │                    │ inventory-svc ├─► ...        │   │  (Business Services)
+│ │                    └───────▲───────┘              │   │
+│ │                            │                       │   │
+│ │ ┌──────────────┐  ┌────────┴───────┐             │   │
+│ │ │  PostgreSQL  │  │ NATS / Redis   │             │   │  (Stateful Services)
+│ │ │(One-Click App│  │ (One-Click App)│             │   │
+│ │ └──────────────┘  └────────────────┘             │   │
+│ └────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
+
+Legend:
+  Kanidm: Identity Provider (authentication, user management)
+  User Svc: User/Tenant management + Casbin authorization
+  Other Services: Inventory, Order, Payment, Integration
 ```
 
 ## 🧩 Chi tiết các thành phần
@@ -85,10 +96,31 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 
 - **Công nghệ**: Crate `casbin-rs`.
 - **Vai trò**:
-  - Vẫn tích hợp trực tiếp vào các microservice Rust (đặc biệt là User Service và API Gateway nếu tự build).
-  - Models và policies có thể được lưu trong PostgreSQL, sử dụng `casbin-sqlx-adapter`.
+  - Tích hợp trực tiếp vào các microservice Rust (đặc biệt là User Service).
+  - Models và policies được lưu trong PostgreSQL, sử dụng `casbin-sqlx-adapter`.
   - Một middleware trong Axum sẽ load enforcer và kiểm tra quyền hạn cho mỗi request.
   - Shared crate `shared/auth` cung cấp middleware và extractors cho tất cả services.
+  - **Làm việc với Kanidm JWT**: Extracts user_id và groups từ Kanidm JWT tokens để enforce policies.
+
+### 6. Authentication: Kanidm (NEW)
+
+- **Công nghệ**: Kanidm - Identity Provider chuyên nghiệp.
+- **Vai trò**:
+  - **User Authentication**: Xử lý login, registration, password management.
+  - **OAuth2/OIDC Provider**: Cung cấp chuẩn OAuth2 Authorization Code Flow + PKCE.
+  - **JWT Token Issuance**: Tạo và ký JWT tokens với các claims chuẩn OIDC.
+  - **Multi-factor Authentication**: Hỗ trợ Passkeys, WebAuthn, TOTP out-of-the-box.
+  - **Session Management**: Quản lý user sessions, refresh tokens.
+  - **Group Management**: Quản lý groups cho multi-tenant mapping.
+- **Triển khai**:
+  - Deployed như một CapRover One-Click App hoặc custom Docker image.
+  - Các Rust services validate JWT tokens từ Kanidm (không tự generate).
+  - User Service sync tenant mapping với Kanidm groups.
+- **Lợi ích**:
+  - ✅ Giảm code complexity (không cần tự code auth).
+  - ✅ Security best practices built-in.
+  - ✅ Compliance với OAuth2/OIDC standards.
+  - ✅ Advanced features (Passkeys, WebAuthn) miễn phí.
 
 ### 6. Multi-Tenancy Strategy
 
@@ -110,6 +142,31 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 - ✅ **Flexibility**: Dễ implement cross-tenant queries (cho admin/super-admin)
 - ✅ **Testing**: Dễ test hơn, không cần setup RLS policies
 - ⚠️ **Trade-off**: Cần cẩn thận thêm `WHERE tenant_id = $1` trong mọi query
+
+#### Kanidm Group Mapping for Multi-Tenancy:
+
+**Strategy**: Map Anthill tenants to Kanidm groups
+
+```rust
+// Kanidm Groups → Anthill Tenants
+tenant_acme_users       ↔  tenant_id: uuid-123
+  ├─ alice@acme.com
+  └─ bob@acme.com
+
+tenant_globex_users     ↔  tenant_id: uuid-456
+  └─ charlie@globex.com
+
+// User JWT from Kanidm contains groups claim:
+{
+  "sub": "alice_uuid",
+  "email": "alice@acme.com",
+  "groups": ["tenant_acme_users", "tenant_acme_admins"]
+}
+
+// User Service maps group → tenant_id via PostgreSQL:
+SELECT tenant_id FROM kanidm_tenant_groups 
+WHERE kanidm_group_name = 'tenant_acme_users'
+```
 
 **Implementation Guidelines**:
 
@@ -133,7 +190,7 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
    }
    ```
 
-3. **Middleware**: Extract tenant_id từ JWT và inject vào request
+3. **Middleware**: Extract tenant_id từ Kanidm JWT groups và inject vào request
 4. **Testing**: Unit tests verify tenant isolation
 5. **Audit**: Log tất cả queries với tenant_id
 
@@ -205,13 +262,19 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 - **Async Runtime**: Tokio
 - **Database Driver**: SQLx
 
+### Authentication & Authorization
+- **Identity Provider**: Kanidm (OAuth2/OIDC)
+- **Authorization**: Casbin-rs (RBAC)
+- **Token Validation**: JWT (via Kanidm public key)
+
 ### Infrastructure & Platform
 - **PaaS**: CapRover
 - **Container Orchestration**: Docker Swarm (do CapRover quản lý)
 - **API Gateway**: NGINX (do CapRover quản lý)
 - **Service Networking**: Docker Swarm Overlay Network
 
-### Stateful Services & Middleware ( развернуто как One-Click Apps)
+### Stateful Services & Middleware (deployed như One-Click Apps)
+- **Identity Provider**: Kanidm
 - **Database**: PostgreSQL
 - **Cache**: Redis
 - **Message Queue**: NATS
