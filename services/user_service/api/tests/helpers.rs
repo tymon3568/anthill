@@ -88,7 +88,7 @@ pub async fn create_test_user(
         user_id,
         tenant_id,
         email: email.to_string(),
-        password_hash,
+        password_hash: Some(password_hash),  // Now Option<String>
         email_verified: true,
         email_verified_at: Some(now),
         full_name: Some(full_name.to_string()),
@@ -103,6 +103,12 @@ pub async fn create_test_user(
         created_at: now,
         updated_at: now,
         deleted_at: None,
+        // New Phase 4 fields
+        kanidm_user_id: None,
+        kanidm_synced_at: None,
+        auth_method: "password".to_string(),  // String, not enum
+        migration_invited_at: None,
+        migration_completed_at: None,
     };
 
     let user_repo = PgUserRepository::new(pool.clone());
@@ -207,13 +213,27 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
     let session_repo = PgSessionRepository::new(pool.clone());
 
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        user_repo.clone(),
+        tenant_repo.clone(),
         session_repo,
         get_test_jwt_secret(),
         900,    // 15 minutes
         604800, // 7 days
     );
+
+    // Create dev Kanidm client
+    let kanidm_config = shared_kanidm_client::KanidmConfig {
+        kanidm_url: "http://localhost:8300".to_string(),
+        client_id: "dev".to_string(),
+        client_secret: "dev".to_string(),
+        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+        scopes: vec!["openid".to_string()],
+        skip_jwt_verification: true, // TEST MODE
+        allowed_issuers: vec!["http://localhost:8300".to_string()],
+        expected_audience: Some("dev".to_string()),
+    };
+    let kanidm_client = shared_kanidm_client::KanidmClient::new(kanidm_config)
+        .expect("Failed to create test Kanidm client");
 
     let state = AppState {
         auth_service: Arc::new(auth_service),
@@ -224,6 +244,9 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         .await
         .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
+        kanidm_client,
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     user_service_api::create_router(state)
