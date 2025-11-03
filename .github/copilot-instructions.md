@@ -17,10 +17,10 @@ Example: `user_service_api` depends on `user_service_infra`, which depends on `u
 ### Shared Libraries
 Located in `shared/`:
 - `error`: `AppError` enum with `IntoResponse`, standardized error codes
-- `jwt`: `encode_jwt()`, `decode_jwt()`, `Claims` struct
 - `config`: Environment config loader (`Config::from_env()`)
 - `db`: `init_pool()` for PostgreSQL connection pooling
-- `auth`: Casbin enforcer, JWT middleware, auth extractors (`AuthUser`, `RequireAdmin`)
+- `auth`: Casbin enforcer, Kanidm JWT validation, auth extractors (`AuthUser`, `RequireAdmin`)
+- `kanidm_client`: OAuth2/OIDC client for Kanidm integration
 
 All services **must** use shared crates instead of duplicating code.
 
@@ -50,7 +50,7 @@ pub async fn find_by_id(&self, ctx: &TenantContext, id: Uuid) -> Result<Product>
 }
 ```
 
-Extract `tenant_id` from JWT in middleware, inject into request context.
+Extract `tenant_id` from Kanidm JWT groups claim in middleware, map to PostgreSQL tenant via `kanidm_tenant_groups` table, inject into request context.
 
 ## Database Standards
 
@@ -94,22 +94,73 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
 ## Authentication & Authorization
 
-### JWT Flow
-1. Login → returns `access_token` (15min) + `refresh_token` (7 days)
-2. Extract with `AuthUser` extractor (validates JWT, extracts claims)
-3. Authorize with `RequireAdmin` or Casbin middleware
+### Kanidm Integration (OAuth2/OIDC)
+Kanidm is the Identity Provider handling all authentication:
+1. **User registration/login** → Handled by Kanidm UI or API
+2. **OAuth2 flow** → Authorization Code Grant + PKCE
+3. **JWT issuance** → Kanidm signs JWTs with standard OIDC claims
+4. **Token validation** → Services validate JWT using Kanidm public key
+5. **Group management** → Kanidm groups map to Anthill tenants
+
+JWT claims from Kanidm:
+```rust
+{
+  "sub": "uuid-of-user-in-kanidm",
+  "email": "user@example.com",
+  "preferred_username": "username",
+  "groups": ["tenant_acme_users", "tenant_acme_admins"]
+}
+```
+
+### Tenant Mapping
+```sql
+-- Map Kanidm groups to tenants
+CREATE TABLE kanidm_tenant_groups (
+  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
+  kanidm_group_uuid UUID NOT NULL,
+  kanidm_group_name TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, kanidm_group_uuid)
+);
+
+-- Link users to Kanidm
+ALTER TABLE users 
+  ADD COLUMN kanidm_user_id UUID UNIQUE,
+  DROP COLUMN password_hash;
+```
+
+### OAuth2 Endpoints (User Service)
+```rust
+// Initiate OAuth2 flow
+GET /api/v1/auth/oauth/authorize
+  → Redirect to Kanidm: https://idm.example.com/ui/oauth2?client_id=...
+
+// Handle OAuth2 callback
+POST /api/v1/auth/oauth/callback { code, state }
+  → Exchange code for tokens
+  → Map Kanidm user to tenant
+  → Return access_token
+
+// Refresh token
+POST /api/v1/auth/oauth/refresh { refresh_token }
+  → Get new access_token from Kanidm
+```
 
 ### Casbin RBAC
 Multi-tenant model: `(subject, tenant, resource, action)`
 - Policies stored in `casbin_rule` table
 - Enforcer in `shared/auth` with PostgreSQL adapter
-- Middleware: `shared_auth::casbin_middleware` (currently disabled in main.rs)
+- Middleware: `shared_auth::casbin_middleware`
+- Works with Kanidm JWT: extract `sub` + `groups`, map to tenant, enforce policies
 
 ### Auth Extractors
 From `shared/auth/extractors.rs`:
 ```rust
-// Basic JWT validation
-async fn handler(user: AuthUser) -> String { ... }
+// Validate Kanidm JWT and extract claims
+async fn handler(user: AuthUser) -> String { 
+    // user.kanidm_user_id: UUID from "sub" claim
+    // user.tenant_id: mapped from groups claim
+    // user.email: from "email" claim
+}
 
 // Admin-only endpoints
 async fn admin_handler(RequireAdmin(user): RequireAdmin) -> String { ... }
@@ -167,6 +218,9 @@ Err(AppError::ValidationError("Invalid email".to_string()))
 
 // Database errors auto-convert
 let user = query.fetch_one(&pool).await?; // sqlx::Error → AppError
+
+// Kanidm errors
+.map_err(|e| AppError::AuthenticationError(format!("Kanidm: {}", e)))?
 
 // Manual mapping
 .map_err(|e| AppError::InternalError(format!("Casbin: {}", e)))?
