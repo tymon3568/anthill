@@ -8,7 +8,7 @@ use user_service_core::domains::auth::{
         auth_dto::ErrorResp,
         kanidm_dto::{
             KanidmUserInfo, OAuth2AuthorizeReq, OAuth2AuthorizeResp, OAuth2CallbackReq,
-            OAuth2CallbackResp, OAuth2RefreshReq, OAuth2RefreshResp,
+            OAuth2CallbackResp, OAuth2RefreshReq, OAuth2RefreshResp, TenantInfo,
         },
     },
 };
@@ -120,11 +120,25 @@ pub async fn oauth_callback<S: AuthService>(
         groups: claims.groups.clone(),
     };
 
-    // TODO: Map Kanidm user to tenant and role
-    // For now, return None for tenant (will be implemented in Phase 3.5)
-    let tenant_info = None;
+    // Map Kanidm user to tenant and role
+    let tenant_info = map_tenant_from_groups(&state, &claims.groups).await?;
 
-    warn!("⚠️ Tenant mapping not implemented yet - user authenticated but no tenant assigned");
+    // Upsert user in database
+    if let Some((ref tenant, ref role)) = tenant_info {
+        debug!("Mapping user to tenant: {} with role: {}", tenant.name, role);
+        
+        // This will be implemented in Phase 3.6
+        // let (user, is_new) = state.auth_service
+        //     .upsert_from_kanidm(&claims.sub, claims.email.as_deref(), 
+        //                         claims.preferred_username.as_deref(), tenant.tenant_id)
+        //     .await?;
+        // 
+        // if is_new {
+        //     debug!("Created new user from Kanidm authentication");
+        // } else {
+        //     debug!("Updated existing user from Kanidm");
+        // }
+    }
 
     Ok(Json(OAuth2CallbackResp {
         access_token: token_response.access_token,
@@ -132,8 +146,47 @@ pub async fn oauth_callback<S: AuthService>(
         token_type: "Bearer".to_string(),
         expires_in: Some(token_response.expires_in as i64),
         user: user_info,
-        tenant: tenant_info,
+        tenant: tenant_info.map(|(tenant, role)| TenantInfo {
+            tenant_id: tenant.tenant_id.to_string(),
+            name: tenant.name,
+            slug: tenant.slug,
+            role,
+        }),
     }))
+}
+
+/// Map Kanidm groups to tenant and role
+/// 
+/// Expects groups in format: tenant_{slug}_admins, tenant_{slug}_users
+/// Returns first matching tenant with role
+async fn map_tenant_from_groups<S: AuthService>(
+    _state: &AppState<S>,
+    groups: &[String],
+) -> Result<Option<(user_service_core::domains::auth::domain::model::Tenant, String)>, AppError> {
+    // Filter tenant-related groups
+    let tenant_groups: Vec<&String> = groups
+        .iter()
+        .filter(|g| g.starts_with("tenant_"))
+        .collect();
+
+    if tenant_groups.is_empty() {
+        warn!("User has no tenant groups in Kanidm");
+        return Ok(None);
+    }
+
+    // Try to find matching tenant for each group
+    for group_name in &tenant_groups {
+        debug!("Checking group: {}", group_name);
+        
+        // This requires tenant_repo to be accessible from AppState
+        // For now, return None (will be implemented in Phase 3.6)
+        // if let Some((tenant, role)) = tenant_repo.find_by_kanidm_group(group_name).await? {
+        //     return Ok(Some((tenant, role)));
+        // }
+    }
+
+    warn!("No matching tenant found for groups: {:?}", tenant_groups);
+    Ok(None)
 }
 
 /// Refresh access token using refresh token

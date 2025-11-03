@@ -23,6 +23,8 @@ pub struct User {
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTime<Utc>>,
     pub password_changed_at: Option<DateTime<Utc>>,
+    pub kanidm_user_id: Option<Uuid>,         // Kanidm integration
+    pub kanidm_synced_at: Option<DateTime<Utc>>, // Last sync time
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>, // Soft delete

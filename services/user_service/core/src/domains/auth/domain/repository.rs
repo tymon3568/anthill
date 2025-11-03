@@ -52,6 +52,19 @@ pub trait UserRepository: Send + Sync {
 
     /// Check if email exists within a tenant
     async fn email_exists(&self, email: &str, tenant_id: Uuid) -> Result<bool, AppError>;
+
+    /// Find user by Kanidm user ID
+    async fn find_by_kanidm_id(&self, kanidm_user_id: &str) -> Result<Option<User>, AppError>;
+
+    /// Create or update user from Kanidm authentication
+    /// Returns (user, is_new) tuple
+    async fn upsert_from_kanidm(
+        &self,
+        kanidm_user_id: &str,
+        email: Option<&str>,
+        username: Option<&str>,
+        tenant_id: Uuid,
+    ) -> Result<(User, bool), AppError>;
 }
 
 /// Tenant repository trait
@@ -68,6 +81,13 @@ pub trait TenantRepository: Send + Sync {
 
     /// Find tenant by slug
     async fn find_by_slug(&self, slug: &str) -> Result<Option<Tenant>, AppError>;
+
+    /// Find tenant by Kanidm group name
+    /// Returns (tenant, role) tuple if found
+    async fn find_by_kanidm_group(
+        &self,
+        group_name: &str,
+    ) -> Result<Option<(Tenant, String)>, AppError>;
 }
 
 /// Session repository trait
