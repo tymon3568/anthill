@@ -239,7 +239,7 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         auth_service: Arc::new(auth_service),
         enforcer: shared_auth::enforcer::create_enforcer(
             &get_test_database_url(),
-            None, // Use default bundled model.conf
+            Some("shared/auth/model.conf"), // Explicit path to model.conf
         )
         .await
         .expect("Failed to create enforcer"),
