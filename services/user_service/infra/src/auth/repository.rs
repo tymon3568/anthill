@@ -314,6 +314,7 @@ impl UserRepository for PgUserRepository {
 }
 
 /// PostgreSQL implementation of TenantRepository
+#[derive(Clone)]
 pub struct PgTenantRepository {
     pool: PgPool,
 }

@@ -108,8 +108,8 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
 
     // Initialize service
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        user_repo.clone(),
+        tenant_repo.clone(),
         session_repo,
         config.jwt_secret.clone(),
         config.jwt_expiration,
@@ -122,6 +122,8 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_dev_kanidm_client(),
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     let authz_state = AuthzState {

@@ -108,14 +108,14 @@ async fn main() {
     // Initialize services
     let auth_service = AuthServiceImpl::new(
         user_repo.clone(),
-        tenant_repo,
+        tenant_repo.clone(),
         session_repo,
         config.jwt_secret.clone(),
         config.jwt_expiration,
         config.jwt_refresh_expiration,
     );
 
-    let profile_service = ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo));
+    let profile_service = ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo.clone()));
 
     // Create application states
     let state = AppState {
@@ -123,6 +123,8 @@ async fn main() {
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: kanidm_client.clone(),
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     let profile_state = ProfileAppState {

@@ -11,6 +11,7 @@ use shared_auth::extractors::{AuthUser, JwtSecretProvider, KanidmClientProvider,
 use shared_error::AppError;
 use shared_kanidm_client::KanidmClient;
 use std::sync::Arc;
+use user_service_core::domains::auth::domain::repository::{TenantRepository, UserRepository};
 use user_service_core::domains::auth::domain::service::AuthService;
 use user_service_core::domains::auth::dto::auth_dto::{
     AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
@@ -22,6 +23,9 @@ pub struct AppState<S: AuthService> {
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,
+    // Add repositories for OAuth2 tenant mapping
+    pub user_repo: Option<Arc<dyn UserRepository>>,
+    pub tenant_repo: Option<Arc<dyn TenantRepository>>,
 }
 
 impl<S: AuthService> Clone for AppState<S> {
@@ -31,6 +35,8 @@ impl<S: AuthService> Clone for AppState<S> {
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),
             kanidm_client: self.kanidm_client.clone(),
+            user_repo: self.user_repo.clone(),
+            tenant_repo: self.tenant_repo.clone(),
         }
     }
 }

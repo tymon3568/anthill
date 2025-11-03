@@ -127,17 +127,25 @@ pub async fn oauth_callback<S: AuthService>(
     if let Some((ref tenant, ref role)) = tenant_info {
         debug!("Mapping user to tenant: {} with role: {}", tenant.name, role);
         
-        // This will be implemented in Phase 3.6
-        // let (user, is_new) = state.auth_service
-        //     .upsert_from_kanidm(&claims.sub, claims.email.as_deref(), 
-        //                         claims.preferred_username.as_deref(), tenant.tenant_id)
-        //     .await?;
-        // 
-        // if is_new {
-        //     debug!("Created new user from Kanidm authentication");
-        // } else {
-        //     debug!("Updated existing user from Kanidm");
-        // }
+        // Get user repository from state
+        if let Some(user_repo) = &state.user_repo {
+            let (user, is_new) = user_repo
+                .upsert_from_kanidm(
+                    &claims.sub,
+                    claims.email.as_deref(),
+                    claims.preferred_username.as_deref(),
+                    tenant.tenant_id,
+                )
+                .await?;
+
+            if is_new {
+                debug!("Created new user from Kanidm authentication: {}", user.user_id);
+            } else {
+                debug!("Updated existing user from Kanidm: {}", user.user_id);
+            }
+        } else {
+            warn!("User repository not available - skipping user sync");
+        }
     }
 
     Ok(Json(OAuth2CallbackResp {
@@ -160,7 +168,7 @@ pub async fn oauth_callback<S: AuthService>(
 /// Expects groups in format: tenant_{slug}_admins, tenant_{slug}_users
 /// Returns first matching tenant with role
 async fn map_tenant_from_groups<S: AuthService>(
-    _state: &AppState<S>,
+    state: &AppState<S>,
     groups: &[String],
 ) -> Result<Option<(user_service_core::domains::auth::domain::model::Tenant, String)>, AppError> {
     // Filter tenant-related groups
@@ -174,15 +182,23 @@ async fn map_tenant_from_groups<S: AuthService>(
         return Ok(None);
     }
 
+    // Get tenant repository from state
+    let tenant_repo = match &state.tenant_repo {
+        Some(repo) => repo,
+        None => {
+            warn!("Tenant repository not available in AppState");
+            return Ok(None);
+        }
+    };
+
     // Try to find matching tenant for each group
     for group_name in &tenant_groups {
         debug!("Checking group: {}", group_name);
         
-        // This requires tenant_repo to be accessible from AppState
-        // For now, return None (will be implemented in Phase 3.6)
-        // if let Some((tenant, role)) = tenant_repo.find_by_kanidm_group(group_name).await? {
-        //     return Ok(Some((tenant, role)));
-        // }
+        if let Some((tenant, role)) = tenant_repo.find_by_kanidm_group(group_name).await? {
+            debug!("Found tenant: {} with role: {}", tenant.name, role);
+            return Ok(Some((tenant, role)));
+        }
     }
 
     warn!("No matching tenant found for groups: {:?}", tenant_groups);
