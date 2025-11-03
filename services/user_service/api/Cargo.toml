@@ -25,7 +25,7 @@ tower-http = {workspace = true}
 tracing = {workspace = true}
 tracing-subscriber = {workspace = true}
 # Internal crates
-user_service_core = {workspace = true}
+user_service_core = {workspace = true, features = ["openapi"]}
 user_service_infra = {workspace = true}
 utoipa = {workspace = true}
 utoipa-swagger-ui = {workspace = true}

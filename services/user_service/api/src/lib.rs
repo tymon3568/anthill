@@ -2,6 +2,7 @@
 pub mod admin_handlers;
 pub mod extractors;
 pub mod handlers;
+pub mod oauth_handlers;
 pub mod openapi;
 pub mod profile_handlers;
 
@@ -53,7 +54,11 @@ pub fn create_router<S: AuthService + 'static>(state: AppState<S>) -> Router {
         .route("/api/v1/auth/register", post(handlers::register::<S>))
         .route("/api/v1/auth/login", post(handlers::login::<S>))
         .route("/api/v1/auth/refresh", post(handlers::refresh_token::<S>))
-        .route("/api/v1/auth/logout", post(handlers::logout::<S>));
+        .route("/api/v1/auth/logout", post(handlers::logout::<S>))
+        // OAuth2 endpoints
+        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<S>))
+        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<S>))
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<S>));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
@@ -129,7 +134,11 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
         .route("/api/v1/auth/register", post(handlers::register))
         .route("/api/v1/auth/login", post(handlers::login))
         .route("/api/v1/auth/refresh", post(handlers::refresh_token))
-        .route("/api/v1/auth/logout", post(handlers::logout));
+        .route("/api/v1/auth/logout", post(handlers::logout))
+        // OAuth2 endpoints
+        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize))
+        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback))
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()

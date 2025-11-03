@@ -16,6 +16,10 @@ use utoipa::OpenApi;
         // Low-level policy management
         crate::handlers::add_policy,
         crate::handlers::remove_policy,
+        // TODO: OAuth2 endpoints - add after feature "openapi" enables in core
+        // crate::oauth_handlers::oauth_authorize,
+        // crate::oauth_handlers::oauth_callback,
+        // crate::oauth_handlers::oauth_refresh,
         // Admin role management endpoints (new comprehensive implementations)
         crate::admin_handlers::create_role,
         crate::admin_handlers::list_roles,
@@ -38,6 +42,15 @@ use utoipa::OpenApi;
             ErrorResp,
             crate::handlers::CreatePolicyReq,
             crate::handlers::DeletePolicyReq,
+            // TODO: OAuth2 DTOs - add after feature "openapi" enables in core
+            // OAuth2AuthorizeReq,
+            // OAuth2AuthorizeResp,
+            // OAuth2CallbackReq,
+            // OAuth2CallbackResp,
+            // OAuth2RefreshReq,
+            // OAuth2RefreshResp,
+            // KanidmUserInfo,
+            // TenantInfo,
             // Admin DTOs (comprehensive role management)
             CreateRoleReq,
             CreateRoleResp,
@@ -62,6 +75,7 @@ use utoipa::OpenApi;
     tags(
         (name = "health", description = "Health check endpoints"),
         (name = "auth", description = "Authentication endpoints"),
+        (name = "oauth", description = "OAuth2 authentication with Kanidm"),
         (name = "users", description = "User management endpoints"),
         (name = "admin", description = "Admin-only endpoints for role and policy management"),
         (name = "admin-roles", description = "Role management endpoints (admin only)"),
