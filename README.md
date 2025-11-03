@@ -19,6 +19,8 @@
 The project uses **Event-Driven Microservices** architecture with the following technologies:
 
 - **Backend**: Rust + Axum + Tokio + SQLx
+- **Authentication**: Kanidm (OAuth2/OIDC Identity Provider)
+- **Authorization**: Casbin-rs (RBAC)
 - **Frontend**: SvelteKit 5 + TypeScript + Tailwind CSS
 - **Database**: PostgreSQL
 - **Cache**: Redis
@@ -42,7 +44,8 @@ anthill/
 ├── shared/                      # Shared libraries
 │   ├── common/                 # Error types, config, tracing
 │   ├── db/                     # Database utilities
-│   ├── auth/                   # JWT, Casbin middleware
+│   ├── auth/                   # Casbin RBAC, Kanidm integration
+│   ├── kanidm_client/          # Kanidm OAuth2/OIDC client
 │   └── events/                 # Event definitions, NATS client
 ├── frontend/                    # SvelteKit application
 ├── infra/                       # Infrastructure config
@@ -213,9 +216,15 @@ See details in `infra/sql-migrations/`. Main tables:
 
 ## 🔐 Authentication & Authorization
 
-- **Authentication**: JWT tokens (access + refresh)
+- **Authentication**: Kanidm (OAuth2/OIDC Provider)
+  - User registration, login, password management
+  - Multi-factor authentication (Passkeys, WebAuthn, TOTP)
+  - JWT token issuance and validation
+  - Session management
 - **Authorization**: Casbin-rs with multi-tenant RBAC
-- **Tenant Isolation**: Automatically filter queries by `tenant_id`
+  - Policy-based access control
+  - Group-based role mapping from Kanidm
+- **Tenant Isolation**: Automatically filter queries by `tenant_id` from Kanidm groups
 
 ## 🌐 API Documentation
 
@@ -286,6 +295,7 @@ MIT License - See `LICENSE` file for more details.
 
 - [Axum](https://github.com/tokio-rs/axum) - Web framework
 - [SvelteKit](https://kit.svelte.dev/) - Frontend framework
+- [Kanidm](https://kanidm.com/) - Identity management platform
 - [CapRover](https://caprover.com/) - PaaS platform
 - [Casbin](https://casbin.org/) - Authorization library
 - [Cube](https://cube.dev/) - Analytics platform
