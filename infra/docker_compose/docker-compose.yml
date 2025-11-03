@@ -77,7 +77,45 @@ services:
     environment:
       - MC_HOST_local=http://minioadmin:minioadmin@minio:9000
 
+  kanidm:
+    image: kanidm/server:1.4.3
+    container_name: kanidm_idm
+    environment:
+      KANIDM_DOMAIN: localhost
+      KANIDM_ORIGIN: http://localhost:8300
+      # ⚠️ Development-only - DO NOT use in production
+      KANIDM_LOG_LEVEL: info
+      # Use SQLite for dev (production should use PostgreSQL)
+      KANIDM_DB_TYPE: sqlite
+    ports:
+      - "8300:8300" # HTTPS/HTTP port
+      - "8301:8301" # LDAP port (optional)
+    volumes:
+      - kanidm_data:/data
+      - ./kanidm-server.toml:/data/server.toml:ro
+    command: server -c /data/server.toml
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8300/status || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  kanidm-init:
+    image: kanidm/tools:1.4.3
+    container_name: kanidm_init
+    depends_on:
+      kanidm:
+        condition: service_healthy
+    volumes:
+      - ./init-kanidm.sh:/init-kanidm.sh:ro
+    environment:
+      KANIDM_URL: http://kanidm:8300
+    command: sh /init-kanidm.sh
+    restart: on-failure
+
 volumes:
   postgres_data:
   redis_data:
   minio_data:
+  kanidm_data:
