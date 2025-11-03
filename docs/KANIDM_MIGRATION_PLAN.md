@@ -379,11 +379,36 @@ p, tenant_acme_admins@123-456, 123-456, *, *
 **Remaining**: Manual testing (optional), database migration (Phase 4)  
 **Full Summary**: See [PHASE_3_SUMMARY.md](./PHASE_3_SUMMARY.md)
 
-### Phase 4: Database Migration
-- [ ] Create migration: add kanidm_user_id to users
-- [ ] Create migration: kanidm_tenant_groups table
-- [ ] Create migration: modify/drop sessions table
-- [ ] Write data migration script (users → Kanidm)
+### Phase 4: Database Migration 🚧 IN PROGRESS
+- [x] Phase 4.1: Schema updates (commit: a245785)
+  - Migration 20250110000014: password_hash nullable
+  - Migration 20250110000015: migration tracking (auth_method, timestamps, analytics view)
+  - Migration 20250110000016: sessions Kanidm support
+  - ✅ All migrations ready for testing
+- [x] Phase 4.2: Migration scripts (commit: a245785)
+  - scripts/export-users-for-kanidm.sh (JSON export with validation)
+  - scripts/setup-kanidm-tenant-groups.sh (create groups + DB mapping)
+  - scripts/migrate-users-to-kanidm.sh (automated migration with dry-run)
+  - ✅ All scripts ready, support dry-run and rollback
+- [ ] Phase 4.3: Update code for nullable password_hash
+  - Update User model (auth_method field)
+  - Update repositories (handle NULL password_hash)
+  - Update auth service (dual authentication logic)
+- [ ] Phase 4.4: Run migrations locally
+  - sqlx migrate run (test all 3 migrations)
+  - Verify schema changes
+  - Test analytics views
+- [ ] Phase 4.5: Testing and validation
+  - Test dual authentication (password + OAuth2)
+  - Verify migration tracking
+  - Performance testing
+
+**Started**: 2025-11-03  
+**Completion**: 40% (2/5 sub-phases)  
+**Latest Commit**: a245785 - Database migrations and scripts  
+**Status**: ✅ Schema and scripts ready  
+**Next Focus**: Update Rust code for nullable password_hash  
+**Full Guide**: See [PHASE_4_DATABASE_MIGRATION.md](./PHASE_4_DATABASE_MIGRATION.md)
 
 ### Phase 5: Testing
 - [ ] Delete old JWT tests
