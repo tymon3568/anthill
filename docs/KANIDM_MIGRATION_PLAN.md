@@ -344,17 +344,28 @@ p, tenant_acme_admins@123-456, 123-456, *, *
   - ✅ All handlers compile successfully
   - ⚠️ Tenant mapping not implemented (returns None)
   - 📝 OpenAPI schemas commented out (pending ToSchema derives fix)
-- [ ] Implement tenant/role mapping from Kanidm groups
+- [x] Tenant/role mapping foundation (commit: 7200db6)
+  - Database migration: kanidm_integration.sql
+    * Added kanidm_user_id, kanidm_synced_at to users
+    * Created kanidm_tenant_groups table with role mapping
+  - Repository methods:
+    * TenantRepository::find_by_kanidm_group()
+    * UserRepository::find_by_kanidm_id()
+    * UserRepository::upsert_from_kanidm()
+  - Helper function: map_tenant_from_groups()
+  - ✅ Database schema ready
+  - ⚠️ Actual lookup pending (needs AppState refactor)
+- [ ] Expose tenant_repo in AppState for oauth_callback
+- [ ] Complete tenant mapping in oauth_callback
 - [ ] Delete `shared/jwt` crate
-- [ ] Modify `user_service/core` (AuthService trait)
-- [ ] Modify `user_service/infra` (OAuth2 integration)
+- [ ] Modify `user_service/core` (AuthService trait for Kanidm)
 - [ ] Update Cargo.toml dependencies
 
 **Started**: 2025-11-03  
-**Completion**: 80% (4/10 tasks - added tenant mapping task)
-**Latest Commit**: ce2e76b - OAuth2 handlers implementation
-**Status**: ✅ OAuth2 endpoints working, JWT validation integrated
-**Next Focus**: Implement tenant/role mapping from Kanidm groups in oauth_callback
+**Completion**: 83% (5/12 tasks - expanded from 10 to 12 tasks)
+**Latest Commit**: 7200db6 - Tenant mapping infrastructure
+**Status**: ✅ OAuth2 flow working, tenant mapping infrastructure ready
+**Next Focus**: Refactor AppState to expose tenant_repo, complete tenant mapping logic
 
 ### Phase 4: Database Migration
 - [ ] Create migration: add kanidm_user_id to users
