@@ -7,8 +7,9 @@ use chrono::Utc;
 use serde::Deserialize;
 use shared_auth::casbin::{CoreApi, MgmtApi};
 use shared_auth::enforcer::SharedEnforcer;
-use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
+use shared_auth::extractors::{AuthUser, JwtSecretProvider, KanidmClientProvider, RequireAdmin};
 use shared_error::AppError;
+use shared_kanidm_client::KanidmClient;
 use std::sync::Arc;
 use user_service_core::domains::auth::domain::service::AuthService;
 use user_service_core::domains::auth::dto::auth_dto::{
@@ -20,6 +21,7 @@ pub struct AppState<S: AuthService> {
     pub auth_service: Arc<S>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
+    pub kanidm_client: KanidmClient,
 }
 
 impl<S: AuthService> Clone for AppState<S> {
@@ -28,6 +30,7 @@ impl<S: AuthService> Clone for AppState<S> {
             auth_service: Arc::clone(&self.auth_service),
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),
+            kanidm_client: self.kanidm_client.clone(),
         }
     }
 }
@@ -35,6 +38,12 @@ impl<S: AuthService> Clone for AppState<S> {
 impl<S: AuthService> JwtSecretProvider for AppState<S> {
     fn get_jwt_secret(&self) -> &str {
         &self.jwt_secret
+    }
+}
+
+impl<S: AuthService> KanidmClientProvider for AppState<S> {
+    fn get_kanidm_client(&self) -> &KanidmClient {
+        &self.kanidm_client
     }
 }
 

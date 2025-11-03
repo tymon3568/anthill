@@ -14,6 +14,7 @@ use axum::Router;
 use shared_auth::enforcer::create_enforcer;
 use shared_auth::AuthzState;
 use shared_config::Config;
+use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
@@ -23,6 +24,22 @@ use user_service_infra::auth::{
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+/// Create a dev Kanidm client for testing (JWT validation disabled)
+fn create_dev_kanidm_client() -> KanidmClient {
+    let config = KanidmConfig {
+        kanidm_url: "http://localhost:8300".to_string(),
+        client_id: "dev".to_string(),
+        client_secret: "dev".to_string(),
+        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+        scopes: vec!["openid".to_string()],
+        skip_jwt_verification: true, // DEV/TEST MODE ONLY
+        allowed_issuers: vec!["http://localhost:8300".to_string()],
+        expected_audience: Some("dev".to_string()),
+    };
+    
+    KanidmClient::new(config).expect("Failed to create dev Kanidm client")
+}
 
 /// Create router from app state (for testing)
 pub fn create_router<S: AuthService + 'static>(state: AppState<S>) -> Router {
@@ -99,6 +116,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
         auth_service: Arc::new(auth_service),
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
+        kanidm_client: create_dev_kanidm_client(),
     };
 
     let authz_state = AuthzState {
