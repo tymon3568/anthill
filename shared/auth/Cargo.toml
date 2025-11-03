@@ -13,6 +13,7 @@ serde_json = {workspace = true}
 # Shared crates
 shared_error = {workspace = true}
 shared_jwt = {workspace = true}
+shared_kanidm_client = {workspace = true}
 shared_types = {workspace = true}
 # Database
 sqlx = {workspace = true}

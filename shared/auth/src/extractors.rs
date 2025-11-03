@@ -3,6 +3,7 @@ use axum::{
     http::{header, request::Parts, StatusCode},
 };
 use serde::{Deserialize, Serialize};
+use shared_kanidm_client::{KanidmClaims, KanidmClient, KanidmOAuth2Client};
 use std::marker::PhantomData;
 use tracing::{debug, warn};
 use uuid::Uuid;
@@ -16,10 +17,21 @@ pub trait JwtSecretProvider {
     fn get_jwt_secret(&self) -> &str;
 }
 
+/// Trait for providing Kanidm client for JWT validation
+pub trait KanidmClientProvider {
+    fn get_kanidm_client(&self) -> &KanidmClient;
+}
+
+/// Combined trait for backward compatibility and Kanidm support
+pub trait AuthProvider: JwtSecretProvider + KanidmClientProvider {}
+
+impl<T: JwtSecretProvider + KanidmClientProvider> AuthProvider for T {}
+
 /// Authenticated user information extracted from JWT
 ///
-/// This extractor validates the JWT token and extracts user information.
-/// It does NOT check permissions - use `RequirePermission` or `RequireRole` for that.
+/// This extractor validates the JWT token (either legacy custom JWT or Kanidm JWT)
+/// and extracts user information. It does NOT check permissions - use `RequirePermission`
+/// or `RequireRole` for that.
 ///
 /// # Usage
 /// ```no_run
@@ -37,15 +49,40 @@ pub struct AuthUser {
     pub user_id: Uuid,
     pub tenant_id: Uuid,
     pub role: String,
+    /// Kanidm user ID (None for legacy JWT tokens)
+    pub kanidm_user_id: Option<Uuid>,
+    /// User email from Kanidm claims
+    pub email: Option<String>,
 }
 
 impl AuthUser {
-    /// Create AuthUser from JWT claims
+    /// Create AuthUser from legacy JWT claims
     pub fn from_claims(claims: Claims) -> Self {
         Self {
             user_id: claims.sub,
             tenant_id: claims.tenant_id,
             role: claims.role,
+            kanidm_user_id: None,
+            email: None,
+        }
+    }
+
+    /// Create AuthUser from Kanidm JWT claims
+    ///
+    /// Note: This requires tenant_id and role to be resolved separately
+    /// from the Kanidm groups or database mapping.
+    pub fn from_kanidm_claims(
+        claims: &KanidmClaims,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        role: String,
+    ) -> Self {
+        Self {
+            user_id,
+            tenant_id,
+            role,
+            kanidm_user_id: claims.user_uuid().ok(),
+            email: claims.email.clone(),
         }
     }
 
@@ -58,33 +95,69 @@ impl AuthUser {
     pub fn is_admin(&self) -> bool {
         self.role == "admin" || self.role == "super_admin"
     }
+
+    /// Check if this is a Kanidm-authenticated user
+    pub fn is_kanidm_user(&self) -> bool {
+        self.kanidm_user_id.is_some()
+    }
+}
+
+/// Detect which JWT type this is by attempting to decode
+///
+/// Kanidm JWTs have specific claims like "iss" (issuer) pointing to Kanidm server.
+/// Legacy JWTs are simpler and use our custom format.
+async fn detect_and_validate_token<S>(
+    token: &str,
+    state: &S,
+) -> Result<AuthUser, StatusCode>
+where
+    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
+{
+    // Try Kanidm first (preferred in new system)
+    let kanidm_client = state.get_kanidm_client();
+
+    match kanidm_client.validate_token(token).await {
+        Ok(_claims) => {
+            // Successfully validated as Kanidm JWT
+            // TODO: Map Kanidm user to tenant and role
+            // For now, this is a placeholder - implement proper mapping
+            warn!("Kanidm JWT detected but tenant/role mapping not implemented yet");
+            return Err(StatusCode::NOT_IMPLEMENTED);
+        }
+        Err(e) => {
+            debug!("Not a valid Kanidm JWT: {}", e);
+        }
+    }
+
+    // Fallback to legacy JWT
+    let secret = state.get_jwt_secret();
+    match shared_jwt::decode_jwt(token, secret) {
+        Ok(claims) => {
+            debug!("Validated as legacy JWT");
+            Ok(AuthUser::from_claims(claims))
+        }
+        Err(e) => {
+            warn!("Token validation failed for both Kanidm and legacy JWT: {}", e);
+            Err(StatusCode::UNAUTHORIZED)
+        }
+    }
 }
 
 impl<S> FromRequestParts<S> for AuthUser
 where
-    S: Send + Sync + JwtSecretProvider,
+    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
 {
     type Rejection = StatusCode;
 
     /// Extracts an AuthUser from request parts by validating a Bearer JWT in the `Authorization` header.
     ///
-    /// Returns `Ok(AuthUser)` when a valid Bearer token is present and the JWT decodes with the secret
-    /// provided by the state. Returns `StatusCode::UNAUTHORIZED` when the header is missing, not a
-    /// Bearer token, or the JWT fails to decode or validate.
+    /// This implementation supports both:
+    /// - Kanidm OAuth2 JWTs (preferred)
+    /// - Legacy custom JWTs (backward compatibility)
     ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use axum::http::request::Parts;
-    /// # use axum::http::header;
-    /// # use uuid::Uuid;
-    /// # // Assume `state` implements `JwtSecretProvider` and `parts` contains an Authorization header:
-    /// # // let mut parts = Parts::default();
-    /// # // parts.headers.insert(header::AUTHORIZATION, "Bearer <token>".parse().unwrap());
-    /// # // let state = ...;
-    /// // let auth = AuthUser::from_request_parts(&mut parts, &state).await?;
-    /// // assert_eq!(auth.user_id, Uuid::parse_str("...")?);
-    /// ```
+    /// Returns `Ok(AuthUser)` when a valid Bearer token is present and validates successfully.
+    /// Returns `StatusCode::UNAUTHORIZED` when the header is missing, not a Bearer token,
+    /// or the JWT fails to validate with either method.
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         // Extract Authorization header
         let auth_header = parts
@@ -98,19 +171,8 @@ where
             .strip_prefix("Bearer ")
             .ok_or(StatusCode::UNAUTHORIZED)?;
 
-        // Decode and validate JWT
-        let secret = state.get_jwt_secret();
-        let claims = shared_jwt::decode_jwt(token, secret).map_err(|e| {
-            warn!("JWT decode failed: {}", e);
-            StatusCode::UNAUTHORIZED
-        })?;
-
-        debug!(
-            "AuthUser extracted: user_id={}, tenant_id={}, role={}",
-            claims.sub, claims.tenant_id, claims.role
-        );
-
-        Ok(AuthUser::from_claims(claims))
+        // Try both Kanidm and legacy JWT validation
+        detect_and_validate_token(token, state).await
     }
 }
 
@@ -132,7 +194,7 @@ pub struct RequireRole<R: Role> {
 impl<S, R> FromRequestParts<S> for RequireRole<R>
 where
     R: Role + Send + Sync,
-    S: Send + Sync + JwtSecretProvider,
+    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
 {
     type Rejection = StatusCode;
 
@@ -235,7 +297,7 @@ pub struct RequireAdmin(pub AuthUser);
 
 impl<S> FromRequestParts<S> for RequireAdmin
 where
-    S: Send + Sync + JwtSecretProvider,
+    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
 {
     type Rejection = StatusCode;
 
@@ -306,7 +368,7 @@ impl RequirePermission {
 
 impl<S> FromRequestParts<S> for RequirePermission
 where
-    S: Send + Sync + JwtSecretProvider,
+    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
     SharedEnforcer: FromRequestParts<S>,
 {
     type Rejection = StatusCode;
@@ -369,6 +431,8 @@ mod tests {
             user_id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
             role: "admin".to_string(),
+            kanidm_user_id: None,
+            email: None,
         };
 
         assert!(user.has_role("admin"));
@@ -382,18 +446,24 @@ mod tests {
             user_id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
             role: "admin".to_string(),
+            kanidm_user_id: None,
+            email: None,
         };
 
         let super_admin = AuthUser {
             user_id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
             role: "super_admin".to_string(),
+            kanidm_user_id: None,
+            email: None,
         };
 
         let user = AuthUser {
             user_id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
             role: "user".to_string(),
+            kanidm_user_id: None,
+            email: None,
         };
 
         assert!(admin.is_admin());
