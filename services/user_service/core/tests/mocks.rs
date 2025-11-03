@@ -84,7 +84,7 @@ mod tests {
             user_id: Uuid::new_v4(),
             tenant_id,
             email: "test@example.com".to_string(),
-            password_hash: "hashed".to_string(),
+            password_hash: Some("hashed".to_string()),  // Now Option<String>
             email_verified: false,
             email_verified_at: None,
             full_name: Some("Test User".to_string()),
@@ -96,6 +96,11 @@ mod tests {
             failed_login_attempts: 0,
             locked_until: None,
             password_changed_at: Some(now),
+            kanidm_user_id: None,
+            kanidm_synced_at: None,
+            auth_method: "password".to_string(),  // NEW
+            migration_invited_at: None,  // NEW
+            migration_completed_at: None,  // NEW
             created_at: now,
             updated_at: now,
             deleted_at: None,

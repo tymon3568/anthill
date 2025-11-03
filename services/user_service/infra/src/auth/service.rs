@@ -89,8 +89,8 @@ where
             session_id: Uuid::new_v4(),
             user_id,
             tenant_id,
-            access_token_hash: self.hash_token(access_token),
-            refresh_token_hash: self.hash_token(refresh_token),
+            access_token_hash: Some(self.hash_token(access_token)),  // Now Option<String>
+            refresh_token_hash: Some(self.hash_token(refresh_token)),  // Now Option<String>
             ip_address,
             user_agent,
             device_info: None,
@@ -99,6 +99,8 @@ where
             revoked: false,
             revoked_at: None,
             revoked_reason: None,
+            kanidm_session_id: None,  // NEW: Not a Kanidm session
+            auth_method: "jwt".to_string(),  // NEW: Legacy JWT auth
             created_at: now,
             last_used_at: now,
         };
@@ -176,7 +178,7 @@ where
             user_id,
             tenant_id: tenant.tenant_id,
             email: req.email.clone(),
-            password_hash,
+            password_hash: Some(password_hash),  // Now Option<String>
             email_verified: false, // Default to unverified
             email_verified_at: None,
             full_name: Some(req.full_name.clone()),
@@ -190,6 +192,9 @@ where
             password_changed_at: Some(now), // Password just set
             kanidm_user_id: None,           // Not from Kanidm
             kanidm_synced_at: None,
+            auth_method: "password".to_string(),  // NEW: Password-only auth
+            migration_invited_at: None,  // NEW: Not invited yet
+            migration_completed_at: None,  // NEW: Not migrated
             created_at: now,
             updated_at: now,
             deleted_at: None,
@@ -274,8 +279,21 @@ where
             .await?
             .ok_or(AppError::InvalidCredentials)?;
 
-        // Verify password
-        let valid = bcrypt::verify(&req.password, &user.password_hash)
+        // Check auth method - password auth must be enabled
+        if user.auth_method == "kanidm" {
+            return Err(AppError::ValidationError(
+                "This account uses Kanidm OAuth2 authentication. Please use 'Login with Kanidm' button.".to_string()
+            ));
+        }
+
+        // Verify password (must have password_hash for password/dual auth)
+        let password_hash = user.password_hash
+            .as_ref()
+            .ok_or_else(|| AppError::ValidationError(
+                "Password authentication not available for this account. Please use Kanidm OAuth2.".to_string()
+            ))?;
+
+        let valid = bcrypt::verify(&req.password, password_hash)
             .map_err(|e| AppError::InternalError(format!("Password verification failed: {}", e)))?;
 
         if !valid {
@@ -320,8 +338,8 @@ where
             session_id: Uuid::now_v7(),
             user_id: user.user_id,
             tenant_id: user.tenant_id,
-            access_token_hash,
-            refresh_token_hash,
+            access_token_hash: Some(access_token_hash),  // Now Option<String>
+            refresh_token_hash: Some(refresh_token_hash),  // Now Option<String>
             ip_address,
             user_agent,
             device_info: None,
@@ -332,6 +350,8 @@ where
             revoked: false,
             revoked_at: None,
             revoked_reason: None,
+            kanidm_session_id: None,  // NEW: Not a Kanidm session
+            auth_method: "jwt".to_string(),  // NEW: Legacy JWT auth
             created_at: chrono::Utc::now(),
             last_used_at: chrono::Utc::now(),
         };

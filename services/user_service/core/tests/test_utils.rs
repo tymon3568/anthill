@@ -22,11 +22,13 @@ pub struct UserBuilder {
     user_id: Uuid,
     tenant_id: Uuid,
     email: String,
-    password_hash: String,
+    password_hash: Option<String>,  // Now Option<String>
     email_verified: bool,
     full_name: Option<String>,
     role: String,
     status: String,
+    auth_method: String,  // NEW
+    kanidm_user_id: Option<Uuid>,  // NEW
 }
 
 impl UserBuilder {
@@ -36,11 +38,13 @@ impl UserBuilder {
             user_id: Uuid::now_v7(),
             tenant_id: Uuid::now_v7(),
             email: SafeEmail().fake(),
-            password_hash: format!("$2b$12${}", Password(8..16).fake::<String>()),
+            password_hash: Some(format!("$2b$12${}", Password(8..16).fake::<String>())),  // Some()
             email_verified: true,
             full_name: Some(Name().fake()),
             role: "user".to_string(),
             status: "active".to_string(),
+            auth_method: "password".to_string(),  // NEW: Default to password auth
+            kanidm_user_id: None,  // NEW
         }
     }
 
@@ -64,7 +68,25 @@ impl UserBuilder {
 
     /// Set a specific password hash
     pub fn with_password_hash(mut self, password_hash: impl Into<String>) -> Self {
-        self.password_hash = password_hash.into();
+        self.password_hash = Some(password_hash.into());  // Wrap in Some()
+        self
+    }
+    
+    /// Set password hash to None (Kanidm-only user)
+    pub fn without_password(mut self) -> Self {
+        self.password_hash = None;
+        self
+    }
+    
+    /// Set auth method
+    pub fn with_auth_method(mut self, auth_method: impl Into<String>) -> Self {
+        self.auth_method = auth_method.into();
+        self
+    }
+    
+    /// Set Kanidm user ID
+    pub fn with_kanidm_user_id(mut self, kanidm_user_id: Uuid) -> Self {
+        self.kanidm_user_id = Some(kanidm_user_id);
         self
     }
 
@@ -99,7 +121,7 @@ impl UserBuilder {
             user_id: self.user_id,
             tenant_id: self.tenant_id,
             email: self.email,
-            password_hash: self.password_hash,
+            password_hash: self.password_hash,  // Now Option<String>
             email_verified: self.email_verified,
             email_verified_at: if self.email_verified {
                 Some(now)
@@ -115,6 +137,11 @@ impl UserBuilder {
             failed_login_attempts: 0,
             locked_until: None,
             password_changed_at: Some(now),
+            kanidm_user_id: self.kanidm_user_id,  // NEW
+            kanidm_synced_at: if self.kanidm_user_id.is_some() { Some(now) } else { None },  // NEW
+            auth_method: self.auth_method,  // NEW
+            migration_invited_at: None,  // NEW
+            migration_completed_at: if self.kanidm_user_id.is_some() { Some(now) } else { None },  // NEW
             created_at: now,
             updated_at: now,
             deleted_at: None,
@@ -313,14 +340,16 @@ impl SessionBuilder {
             session_id: self.session_id,
             user_id: self.user_id,
             tenant_id: self.tenant_id,
-            access_token_hash: self.access_token_hash,
-            refresh_token_hash: self.refresh_token_hash,
+            access_token_hash: Some(self.access_token_hash),  // Now Option<String>
+            refresh_token_hash: Some(self.refresh_token_hash),  // Now Option<String>
             ip_address: self.ip_address,
             user_agent: self.user_agent,
             device_info: None,
             access_token_expires_at: now + chrono::Duration::minutes(15),
             refresh_token_expires_at: now + chrono::Duration::days(7),
             revoked: self.revoked,
+            kanidm_session_id: None,  // NEW: Default to None
+            auth_method: "jwt".to_string(),  // NEW: Default to JWT auth
             revoked_at: if self.revoked { Some(now) } else { None },
             revoked_reason: if self.revoked {
                 Some("test_revoke".to_string())

@@ -159,9 +159,11 @@ mod password_security {
         let user = create_test_user_with_password(password).await;
 
         // Password should be hashed, not plaintext
-        assert_ne!(user.password_hash, password);
-        assert!(user.password_hash.starts_with("$argon2") || user.password_hash.starts_with("$2"));
-        assert!(user.password_hash.len() > 50); // Hashed passwords are long
+        assert!(user.password_hash.is_some(), "Password hash should exist");
+        let hash = user.password_hash.as_ref().unwrap();
+        assert_ne!(hash, password);
+        assert!(hash.starts_with("$argon2") || hash.starts_with("$2"));
+        assert!(hash.len() > 50); // Hashed passwords are long
     }
 
     #[tokio::test]
@@ -176,7 +178,8 @@ mod password_security {
 
         // Hashes should be different due to unique salts
         assert_ne!(
-            user1.password_hash, user2.password_hash,
+            user1.password_hash.as_ref().unwrap(), 
+            user2.password_hash.as_ref().unwrap(),
             "Password hashes should differ even with same password (unique salt required)"
         );
     }
@@ -489,7 +492,7 @@ async fn create_test_user_with_password(password: &str) -> TestUser {
     let _ = password; // Use parameter to avoid warnings
     TestUser {
         user_id: Uuid::new_v4(),
-        password_hash: "$argon2id$v=19$m=19456,t=2,p=1$hash".to_string(),
+        password_hash: Some("$argon2id$v=19$m=19456,t=2,p=1$hash".to_string()),  // Now Option<String>
     }
 }
 
@@ -627,7 +630,7 @@ async fn delete_user(token: &str, user_id: &Uuid) -> ApiResponse {
 #[derive(Debug)]
 struct TestUser {
     user_id: Uuid,
-    password_hash: String,
+    password_hash: Option<String>,  // Now Option<String> for nullable password_hash
 }
 
 #[derive(Debug)]
