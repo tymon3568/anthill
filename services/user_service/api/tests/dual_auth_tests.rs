@@ -28,7 +28,7 @@ use helpers::*;
 #[tokio::test]
 async fn test_password_user_login() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Password Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Password Test {}", Uuid::new_v4())).await;
 
     // Create password-only user
     let user = sqlx::query!(
@@ -40,7 +40,7 @@ async fn test_password_user_login() {
         Uuid::new_v4(),
         tenant.tenant_id,
         "password-user@test.com",
-        "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7B9ueS6rbe" // "password123"
+        "$2b$12$9SygrIYip/n0JJLFHUSPpeZQZrfjaY.ywxM1zS.XEi6MfpPo/GZSe" // "password123"
     )
     .fetch_one(&pool)
     .await
@@ -82,7 +82,7 @@ async fn test_password_user_login() {
 #[tokio::test]
 async fn test_password_user_requires_password() {
     let pool = setup_test_db().await;
-    let _tenant = create_test_tenant(&pool, "Password Required Test").await;
+    let _tenant = create_test_tenant(&pool, &format!("Password Required Test {}", Uuid::new_v4())).await;
     let app = create_test_app(&pool).await;
 
     // Attempt to register without password
@@ -105,12 +105,14 @@ async fn test_password_user_requires_password() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap();
+    let body_str = String::from_utf8_lossy(&body);
+    println!("DEBUG: Response body = {}", body_str);
 
-    assert!(json["error"].as_str().unwrap().contains("password"));
+    // For missing required fields, Axum returns a plain text error, not JSON
+    assert!(body_str.contains("missing field") && body_str.contains("password"));
 
     println!("✅ Password required for password-auth users");
 }
@@ -123,7 +125,7 @@ async fn test_password_user_requires_password() {
 #[tokio::test]
 async fn test_kanidm_user_no_password() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Kanidm Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Kanidm Test {}", Uuid::new_v4())).await;
 
     // Create Kanidm-only user (no password_hash)
     let user = sqlx::query!(
@@ -150,7 +152,7 @@ async fn test_kanidm_user_no_password() {
 #[tokio::test]
 async fn test_kanidm_user_password_login_rejected() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Kanidm No Password Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Kanidm No Password Test {}", Uuid::new_v4())).await;
 
     // Create Kanidm-only user
     let user = sqlx::query!(
@@ -213,7 +215,7 @@ async fn test_kanidm_user_password_login_rejected() {
 #[tokio::test]
 async fn test_dual_auth_user_password_login() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Dual Auth Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Dual Auth Test {}", Uuid::new_v4())).await;
 
     // Create dual-auth user
     let user = sqlx::query!(
@@ -225,7 +227,7 @@ async fn test_dual_auth_user_password_login() {
         Uuid::new_v4(),
         tenant.tenant_id,
         "dual-user@test.com",
-        "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7B9ueS6rbe", // "password123"
+        "$2b$12$9SygrIYip/n0JJLFHUSPpeZQZrfjaY.ywxM1zS.XEi6MfpPo/GZSe", // "password123"
         Uuid::new_v4()
     )
     .fetch_one(&pool)
@@ -252,6 +254,8 @@ async fn test_dual_auth_user_password_login() {
         )
         .await
         .unwrap();
+
+    println!("DEBUG: Response status = {}", response.status());
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -281,7 +285,7 @@ async fn test_dual_auth_user_oauth_login() {
 #[tokio::test]
 async fn test_migration_progress_view() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Migration Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Migration Test {}", Uuid::new_v4())).await;
 
     // Create mixed auth users
     sqlx::query!(
@@ -293,7 +297,7 @@ async fn test_migration_progress_view() {
         "#,
         Uuid::new_v4(),
         tenant.tenant_id,
-        "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7B9ueS6rbe",
+        "$2b$12$9SygrIYip/n0JJLFHUSPpeZQZrfjaY.ywxM1zS.XEi6MfpPo/GZSe",
         Uuid::new_v4()
     )
     .execute(&pool)
@@ -320,7 +324,7 @@ async fn test_migration_progress_view() {
         "#,
         Uuid::new_v4(),
         tenant.tenant_id,
-        "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7B9ueS6rbe",
+        "$2b$12$9SygrIYip/n0JJLFHUSPpeZQZrfjaY.ywxM1zS.XEi6MfpPo/GZSe",
         Uuid::new_v4()
     )
     .execute(&pool)
@@ -375,7 +379,7 @@ async fn test_migration_progress_view() {
 #[tokio::test]
 async fn test_migration_invitation_tracking() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Migration Invite Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Migration Invite Test {}", Uuid::new_v4())).await;
 
     // Create user and invite to migration
     let user = sqlx::query!(
@@ -387,7 +391,7 @@ async fn test_migration_invitation_tracking() {
         Uuid::new_v4(),
         tenant.tenant_id,
         "invited@test.com",
-        "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7B9ueS6rbe"
+        "$2b$12$9SygrIYip/n0JJLFHUSPpeZQZrfjaY.ywxM1zS.XEi6MfpPo/GZSe"
     )
     .fetch_one(&pool)
     .await
@@ -454,7 +458,7 @@ async fn test_migration_invitation_tracking() {
 #[tokio::test]
 async fn test_jwt_session_creation() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "JWT Session Test").await;
+    let tenant = create_test_tenant(&pool, &format!("JWT Session Test {}", Uuid::new_v4())).await;
     let user = create_test_user(&pool, tenant.tenant_id, "jwt-user@test.com", "User", "user").await;
 
     // Create session
@@ -487,7 +491,7 @@ async fn test_jwt_session_creation() {
 #[tokio::test]
 async fn test_kanidm_session_creation() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Kanidm Session Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Kanidm Session Test {}", Uuid::new_v4())).await;
 
     let user = sqlx::query!(
         r#"
@@ -535,7 +539,7 @@ async fn test_kanidm_session_creation() {
 #[tokio::test]
 async fn test_dual_session_creation() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Dual Session Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Dual Session Test {}", Uuid::new_v4())).await;
 
     let user = sqlx::query!(
         r#"
@@ -546,7 +550,7 @@ async fn test_dual_session_creation() {
         Uuid::new_v4(),
         tenant.tenant_id,
         "dual-session@test.com",
-        "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU7B9ueS6rbe",
+        "$2b$12$9SygrIYip/n0JJLFHUSPpeZQZrfjaY.ywxM1zS.XEi6MfpPo/GZSe",
         Uuid::new_v4()
     )
     .fetch_one(&pool)
@@ -585,7 +589,7 @@ async fn test_dual_session_creation() {
 #[tokio::test]
 async fn test_session_stats_view() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Session Stats Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Session Stats Test {}", Uuid::new_v4())).await;
     let user = create_test_user(&pool, tenant.tenant_id, "stats@test.com", "User", "user").await;
 
     // Create sessions of different types
@@ -624,18 +628,16 @@ async fn test_session_stats_view() {
     .unwrap();
 
     assert_eq!(stats.len(), 3, "Expected 3 auth_method groups, got {}", stats.len());
-    
-    // SQLx infers auth_method as Option<String> from GROUP BY
-    let methods: Vec<Option<String>> = stats.iter().map(|s| s.auth_method.clone()).collect();
-    assert!(methods.iter().any(|m| m.as_deref() == Some("dual")));
-    assert!(methods.iter().any(|m| m.as_deref() == Some("jwt")));
-    assert!(methods.iter().any(|m| m.as_deref() == Some("kanidm")));
+
+    // auth_method is String (not Option) in GROUP BY results - SQLx unwraps it
+    let has_dual = stats.iter().any(|s| s.auth_method == "dual");
+    let has_jwt = stats.iter().any(|s| s.auth_method == "jwt");
+    let has_kanidm = stats.iter().any(|s| s.auth_method == "kanidm");
+    assert!(has_dual && has_jwt && has_kanidm, "Missing auth methods");
 
     println!("✅ Session stats view working correctly");
     for stat in &stats {
-        if let Some(ref method) = stat.auth_method {
-            println!("   {}: {} total sessions", method, stat.total_sessions.unwrap());
-        }
+        println!("   {}: {} total sessions", stat.auth_method, stat.total_sessions.unwrap());
     }
 }
 
@@ -647,7 +649,7 @@ async fn test_session_stats_view() {
 #[tokio::test]
 async fn test_cleanup_expired_sessions() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, "Cleanup Test").await;
+    let tenant = create_test_tenant(&pool, &format!("Cleanup Test {}", Uuid::new_v4())).await;
     let user = create_test_user(&pool, tenant.tenant_id, "cleanup@test.com", "User", "user").await;
 
     // Create old expired session

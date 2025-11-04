@@ -42,6 +42,7 @@ http-body-util = "0.1"
 jsonwebtoken = "9.2"
 mockall = {workspace = true}
 proptest = {workspace = true}
+regex = "1.10"
 shared_jwt = {workspace = true}
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"]}
 tokio-test = "0.4"

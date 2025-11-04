@@ -30,7 +30,7 @@ repos:
 
       - id: end-of-file-fixer
         name: Fix end of files
-        exclude: '\.svg$'
+        exclude: '\.svg$|\.pem$'
 
       - id: check-yaml
         name: Check YAML syntax

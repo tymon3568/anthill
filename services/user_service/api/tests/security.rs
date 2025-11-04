@@ -105,7 +105,7 @@ async fn create_test_user(
         user_id,
         tenant_id,
         email: email.to_string(),
-        password_hash,
+        password_hash: Some(password_hash),
         email_verified: true,
         email_verified_at: Some(now),
         full_name: Some(full_name.to_string()),
@@ -117,6 +117,11 @@ async fn create_test_user(
         failed_login_attempts: 0,
         locked_until: None,
         password_changed_at: Some(now),
+        kanidm_user_id: None,
+        kanidm_synced_at: None,
+        auth_method: "password".to_string(),
+        migration_invited_at: None,
+        migration_completed_at: None,
         created_at: now,
         updated_at: now,
         deleted_at: None,
@@ -189,8 +194,8 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
     let session_repo = PgSessionRepository::new(pool.clone());
 
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        user_repo.clone(),
+        tenant_repo.clone(),
         session_repo,
         get_test_jwt_secret(),
         900,    // 15 minutes
@@ -203,6 +208,18 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
             .await
             .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
+        kanidm_client: shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
+            kanidm_url: "http://localhost:8300".to_string(),
+            client_id: "dev".to_string(),
+            client_secret: "dev".to_string(),
+            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+            scopes: vec!["openid".to_string()],
+            skip_jwt_verification: true,
+            allowed_issuers: vec!["http://localhost:8300".to_string()],
+            expected_audience: Some("dev".to_string()),
+        }).expect("Failed to create dev Kanidm client"),
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     let app = Router::new()
@@ -310,8 +327,8 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
     let session_repo = PgSessionRepository::new(pool.clone());
 
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        user_repo.clone(),
+        tenant_repo.clone(),
         session_repo,
         get_test_jwt_secret(),
         900,
@@ -324,6 +341,18 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
             .await
             .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
+        kanidm_client: shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
+            kanidm_url: "http://localhost:8300".to_string(),
+            client_id: "dev".to_string(),
+            client_secret: "dev".to_string(),
+            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+            scopes: vec!["openid".to_string()],
+            skip_jwt_verification: true,
+            allowed_issuers: vec!["http://localhost:8300".to_string()],
+            expected_audience: Some("dev".to_string()),
+        }).expect("Failed to create dev Kanidm client"),
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     let app = Router::new()
@@ -414,8 +443,8 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
     let session_repo = PgSessionRepository::new(pool.clone());
 
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        user_repo.clone(),
+        tenant_repo.clone(),
         session_repo,
         get_test_jwt_secret(),
         900,
@@ -428,6 +457,18 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
             .await
             .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
+        kanidm_client: shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
+            kanidm_url: "http://localhost:8300".to_string(),
+            client_id: "dev".to_string(),
+            client_secret: "dev".to_string(),
+            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+            scopes: vec!["openid".to_string()],
+            skip_jwt_verification: true,
+            allowed_issuers: vec!["http://localhost:8300".to_string()],
+            expected_audience: Some("dev".to_string()),
+        }).expect("Failed to create dev Kanidm client"),
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     let app = Router::new()

@@ -1,5 +1,5 @@
 // OAuth2 Integration Tests
-// 
+//
 // These tests verify the Kanidm OAuth2 authentication flow.
 // They are marked with #[ignore] by default because they require:
 // 1. Running Kanidm server
@@ -10,12 +10,25 @@
 
 use serde_json::json;
 use user_service_api::get_app;
+use tower::util::ServiceExt;
 
 #[tokio::test]
 #[ignore] // Requires Kanidm server
 async fn test_oauth_authorize_generates_url() {
-    // Setup
-    let config = shared_config::Config::from_env().expect("Failed to load config");
+    // Setup test environment with test config
+    let config = shared_config::Config {
+        database_url: std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+        jwt_secret: "test-jwt-secret-for-testing-only".to_string(),
+        jwt_expiration: 900,
+        jwt_refresh_expiration: 604800,
+        host: "127.0.0.1".to_string(),
+        port: 3000,
+        kanidm_url: Some("https://localhost:8300".to_string()),
+        kanidm_client_id: Some("anthill".to_string()),
+        kanidm_client_secret: Some("test-secret".to_string()),
+        kanidm_redirect_url: Some("http://localhost:3000/api/v1/auth/oauth/callback".to_string()),
+        casbin_model_path: "./shared/auth/model.conf".to_string(),
+    };
     let db_pool = shared_db::init_pool(&config.database_url, 5)
         .await
         .expect("Failed to connect to database");
@@ -53,6 +66,8 @@ async fn test_oauth_authorize_generates_url() {
 
     println!("✅ OAuth authorize endpoint working");
     println!("   Authorization URL: {}", json["authorization_url"]);
+    println!("   Code Verifier: {}", json["code_verifier"]);
+    println!("   State: {}", json["state"]);
 }
 
 #[tokio::test]
@@ -131,8 +146,20 @@ async fn test_oauth_callback_maps_tenant() {
 #[tokio::test]
 #[ignore] // Requires database
 async fn test_user_created_after_oauth() {
-    // Verify that user was created in database after OAuth callback
-    let config = shared_config::Config::from_env().expect("Failed to load config");
+    // Setup test environment with test config
+    let config = shared_config::Config {
+        database_url: std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+        jwt_secret: "test-jwt-secret-for-testing-only".to_string(),
+        jwt_expiration: 900,
+        jwt_refresh_expiration: 604800,
+        host: "127.0.0.1".to_string(),
+        port: 3000,
+        kanidm_url: Some("https://localhost:8300".to_string()),
+        kanidm_client_id: Some("anthill".to_string()),
+        kanidm_client_secret: Some("test-secret".to_string()),
+        kanidm_redirect_url: Some("http://localhost:3000/api/v1/auth/oauth/callback".to_string()),
+        casbin_model_path: "./shared/auth/model.conf".to_string(),
+    };
     let db_pool = shared_db::init_pool(&config.database_url, 5)
         .await
         .expect("Failed to connect to database");

@@ -3,8 +3,8 @@
 **Branch**: `refactor/kanidm-auth-integration`  
 **Ngày bắt đầu**: 2025-11-03  
 **Trạng thái**: ✅ **Phase 4 COMPLETE** (100%) - Database Ready for Dual Auth  
-**Latest**: Phase 4 completed - All migrations applied, schema verified, test data validated  
-**Reports**: [Phase 3 Summary](./PHASE_3_SUMMARY.md) | [Phase 4 Completion](../PROJECT_TRACKING/V1_MVP/02_Database_Foundations/PHASE_4_COMPLETION.md)
+**Latest**: Phase 5.4 completed - All 13 dual authentication tests passing, infrastructure validated  
+**Reports**: [Phase 3 Summary](./PHASE_3_SUMMARY.md) | [Phase 4 Completion](../PROJECT_TRACKING/V1_MVP/02_Database_Foundations/PHASE_4_COMPLETION.md) | [Phase 5.4 Testing](./PHASE_5_4_DUAL_AUTH_TESTS.md)
 
 ---
 
@@ -82,51 +82,99 @@ Thay thế authentication system tự code (JWT + password hashing) bằng **Kan
 
 ## 🔄 OAuth2/OIDC Flow với Kanidm
 
-### 1. Registration Flow
+### 1. Authorization Request
 ```
-User → Frontend → User Service → Kanidm API
-                                  │
-                                  ├─ Create user in Kanidm
-                                  ├─ Assign to tenant group
-                                  └─ Return user ID
-         ← User Service ← 
-         (Store tenant mapping in PostgreSQL)
+GET https://idm.example.com/ui/oauth2
+    ?client_id=anthill
+    &redirect_uri=https://app.example.com/oauth2/callback
+    &response_type=code
+    &scope=openid email profile groups
+    &state=<random_state>
+    &code_challenge=<pkce_challenge>
+    &code_challenge_method=S256
 ```
 
-### 2. Login Flow (Authorization Code Grant + PKCE)
+### 2. User Authentication & Consent
+- User redirected to Kanidm login page
+- Authenticates with: password, WebAuthn, TOTP, etc.
+- Grants consent for requested scopes
+- Kanidm redirects back with authorization code
+
+### 3. Token Exchange
 ```
-1. User clicks "Login"
-   └─> Frontend redirects to: 
-       https://idm.example.com/ui/oauth2?client_id=anthill&...
+POST https://idm.example.com/oauth2/token
+Content-Type: application/x-www-form-urlencoded
 
-2. User authenticates with Kanidm
-   - Username/Password
-   - WebAuthn/Passkeys
-   - TOTP (if enabled)
-
-3. Kanidm redirects back with authorization code:
-   https://app.example.com/oauth/callback?code=xyz&state=abc
-
-4. Frontend calls User Service:
-   POST /api/v1/auth/oauth/callback { code, state }
-
-5. User Service exchanges code for tokens:
-   POST https://idm.example.com/oauth2/token
-   → Returns: access_token (JWT), refresh_token, id_token
-
-6. User Service validates JWT and extracts claims:
-   - sub (user_id in Kanidm)
-   - email
-   - preferred_username
-   - groups (for Casbin mapping)
-
-7. User Service maps to tenant:
-   - Query PostgreSQL: tenant_id from kanidm_user_id
-   - Load Casbin policies for (user, tenant)
-
-8. Return to frontend:
-   { access_token, user_info, tenant_info }
+grant_type=authorization_code
+&client_id=anthill
+&client_secret=<secret>
+&code=<authorization_code>
+&redirect_uri=https://app.example.com/oauth2/callback
+&code_verifier=<pkce_verifier>
 ```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "id_token": "eyJhbGciOiJSUzI1NiIs...",
+  "refresh_token": "refresh_token_here"
+}
+```
+
+### 4. JWT Token Validation
+Access tokens are signed JWTs with standard OIDC claims:
+```json
+{
+  "iss": "https://idm.example.com/oauth2/openid/anthill",
+  "sub": "uuid-of-user-in-kanidm",
+  "aud": "anthill",
+  "exp": 1640995200,
+  "iat": 1640991600,
+  "auth_time": 1640991600,
+  "email": "user@example.com",
+  "email_verified": true,
+  "preferred_username": "username",
+  "name": "Full Name",
+  "groups": ["tenant_acme_users", "tenant_acme_admins"]
+}
+```
+
+### 5. User Info Endpoint (Optional)
+```
+GET https://idm.example.com/oauth2/openid/anthill/userinfo
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+```json
+{
+  "sub": "uuid-of-user-in-kanidm",
+  "email": "user@example.com",
+  "preferred_username": "username",
+  "name": "Full Name",
+  "groups": ["tenant_acme_users"]
+}
+```
+
+### OpenID Connect Discovery
+Kanidm provides automatic OIDC discovery at:
+```
+GET https://idm.example.com/oauth2/openid/{client_id}/.well-known/openid-configuration
+```
+
+**Response includes:**
+- `issuer`: Authorization server identifier
+- `authorization_endpoint`: `/ui/oauth2`
+- `token_endpoint`: `/oauth2/token`
+- `jwks_uri`: JSON Web Key Set for token validation
+- `userinfo_endpoint`: User info endpoint
+- `scopes_supported`: `["openid", "profile", "email", "groups"]`
+- `claims_supported`: `["sub", "name", "email", "email_verified", "groups"]`
+- `response_types_supported`: `["code", "id_token", "token id_token", ...]`
+- `id_token_signing_alg_values_supported`: `["ES256", "RS256"]`
 
 ### 3. Protected API Calls
 ```
@@ -421,6 +469,14 @@ p, tenant_acme_admins@123-456, 123-456, *, *
 **Full Report**: See [PHASE_4_COMPLETION.md](../PROJECT_TRACKING/V1_MVP/02_Database_Foundations/PHASE_4_COMPLETION.md)
 
 ### Phase 5: Testing
+- [x] Phase 5.4: Fix & run dual authentication tests ✅ COMPLETE
+  - ✅ Database connection issues resolved
+  - ✅ Compilation errors fixed across test files
+  - ✅ Unique tenant naming implemented (UUID suffixes)
+  - ✅ Test isolation improved (removed shared cleanup)
+  - ✅ All 13 dual authentication tests passing
+  - ✅ Infrastructure validated for dual auth flows
+- [ ] Phase 5.5: OAuth2 E2E testing with Kanidm server
 - [ ] Delete old JWT tests
 - [ ] Write Kanidm integration tests
 - [ ] Test OAuth2 flow end-to-end
@@ -439,23 +495,40 @@ p, tenant_acme_admins@123-456, 123-456, *, *
 
 ## 🎯 Kanidm Configuration Reference
 
-### OAuth2 Client Creation
+### Kanidm OAuth2 Client Creation
 ```bash
 # Create OAuth2 client for Anthill
-kanidm system oauth2 create anthill "Anthill Inventory" https://app.example.com
+kanidm system oauth2 create anthill "Anthill Inventory Management" https://app.example.com
 
-# Configure redirect URLs
-kanidm system oauth2 add-redirect-url anthill https://app.example.com/oauth/callback
-kanidm system oauth2 add-redirect-url anthill http://localhost:5173/oauth/callback
+# Configure redirect URLs (multiple supported)
+kanidm system oauth2 add-redirect-url anthill https://app.example.com/oauth2/callback
+kanidm system oauth2 add-redirect-url anthill http://localhost:5173/oauth2/callback
+kanidm system oauth2 add-redirect-url anthill http://localhost:3000/oauth2/callback
 
-# Enable PKCE (required for SPA)
+# Enable PKCE (required for SPAs, recommended for security)
 kanidm system oauth2 enable-pkce anthill
 
-# Configure scopes
-kanidm system oauth2 update-scope-map anthill anthill_users email openid profile groups
+# Configure scopes (map groups to OAuth2 scopes)
+kanidm system oauth2 update-scope-map anthill anthill_users openid email profile groups
 
-# Get client secret (for backend)
+# Get client secret (keep secure!)
 kanidm system oauth2 show-basic-secret anthill
+```
+
+### Advanced Configuration Options
+```bash
+# Enable legacy crypto (for older clients)
+kanidm system oauth2 warning-enable-legacy-crypto anthill
+
+# Disable PKCE (not recommended for production)
+kanidm system oauth2 warning-insecure-client-disable-pkce anthill
+
+# Configure claim mappings (custom JWT claims)
+kanidm system oauth2 update-claim-map-join anthill custom_roles array
+kanidm system oauth2 update-claim-map anthill custom_roles admin_group Admin
+
+# Set landing page URL
+kanidm system oauth2 set-landing-url anthill https://app.example.com/login
 ```
 
 ### Group Management

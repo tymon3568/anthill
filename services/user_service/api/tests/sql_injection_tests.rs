@@ -291,7 +291,7 @@ async fn test_json_field_injection() {
     .await
     .expect("Tenants table should still exist");
 
-    assert_eq!(tenant_check.settings.0, malicious_json);
+    assert_eq!(tenant_check.settings, malicious_json);
 }
 
 /// Test: Input validation for email format

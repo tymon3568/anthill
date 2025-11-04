@@ -26,20 +26,20 @@ use user_service_infra::auth::{
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-/// Create a dev Kanidm client for testing (JWT validation disabled)
-fn create_dev_kanidm_client() -> KanidmClient {
-    let config = KanidmConfig {
-        kanidm_url: "http://localhost:8300".to_string(),
-        client_id: "dev".to_string(),
-        client_secret: "dev".to_string(),
-        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+/// Create Kanidm client from configuration
+fn create_kanidm_client(config: &Config) -> KanidmClient {
+    let kanidm_config = KanidmConfig {
+        kanidm_url: config.kanidm_url.clone().unwrap_or_else(|| "http://localhost:8300".to_string()),
+        client_id: config.kanidm_client_id.clone().unwrap_or_else(|| "dev".to_string()),
+        client_secret: config.kanidm_client_secret.clone().unwrap_or_else(|| "dev".to_string()),
+        redirect_uri: config.kanidm_redirect_url.clone().unwrap_or_else(|| "http://localhost:3000/oauth/callback".to_string()),
         scopes: vec!["openid".to_string()],
-        skip_jwt_verification: true, // DEV/TEST MODE ONLY
-        allowed_issuers: vec!["http://localhost:8300".to_string()],
-        expected_audience: Some("dev".to_string()),
+        skip_jwt_verification: true, // DEV/TEST MODE ONLY - should be false in production
+        allowed_issuers: vec![config.kanidm_url.clone().unwrap_or_else(|| "http://localhost:8300".to_string())],
+        expected_audience: config.kanidm_client_id.clone(),
     };
-    
-    KanidmClient::new(config).expect("Failed to create dev Kanidm client")
+
+    KanidmClient::new(kanidm_config).expect("Failed to create Kanidm client")
 }
 
 /// Create router from app state (for testing)
@@ -121,7 +121,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
         auth_service: Arc::new(auth_service),
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: create_dev_kanidm_client(),
+        kanidm_client: create_kanidm_client(config),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
     };

@@ -57,6 +57,18 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
             .await
             .expect("Failed to create enforcer"),
         jwt_secret,
+        kanidm_client: shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
+            kanidm_url: "http://localhost:8300".to_string(),
+            client_id: "test".to_string(),
+            client_secret: "test".to_string(),
+            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+            scopes: vec!["openid".to_string()],
+            skip_jwt_verification: true,
+            allowed_issuers: vec!["http://localhost:8300".to_string()],
+            expected_audience: Some("test".to_string()),
+        }).expect("Failed to create test Kanidm client"),
+        user_repo: None,
+        tenant_repo: None,
     };
 
     user_service_api::create_router(state)

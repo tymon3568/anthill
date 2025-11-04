@@ -21,13 +21,22 @@ use uuid::Uuid;
 /// Get test database URL from environment or use default
 pub fn get_test_database_url() -> String {
     std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5432/anthill_test".to_string())
+        .unwrap_or_else(|_| "postgres://user:password@localhost:5432/inventory_db".to_string())
 }
 
 /// Get test JWT secret from environment or use default
 pub fn get_test_jwt_secret() -> String {
     std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string())
+}
+
+/// Clean up all test data from the database
+pub async fn cleanup_test_data(pool: &PgPool) {
+    // Delete in reverse dependency order to avoid foreign key constraints
+    sqlx::query!("DELETE FROM sessions").execute(pool).await.ok();
+    sqlx::query!("DELETE FROM casbin_rule").execute(pool).await.ok();
+    sqlx::query!("DELETE FROM users").execute(pool).await.ok();
+    sqlx::query!("DELETE FROM tenants").execute(pool).await.ok();
 }
 
 /// Setup test database pool
@@ -38,6 +47,7 @@ pub async fn setup_test_db() -> PgPool {
         .await
         .expect("Failed to connect to test database");
 
+    // Note: Cleanup is handled per-test to avoid conflicts between parallel tests
     // Migrations should already be run on the test database
     // No need to run them again in tests
 
@@ -239,7 +249,7 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         auth_service: Arc::new(auth_service),
         enforcer: shared_auth::enforcer::create_enforcer(
             &get_test_database_url(),
-            Some("shared/auth/model.conf"), // Explicit path to model.conf
+            Some("../../../shared/auth/model.conf"), // Path from tests/ to workspace root
         )
         .await
         .expect("Failed to create enforcer"),
@@ -355,7 +365,7 @@ pub async fn seed_test_data(pool: &PgPool) {
     seed_test_policies(pool, tenant_a_id, tenant_b_id).await;
 }
 
-pub async fn seed_test_policies(pool: &PgPool, tenant_a_id: Uuid, tenant_b_id: Uuid) {
+pub async fn seed_test_policies(pool: &PgPool, tenant_a_id: Uuid, _tenant_b_id: Uuid) {
     // Admin policies for tenant A
     sqlx::query!(
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES \

@@ -36,6 +36,10 @@ pub struct Config {
 
     /// Kanidm redirect URL (optional)
     pub kanidm_redirect_url: Option<String>,
+
+    /// Casbin model configuration file path
+    #[serde(default = "default_casbin_model_path")]
+    pub casbin_model_path: String,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -54,16 +58,42 @@ fn default_port() -> u16 {
     3000
 }
 
+fn default_casbin_model_path() -> String {
+    "shared/auth/model.conf".to_string()
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
         // Load .env file if exists
-        let _ = dotenvy::dotenv();
+        let dotenv_result = dotenvy::dotenv();
+        println!("DEBUG: dotenv result = {:?}", dotenv_result);
 
-        let config = config::Config::builder()
-            .add_source(config::Environment::default().separator("_"))
-            .build()?;
+        println!("DEBUG: Loading config...");
+        println!("DEBUG: DATABASE_URL = {:?}", std::env::var("DATABASE_URL"));
+        println!("DEBUG: JWT_SECRET = {:?}", std::env::var("JWT_SECRET"));
+        println!("DEBUG: Current dir = {:?}", std::env::current_dir());
 
-        config.try_deserialize()
+        let mut builder = config::Config::builder()
+            .set_default("database_url", "")?
+            .set_default("jwt_secret", "")?
+            .set_default("jwt_expiration", 900)?
+            .set_default("jwt_refresh_expiration", 604800)?
+            .set_default("host", "0.0.0.0")?
+            .set_default("port", 3000)?
+            .set_default("casbin_model_path", "shared/auth/model.conf")?;
+
+        // Add environment variables
+        builder = builder.add_source(config::Environment::default());
+
+        let config = builder.build()?;
+
+        println!("DEBUG: Config built ok");
+        println!("DEBUG: Config keys: {:?}", config.cache);
+
+        let deserialized = config.try_deserialize::<Config>()?;
+        println!("DEBUG: Config deserialized: database_url = '{}'", deserialized.database_url);
+
+        Ok(deserialized)
     }
 }

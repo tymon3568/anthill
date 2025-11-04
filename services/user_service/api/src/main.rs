@@ -54,7 +54,7 @@ async fn main() {
     tracing::info!("✅ Database connected");
 
     // Initialize Casbin enforcer
-    let enforcer = create_enforcer(&config.database_url, None)
+    let enforcer = create_enforcer(&config.database_url, Some(&config.casbin_model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
 
@@ -81,7 +81,7 @@ async fn main() {
         KanidmClient::new(kanidm_config).expect("Failed to initialize Kanidm client")
     } else {
         tracing::warn!("⚠️ Kanidm configuration not found - using dev mode (legacy JWT only)");
-        
+
         // Create a dummy Kanidm client for dev mode
         let dev_config = KanidmConfig {
             kanidm_url: "http://localhost:8300".to_string(),
@@ -188,7 +188,7 @@ async fn main() {
     // Protected routes (require authentication)
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
-        .route("/api/v1/users/:user_id", get(handlers::get_user))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
@@ -202,19 +202,19 @@ async fn main() {
             post(admin_handlers::create_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
             .get(admin_handlers::list_roles::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
-        .route("/api/v1/admin/roles/:role_name",
+        .route("/api/v1/admin/roles/{role_name}",
             put(admin_handlers::update_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
             .delete(admin_handlers::delete_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
         // User role assignment (additional GET endpoint)
-        .route("/api/v1/admin/users/:user_id/roles",
+        .route("/api/v1/admin/users/{user_id}/roles",
             get(admin_handlers::get_user_roles::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
         // New user role management endpoints
-        .route("/api/v1/admin/users/:user_id/roles/assign",
+        .route("/api/v1/admin/users/{user_id}/roles/assign",
             post(admin_handlers::assign_role_to_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
-        .route("/api/v1/admin/users/:user_id/roles/:role_name/remove",
+        .route("/api/v1/admin/users/{user_id}/roles/{role_name}/remove",
             delete(admin_handlers::remove_role_from_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
         // Permission listing
@@ -248,10 +248,10 @@ async fn main() {
         .route("/api/v1/users/profiles/search",
             post(profile_handlers::search_profiles::<ProfileServiceImpl>)
         )
-        .route("/api/v1/users/profiles/:user_id",
+        .route("/api/v1/users/profiles/{user_id}",
             get(profile_handlers::get_public_profile::<ProfileServiceImpl>)
         )
-        .route("/api/v1/users/profiles/:user_id/verification",
+        .route("/api/v1/users/profiles/{user_id}/verification",
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
         );
 

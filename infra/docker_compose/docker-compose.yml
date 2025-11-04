@@ -77,41 +77,57 @@ services:
     environment:
       - MC_HOST_local=http://minioadmin:minioadmin@minio:9000
 
+  kanidm-certs:
+    image: alpine/openssl
+    container_name: kanidm_certs
+    entrypoint: ["sh", "/generate-certs.sh"]
+    volumes:
+      - kanidm_data:/data
+      - ./generate-certs.sh:/generate-certs.sh:ro
+
   kanidm:
     image: kanidm/server:1.4.3
     container_name: kanidm_idm
+    depends_on:
+      kanidm-certs:
+        condition: service_completed_successfully
     environment:
       KANIDM_DOMAIN: localhost
-      KANIDM_ORIGIN: http://localhost:8300
+      KANIDM_ORIGIN: https://localhost:8300
       # ⚠️ Development-only - DO NOT use in production
       KANIDM_LOG_LEVEL: info
       # Use SQLite for dev (production should use PostgreSQL)
       KANIDM_DB_TYPE: sqlite
     ports:
-      - "8300:8300" # HTTPS/HTTP port
+      - "8300:8300" # HTTPS port
       - "8301:8301" # LDAP port (optional)
     volumes:
       - kanidm_data:/data
       - ./kanidm-server.toml:/data/server.toml:ro
-    command: server -c /data/server.toml
+    command: /sbin/kanidmd server -c /data/server.toml
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8300/status || exit 1"]
+      test: ["CMD-SHELL", "curl -k -f https://localhost:8300/status || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 30s
 
   kanidm-init:
-    image: kanidm/tools:1.4.3
+    image: kanidm-init-complete:latest
     container_name: kanidm_init
+    # Use host network of kanidm container to connect via localhost
+    network_mode: "service:kanidm"
     depends_on:
       kanidm:
         condition: service_healthy
-    volumes:
-      - ./init-kanidm.sh:/init-kanidm.sh:ro
     environment:
-      KANIDM_URL: http://kanidm:8300
-    command: sh /init-kanidm.sh
+      KANIDM_URL: https://localhost:8300
+      KANIDM_ADMIN_USER: idm_admin
+      KANIDM_ADMIN_PASSWORD: ${KANIDM_ADMIN_PASSWORD:-}
+      RUST_LOG: info
+    volumes:
+      # Share Kanidm data volume to access CA cert
+      - kanidm_data:/data:ro
     restart: on-failure
 
 volumes:

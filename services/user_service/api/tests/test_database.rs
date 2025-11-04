@@ -218,12 +218,13 @@ impl TestDatabaseConfig {
         self.tracked_tenants.lock().await.clear();
     }
 
-    /// Clean up all test data using SQL function
+    /// Clean up all test data using Rust function
     pub async fn cleanup_all_test_data(&self) {
-        sqlx::query!("SELECT cleanup_test_data()")
-            .execute(&self.pool)
-            .await
-            .expect("Failed to cleanup all test data");
+        // Delete in reverse dependency order to avoid foreign key constraints
+        sqlx::query!("DELETE FROM sessions").execute(&self.pool).await.ok();
+        sqlx::query!("DELETE FROM casbin_rule").execute(&self.pool).await.ok();
+        sqlx::query!("DELETE FROM users").execute(&self.pool).await.ok();
+        sqlx::query!("DELETE FROM tenants").execute(&self.pool).await.ok();
     }
 
     /// Verify database is in clean state

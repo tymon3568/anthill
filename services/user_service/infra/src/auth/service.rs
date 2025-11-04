@@ -279,6 +279,10 @@ where
             .await?
             .ok_or(AppError::InvalidCredentials)?;
 
+        // DEBUG: Print user info
+        println!("DEBUG: Found user: email={}, auth_method={}, password_hash={}",
+            user.email, user.auth_method, user.password_hash.is_some());
+
         // Check auth method - password auth must be enabled
         if user.auth_method == "kanidm" {
             return Err(AppError::ValidationError(
@@ -293,8 +297,11 @@ where
                 "Password authentication not available for this account. Please use Kanidm OAuth2.".to_string()
             ))?;
 
+        println!("DEBUG: Verifying password '{}' against hash", req.password);
         let valid = bcrypt::verify(&req.password, password_hash)
             .map_err(|e| AppError::InternalError(format!("Password verification failed: {}", e)))?;
+
+        println!("DEBUG: Password verification result: {}", valid);
 
         if !valid {
             return Err(AppError::InvalidCredentials);
