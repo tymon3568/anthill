@@ -231,6 +231,10 @@ impl TestDatabaseConfig {
             .execute(&self.pool)
             .await
             .ok();
+        sqlx::query!("DELETE FROM user_profiles")
+            .execute(&self.pool)
+            .await
+            .ok();
         sqlx::query!("DELETE FROM users")
             .execute(&self.pool)
             .await

@@ -6,6 +6,7 @@ This script configures OAuth2 clients and test users via Kanidm's REST API
 
 import asyncio
 import json
+import os
 import sys
 from typing import Optional
 import aiohttp
@@ -13,7 +14,11 @@ import aiohttp
 # Configuration
 KANIDM_URL = "https://localhost:8300"
 ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "NA6LYuMh5zPWT8VTFaWFLT6TD9jdM3BcVquLy031e8RFY8Ps"
+ADMIN_PASSWORD = os.getenv("KANIDM_ADMIN_PASSWORD")
+
+if not ADMIN_PASSWORD:
+    print("❌ Error: KANIDM_ADMIN_PASSWORD environment variable is required")
+    sys.exit(1)
 
 class KanidmClient:
     def __init__(self, base_url: str, verify_ssl: bool = False):

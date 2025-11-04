@@ -4,6 +4,7 @@ use serde_json;
 use sha2::{Digest, Sha256};
 use shared_error::AppError;
 use shared_jwt::{decode_jwt, encode_jwt, Claims};
+use shared_kanidm_client::KanidmOAuth2Client;
 use user_service_core::domains::auth::{
     domain::{
         model::{Session, Tenant, User},
@@ -28,6 +29,7 @@ where
     jwt_secret: String,
     jwt_expiration: i64,
     jwt_refresh_expiration: i64,
+    kanidm_client: Option<Box<dyn KanidmOAuth2Client + Send + Sync>>,
 }
 
 impl<UR, TR, SR> AuthServiceImpl<UR, TR, SR>
@@ -51,7 +53,16 @@ where
             jwt_secret,
             jwt_expiration,
             jwt_refresh_expiration,
+            kanidm_client: None,
         }
+    }
+
+    pub fn with_kanidm_client(
+        mut self,
+        client: Box<dyn KanidmOAuth2Client + Send + Sync>,
+    ) -> Self {
+        self.kanidm_client = Some(client);
+        self
     }
 
     fn user_to_user_info(&self, user: &User) -> UserInfo {
@@ -303,11 +314,8 @@ where
             )
         })?;
 
-        println!("DEBUG: Verifying password '{}' against hash", req.password);
         let valid = bcrypt::verify(&req.password, password_hash)
             .map_err(|e| AppError::InternalError(format!("Password verification failed: {}", e)))?;
-
-        println!("DEBUG: Password verification result: {}", valid);
 
         if !valid {
             return Err(AppError::InvalidCredentials);
@@ -554,5 +562,16 @@ where
             .ok_or(AppError::UserNotFound)?;
 
         Ok(self.user_to_user_info(&user))
+    }
+
+    async fn cleanup_stale_kanidm_sessions(&self) -> Result<u64, AppError> {
+        // This is a placeholder implementation
+        // In production, this would check Kanidm for user existence
+        // and revoke sessions for deleted users
+        tracing::info!("Running cleanup of stale Kanidm sessions");
+
+        // For now, just return 0 (no sessions cleaned up)
+        // TODO: Implement actual cleanup logic using Kanidm admin API
+        Ok(0)
     }
 }

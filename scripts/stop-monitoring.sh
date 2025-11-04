@@ -151,7 +151,7 @@ if [[ "$REMOVE_VOLUMES" == true ]]; then
     echo -e "${BLUE}[2/3] Removing volumes...${NC}"
 
     # Get volume names from docker-compose config
-    local volumes=$(docker-compose -f "$COMPOSE_FILE" config --volumes 2>/dev/null | grep -v '^volumes:' | sed 's/.*://' | tr -d ' ')
+    volumes=$(docker-compose -f "$COMPOSE_FILE" config --volumes 2>/dev/null | grep -v '^volumes:' | sed 's/.*://' | tr -d ' ')
 
     if [[ -n "$volumes" ]]; then
         for volume in $volumes; do
@@ -173,7 +173,7 @@ if [[ "$REMOVE_IMAGES" == true ]]; then
     echo -e "${BLUE}[3/3] Removing images...${NC}"
 
     # Get image names from docker-compose config
-    local images=$(docker-compose -f "$COMPOSE_FILE" config | grep 'image:' | sed 's/.*image: //' | tr -d '"' | sort | uniq)
+    images=$(docker-compose -f "$COMPOSE_FILE" config | grep 'image:' | sed 's/.*image: //' | tr -d '"' | sort | uniq)
 
     if [[ -n "$images" ]]; then
         for image in $images; do
@@ -195,7 +195,7 @@ echo -e "${BLUE}Final status:${NC}"
 echo ""
 
 # Check if any monitoring containers are still running
-local running_containers=$(docker ps --filter "label=com.docker.compose.project=monitoring" --format "{{.Names}}" | wc -l)
+running_containers=$(docker ps --filter "label=com.docker.compose.project=monitoring" --format "{{.Names}}" | wc -l)
 
 if [[ $running_containers -gt 0 ]]; then
     echo -e "${YELLOW}⚠ Some monitoring containers may still be running:${NC}"
@@ -206,7 +206,7 @@ else
 fi
 
 # Check volumes
-local volumes_count=$(docker volume ls --filter "label=com.docker.compose.project=monitoring" --format "{{.Name}}" | wc -l)
+volumes_count=$(docker volume ls --filter "label=com.docker.compose.project=monitoring" --format "{{.Name}}" | wc -l)
 
 if [[ $volumes_count -gt 0 ]]; then
     echo -e "${BLUE}Remaining volumes: $volumes_count${NC}"

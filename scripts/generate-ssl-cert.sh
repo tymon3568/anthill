@@ -156,8 +156,14 @@ EOF
     sudo mv /tmp/renew-anthill-cert.sh /usr/local/bin/renew-anthill-cert.sh
     sudo chmod +x /usr/local/bin/renew-anthill-cert.sh
 
-    # Add to crontab for weekly renewal check
-    (sudo crontab -l 2>/dev/null; echo "0 12 * * 1 /usr/local/bin/renew-anthill-cert.sh") | sudo crontab -
+    # Add to crontab for weekly renewal check (avoid duplicates)
+    CRON_JOB="0 12 * * 1 /usr/local/bin/renew-anthill-cert.sh"
+    if ! sudo crontab -l 2>/dev/null | grep -q "$CRON_JOB"; then
+        (sudo crontab -l 2>/dev/null; echo "$CRON_JOB") | sudo crontab -
+        log_info "Added renewal job to crontab"
+    else
+        log_info "Renewal job already exists in crontab"
+    fi
 
     log_info "Auto-renewal setup complete"
 }
@@ -207,7 +213,7 @@ main() {
     verify_certificate
 
     log_info "✅ SSL certificate setup complete!"
-    log_info "Update your .env file with:"
+    log_info "Update your .env file with (for Nginx):"
     log_info "SSL_CERT_PATH=$CERT_DIR/anthill.crt"
     log_info "SSL_KEY_PATH=$CERT_DIR/anthill.key"
 }

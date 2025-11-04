@@ -34,17 +34,13 @@ enum CredentialType {
 
 #[derive(Debug, Deserialize)]
 struct AuthResponse {
-    sessionid: String,
-    state: AuthState,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum AuthState {
-    Choose(Vec<String>),
-    Continue(Vec<String>),
-    Success(String), // Contains JWT token
-    Denied(String),
+    #[serde(default)]
+    sessionid: Option<String>,
+    state: String, // Changed from AuthState enum to String
+    #[serde(default)]
+    bearer: Option<String>,
+    #[serde(default)]
+    token: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -205,17 +201,20 @@ impl KanidmAdminClient {
             .await
             .context("Failed to parse auth response")?;
 
-        match auth_response.state {
-            AuthState::Success(jwt_token) => {
+        match auth_response.state.as_str() {
+            "success" => {
+                // Use bearer token if available, otherwise token
+                let jwt_token = auth_response.bearer.or(auth_response.token)
+                    .context("No bearer or token field in successful auth response")?;
                 self.session_token = Some(jwt_token);
                 info!("✅ Authentication successful");
                 Ok(())
             }
-            AuthState::Denied(reason) => {
-                anyhow::bail!("Authentication denied: {}", reason)
+            "denied" => {
+                anyhow::bail!("Authentication denied")
             }
             other => {
-                anyhow::bail!("Unexpected auth state: {:?}", other)
+                anyhow::bail!("Unexpected auth state: {}", other)
             }
         }
     }
@@ -508,5 +507,38 @@ impl KanidmAdminClient {
                 Ok(false)
             }
         }
+    }
+
+    pub async fn get_person(&self, person_id: &str) -> Result<Option<serde_json::Value>> {
+        info!("👤 Getting person: {}", person_id);
+
+        let url = format!("{}/v1/person/{}", self.base_url, person_id);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", self.auth_header()?)
+            .send()
+            .await?;
+
+        match response.status() {
+            StatusCode::OK => {
+                let person: serde_json::Value = response.json().await?;
+                Ok(Some(person))
+            }
+            StatusCode::NOT_FOUND => {
+                info!("⚠️  Person '{}' not found", person_id);
+                Ok(None)
+            }
+            status => {
+                let text = response.text().await.unwrap_or_default();
+                anyhow::bail!("Failed to get person: {} - {}", status, text);
+            }
+        }
+    }
+
+    pub async fn person_exists(&self, person_id: &str) -> Result<bool> {
+        let person = self.get_person(person_id).await?;
+        Ok(person.is_some())
     }
 }

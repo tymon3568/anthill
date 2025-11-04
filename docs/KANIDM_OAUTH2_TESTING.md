@@ -139,9 +139,9 @@ export JWT_SECRET="your-super-secret-jwt-key-min-32-chars-long"
 export JWT_EXPIRATION=3600
 export JWT_REFRESH_EXPIRATION=604800
 export KANIDM_URL="https://localhost:8300"
-export KANIDM_CLIENT_ID="anthill"
+export KANIDM_CLIENT_ID="anthill_test"
 export KANIDM_CLIENT_SECRET="<secret-from-step-2>"
-export KANIDM_REDIRECT_URL="http://localhost:3000/oauth/callback"
+export KANIDM_REDIRECT_URL="http://localhost:3000/oauth2/callback"
 
 # Run user service
 cargo run --bin user-service
