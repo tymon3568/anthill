@@ -14,16 +14,21 @@ use user_service_api::get_app;
 
 async fn setup_test_app() -> (Router, PgPool, Config) {
     // Create test config directly
-    let mut config = Config {
+    let config = Config {
         database_url: "postgres://user:password@localhost:5432/inventory_db".to_string(),
         jwt_secret: "test-secret-key-for-integration-tests".to_string(),
         jwt_expiration: 3600,
         jwt_refresh_expiration: 2592000,
         host: "0.0.0.0".to_string(),
         port: 8000,
+        kanidm_url: Some("http://localhost:8300".to_string()),
+        kanidm_client_id: Some("test".to_string()),
+        kanidm_client_secret: Some("test".to_string()),
+        kanidm_redirect_url: Some("http://localhost:3000/oauth/callback".to_string()),
+        casbin_model_path: "../../../shared/auth/model.conf".to_string(),
     };
 
-    let db_pool = helpers::setup_test_db(&mut config).await;
+    let db_pool = helpers::setup_test_db().await;
     let app = get_app(db_pool.clone(), &config).await;
     (app, db_pool, config)
 }

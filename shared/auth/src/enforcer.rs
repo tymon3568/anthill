@@ -194,11 +194,10 @@ mod tests {
             })
             .unwrap_or_else(|| std::path::PathBuf::from("."));
         let model_path = workspace_root.join("shared/auth/model.conf");
-        let model = DefaultModel::from_file(
-            model_path.to_str().expect("Invalid UTF-8 in model path"),
-        )
-        .await
-        .expect("Failed to load Casbin model");
+        let model =
+            DefaultModel::from_file(model_path.to_str().expect("Invalid UTF-8 in model path"))
+                .await
+                .expect("Failed to load Casbin model");
 
         // Use PostgreSQL for testing (standard port 5432)
         // Credentials aligned with integration_utils.rs and setup scripts

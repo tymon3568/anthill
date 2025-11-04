@@ -6,7 +6,7 @@ mod test_database;
 
 use axum::{
     body::Body,
-    http::{Request, Response, StatusCode},
+    http::{Request, StatusCode},
 };
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
@@ -52,11 +52,26 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         auth_service: Arc::new(auth_service),
         enforcer: shared_auth::enforcer::create_enforcer(
             &database_url,
-            Some(model_path.to_str().expect("Invalid path"))
+            Some(model_path.to_str().expect("Invalid path")),
         )
-            .await
-            .expect("Failed to create enforcer"),
+        .await
+        .expect("Failed to create enforcer"),
         jwt_secret,
+        kanidm_client: shared_kanidm_client::KanidmClient::new(
+            shared_kanidm_client::KanidmConfig {
+                kanidm_url: "http://localhost:8300".to_string(),
+                client_id: "test".to_string(),
+                client_secret: "test".to_string(),
+                redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+                scopes: vec!["openid".to_string()],
+                skip_jwt_verification: true,
+                allowed_issuers: vec!["http://localhost:8300".to_string()],
+                expected_audience: Some("test".to_string()),
+            },
+        )
+        .expect("Failed to create test Kanidm client"),
+        user_repo: None,
+        tenant_repo: None,
     };
 
     user_service_api::create_router(state)
@@ -90,7 +105,9 @@ async fn make_request(
         request = request.header("Authorization", format!("Bearer {}", token));
     }
 
-    let body_str = body.map(|b| serde_json::to_string(&b).unwrap()).unwrap_or_default();
+    let body_str = body
+        .map(|b| serde_json::to_string(&b).unwrap())
+        .unwrap_or_default();
     let request = request.body(Body::from(body_str)).unwrap();
 
     let response = app.clone().oneshot(request).await.unwrap();
@@ -120,7 +137,8 @@ async fn test_user_registration_success() {
         "tenant_name": "Registration Test Corp"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     println!("📋 Response status: {}", status);
     println!("📋 Response body: {}", serde_json::to_string_pretty(&response).unwrap());
@@ -154,7 +172,8 @@ async fn test_user_registration_duplicate_email() {
         "$argon2id$v=19$m=19456,t=2,p=1$test$test",
         "user",
         Some("Existing User"),
-    ).await;
+    )
+    .await;
 
     // Try to register with same email
     let payload = json!({
@@ -164,10 +183,14 @@ async fn test_user_registration_duplicate_email() {
         "full_name": "Duplicate User"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::CONFLICT);
-    assert!(response["error"].as_str().unwrap().contains("already exists"));
+    assert!(response["error"]
+        .as_str()
+        .unwrap()
+        .contains("already exists"));
 
     db.cleanup().await;
 }
@@ -182,20 +205,16 @@ async fn test_user_login_success() {
 
     // Create user with bcrypt hash
     let password_hash = bcrypt::hash("TestPass123!", bcrypt::DEFAULT_COST).unwrap();
-    db.create_user(
-        tenant_id,
-        "login@example.com",
-        &password_hash,
-        "user",
-        Some("Login User"),
-    ).await;
+    db.create_user(tenant_id, "login@example.com", &password_hash, "user", Some("Login User"))
+        .await;
 
     let payload = json!({
         "email": "login@example.com",
         "password": "TestPass123!"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
 
     println!("📋 Login response status: {}", status);
     println!("📋 Login response body: {}", serde_json::to_string_pretty(&response).unwrap());
@@ -217,20 +236,16 @@ async fn test_user_login_invalid_credentials() {
     let tenant_id = db.create_tenant("Invalid Login Test", None).await;
 
     let password_hash = bcrypt::hash("CorrectPass123!", bcrypt::DEFAULT_COST).unwrap();
-    db.create_user(
-        tenant_id,
-        "user@example.com",
-        &password_hash,
-        "user",
-        Some("Test User"),
-    ).await;
+    db.create_user(tenant_id, "user@example.com", &password_hash, "user", Some("Test User"))
+        .await;
 
     let payload = json!({
         "email": "user@example.com",
         "password": "WrongPassword"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(response["error"].as_str().is_some());
@@ -249,23 +264,19 @@ async fn test_get_user_profile() {
     let app = create_test_app(db.pool()).await;
 
     let tenant_id = db.create_tenant("Profile Test Corp", None).await;
-    let user_id = db.create_user(
-        tenant_id,
-        "profile@example.com",
-        "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-        "user",
-        Some("Profile User"),
-    ).await;
+    let user_id = db
+        .create_user(
+            tenant_id,
+            "profile@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "user",
+            Some("Profile User"),
+        )
+        .await;
 
     let token = create_jwt(user_id, tenant_id, "user");
 
-    let (status, response) = make_request(
-        &app,
-        "GET",
-        "/api/v1/profile",
-        None,
-        Some(&token),
-    ).await;
+    let (status, response) = make_request(&app, "GET", "/api/v1/profile", None, Some(&token)).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["email"], "profile@example.com");
@@ -282,13 +293,15 @@ async fn test_update_user_profile() {
     let app = create_test_app(db.pool()).await;
 
     let tenant_id = db.create_tenant("Update Profile Test", None).await;
-    let user_id = db.create_user(
-        tenant_id,
-        "update@example.com",
-        "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-        "user",
-        Some("Old Name"),
-    ).await;
+    let user_id = db
+        .create_user(
+            tenant_id,
+            "update@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "user",
+            Some("Old Name"),
+        )
+        .await;
 
     let token = create_jwt(user_id, tenant_id, "user");
 
@@ -297,13 +310,8 @@ async fn test_update_user_profile() {
         "phone": "+1234567890"
     });
 
-    let (status, response) = make_request(
-        &app,
-        "PUT",
-        "/api/v1/profile",
-        Some(payload),
-        Some(&token),
-    ).await;
+    let (status, response) =
+        make_request(&app, "PUT", "/api/v1/profile", Some(payload), Some(&token)).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["full_name"], "Updated Name");
@@ -329,13 +337,15 @@ async fn test_admin_list_users() {
     let tenant_id = db.create_tenant("Admin List Test", None).await;
 
     // Create admin user
-    let admin_id = db.create_user(
-        tenant_id,
-        "admin@example.com",
-        "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-        "admin",
-        Some("Admin User"),
-    ).await;
+    let admin_id = db
+        .create_user(
+            tenant_id,
+            "admin@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "admin",
+            Some("Admin User"),
+        )
+        .await;
 
     // Create regular users
     for i in 1..=5 {
@@ -345,18 +355,14 @@ async fn test_admin_list_users() {
             "$argon2id$v=19$m=19456,t=2,p=1$test$test",
             "user",
             Some(&format!("User {}", i)),
-        ).await;
+        )
+        .await;
     }
 
     let token = create_jwt(admin_id, tenant_id, "admin");
 
-    let (status, response) = make_request(
-        &app,
-        "GET",
-        "/api/v1/admin/users",
-        None,
-        Some(&token),
-    ).await;
+    let (status, response) =
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token)).await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response.is_array());
@@ -373,21 +379,25 @@ async fn test_admin_update_user_role() {
 
     let tenant_id = db.create_tenant("Admin Role Update Test", None).await;
 
-    let admin_id = db.create_user(
-        tenant_id,
-        "admin@example.com",
-        "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-        "admin",
-        Some("Admin User"),
-    ).await;
+    let admin_id = db
+        .create_user(
+            tenant_id,
+            "admin@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "admin",
+            Some("Admin User"),
+        )
+        .await;
 
-    let user_id = db.create_user(
-        tenant_id,
-        "user@example.com",
-        "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-        "user",
-        Some("Regular User"),
-    ).await;
+    let user_id = db
+        .create_user(
+            tenant_id,
+            "user@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "user",
+            Some("Regular User"),
+        )
+        .await;
 
     let token = create_jwt(admin_id, tenant_id, "admin");
 
@@ -401,7 +411,8 @@ async fn test_admin_update_user_role() {
         &format!("/api/v1/admin/users/{}/role", user_id),
         Some(payload),
         Some(&token),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["role"], "manager");
@@ -423,13 +434,7 @@ async fn test_unauthorized_access_without_token() {
     let db = TestDatabaseConfig::new().await;
     let app = create_test_app(db.pool()).await;
 
-    let (status, _response) = make_request(
-        &app,
-        "GET",
-        "/api/v1/profile",
-        None,
-        None,
-    ).await;
+    let (status, _response) = make_request(&app, "GET", "/api/v1/profile", None, None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -443,23 +448,20 @@ async fn test_regular_user_cannot_access_admin_endpoints() {
     let app = create_test_app(db.pool()).await;
 
     let tenant_id = db.create_tenant("Forbidden Test", None).await;
-    let user_id = db.create_user(
-        tenant_id,
-        "regular@example.com",
-        "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-        "user",
-        Some("Regular User"),
-    ).await;
+    let user_id = db
+        .create_user(
+            tenant_id,
+            "regular@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "user",
+            Some("Regular User"),
+        )
+        .await;
 
     let token = create_jwt(user_id, tenant_id, "user");
 
-    let (status, _response) = make_request(
-        &app,
-        "GET",
-        "/api/v1/admin/users",
-        None,
-        Some(&token),
-    ).await;
+    let (status, _response) =
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token)).await;
 
     assert_eq!(status, StatusCode::FORBIDDEN);
 
@@ -481,13 +483,15 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
     let tenant_b_id = db.create_tenant("Tenant B", None).await;
 
     // Create admin in tenant A
-    let admin_a_id = db.create_user(
-        tenant_a_id,
-        "admin-a@example.com",
-        "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-        "admin",
-        Some("Admin A"),
-    ).await;
+    let admin_a_id = db
+        .create_user(
+            tenant_a_id,
+            "admin-a@example.com",
+            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+            "admin",
+            Some("Admin A"),
+        )
+        .await;
 
     // Create users in tenant B
     for i in 1..=3 {
@@ -497,19 +501,15 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
             "$argon2id$v=19$m=19456,t=2,p=1$test$test",
             "user",
             Some(&format!("User B {}", i)),
-        ).await;
+        )
+        .await;
     }
 
     let token = create_jwt(admin_a_id, tenant_a_id, "admin");
 
     // Admin A should only see users from tenant A
-    let (status, response) = make_request(
-        &app,
-        "GET",
-        "/api/v1/admin/users",
-        None,
-        Some(&token),
-    ).await;
+    let (status, response) =
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token)).await;
 
     assert_eq!(status, StatusCode::OK);
     let users = response.as_array().unwrap();
@@ -537,10 +537,14 @@ async fn test_registration_invalid_email() {
         "full_name": "Test User"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(response["error"].as_str().unwrap().contains("email") || response["error"].as_str().unwrap().contains("validation"));
+    assert!(
+        response["error"].as_str().unwrap().contains("email")
+            || response["error"].as_str().unwrap().contains("validation")
+    );
 
     db.cleanup().await;
 }
@@ -560,10 +564,14 @@ async fn test_registration_weak_password() {
         "full_name": "Test User"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(response["error"].as_str().unwrap().contains("password") || response["error"].as_str().unwrap().contains("validation"));
+    assert!(
+        response["error"].as_str().unwrap().contains("password")
+            || response["error"].as_str().unwrap().contains("validation")
+    );
 
     db.cleanup().await;
 }

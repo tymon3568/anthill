@@ -2,9 +2,9 @@
 // Common utilities and helpers for integration tests with real database
 
 use sqlx::PgPool;
-use uuid::Uuid;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 /// Test database manager - handles setup/teardown for integration tests
 pub struct TestDatabase {
@@ -15,10 +15,9 @@ pub struct TestDatabase {
 impl TestDatabase {
     /// Create a new test database instance
     pub async fn new() -> Self {
-        let database_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| {
-                "postgres://anthill:anthill@localhost:5432/anthill_test".to_string()
-            });
+        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://anthill:anthill@localhost:5432/anthill_test".to_string()
+        });
 
         let pool = PgPool::connect(&database_url)
             .await
@@ -39,11 +38,7 @@ impl TestDatabase {
     pub async fn create_test_tenant(&self, name: &str) -> Uuid {
         let tenant_id = Uuid::now_v7();
         // Add UUID to slug to ensure uniqueness
-        let slug = format!(
-            "test-{}-{}",
-            name.to_lowercase().replace(" ", "-"),
-            tenant_id
-        );
+        let slug = format!("test-{}-{}", name.to_lowercase().replace(" ", "-"), tenant_id);
 
         sqlx::query!(
             r#"
@@ -65,12 +60,7 @@ impl TestDatabase {
     }
 
     /// Create a test user for a tenant
-    pub async fn create_test_user(
-        &self,
-        tenant_id: Uuid,
-        email: &str,
-        role: &str,
-    ) -> Uuid {
+    pub async fn create_test_user(&self, tenant_id: Uuid, email: &str, role: &str) -> Uuid {
         let user_id = Uuid::now_v7();
 
         sqlx::query!(
@@ -279,13 +269,11 @@ mod tests {
         db.cleanup().await;
 
         // Verify cleanup worked
-        let result = sqlx::query_scalar!(
-            "SELECT COUNT(*) FROM tenants WHERE tenant_id = $1",
-            tenant_id
-        )
-        .fetch_one(db.pool())
-        .await
-        .unwrap();
+        let result =
+            sqlx::query_scalar!("SELECT COUNT(*) FROM tenants WHERE tenant_id = $1", tenant_id)
+                .fetch_one(db.pool())
+                .await
+                .unwrap();
 
         assert_eq!(result, Some(0));
     }
@@ -295,7 +283,9 @@ mod tests {
         let db = TestDatabase::new().await;
 
         let tenant_id = db.create_test_tenant("User Test Tenant").await;
-        let _user_id = db.create_test_user(tenant_id, "test@example.com", "user").await;
+        let _user_id = db
+            .create_test_user(tenant_id, "test@example.com", "user")
+            .await;
 
         // Verify user exists
         let snapshot = db.snapshot_tenant(tenant_id).await;
@@ -311,7 +301,10 @@ mod tests {
 
         // Create test data
         let tenant_id = ctx.db.create_test_tenant("Context Test").await;
-        let user_id = ctx.db.create_test_user(tenant_id, "admin@test.com", "admin").await;
+        let user_id = ctx
+            .db
+            .create_test_user(tenant_id, "admin@test.com", "admin")
+            .await;
 
         // Create JWT
         let token = ctx.create_jwt(user_id, tenant_id, "admin");

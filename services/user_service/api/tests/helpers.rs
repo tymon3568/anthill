@@ -1,13 +1,8 @@
-use axum::{
-    body::Body,
-    http::{Request, Response},
-    Router,
-};
-use http_body_util::BodyExt;
+use axum::{body::Body, http::Request, Router};
 use serde_json::Value;
 use shared_config::Config;
 use shared_jwt::{encode_jwt as create_jwt, Claims};
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::{Executor, PgPool};
 use std::sync::Arc;
 use tower::ServiceExt;
 use user_service_api::AppState;
@@ -21,13 +16,28 @@ use uuid::Uuid;
 /// Get test database URL from environment or use default
 pub fn get_test_database_url() -> String {
     std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5432/anthill_test".to_string())
+        .unwrap_or_else(|_| "postgres://user:password@localhost:5432/inventory_db".to_string())
 }
 
 /// Get test JWT secret from environment or use default
 pub fn get_test_jwt_secret() -> String {
     std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string())
+}
+
+/// Clean up all test data from the database
+pub async fn cleanup_test_data(pool: &PgPool) {
+    // Delete in reverse dependency order to avoid foreign key constraints
+    sqlx::query!("DELETE FROM sessions")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query!("DELETE FROM casbin_rule")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query!("DELETE FROM users").execute(pool).await.ok();
+    sqlx::query!("DELETE FROM tenants").execute(pool).await.ok();
 }
 
 /// Setup test database pool
@@ -38,6 +48,7 @@ pub async fn setup_test_db() -> PgPool {
         .await
         .expect("Failed to connect to test database");
 
+    // Note: Cleanup is handled per-test to avoid conflicts between parallel tests
     // Migrations should already be run on the test database
     // No need to run them again in tests
 
@@ -88,7 +99,7 @@ pub async fn create_test_user(
         user_id,
         tenant_id,
         email: email.to_string(),
-        password_hash,
+        password_hash: Some(password_hash), // Now Option<String>
         email_verified: true,
         email_verified_at: Some(now),
         full_name: Some(full_name.to_string()),
@@ -103,6 +114,12 @@ pub async fn create_test_user(
         created_at: now,
         updated_at: now,
         deleted_at: None,
+        // New Phase 4 fields
+        kanidm_user_id: None,
+        kanidm_synced_at: None,
+        auth_method: "password".to_string(), // String, not enum
+        migration_invited_at: None,
+        migration_completed_at: None,
     };
 
     let user_repo = PgUserRepository::new(pool.clone());
@@ -196,7 +213,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
                 .await
                 .expect("Failed to insert policy");
             }
-        }
+        },
     }
 }
 
@@ -207,23 +224,40 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
     let session_repo = PgSessionRepository::new(pool.clone());
 
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        user_repo.clone(),
+        tenant_repo.clone(),
         session_repo,
         get_test_jwt_secret(),
         900,    // 15 minutes
         604800, // 7 days
     );
 
+    // Create dev Kanidm client
+    let kanidm_config = shared_kanidm_client::KanidmConfig {
+        kanidm_url: "http://localhost:8300".to_string(),
+        client_id: "dev".to_string(),
+        client_secret: "dev".to_string(),
+        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+        scopes: vec!["openid".to_string()],
+        skip_jwt_verification: true, // TEST MODE
+        allowed_issuers: vec!["http://localhost:8300".to_string()],
+        expected_audience: Some("dev".to_string()),
+    };
+    let kanidm_client = shared_kanidm_client::KanidmClient::new(kanidm_config)
+        .expect("Failed to create test Kanidm client");
+
     let state = AppState {
         auth_service: Arc::new(auth_service),
         enforcer: shared_auth::enforcer::create_enforcer(
             &get_test_database_url(),
-            None, // Use default bundled model.conf
+            Some("../../../shared/auth/model.conf"), // Path from tests/ to workspace root
         )
         .await
         .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
+        kanidm_client,
+        user_repo: Some(Arc::new(user_repo)),
+        tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
     user_service_api::create_router(state)
@@ -332,7 +366,7 @@ pub async fn seed_test_data(pool: &PgPool) {
     seed_test_policies(pool, tenant_a_id, tenant_b_id).await;
 }
 
-pub async fn seed_test_policies(pool: &PgPool, tenant_a_id: Uuid, tenant_b_id: Uuid) {
+pub async fn seed_test_policies(pool: &PgPool, tenant_a_id: Uuid, _tenant_b_id: Uuid) {
     // Admin policies for tenant A
     sqlx::query!(
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES \

@@ -106,10 +106,7 @@ impl AuthUser {
 ///
 /// Kanidm JWTs have specific claims like "iss" (issuer) pointing to Kanidm server.
 /// Legacy JWTs are simpler and use our custom format.
-async fn detect_and_validate_token<S>(
-    token: &str,
-    state: &S,
-) -> Result<AuthUser, StatusCode>
+async fn detect_and_validate_token<S>(token: &str, state: &S) -> Result<AuthUser, StatusCode>
 where
     S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
 {
@@ -123,10 +120,10 @@ where
             // For now, this is a placeholder - implement proper mapping
             warn!("Kanidm JWT detected but tenant/role mapping not implemented yet");
             return Err(StatusCode::NOT_IMPLEMENTED);
-        }
+        },
         Err(e) => {
             debug!("Not a valid Kanidm JWT: {}", e);
-        }
+        },
     }
 
     // Fallback to legacy JWT
@@ -135,11 +132,11 @@ where
         Ok(claims) => {
             debug!("Validated as legacy JWT");
             Ok(AuthUser::from_claims(claims))
-        }
+        },
         Err(e) => {
             warn!("Token validation failed for both Kanidm and legacy JWT: {}", e);
             Err(StatusCode::UNAUTHORIZED)
-        }
+        },
     }
 }
 

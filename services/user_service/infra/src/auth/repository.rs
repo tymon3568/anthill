@@ -53,7 +53,7 @@ impl UserRepository for PgUserRepository {
              WHERE email = $1
                AND status = 'active'
                AND deleted_at IS NULL
-             LIMIT 1"
+             LIMIT 1",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -81,16 +81,18 @@ impl UserRepository for PgUserRepository {
                 user_id, tenant_id, email, password_hash, full_name, avatar_url, phone,
                 role, status, email_verified, email_verified_at, last_login_at,
                 failed_login_attempts, locked_until, password_changed_at,
+                kanidm_user_id, kanidm_synced_at, auth_method,
+                migration_invited_at, migration_completed_at,
                 created_at, updated_at, deleted_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
             RETURNING *
             "#,
         )
         .bind(user.user_id)
         .bind(user.tenant_id)
         .bind(&user.email)
-        .bind(&user.password_hash)
+        .bind(&user.password_hash)  // Now Option<String>
         .bind(&user.full_name)
         .bind(&user.avatar_url)
         .bind(&user.phone)
@@ -102,6 +104,11 @@ impl UserRepository for PgUserRepository {
         .bind(user.failed_login_attempts)
         .bind(user.locked_until)
         .bind(user.password_changed_at)
+        .bind(user.kanidm_user_id)
+        .bind(user.kanidm_synced_at)
+        .bind(&user.auth_method)
+        .bind(user.migration_invited_at)
+        .bind(user.migration_completed_at)
         .bind(user.created_at)
         .bind(user.updated_at)
         .bind(user.deleted_at)
@@ -128,14 +135,19 @@ impl UserRepository for PgUserRepository {
                 failed_login_attempts = $12,
                 locked_until = $13,
                 password_changed_at = $14,
+                kanidm_user_id = $15,
+                kanidm_synced_at = $16,
+                auth_method = $17,
+                migration_invited_at = $18,
+                migration_completed_at = $19,
                 updated_at = NOW()
-            WHERE user_id = $1 AND tenant_id = $15 AND deleted_at IS NULL
+            WHERE user_id = $1 AND tenant_id = $20 AND deleted_at IS NULL
             RETURNING *
             "#,
         )
         .bind(user.user_id)
         .bind(&user.email)
-        .bind(&user.password_hash)
+        .bind(&user.password_hash)  // Now Option<String>
         .bind(&user.full_name)
         .bind(&user.avatar_url)
         .bind(&user.phone)
@@ -147,6 +159,11 @@ impl UserRepository for PgUserRepository {
         .bind(user.failed_login_attempts)
         .bind(user.locked_until)
         .bind(user.password_changed_at)
+        .bind(user.kanidm_user_id)
+        .bind(user.kanidm_synced_at)
+        .bind(&user.auth_method)
+        .bind(user.migration_invited_at)
+        .bind(user.migration_completed_at)
         .bind(user.tenant_id)
         .fetch_one(&self.pool)
         .await?;
@@ -235,14 +252,15 @@ impl UserRepository for PgUserRepository {
     }
 
     async fn find_by_kanidm_id(&self, kanidm_user_id: &str) -> Result<Option<User>, AppError> {
-        let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE kanidm_user_id = $1 AND deleted_at IS NULL",
-        )
-        .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
-            AppError::ValidationError("Invalid Kanidm user ID format".to_string())
-        })?)
-        .fetch_optional(&self.pool)
-        .await?;
+        let user =
+            sqlx::query_as::<_, User>(
+                "SELECT * FROM users WHERE kanidm_user_id = $1 AND deleted_at IS NULL",
+            )
+            .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
+                AppError::ValidationError("Invalid Kanidm user ID format".to_string())
+            })?)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(user)
     }
@@ -254,9 +272,8 @@ impl UserRepository for PgUserRepository {
         _username: Option<&str>,
         tenant_id: Uuid,
     ) -> Result<(User, bool), AppError> {
-        let kanidm_uuid = Uuid::parse_str(kanidm_user_id).map_err(|_| {
-            AppError::ValidationError("Invalid Kanidm user ID format".to_string())
-        })?;
+        let kanidm_uuid = Uuid::parse_str(kanidm_user_id)
+            .map_err(|_| AppError::ValidationError("Invalid Kanidm user ID format".to_string()))?;
 
         // Try to find existing user by kanidm_user_id
         if let Some(mut user) = self.find_by_kanidm_id(kanidm_user_id).await? {
@@ -264,16 +281,28 @@ impl UserRepository for PgUserRepository {
             user.kanidm_synced_at = Some(chrono::Utc::now());
             user.updated_at = chrono::Utc::now();
 
+            // Set auth_method based on password_hash
+            user.auth_method = if user.password_hash.is_some() {
+                "dual".to_string() // Has both password and Kanidm
+            } else {
+                "kanidm".to_string() // Kanidm only
+            };
+
             let updated_user = sqlx::query_as::<_, User>(
                 r#"
                 UPDATE users
-                SET kanidm_synced_at = $1, updated_at = $2
-                WHERE user_id = $3
+                SET kanidm_synced_at = $1,
+                    updated_at = $2,
+                    auth_method = $3,
+                    migration_completed_at = COALESCE(migration_completed_at, $4)
+                WHERE user_id = $5
                 RETURNING *
                 "#,
             )
             .bind(user.kanidm_synced_at)
             .bind(user.updated_at)
+            .bind(&user.auth_method)
+            .bind(user.kanidm_synced_at)  // Set migration_completed_at if not set
             .bind(user.user_id)
             .fetch_one(&self.pool)
             .await?;
@@ -281,7 +310,7 @@ impl UserRepository for PgUserRepository {
             return Ok((updated_user, false));
         }
 
-        // Create new user
+        // Create new user (Kanidm-only, no password)
         let user_id = Uuid::now_v7();
         let now = chrono::Utc::now();
 
@@ -290,20 +319,26 @@ impl UserRepository for PgUserRepository {
             INSERT INTO users (
                 user_id, tenant_id, email, password_hash,
                 role, status, kanidm_user_id, kanidm_synced_at,
+                auth_method, migration_completed_at,
+                email_verified, failed_login_attempts,
                 created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING *
             "#,
         )
         .bind(user_id)
         .bind(tenant_id)
         .bind(email.unwrap_or(&format!("{}@kanidm.local", kanidm_user_id)))
-        .bind("") // Empty password hash for Kanidm users
+        .bind(None::<String>)  // No password hash for Kanidm-only users
         .bind("member") // Default role
         .bind("active")
         .bind(kanidm_uuid)
         .bind(now)
+        .bind("kanidm")  // Auth method: kanidm only
+        .bind(now)  // migration_completed_at = now (auto-migrated via OAuth2)
+        .bind(true)  // Email verified by Kanidm
+        .bind(0)  // No failed login attempts
         .bind(now)
         .bind(now)
         .fetch_one(&self.pool)
@@ -392,19 +427,22 @@ impl TenantRepository for PgTenantRepository {
         group_name: &str,
     ) -> Result<Option<(Tenant, String)>, AppError> {
         // Use dynamic query to avoid compile-time database check
-        let result = sqlx::query_as::<_, (
-            Uuid,
-            String,
-            String,
-            String,
-            Option<DateTime<Utc>>,
-            sqlx::types::Json<serde_json::Value>,
-            String,
-            DateTime<Utc>,
-            DateTime<Utc>,
-            Option<DateTime<Utc>>,
-            String,
-        )>(
+        let result = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                String,
+                String,
+                String,
+                Option<DateTime<Utc>>,
+                sqlx::types::Json<serde_json::Value>,
+                String,
+                DateTime<Utc>,
+                DateTime<Utc>,
+                Option<DateTime<Utc>>,
+                String,
+            ),
+        >(
             r#"
             SELECT t.tenant_id, t.name, t.slug, t.plan, t.plan_expires_at,
                    t.settings, t.status, t.created_at, t.updated_at, t.deleted_at,

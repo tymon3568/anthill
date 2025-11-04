@@ -32,12 +32,15 @@ use crate::handlers::AppState;
 )]
 pub async fn oauth_authorize<S: AuthService>(
     State(state): State<AppState<S>>,
-    Json(_payload): Json<OAuth2AuthorizeReq>,
+    Json(payload): Json<OAuth2AuthorizeReq>,
 ) -> Result<Json<OAuth2AuthorizeResp>, AppError> {
     debug!("OAuth2 authorize request received");
 
-    // Generate PKCE state
-    let pkce = PkceState::generate();
+    // Generate PKCE state, using provided state if available
+    let mut pkce = PkceState::generate();
+    if let Some(custom_state) = payload.state {
+        pkce.state = custom_state;
+    }
 
     // Generate authorization URL
     let auth_url = state
@@ -107,10 +110,7 @@ pub async fn oauth_callback<S: AuthService>(
             AppError::InvalidToken
         })?;
 
-    debug!(
-        "Token validated - user: {}, email: {:?}",
-        claims.sub, claims.email
-    );
+    debug!("Token validated - user: {}, email: {:?}", claims.sub, claims.email);
 
     // Extract user info from claims
     let user_info = KanidmUserInfo {
@@ -126,7 +126,7 @@ pub async fn oauth_callback<S: AuthService>(
     // Upsert user in database
     if let Some((ref tenant, ref role)) = tenant_info {
         debug!("Mapping user to tenant: {} with role: {}", tenant.name, role);
-        
+
         // Get user repository from state
         if let Some(user_repo) = &state.user_repo {
             let (user, is_new) = user_repo
@@ -164,7 +164,7 @@ pub async fn oauth_callback<S: AuthService>(
 }
 
 /// Map Kanidm groups to tenant and role
-/// 
+///
 /// Expects groups in format: tenant_{slug}_admins, tenant_{slug}_users
 /// Returns first matching tenant with role
 async fn map_tenant_from_groups<S: AuthService>(
@@ -172,10 +172,7 @@ async fn map_tenant_from_groups<S: AuthService>(
     groups: &[String],
 ) -> Result<Option<(user_service_core::domains::auth::domain::model::Tenant, String)>, AppError> {
     // Filter tenant-related groups
-    let tenant_groups: Vec<&String> = groups
-        .iter()
-        .filter(|g| g.starts_with("tenant_"))
-        .collect();
+    let tenant_groups: Vec<&String> = groups.iter().filter(|g| g.starts_with("tenant_")).collect();
 
     if tenant_groups.is_empty() {
         warn!("User has no tenant groups in Kanidm");
@@ -188,13 +185,13 @@ async fn map_tenant_from_groups<S: AuthService>(
         None => {
             warn!("Tenant repository not available in AppState");
             return Ok(None);
-        }
+        },
     };
 
     // Try to find matching tenant for each group
     for group_name in &tenant_groups {
         debug!("Checking group: {}", group_name);
-        
+
         if let Some((tenant, role)) = tenant_repo.find_by_kanidm_group(group_name).await? {
             debug!("Found tenant: {} with role: {}", tenant.name, role);
             return Ok(Some((tenant, role)));

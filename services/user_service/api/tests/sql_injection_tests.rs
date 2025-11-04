@@ -2,7 +2,6 @@
 ///
 /// This test suite validates that all endpoints are protected against
 /// SQL injection attacks and properly validate/sanitize inputs.
-
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -43,13 +42,14 @@ async fn test_sql_injection_login_email() {
                 "email": payload,
                 "password": "anything"
             })),
-        ).await;
+        )
+        .await;
 
         // Should return unauthorized or bad request, NOT internal server error
         assert!(
-            response.status() == StatusCode::UNAUTHORIZED ||
-            response.status() == StatusCode::BAD_REQUEST ||
-            response.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            response.status() == StatusCode::UNAUTHORIZED
+                || response.status() == StatusCode::BAD_REQUEST
+                || response.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "SQL injection attempt should fail safely: {}",
             payload
         );
@@ -90,11 +90,11 @@ async fn test_sql_injection_user_filters() {
             &format!("/api/v1/users?role={}", urlencoding::encode(payload)),
             &token,
             None,
-        ).await;
+        )
+        .await;
 
         assert!(
-            response.status() == StatusCode::OK ||
-            response.status() == StatusCode::BAD_REQUEST,
+            response.status() == StatusCode::OK || response.status() == StatusCode::BAD_REQUEST,
             "SQL injection in role filter should fail safely"
         );
 
@@ -105,11 +105,11 @@ async fn test_sql_injection_user_filters() {
             &format!("/api/v1/users?status={}", urlencoding::encode(payload)),
             &token,
             None,
-        ).await;
+        )
+        .await;
 
         assert!(
-            response.status() == StatusCode::OK ||
-            response.status() == StatusCode::BAD_REQUEST,
+            response.status() == StatusCode::OK || response.status() == StatusCode::BAD_REQUEST,
             "SQL injection in status filter should fail safely"
         );
     }
@@ -142,12 +142,13 @@ async fn test_sql_injection_uuid_params() {
             &format!("/api/v1/users/{}", payload),
             &token,
             None,
-        ).await;
+        )
+        .await;
 
         // Should return bad request or not found, not internal error
         assert!(
-            response.status() == StatusCode::BAD_REQUEST ||
-            response.status() == StatusCode::NOT_FOUND,
+            response.status() == StatusCode::BAD_REQUEST
+                || response.status() == StatusCode::NOT_FOUND,
             "SQL injection in UUID param should fail safely: {}",
             payload
         );
@@ -183,13 +184,14 @@ async fn test_sql_injection_policy_creation() {
                 "resource": resource,
                 "action": action
             })),
-        ).await;
+        )
+        .await;
 
         // Should reject or fail validation, not execute SQL
         assert!(
-            response.status() == StatusCode::BAD_REQUEST ||
-            response.status() == StatusCode::UNPROCESSABLE_ENTITY ||
-            response.status() == StatusCode::OK, // Might be treated as valid string
+            response.status() == StatusCode::BAD_REQUEST
+                || response.status() == StatusCode::UNPROCESSABLE_ENTITY
+                || response.status() == StatusCode::OK, // Might be treated as valid string
             "SQL injection in policy should fail safely"
         );
     }
@@ -213,13 +215,9 @@ async fn test_second_order_sql_injection() {
     // Try to register user with malicious name
     let malicious_name = "'; DROP TABLE users; --";
 
-    let result = create_test_user(
-        &pool,
-        tenant.tenant_id,
-        "malicious@test.com",
-        malicious_name,
-        "user"
-    ).await;
+    let result =
+        create_test_user(&pool, tenant.tenant_id, "malicious@test.com", malicious_name, "user")
+            .await;
 
     // User should be created with the string as-is (parameterized query)
     assert_eq!(result.full_name.as_deref(), Some(malicious_name));
@@ -236,13 +234,7 @@ async fn test_second_order_sql_injection() {
     let app = create_test_app(&pool).await;
     let token = create_test_jwt(result.user_id, tenant.tenant_id, &result.role);
 
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token,
-        None,
-    ).await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token, None).await;
 
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -251,9 +243,9 @@ async fn test_second_order_sql_injection() {
     let users_resp: Value = serde_json::from_slice(&body).unwrap();
 
     if let Some(users) = users_resp["users"].as_array() {
-        let found = users.iter().any(|u| {
-            u["full_name"].as_str() == Some(malicious_name)
-        });
+        let found = users
+            .iter()
+            .any(|u| u["full_name"].as_str() == Some(malicious_name));
         assert!(found, "Malicious name should be stored and returned as plain text");
     }
 }
@@ -283,15 +275,13 @@ async fn test_json_field_injection() {
     .expect("Should handle JSON safely");
 
     // Verify tenants table still exists and data is intact
-    let tenant_check = sqlx::query!(
-        "SELECT settings FROM tenants WHERE tenant_id = $1",
-        tenant.tenant_id
-    )
-    .fetch_one(&pool)
-    .await
-    .expect("Tenants table should still exist");
+    let tenant_check =
+        sqlx::query!("SELECT settings FROM tenants WHERE tenant_id = $1", tenant.tenant_id)
+            .fetch_one(&pool)
+            .await
+            .expect("Tenants table should still exist");
 
-    assert_eq!(tenant_check.settings.0, malicious_json);
+    assert_eq!(tenant_check.settings, malicious_json);
 }
 
 /// Test: Input validation for email format
@@ -323,11 +313,12 @@ async fn test_email_validation() {
                 "tenant_name": "Test Tenant",
                 "tenant_slug": "test-tenant"
             })),
-        ).await;
+        )
+        .await;
 
         assert!(
-            response.status() == StatusCode::BAD_REQUEST ||
-            response.status() == StatusCode::UNPROCESSABLE_ENTITY,
+            response.status() == StatusCode::BAD_REQUEST
+                || response.status() == StatusCode::UNPROCESSABLE_ENTITY,
             "Invalid email should be rejected: {}",
             email
         );
@@ -341,14 +332,7 @@ async fn test_password_validation() {
     let pool = setup_test_db().await;
     let app = create_test_app(&pool).await;
 
-    let weak_passwords = vec![
-        "short",
-        "12345678",
-        "password",
-        "abcdefgh",
-        "",
-        " ",
-    ];
+    let weak_passwords = vec!["short", "12345678", "password", "abcdefgh", "", " "];
 
     for password in &weak_passwords {
         let response = make_unauthenticated_request(
@@ -362,13 +346,14 @@ async fn test_password_validation() {
                 "tenant_name": "Test Tenant",
                 "tenant_slug": "test-tenant"
             })),
-        ).await;
+        )
+        .await;
 
         // Should reject weak passwords
         assert!(
-            response.status() == StatusCode::BAD_REQUEST ||
-            response.status() == StatusCode::UNPROCESSABLE_ENTITY ||
-            response.status() == StatusCode::CONFLICT, // Might fail on duplicate email
+            response.status() == StatusCode::BAD_REQUEST
+                || response.status() == StatusCode::UNPROCESSABLE_ENTITY
+                || response.status() == StatusCode::CONFLICT, // Might fail on duplicate email
             "Weak password should be rejected: {}",
             password
         );
@@ -396,19 +381,14 @@ async fn test_xss_prevention() {
             tenant.tenant_id,
             &format!("xss{}@test.com", Uuid::new_v4()),
             payload,
-            "user"
-        ).await;
+            "user",
+        )
+        .await;
 
         let app = create_test_app(&pool).await;
         let token = create_test_jwt(user.user_id, tenant.tenant_id, &user.role);
 
-        let response = make_authenticated_request(
-            &app,
-            "GET",
-            "/api/v1/users",
-            &token,
-            None,
-        ).await;
+        let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token, None).await;
 
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -418,8 +398,8 @@ async fn test_xss_prevention() {
         // XSS payload should be returned as plain text (JSON escaped)
         // NOT as executable HTML/JavaScript
         assert!(
-            body_str.contains(&payload.replace('<', "\\u003c").replace('>', "\\u003e")) ||
-            body_str.contains(payload), // Might be JSON escaped differently
+            body_str.contains(&payload.replace('<', "\\u003c").replace('>', "\\u003e"))
+                || body_str.contains(payload), // Might be JSON escaped differently
             "XSS payload should be safely escaped in response"
         );
     }
@@ -450,11 +430,12 @@ async fn test_path_traversal_prevention() {
             &format!("/api/v1/users/{}", payload),
             &token,
             None,
-        ).await;
+        )
+        .await;
 
         assert!(
-            response.status() == StatusCode::BAD_REQUEST ||
-            response.status() == StatusCode::NOT_FOUND,
+            response.status() == StatusCode::BAD_REQUEST
+                || response.status() == StatusCode::NOT_FOUND,
             "Path traversal should be rejected: {}",
             payload
         );
@@ -483,8 +464,9 @@ async fn test_command_injection_prevention() {
             tenant.tenant_id,
             &format!("cmd{}@test.com", Uuid::new_v4()),
             payload,
-            "user"
-        ).await;
+            "user",
+        )
+        .await;
 
         // Command should be stored as plain text, not executed
         assert_eq!(user.full_name.as_deref(), Some(*payload));
@@ -517,11 +499,12 @@ async fn test_ldap_injection_prevention() {
                 "email": payload,
                 "password": "anything"
             })),
-        ).await;
+        )
+        .await;
 
         assert!(
-            response.status() == StatusCode::UNAUTHORIZED ||
-            response.status() == StatusCode::BAD_REQUEST,
+            response.status() == StatusCode::UNAUTHORIZED
+                || response.status() == StatusCode::BAD_REQUEST,
             "LDAP injection should be rejected: {}",
             payload
         );
@@ -550,7 +533,8 @@ async fn test_mass_assignment_prevention() {
             "status": "active",
             "email_verified": true
         })),
-    ).await;
+    )
+    .await;
 
     // Should either ignore extra fields or reject
     // Most importantly, user should NOT be created as admin
@@ -565,13 +549,10 @@ async fn test_mass_assignment_prevention() {
         let user_id = uuid::Uuid::parse_str(user_id_str).expect("user_id should be valid UUID");
 
         // Verify in database that role is NOT admin
-        let user_role = sqlx::query!(
-            "SELECT role FROM users WHERE user_id = $1",
-            user_id
-        )
-        .fetch_one(&pool)
-        .await
-        .expect("Should find created user");
+        let user_role = sqlx::query!("SELECT role FROM users WHERE user_id = $1", user_id)
+            .fetch_one(&pool)
+            .await
+            .expect("Should find created user");
 
         assert_ne!(
             user_role.role, "admin",

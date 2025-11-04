@@ -108,10 +108,7 @@ impl KanidmConfig {
     /// Get OpenID Connect discovery URL
     pub fn discovery_endpoint(&self) -> Result<Url> {
         let base = Url::parse(&self.kanidm_url)?;
-        let path = format!(
-            "/oauth2/openid/{}/.well-known/openid-configuration",
-            self.client_id
-        );
+        let path = format!("/oauth2/openid/{}/.well-known/openid-configuration", self.client_id);
         base.join(&path).map_err(Into::into)
     }
 
@@ -126,22 +123,16 @@ impl KanidmConfig {
 
         // Validate client credentials
         if self.client_id.is_empty() {
-            return Err(KanidmError::ConfigError(
-                "client_id cannot be empty".to_string(),
-            ));
+            return Err(KanidmError::ConfigError("client_id cannot be empty".to_string()));
         }
 
         if self.client_secret.is_empty() {
-            return Err(KanidmError::ConfigError(
-                "client_secret cannot be empty".to_string(),
-            ));
+            return Err(KanidmError::ConfigError("client_secret cannot be empty".to_string()));
         }
 
         // Validate scopes
         if self.scopes.is_empty() {
-            return Err(KanidmError::ConfigError(
-                "At least one scope is required".to_string(),
-            ));
+            return Err(KanidmError::ConfigError("At least one scope is required".to_string()));
         }
 
         // Warn if JWT verification is skipped
@@ -191,10 +182,7 @@ mod tests {
             "http://localhost:8300/oauth2/authorise"
         );
 
-        assert_eq!(
-            config.token_endpoint().unwrap().as_str(),
-            "http://localhost:8300/oauth2/token"
-        );
+        assert_eq!(config.token_endpoint().unwrap().as_str(), "http://localhost:8300/oauth2/token");
 
         assert_eq!(
             config.jwks_endpoint().unwrap().as_str(),

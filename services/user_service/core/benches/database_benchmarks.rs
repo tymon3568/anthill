@@ -1,16 +1,14 @@
 // Performance benchmarks for core operations
 // Run: cargo bench --package user_service_core --bench database_benchmarks
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use uuid::Uuid;
 
 fn bench_uuid_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("uuid_generation");
 
     group.bench_function("uuid_v7_single", |b| {
-        b.iter(|| {
-            Uuid::now_v7()
-        });
+        b.iter(Uuid::now_v7);
     });
 
     group.bench_function("uuid_v7_batch_10", |b| {
@@ -52,16 +50,12 @@ fn bench_uuid_operations(c: &mut Criterion) {
     let uuid = Uuid::now_v7();
 
     group.bench_function("uuid_to_string", |b| {
-        b.iter(|| {
-            black_box(uuid).to_string()
-        });
+        b.iter(|| black_box(uuid).to_string());
     });
 
     group.bench_function("uuid_comparison", |b| {
         let uuid2 = Uuid::now_v7();
-        b.iter(|| {
-            black_box(uuid) == black_box(uuid2)
-        });
+        b.iter(|| black_box(uuid) == black_box(uuid2));
     });
 
     group.bench_function("uuid_sorting_100", |b| {
@@ -80,24 +74,16 @@ fn bench_string_operations(c: &mut Criterion) {
 
     group.bench_function("email_validation", |b| {
         let email = "user@example.com";
-        b.iter(|| {
-            black_box(email).contains('@') && black_box(email).contains('.')
-        });
+        b.iter(|| black_box(email).contains('@') && black_box(email).contains('.'));
     });
 
     group.bench_function("slug_generation", |b| {
         let name = "Test Tenant Corporation";
-        b.iter(|| {
-            black_box(name)
-                .to_lowercase()
-                .replace(' ', "-")
-        });
+        b.iter(|| black_box(name).to_lowercase().replace(' ', "-"));
     });
 
     group.bench_function("string_concat_small", |b| {
-        b.iter(|| {
-            format!("user-{}-{}", black_box("test"), black_box(123))
-        });
+        b.iter(|| format!("user-{}-{}", black_box("test"), black_box(123)));
     });
 
     group.bench_function("string_concat_large", |b| {
@@ -159,23 +145,17 @@ fn bench_timestamp_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("timestamp_operations");
 
     group.bench_function("current_timestamp", |b| {
-        b.iter(|| {
-            chrono::Utc::now()
-        });
+        b.iter(chrono::Utc::now);
     });
 
     group.bench_function("timestamp_to_string", |b| {
         let now = chrono::Utc::now();
-        b.iter(|| {
-            black_box(now).to_rfc3339()
-        });
+        b.iter(|| black_box(now).to_rfc3339());
     });
 
     group.bench_function("timestamp_arithmetic", |b| {
         let now = chrono::Utc::now();
-        b.iter(|| {
-            black_box(now) + chrono::Duration::days(7)
-        });
+        b.iter(|| black_box(now) + chrono::Duration::days(7));
     });
 
     group.finish();

@@ -1,10 +1,8 @@
 // Performance benchmarks for password operations
 // Run: cargo bench --package user_service_core --bench password_benchmarks
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use user_service_core::domains::auth::utils::password_validator::{
-    validate_password_strength, PasswordStrength,
-};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use user_service_core::domains::auth::utils::password_validator::validate_password_strength;
 
 fn bench_password_validation(c: &mut Criterion) {
     let mut group = c.benchmark_group("password_validation");
@@ -14,19 +12,16 @@ fn bench_password_validation(c: &mut Criterion) {
         ("short", "Pass1!"),
         ("medium", "MyP@ssw0rd123"),
         ("long", "ThisIsAVeryLongAndSecureP@ssw0rd123456"),
-        ("very_long", "ThisIsAnExtremelyLongPasswordThatShouldBenchmarkPerformanceUnderStress123!@#"),
+        (
+            "very_long",
+            "ThisIsAnExtremelyLongPasswordThatShouldBenchmarkPerformanceUnderStress123!@#",
+        ),
     ];
 
     for (name, password) in passwords {
-        group.bench_with_input(
-            BenchmarkId::new("validate_strength", name),
-            &password,
-            |b, pwd| {
-                b.iter(|| {
-                    validate_password_strength(black_box(pwd), &[])
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("validate_strength", name), &password, |b, pwd| {
+            b.iter(|| validate_password_strength(black_box(pwd), &[]));
+        });
     }
 
     group.finish();
@@ -48,9 +43,7 @@ fn bench_password_with_user_info(c: &mut Criterion) {
             &(password, user_inputs),
             |b, (pwd, inputs)| {
                 let inputs_refs: Vec<&str> = inputs.iter().map(|s| s.as_ref()).collect();
-                b.iter(|| {
-                    validate_password_strength(black_box(pwd), &inputs_refs)
-                });
+                b.iter(|| validate_password_strength(black_box(pwd), &inputs_refs));
             },
         );
     }
@@ -73,9 +66,7 @@ fn bench_password_strength_detection(c: &mut Criterion) {
             BenchmarkId::new("strength_level", strength),
             &password,
             |b, pwd| {
-                b.iter(|| {
-                    validate_password_strength(black_box(pwd), &[])
-                });
+                b.iter(|| validate_password_strength(black_box(pwd), &[]));
             },
         );
     }
@@ -99,9 +90,7 @@ fn bench_common_password_patterns(c: &mut Criterion) {
             BenchmarkId::new("pattern_detection", pattern),
             &password,
             |b, pwd| {
-                b.iter(|| {
-                    validate_password_strength(black_box(pwd), &[])
-                });
+                b.iter(|| validate_password_strength(black_box(pwd), &[]));
             },
         );
     }

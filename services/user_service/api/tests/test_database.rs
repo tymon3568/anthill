@@ -50,7 +50,9 @@ impl TestDatabaseConfig {
     pub fn get_test_database_url() -> String {
         std::env::var("TEST_DATABASE_URL")
             .or_else(|_| std::env::var("DATABASE_URL"))
-            .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5433/anthill_test".to_string())
+            .unwrap_or_else(|_| {
+                "postgres://anthill:anthill@localhost:5433/anthill_test".to_string()
+            })
     }
 
     /// Get reference to database pool
@@ -218,12 +220,25 @@ impl TestDatabaseConfig {
         self.tracked_tenants.lock().await.clear();
     }
 
-    /// Clean up all test data using SQL function
+    /// Clean up all test data using Rust function
     pub async fn cleanup_all_test_data(&self) {
-        sqlx::query!("SELECT cleanup_test_data()")
+        // Delete in reverse dependency order to avoid foreign key constraints
+        sqlx::query!("DELETE FROM sessions")
             .execute(&self.pool)
             .await
-            .expect("Failed to cleanup all test data");
+            .ok();
+        sqlx::query!("DELETE FROM casbin_rule")
+            .execute(&self.pool)
+            .await
+            .ok();
+        sqlx::query!("DELETE FROM users")
+            .execute(&self.pool)
+            .await
+            .ok();
+        sqlx::query!("DELETE FROM tenants")
+            .execute(&self.pool)
+            .await
+            .ok();
     }
 
     /// Verify database is in clean state
@@ -342,17 +357,19 @@ impl Drop for TestDatabaseConfig {
                     // Clean sessions
                     let session_ids = sessions.lock().await.clone();
                     for session_id in session_ids {
-                        let _ = sqlx::query!("DELETE FROM sessions WHERE session_id = $1", session_id)
-                            .execute(&pool)
-                            .await;
+                        let _ =
+                            sqlx::query!("DELETE FROM sessions WHERE session_id = $1", session_id)
+                                .execute(&pool)
+                                .await;
                     }
 
                     // Clean user profiles
                     let user_ids = users.lock().await.clone();
                     for user_id in &user_ids {
-                        let _ = sqlx::query!("DELETE FROM user_profiles WHERE user_id = $1", user_id)
-                            .execute(&pool)
-                            .await;
+                        let _ =
+                            sqlx::query!("DELETE FROM user_profiles WHERE user_id = $1", user_id)
+                                .execute(&pool)
+                                .await;
                     }
 
                     // Clean users
@@ -445,13 +462,15 @@ mod tests {
         let config = TestDatabaseConfig::new().await;
 
         let tenant_id = config.create_tenant("User Test Tenant", None).await;
-        let user_id = config.create_user(
-            tenant_id,
-            "test@example.com",
-            "$argon2id$v=19$m=19456,t=2,p=1$test$test",
-            "user",
-            Some("Test User"),
-        ).await;
+        let user_id = config
+            .create_user(
+                tenant_id,
+                "test@example.com",
+                "$argon2id$v=19$m=19456,t=2,p=1$test$test",
+                "user",
+                Some("Test User"),
+            )
+            .await;
 
         // Verify user exists
         let user = config.get_user(user_id).await;

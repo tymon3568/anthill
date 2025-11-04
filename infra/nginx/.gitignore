@@ -1,0 +1,24 @@
+# SSL Certificates (NEVER commit to repository)
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Let's Encrypt live certificates
+live/
+archive/
+renewal/
+
+# Nginx cache and temp files
+*.cache
+*.temp
+
+# Logs (optional - comment out if you want to track logs)
+/var/log/nginx/
+
+# Development artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

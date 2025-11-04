@@ -2,8 +2,8 @@
 // Tests various security vulnerabilities and attack vectors
 // Run: cargo test --package user_service_api --test comprehensive_security_tests
 
-use uuid::Uuid;
 use user_service_core::domains::auth::utils::password_validator::validate_password_strength;
+use uuid::Uuid;
 
 /// Test Suite: Input Validation Security
 /// NOTE: These tests require proper input validation implementation
@@ -25,11 +25,7 @@ mod input_validation {
 
         for email in malicious_emails {
             // Email validation should reject these
-            assert!(
-                !is_valid_email(email),
-                "Email validation failed to reject: {}",
-                email
-            );
+            assert!(!is_valid_email(email), "Email validation failed to reject: {}", email);
         }
     }
 
@@ -66,11 +62,7 @@ mod input_validation {
         ];
 
         for url in malicious_urls {
-            assert!(
-                !is_safe_url(url),
-                "URL validation failed to reject: {}",
-                url
-            );
+            assert!(!is_safe_url(url), "URL validation failed to reject: {}", url);
         }
     }
 }
@@ -82,11 +74,11 @@ mod password_security {
     #[tokio::test]
     async fn test_weak_password_rejected() {
         let weak_passwords = vec![
-            "12345678",        // Too simple
-            "password",        // Dictionary word
-            "qwerty123",       // Keyboard pattern
-            "aaaaaaaa",        // Repeated characters
-            "Password1",       // Common pattern
+            "12345678",  // Too simple
+            "password",  // Dictionary word
+            "qwerty123", // Keyboard pattern
+            "aaaaaaaa",  // Repeated characters
+            "Password1", // Common pattern
         ];
 
         for password in weak_passwords {
@@ -94,9 +86,7 @@ mod password_security {
             assert!(
                 !result.is_valid,
                 "Weak password should be rejected: {} - score: {:?}, feedback: {:?}",
-                password,
-                result.score,
-                result.feedback
+                password, result.score, result.feedback
             );
         }
     }
@@ -114,9 +104,7 @@ mod password_security {
             assert!(
                 result.is_valid,
                 "Strong password should be accepted: {} - score: {:?}, feedback: {:?}",
-                password,
-                result.score,
-                result.feedback
+                password, result.score, result.feedback
             );
         }
     }
@@ -130,9 +118,9 @@ mod password_security {
         // Passwords containing user info should be weak and rejected
         // Using simpler variations that zxcvbn can detect
         let passwords_with_user_info = vec![
-            "johndoe",           // Just username
-            "johndoe123",        // Username + numbers
-            "john.doe",          // Name from email
+            "johndoe",    // Just username
+            "johndoe123", // Username + numbers
+            "john.doe",   // Name from email
         ];
 
         for password in passwords_with_user_info {
@@ -159,9 +147,11 @@ mod password_security {
         let user = create_test_user_with_password(password).await;
 
         // Password should be hashed, not plaintext
-        assert_ne!(user.password_hash, password);
-        assert!(user.password_hash.starts_with("$argon2") || user.password_hash.starts_with("$2"));
-        assert!(user.password_hash.len() > 50); // Hashed passwords are long
+        assert!(user.password_hash.is_some(), "Password hash should exist");
+        let hash = user.password_hash.as_ref().unwrap();
+        assert_ne!(hash, password);
+        assert!(hash.starts_with("$argon2") || hash.starts_with("$2"));
+        assert!(hash.len() > 50); // Hashed passwords are long
     }
 
     #[tokio::test]
@@ -176,7 +166,8 @@ mod password_security {
 
         // Hashes should be different due to unique salts
         assert_ne!(
-            user1.password_hash, user2.password_hash,
+            user1.password_hash.as_ref().unwrap(),
+            user2.password_hash.as_ref().unwrap(),
             "Password hashes should differ even with same password (unique salt required)"
         );
     }
@@ -301,11 +292,7 @@ mod rate_limiting {
                 assert_eq!(result.status_code, 401);
             } else {
                 // After 5 attempts, should be rate limited
-                assert_eq!(
-                    result.status_code, 429,
-                    "Expected rate limit after {} attempts",
-                    i
-                );
+                assert_eq!(result.status_code, 429, "Expected rate limit after {} attempts", i);
             }
         }
     }
@@ -394,7 +381,8 @@ mod cryptography {
         let user = create_user_with_sensitive_data(
             "user@example.com",
             "123-45-6789", // SSN (example sensitive data)
-        ).await;
+        )
+        .await;
 
         // Query database directly
         let stored_data = query_user_from_db(&user.user_id).await;
@@ -429,11 +417,7 @@ mod authorization {
 
         for token in malformed_tokens {
             let result = call_protected_endpoint(token).await;
-            assert_eq!(
-                result.status_code, 401,
-                "Malformed token should be rejected: {}",
-                token
-            );
+            assert_eq!(result.status_code, 401, "Malformed token should be rejected: {}", token);
         }
     }
 
@@ -489,7 +473,7 @@ async fn create_test_user_with_password(password: &str) -> TestUser {
     let _ = password; // Use parameter to avoid warnings
     TestUser {
         user_id: Uuid::new_v4(),
-        password_hash: "$argon2id$v=19$m=19456,t=2,p=1$hash".to_string(),
+        password_hash: Some("$argon2id$v=19$m=19456,t=2,p=1$hash".to_string()), // Now Option<String>
     }
 }
 
@@ -627,7 +611,7 @@ async fn delete_user(token: &str, user_id: &Uuid) -> ApiResponse {
 #[derive(Debug)]
 struct TestUser {
     user_id: Uuid,
-    password_hash: String,
+    password_hash: Option<String>, // Now Option<String> for nullable password_hash
 }
 
 #[derive(Debug)]

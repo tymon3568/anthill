@@ -49,27 +49,30 @@ VALUES (
 ### 2. Initialize Kanidm
 
 ```bash
-# Access Kanidm container
-docker exec -it kanidm bash
+# Wait for Kanidm to be ready
+echo "Waiting for Kanidm..."
+for i in {1..30}; do
+  curl -sf http://localhost:8300/status && break
+  echo "Attempt $i/30: Kanidm not ready..."
+  sleep 2
+done
 
-# Setup admin password
-kanidmd recover-account -c /data/server.toml admin
+# Create OAuth2 client for testing
+kanidm system oauth2 create anthill_test "Anthill Test Client" http://localhost:3000
 
-# Create OAuth2 client
-kanidm login -H https://localhost:8300 -D anonymous
-kanidm system oauth2 create anthill "Anthill Inventory" https://localhost:3000
+# Configure redirect URLs
+kanidm system oauth2 add-redirect-url anthill_test http://localhost:3000/oauth2/callback
+kanidm system oauth2 add-redirect-url anthill_test http://localhost:5173/oauth2/callback
 
-# Configure OAuth2 client
-kanidm system oauth2 add-redirect-url anthill https://localhost:3000/oauth/callback
-kanidm system oauth2 add-redirect-url anthill http://localhost:3000/oauth/callback
-kanidm system oauth2 enable-pkce anthill
+# Enable PKCE (required for modern OAuth2)
+kanidm system oauth2 enable-pkce anthill_test
 
-# Configure scope map
-kanidm system oauth2 update-scope-map anthill anthill_users email openid profile groups
+# Configure scope mappings
+kanidm system oauth2 update-scope-map anthill_test acme_users openid email profile groups
 
 # Get client secret
-kanidm system oauth2 show-basic-secret anthill
-# Save this secret for .env
+CLIENT_SECRET=$(kanidm system oauth2 show-basic-secret anthill_test)
+echo "Client Secret: $CLIENT_SECRET"
 ```
 
 ### 3. Create Test User in Kanidm
@@ -271,6 +274,86 @@ Created new user from Kanidm authentication: <user-uuid>
 - **Check**: JWT groups claim includes expected tenant group
 - **Check**: kanidm_tenant_groups mapping exists
 - **Debug**: Add logging in map_tenant_from_groups()
+
+## OAuth2 Discovery & JWKS
+
+### Discovery Endpoint
+Kanidm provides OIDC discovery for automatic client configuration:
+
+```bash
+# Get discovery document
+curl https://localhost:8300/oauth2/openid/anthill_test/.well-known/openid-configuration | jq
+
+# Response includes:
+# - issuer: "https://localhost:8300/oauth2/openid/anthill_test"
+# - authorization_endpoint: "https://localhost:8300/ui/oauth2"
+# - token_endpoint: "https://localhost:8300/oauth2/token"
+# - jwks_uri: JWK Set endpoint for token validation
+# - userinfo_endpoint: User info endpoint
+# - scopes_supported: ["openid", "profile", "email", "groups"]
+# - claims_supported: ["sub", "name", "email", "email_verified", "groups"]
+```
+
+### JWKS Endpoint
+For JWT signature validation:
+
+```bash
+# Get JSON Web Key Set
+curl https://localhost:8300/oauth2/openid/anthill_test/public_key.jwk | jq
+
+# Contains public keys for validating JWT signatures
+# - kty: Key type (RSA/ECDSA)
+# - use: "sig" for signature validation
+# - kid: Key ID
+# - n/e: RSA modulus/exponent (for RSA keys)
+```
+
+### User Info Endpoint
+Optional endpoint for additional user claims:
+
+```bash
+# Get user info (requires Bearer token)
+curl -H "Authorization: Bearer <access_token>" \
+  https://localhost:8300/oauth2/openid/anthill_test/userinfo | jq
+
+# Response:
+# {
+#   "sub": "<kanidm-user-uuid>",
+#   "email": "testuser@example.com",
+#   "preferred_username": "testuser",
+#   "name": "Test User",
+#   "groups": ["tenant_acme_admins", "anthill_users"]
+# }
+```
+
+## Advanced Configuration
+
+### Custom Claim Mappings
+Map Kanidm groups to custom JWT claims:
+
+```bash
+# Create custom role claim
+kanidm system oauth2 update-claim-map-join anthill_test custom_roles array
+kanidm system oauth2 update-claim-map anthill_test custom_roles tenant_acme_admins Admin
+
+# Result: JWT will include "custom_roles": ["Admin"]
+```
+
+### Legacy Crypto Support
+For older OAuth2 clients:
+
+```bash
+# Enable legacy crypto (not recommended for production)
+kanidm system oauth2 warning-enable-legacy-crypto anthill_test
+```
+
+### Disable PKCE
+For clients that don't support PKCE:
+
+```bash
+# WARNING: Reduces security, not recommended
+kanidm system oauth2 warning-insecure-client-disable-pkce anthill_test
+```
 
 ## Next Steps
 
