@@ -9,8 +9,8 @@
 // Run with: cargo test --test oauth2_flow_tests -- --ignored --test-threads=1
 
 use serde_json::json;
-use user_service_api::get_app;
 use tower::util::ServiceExt;
+use user_service_api::get_app;
 
 #[tokio::test]
 #[ignore] // Requires Kanidm server
@@ -60,7 +60,10 @@ async fn test_oauth_authorize_generates_url() {
         .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(json["authorization_url"].as_str().unwrap().starts_with("http"));
+    assert!(json["authorization_url"]
+        .as_str()
+        .unwrap()
+        .starts_with("http"));
     assert_eq!(json["state"].as_str().unwrap(), "test-state-123");
     assert!(json["code_verifier"].as_str().is_some());
 
@@ -127,15 +130,8 @@ async fn test_oauth_callback_maps_tenant() {
     // Verify tenant mapping worked
     let tenant = &json["tenant"];
     assert!(tenant.is_object(), "Tenant should be mapped");
-    assert_eq!(
-        tenant["name"].as_str().unwrap(),
-        "ACME Corporation",
-        "Tenant name should match"
-    );
-    assert!(
-        tenant["role"].as_str().is_some(),
-        "Role should be assigned"
-    );
+    assert_eq!(tenant["name"].as_str().unwrap(), "ACME Corporation", "Tenant name should match");
+    assert!(tenant["role"].as_str().is_some(), "Role should be assigned");
 
     println!("✅ OAuth callback endpoint working");
     println!("   User: {}", json["user"]["email"]);

@@ -2,32 +2,9 @@
 ///
 /// This test suite validates that multi-tenant isolation is 100% secure
 /// and no cross-tenant data access is possible under any circumstances.
-
-use axum::{
-    body::Body,
-    extract::State,
-    http::{Request, StatusCode},
-    response::Response,
-    routing::{delete, get, post, put},
-    Router,
-};
+use axum::http::StatusCode;
 use http_body_util::BodyExt;
-use serde_json::{json, Value};
-use sqlx::PgPool;
-use std::sync::Arc;
-use tower::ServiceExt;
-use user_service_api::AppState;
-use user_service_core::domains::auth::{
-    domain::{
-        model::{Tenant, User},
-        repository::{TenantRepository, UserRepository},
-    },
-    dto::auth_dto::RegisterReq,
-};
-use user_service_infra::auth::{
-    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
-};
-use uuid::Uuid;
+use serde_json::Value;
 
 mod helpers;
 use helpers::*;
@@ -43,21 +20,11 @@ async fn test_tenant_isolation_basic_user_data_access() {
     let tenant_b = create_test_tenant(&pool, "Beta Inc").await;
 
     // Create users in each tenant
-    let user_a = create_test_user(
-        &pool,
-        tenant_a.tenant_id,
-        "alice@acme.com",
-        "Alice Admin",
-        "user"
-    ).await;
+    let user_a =
+        create_test_user(&pool, tenant_a.tenant_id, "alice@acme.com", "Alice Admin", "user").await;
 
-    let user_b = create_test_user(
-        &pool,
-        tenant_b.tenant_id,
-        "bob@beta.com",
-        "Bob User",
-        "user"
-    ).await;
+    let user_b =
+        create_test_user(&pool, tenant_b.tenant_id, "bob@beta.com", "Bob User", "user").await;
 
     let app = create_test_app(&pool).await;
 
@@ -72,7 +39,8 @@ async fn test_tenant_isolation_basic_user_data_access() {
         &format!("/api/v1/users/{}", user_b.user_id),
         &token_a,
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(
         response.status(),
@@ -87,7 +55,8 @@ async fn test_tenant_isolation_basic_user_data_access() {
         &format!("/api/v1/users/{}", user_a.user_id),
         &token_b,
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(
         response.status(),
@@ -96,13 +65,7 @@ async fn test_tenant_isolation_basic_user_data_access() {
     );
 
     // Test 3: User A can only see their own tenant's users
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token_a,
-        None,
-    ).await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token_a, None).await;
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = response.into_body().collect().await.unwrap().to_bytes();
@@ -124,21 +87,12 @@ async fn test_tenant_isolation_admin_cannot_cross_tenant() {
     let tenant_b = create_test_tenant(&pool, "Tenant Beta").await;
 
     // Create admin in Tenant A and regular user in Tenant B
-    let admin_a = create_test_user(
-        &pool,
-        tenant_a.tenant_id,
-        "admin@alpha.com",
-        "Admin Alpha",
-        "admin"
-    ).await;
+    let admin_a =
+        create_test_user(&pool, tenant_a.tenant_id, "admin@alpha.com", "Admin Alpha", "admin")
+            .await;
 
-    let user_b = create_test_user(
-        &pool,
-        tenant_b.tenant_id,
-        "user@beta.com",
-        "User Beta",
-        "user"
-    ).await;
+    let user_b =
+        create_test_user(&pool, tenant_b.tenant_id, "user@beta.com", "User Beta", "user").await;
 
     let app = create_test_app(&pool).await;
     let token_admin_a = create_test_jwt(admin_a.user_id, tenant_a.tenant_id, &admin_a.role);
@@ -150,7 +104,8 @@ async fn test_tenant_isolation_admin_cannot_cross_tenant() {
         &format!("/api/v1/users/{}", user_b.user_id),
         &token_admin_a,
         None,
-    ).await;
+    )
+    .await;
 
     assert!(
         response.status() == StatusCode::FORBIDDEN || response.status() == StatusCode::NOT_FOUND,
@@ -159,13 +114,8 @@ async fn test_tenant_isolation_admin_cannot_cross_tenant() {
     );
 
     // Test: Admin A cannot list users from Tenant B
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token_admin_a,
-        None,
-    ).await;
+    let response =
+        make_authenticated_request(&app, "GET", "/api/v1/users", &token_admin_a, None).await;
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = response.into_body().collect().await.unwrap().to_bytes();
@@ -173,7 +123,9 @@ async fn test_tenant_isolation_admin_cannot_cross_tenant() {
     let users = users_resp["users"].as_array().unwrap();
 
     // Should only see users from their own tenant
-    assert!(users.iter().all(|u| u["tenant_id"] == tenant_a.tenant_id.to_string()));
+    assert!(users
+        .iter()
+        .all(|u| u["tenant_id"] == tenant_a.tenant_id.to_string()));
 }
 
 /// Test: JWT token with tenant_id mismatch is rejected
@@ -185,13 +137,8 @@ async fn test_tenant_isolation_jwt_tenant_mismatch() {
     let tenant_a = create_test_tenant(&pool, "Tenant One").await;
     let tenant_b = create_test_tenant(&pool, "Tenant Two").await;
 
-    let user_a = create_test_user(
-        &pool,
-        tenant_a.tenant_id,
-        "user@one.com",
-        "User One",
-        "user"
-    ).await;
+    let user_a =
+        create_test_user(&pool, tenant_a.tenant_id, "user@one.com", "User One", "user").await;
 
     let app = create_test_app(&pool).await;
 
@@ -199,23 +146,18 @@ async fn test_tenant_isolation_jwt_tenant_mismatch() {
     let malicious_token = create_test_jwt(
         user_a.user_id,
         tenant_b.tenant_id, // Wrong tenant!
-        &user_a.role
+        &user_a.role,
     );
 
     // This should fail because user_a doesn't exist in tenant_b
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &malicious_token,
-        None,
-    ).await;
+    let response =
+        make_authenticated_request(&app, "GET", "/api/v1/users", &malicious_token, None).await;
 
     // Should return empty list, unauthorized, or forbidden (depends on implementation)
     assert!(
-        response.status() == StatusCode::OK || 
-        response.status() == StatusCode::UNAUTHORIZED ||
-        response.status() == StatusCode::FORBIDDEN,
+        response.status() == StatusCode::OK
+            || response.status() == StatusCode::UNAUTHORIZED
+            || response.status() == StatusCode::FORBIDDEN,
         "Mismatched tenant_id in JWT should be handled safely, got: {:?}",
         response.status()
     );
@@ -258,13 +200,7 @@ async fn test_tenant_isolation_with_multiple_users() {
         let token = create_test_jwt(user_a.user_id, tenant_a.tenant_id, &user_a.role);
 
         // Should see all 3 users from Tenant A
-        let response = make_authenticated_request(
-            &app,
-            "GET",
-            "/api/v1/users",
-            &token,
-            None,
-        ).await;
+        let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token, None).await;
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = response.into_body().collect().await.unwrap().to_bytes();
@@ -281,10 +217,12 @@ async fn test_tenant_isolation_with_multiple_users() {
                 &format!("/api/v1/users/{}", user_b.user_id),
                 &token,
                 None,
-            ).await;
+            )
+            .await;
 
             assert!(
-                response.status() == StatusCode::FORBIDDEN || response.status() == StatusCode::NOT_FOUND,
+                response.status() == StatusCode::FORBIDDEN
+                    || response.status() == StatusCode::NOT_FOUND,
                 "User from Tenant A should NOT access user from Tenant B, got: {:?}",
                 response.status()
             );
@@ -301,21 +239,11 @@ async fn test_tenant_isolation_sql_injection_prevention() {
     let tenant_a = create_test_tenant(&pool, "Secure Tenant").await;
     let tenant_b = create_test_tenant(&pool, "Target Tenant").await;
 
-    let user_a = create_test_user(
-        &pool,
-        tenant_a.tenant_id,
-        "hacker@secure.com",
-        "Hacker",
-        "admin"
-    ).await;
+    let user_a =
+        create_test_user(&pool, tenant_a.tenant_id, "hacker@secure.com", "Hacker", "admin").await;
 
-    let user_b = create_test_user(
-        &pool,
-        tenant_b.tenant_id,
-        "victim@target.com",
-        "Victim",
-        "user"
-    ).await;
+    let user_b =
+        create_test_user(&pool, tenant_b.tenant_id, "victim@target.com", "Victim", "user").await;
 
     let app = create_test_app(&pool).await;
     let token = create_test_jwt(user_a.user_id, tenant_a.tenant_id, &user_a.role);
@@ -330,20 +258,14 @@ async fn test_tenant_isolation_sql_injection_prevention() {
     for injection_path in injection_attempts {
         // URL-encode the path to make it a valid URI
         let encoded_path = injection_path.replace(' ', "%20");
-        
-        let response = make_authenticated_request(
-            &app,
-            "GET",
-            &encoded_path,
-            &token,
-            None,
-        ).await;
+
+        let response = make_authenticated_request(&app, "GET", &encoded_path, &token, None).await;
 
         // Should fail gracefully (bad request, forbidden, or not found - not internal error)
         assert!(
-            response.status() == StatusCode::BAD_REQUEST ||
-            response.status() == StatusCode::FORBIDDEN ||
-            response.status() == StatusCode::NOT_FOUND,
+            response.status() == StatusCode::BAD_REQUEST
+                || response.status() == StatusCode::FORBIDDEN
+                || response.status() == StatusCode::NOT_FOUND,
             "SQL injection attempt should be safely rejected: {}, got: {:?}",
             encoded_path,
             response.status()
@@ -351,13 +273,7 @@ async fn test_tenant_isolation_sql_injection_prevention() {
     }
 
     // Verify data is still intact
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token,
-        None,
-    ).await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token, None).await;
 
     assert_eq!(response.status(), StatusCode::OK);
 }
@@ -370,53 +286,33 @@ async fn test_tenant_isolation_deleted_tenant_access() {
     let pool = setup_test_db().await;
 
     let tenant = create_test_tenant(&pool, "Temporary Tenant").await;
-    let user = create_test_user(
-        &pool,
-        tenant.tenant_id,
-        "user@temp.com",
-        "Temp User",
-        "user"
-    ).await;
+    let user =
+        create_test_user(&pool, tenant.tenant_id, "user@temp.com", "Temp User", "user").await;
 
     let token = create_test_jwt(user.user_id, tenant.tenant_id, &user.role);
     let app = create_test_app(&pool).await;
 
     // First, verify user can access their data
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token,
-        None,
-    ).await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token, None).await;
     assert_eq!(response.status(), StatusCode::OK);
 
     // Soft delete the tenant
-    sqlx::query!(
-        "UPDATE tenants SET deleted_at = NOW() WHERE tenant_id = $1",
-        tenant.tenant_id
-    )
-    .execute(&pool)
-    .await
-    .expect("Failed to soft delete tenant");
+    sqlx::query!("UPDATE tenants SET deleted_at = NOW() WHERE tenant_id = $1", tenant.tenant_id)
+        .execute(&pool)
+        .await
+        .expect("Failed to soft delete tenant");
 
     // Now user should NOT be able to access data
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &token,
-        None,
-    ).await;
+    let response = make_authenticated_request(&app, "GET", "/api/v1/users", &token, None).await;
 
     // Should return unauthorized or forbidden
     // NOTE: Currently this test may fail because we don't have middleware
     // that checks if tenant.deleted_at IS NULL. This should be added.
     assert!(
-        response.status() == StatusCode::UNAUTHORIZED ||
-        response.status() == StatusCode::FORBIDDEN ||
-        response.status() == StatusCode::NOT_FOUND ||
-        response.status() == StatusCode::OK, // TEMPORARY: Will fail until middleware is implemented
+        response.status() == StatusCode::UNAUTHORIZED
+            || response.status() == StatusCode::FORBIDDEN
+            || response.status() == StatusCode::NOT_FOUND
+            || response.status() == StatusCode::OK, // TEMPORARY: Will fail until middleware is implemented
         "User from deleted tenant should not have access, got: {:?}",
         response.status()
     );
@@ -429,54 +325,44 @@ async fn test_tenant_isolation_concurrent_access() {
     let pool = setup_test_db().await;
 
     // Create multiple tenants
-    let tenants: Vec<_> = futures::future::join_all(
-        (0..5).map(|i| {
-            let pool = pool.clone();
-            async move {
-                create_test_tenant(&pool, &format!("Tenant {}", i)).await
-            }
-        })
-    ).await;
+    let tenants: Vec<_> = futures::future::join_all((0..5).map(|i| {
+        let pool = pool.clone();
+        async move { create_test_tenant(&pool, &format!("Tenant {}", i)).await }
+    }))
+    .await;
 
     // Create users for each tenant
-    let users: Vec<_> = futures::future::join_all(
-        tenants.iter().enumerate().map(|(i, tenant)| {
-            let pool = pool.clone();
-            let tenant_id = tenant.tenant_id;
-            async move {
-                create_test_user(
-                    &pool,
-                    tenant_id,
-                    &format!("user{}@test.com", i),
-                    &format!("User {}", i),
-                    "user"
-                ).await
-            }
-        })
-    ).await;
+    let users: Vec<_> = futures::future::join_all(tenants.iter().enumerate().map(|(i, tenant)| {
+        let pool = pool.clone();
+        let tenant_id = tenant.tenant_id;
+        async move {
+            create_test_user(
+                &pool,
+                tenant_id,
+                &format!("user{}@test.com", i),
+                &format!("User {}", i),
+                "user",
+            )
+            .await
+        }
+    }))
+    .await;
 
     let app = create_test_app(&pool).await;
 
     // Simulate concurrent requests from all tenants
-    let results = futures::future::join_all(
-        users.iter().enumerate().map(|(i, user)| {
-            let app = app.clone();
-            let tenant_id = tenants[i].tenant_id;
-            let user_id = user.user_id;
-            let role = user.role.clone();
+    let results = futures::future::join_all(users.iter().enumerate().map(|(i, user)| {
+        let app = app.clone();
+        let tenant_id = tenants[i].tenant_id;
+        let user_id = user.user_id;
+        let role = user.role.clone();
 
-            async move {
-                let token = create_test_jwt(user_id, tenant_id, &role);
-                make_authenticated_request(
-                    &app,
-                    "GET",
-                    "/api/v1/users",
-                    &token,
-                    None,
-                ).await
-            }
-        })
-    ).await;
+        async move {
+            let token = create_test_jwt(user_id, tenant_id, &role);
+            make_authenticated_request(&app, "GET", "/api/v1/users", &token, None).await
+        }
+    }))
+    .await;
 
     // Verify each tenant only sees their own data
     for (i, response) in results.into_iter().enumerate() {
@@ -488,11 +374,7 @@ async fn test_tenant_isolation_concurrent_access() {
         let returned_users = users_resp["users"].as_array().unwrap();
 
         // Each tenant should only see their own user(s)
-        assert!(
-            !returned_users.is_empty(),
-            "Tenant {} should see at least their own user",
-            i
-        );
+        assert!(!returned_users.is_empty(), "Tenant {} should see at least their own user", i);
 
         // Verify all returned users belong to the requesting tenant
         let expected_tenant_id = tenants[i].tenant_id.to_string();
@@ -500,7 +382,7 @@ async fn test_tenant_isolation_concurrent_access() {
             let user_tenant_id = user["tenant_id"]
                 .as_str()
                 .expect("User should have tenant_id field");
-            
+
             assert_eq!(
                 user_tenant_id, expected_tenant_id,
                 "Tenant {} received data from tenant {}! Tenant isolation violated!",

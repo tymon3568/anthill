@@ -86,7 +86,9 @@ async fn make_request(
         request = request.header("Authorization", format!("Bearer {}", token));
     }
 
-    let body_str = body.map(|b| serde_json::to_string(&b).unwrap()).unwrap_or_default();
+    let body_str = body
+        .map(|b| serde_json::to_string(&b).unwrap())
+        .unwrap_or_default();
     let request = request.body(Body::from(body_str)).unwrap();
 
     let response = app.clone().oneshot(request).await.unwrap();
@@ -117,7 +119,8 @@ async fn test_registration_missing_required_fields() {
         "full_name": "Test User"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(response["error"].is_string());
@@ -151,7 +154,8 @@ async fn test_registration_invalid_email_formats() {
             "full_name": "Test User"
         });
 
-        let (status, _) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        let (status, _) =
+            make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
         assert_eq!(
             status,
@@ -173,12 +177,12 @@ async fn test_registration_weak_passwords() {
     let tenant_id = db.create_tenant("Weak Password Test", None).await;
 
     let weak_passwords = vec![
-        "123",           // Too short
-        "password",      // No numbers, no special chars
-        "12345678",      // Only numbers
-        "abc",           // Too short
-        "",              // Empty
-        "Pass1",         // Too short
+        "123",      // Too short
+        "password", // No numbers, no special chars
+        "12345678", // Only numbers
+        "abc",      // Too short
+        "",         // Empty
+        "Pass1",    // Too short
     ];
 
     for password in weak_passwords {
@@ -189,7 +193,8 @@ async fn test_registration_weak_passwords() {
             "full_name": "Test User"
         });
 
-        let (status, _) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        let (status, _) =
+            make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
         assert_eq!(
             status,
@@ -239,7 +244,8 @@ async fn test_extremely_long_input_values() {
         "full_name": "Test User"
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, _) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     // Extremely long full name
@@ -251,7 +257,8 @@ async fn test_extremely_long_input_values() {
         "full_name": long_name
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, _) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     db.cleanup().await;
@@ -272,7 +279,8 @@ async fn test_login_nonexistent_user() {
         "password": "SomePassword123!"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(response["error"].is_string());
@@ -289,13 +297,8 @@ async fn test_login_wrong_password() {
     let tenant_id = db.create_tenant("Wrong Password Test", None).await;
 
     let password_hash = bcrypt::hash("CorrectPassword123!", bcrypt::DEFAULT_COST).unwrap();
-    db.create_user(
-        tenant_id,
-        "user@example.com",
-        &password_hash,
-        "user",
-        Some("Test User"),
-    ).await;
+    db.create_user(tenant_id, "user@example.com", &password_hash, "user", Some("Test User"))
+        .await;
 
     let payload = json!({
         "email": "user@example.com",
@@ -370,26 +373,17 @@ async fn test_get_nonexistent_user() {
     let tenant_id = db.create_tenant("Not Found Test", None).await;
 
     let admin_password = bcrypt::hash("AdminPass123!", bcrypt::DEFAULT_COST).unwrap();
-    let _admin_id = db.create_user(
-        tenant_id,
-        "admin@example.com",
-        &admin_password,
-        "admin",
-        Some("Admin User"),
-    ).await;
+    let _admin_id = db
+        .create_user(tenant_id, "admin@example.com", &admin_password, "admin", Some("Admin User"))
+        .await;
 
     let admin_login = json!({
         "email": "admin@example.com",
         "password": "AdminPass123!"
     });
 
-    let (status, login_response) = make_request(
-        &app,
-        "POST",
-        "/api/v1/auth/login",
-        Some(admin_login),
-        None,
-    ).await;
+    let (status, login_response) =
+        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None).await;
 
     assert_eq!(status, StatusCode::OK);
     let admin_token = login_response["access_token"].as_str().unwrap();
@@ -402,7 +396,8 @@ async fn test_get_nonexistent_user() {
         &format!("/api/v1/admin/users/{}", fake_uuid),
         None,
         Some(admin_token),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 
@@ -418,26 +413,17 @@ async fn test_update_nonexistent_user() {
     let tenant_id = db.create_tenant("Update Not Found Test", None).await;
 
     let admin_password = bcrypt::hash("AdminPass123!", bcrypt::DEFAULT_COST).unwrap();
-    let _admin_id = db.create_user(
-        tenant_id,
-        "admin@example.com",
-        &admin_password,
-        "admin",
-        Some("Admin User"),
-    ).await;
+    let _admin_id = db
+        .create_user(tenant_id, "admin@example.com", &admin_password, "admin", Some("Admin User"))
+        .await;
 
     let admin_login = json!({
         "email": "admin@example.com",
         "password": "AdminPass123!"
     });
 
-    let (_status, login_response) = make_request(
-        &app,
-        "POST",
-        "/api/v1/auth/login",
-        Some(admin_login),
-        None,
-    ).await;
+    let (_status, login_response) =
+        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None).await;
 
     let admin_token = login_response["access_token"].as_str().unwrap();
 
@@ -452,7 +438,8 @@ async fn test_update_nonexistent_user() {
         &format!("/api/v1/admin/users/{}/role", fake_uuid),
         Some(payload),
         Some(admin_token),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 
@@ -530,7 +517,8 @@ async fn test_empty_string_fields() {
         "full_name": ""
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, _) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
@@ -552,7 +540,8 @@ async fn test_null_values_in_request() {
         "full_name": "Test User"
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, _) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
@@ -575,7 +564,8 @@ async fn test_unicode_and_special_characters() {
         "full_name": "测试用户 Test Пользователь 👤"
     });
 
-    let (status, response) = make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+    let (status, response) =
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
     // Should either accept unicode or reject with validation error
     assert!(
@@ -614,7 +604,8 @@ async fn test_sql_injection_attempts_in_email() {
             "password": "TestPassword123!"
         });
 
-        let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+        let (status, _) =
+            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
 
         // Should either return validation error or unauthorized (not 500)
         assert!(
@@ -646,7 +637,8 @@ async fn test_multiple_failed_login_attempts() {
         &password_hash,
         "user",
         Some("Lock Test User"),
-    ).await;
+    )
+    .await;
 
     // Attempt multiple failed logins
     for i in 1..=10 {
@@ -655,7 +647,8 @@ async fn test_multiple_failed_login_attempts() {
             "password": format!("WrongPassword{}", i)
         });
 
-        let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+        let (status, _) =
+            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
 
         // All should be unauthorized
         assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -672,7 +665,9 @@ async fn test_multiple_failed_login_attempts() {
 
     // Might be OK or LOCKED depending on implementation
     assert!(
-        status == StatusCode::OK || status == StatusCode::FORBIDDEN || status == StatusCode::UNAUTHORIZED,
+        status == StatusCode::OK
+            || status == StatusCode::FORBIDDEN
+            || status == StatusCode::UNAUTHORIZED,
         "Expected OK or account locked"
     );
 

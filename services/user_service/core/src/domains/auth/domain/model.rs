@@ -23,9 +23,9 @@ pub struct User {
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTime<Utc>>,
     pub password_changed_at: Option<DateTime<Utc>>,
-    pub kanidm_user_id: Option<Uuid>,         // Kanidm integration
+    pub kanidm_user_id: Option<Uuid>, // Kanidm integration
     pub kanidm_synced_at: Option<DateTime<Utc>>, // Last sync time
-    pub auth_method: String,                  // NEW: 'password', 'kanidm', or 'dual'
+    pub auth_method: String,          // NEW: 'password', 'kanidm', or 'dual'
     pub migration_invited_at: Option<DateTime<Utc>>, // NEW: Migration tracking
     pub migration_completed_at: Option<DateTime<Utc>>, // NEW: Migration completion
     pub created_at: DateTime<Utc>,
@@ -57,9 +57,9 @@ pub struct Session {
     pub session_id: Uuid,
     pub user_id: Uuid,
     pub tenant_id: Uuid,
-    pub access_token_hash: Option<String>,  // NOW OPTIONAL - NULL for Kanidm sessions
+    pub access_token_hash: Option<String>, // NOW OPTIONAL - NULL for Kanidm sessions
     pub refresh_token_hash: Option<String>, // NOW OPTIONAL - NULL for Kanidm sessions
-    pub ip_address: Option<String>, // Stored as text for simplicity
+    pub ip_address: Option<String>,        // Stored as text for simplicity
     pub user_agent: Option<String>,
     pub device_info: Option<sqlx::types::Json<serde_json::Value>>,
     pub access_token_expires_at: DateTime<Utc>,
@@ -68,7 +68,7 @@ pub struct Session {
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_reason: Option<String>,
     pub kanidm_session_id: Option<Uuid>, // NEW: Kanidm session tracking
-    pub auth_method: String,              // NEW: 'jwt', 'kanidm', or 'dual'
+    pub auth_method: String,             // NEW: 'jwt', 'kanidm', or 'dual'
     pub created_at: DateTime<Utc>,
     pub last_used_at: DateTime<Utc>,
 }

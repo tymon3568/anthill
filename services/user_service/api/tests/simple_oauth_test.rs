@@ -2,8 +2,8 @@
 // This test validates the OAuth2 flow with a real Kanidm server
 
 use serde_json::json;
-use user_service_api::get_app;
 use tower::util::ServiceExt;
+use user_service_api::get_app;
 
 #[tokio::test]
 #[ignore] // Requires running Kanidm server

@@ -29,13 +29,28 @@ use utoipa_swagger_ui::SwaggerUi;
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
     let kanidm_config = KanidmConfig {
-        kanidm_url: config.kanidm_url.clone().unwrap_or_else(|| "http://localhost:8300".to_string()),
-        client_id: config.kanidm_client_id.clone().unwrap_or_else(|| "dev".to_string()),
-        client_secret: config.kanidm_client_secret.clone().unwrap_or_else(|| "dev".to_string()),
-        redirect_uri: config.kanidm_redirect_url.clone().unwrap_or_else(|| "http://localhost:3000/oauth/callback".to_string()),
+        kanidm_url: config
+            .kanidm_url
+            .clone()
+            .unwrap_or_else(|| "http://localhost:8300".to_string()),
+        client_id: config
+            .kanidm_client_id
+            .clone()
+            .unwrap_or_else(|| "dev".to_string()),
+        client_secret: config
+            .kanidm_client_secret
+            .clone()
+            .unwrap_or_else(|| "dev".to_string()),
+        redirect_uri: config
+            .kanidm_redirect_url
+            .clone()
+            .unwrap_or_else(|| "http://localhost:3000/oauth/callback".to_string()),
         scopes: vec!["openid".to_string()],
         skip_jwt_verification: true, // DEV/TEST MODE ONLY - should be false in production
-        allowed_issuers: vec![config.kanidm_url.clone().unwrap_or_else(|| "http://localhost:8300".to_string())],
+        allowed_issuers: vec![config
+            .kanidm_url
+            .clone()
+            .unwrap_or_else(|| "http://localhost:8300".to_string())],
         expected_audience: config.kanidm_client_id.clone(),
     };
 

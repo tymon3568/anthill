@@ -61,41 +61,47 @@ async fn main() {
     tracing::info!("✅ Casbin enforcer initialized");
 
     // Initialize Kanidm client (optional - falls back to dev mode if not configured)
-    let kanidm_client = if let (Some(url), Some(client_id), Some(client_secret), Some(redirect_uri)) = (
-        config.kanidm_url.as_ref(),
-        config.kanidm_client_id.as_ref(),
-        config.kanidm_client_secret.as_ref(),
-        config.kanidm_redirect_url.as_ref(),
-    ) {
-        let kanidm_config = KanidmConfig {
-            kanidm_url: url.clone(),
-            client_id: client_id.clone(),
-            client_secret: client_secret.clone(),
-            redirect_uri: redirect_uri.clone(),
-            scopes: vec!["openid".to_string(), "profile".to_string(), "email".to_string(), "groups".to_string()],
-            skip_jwt_verification: false,
-            allowed_issuers: vec![url.clone()],
-            expected_audience: Some(client_id.clone()),
+    let kanidm_client =
+        if let (Some(url), Some(client_id), Some(client_secret), Some(redirect_uri)) = (
+            config.kanidm_url.as_ref(),
+            config.kanidm_client_id.as_ref(),
+            config.kanidm_client_secret.as_ref(),
+            config.kanidm_redirect_url.as_ref(),
+        ) {
+            let kanidm_config = KanidmConfig {
+                kanidm_url: url.clone(),
+                client_id: client_id.clone(),
+                client_secret: client_secret.clone(),
+                redirect_uri: redirect_uri.clone(),
+                scopes: vec![
+                    "openid".to_string(),
+                    "profile".to_string(),
+                    "email".to_string(),
+                    "groups".to_string(),
+                ],
+                skip_jwt_verification: false,
+                allowed_issuers: vec![url.clone()],
+                expected_audience: Some(client_id.clone()),
+            };
+
+            KanidmClient::new(kanidm_config).expect("Failed to initialize Kanidm client")
+        } else {
+            tracing::warn!("⚠️ Kanidm configuration not found - using dev mode (legacy JWT only)");
+
+            // Create a dummy Kanidm client for dev mode
+            let dev_config = KanidmConfig {
+                kanidm_url: "http://localhost:8300".to_string(),
+                client_id: "dev".to_string(),
+                client_secret: "dev".to_string(),
+                redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+                scopes: vec!["openid".to_string()],
+                skip_jwt_verification: true, // DEV MODE ONLY
+                allowed_issuers: vec!["http://localhost:8300".to_string()],
+                expected_audience: Some("dev".to_string()),
+            };
+
+            KanidmClient::new(dev_config).expect("Failed to initialize dev Kanidm client")
         };
-
-        KanidmClient::new(kanidm_config).expect("Failed to initialize Kanidm client")
-    } else {
-        tracing::warn!("⚠️ Kanidm configuration not found - using dev mode (legacy JWT only)");
-
-        // Create a dummy Kanidm client for dev mode
-        let dev_config = KanidmConfig {
-            kanidm_url: "http://localhost:8300".to_string(),
-            client_id: "dev".to_string(),
-            client_secret: "dev".to_string(),
-            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
-            scopes: vec!["openid".to_string()],
-            skip_jwt_verification: true, // DEV MODE ONLY
-            allowed_issuers: vec!["http://localhost:8300".to_string()],
-            expected_audience: Some("dev".to_string()),
-        };
-
-        KanidmClient::new(dev_config).expect("Failed to initialize dev Kanidm client")
-    };
 
     tracing::info!("✅ Kanidm client initialized");
 
@@ -115,7 +121,8 @@ async fn main() {
         config.jwt_refresh_expiration,
     );
 
-    let profile_service = ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo.clone()));
+    let profile_service =
+        ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo.clone()));
 
     // Create application states
     let state = AppState {

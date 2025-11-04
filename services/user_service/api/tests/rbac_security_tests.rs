@@ -2,7 +2,6 @@
 ///
 /// This test suite validates that authorization policies are enforced correctly
 /// and users can only access resources according to their roles and permissions.
-
 use axum::{
     body::Body,
     http::{Request, StatusCode},
@@ -34,45 +33,31 @@ async fn test_rbac_admin_endpoint_protection() {
 
     // Create users with different roles
     let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
-    let manager = create_test_user(&pool, tenant.tenant_id, "manager@test.com", "Manager", "manager").await;
+    let manager =
+        create_test_user(&pool, tenant.tenant_id, "manager@test.com", "Manager", "manager").await;
     let user = create_test_user(&pool, tenant.tenant_id, "user@test.com", "User", "user").await;
 
     let app = create_test_app(&pool).await;
 
     // Admin endpoints
-    let admin_endpoints = vec![
-        "/api/v1/admin/policies",
-        "/api/v1/admin/roles",
-    ];
+    let admin_endpoints = vec!["/api/v1/admin/policies", "/api/v1/admin/roles"];
 
     for endpoint in admin_endpoints {
         // Test 1: Admin can access
         let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
-        let response = make_authenticated_request(
-            &app,
-            "GET",
-            endpoint,
-            &token,
-            None,
-        ).await;
+        let response = make_authenticated_request(&app, "GET", endpoint, &token, None).await;
 
         // Should be OK or method not allowed (depending on endpoint)
         assert!(
-            response.status() == StatusCode::OK ||
-            response.status() == StatusCode::METHOD_NOT_ALLOWED,
+            response.status() == StatusCode::OK
+                || response.status() == StatusCode::METHOD_NOT_ALLOWED,
             "Admin should be able to access admin endpoint: {}",
             endpoint
         );
 
         // Test 2: Manager cannot access
         let token = create_test_jwt(manager.user_id, tenant.tenant_id, &manager.role);
-        let response = make_authenticated_request(
-            &app,
-            "GET",
-            endpoint,
-            &token,
-            None,
-        ).await;
+        let response = make_authenticated_request(&app, "GET", endpoint, &token, None).await;
 
         assert_eq!(
             response.status(),
@@ -83,13 +68,7 @@ async fn test_rbac_admin_endpoint_protection() {
 
         // Test 3: Regular user cannot access
         let token = create_test_jwt(user.user_id, tenant.tenant_id, &user.role);
-        let response = make_authenticated_request(
-            &app,
-            "GET",
-            endpoint,
-            &token,
-            None,
-        ).await;
+        let response = make_authenticated_request(&app, "GET", endpoint, &token, None).await;
 
         assert_eq!(
             response.status(),
@@ -108,8 +87,10 @@ async fn test_rbac_user_self_modification_only() {
 
     let tenant = create_test_tenant(&pool, "Self-Modify Test").await;
 
-    let user1 = create_test_user(&pool, tenant.tenant_id, "user1@test.com", "User One", "user").await;
-    let user2 = create_test_user(&pool, tenant.tenant_id, "user2@test.com", "User Two", "user").await;
+    let user1 =
+        create_test_user(&pool, tenant.tenant_id, "user1@test.com", "User One", "user").await;
+    let user2 =
+        create_test_user(&pool, tenant.tenant_id, "user2@test.com", "User Two", "user").await;
 
     let app = create_test_app(&pool).await;
 
@@ -125,11 +106,11 @@ async fn test_rbac_user_self_modification_only() {
         Some(json!({
             "full_name": "Hacked Name"
         })),
-    ).await;
+    )
+    .await;
 
     assert!(
-        response.status() == StatusCode::FORBIDDEN ||
-        response.status() == StatusCode::NOT_FOUND,
+        response.status() == StatusCode::FORBIDDEN || response.status() == StatusCode::NOT_FOUND,
         "User should NOT be able to modify another user's profile"
     );
 
@@ -142,13 +123,14 @@ async fn test_rbac_user_self_modification_only() {
         Some(json!({
             "full_name": "Updated Name"
         })),
-    ).await;
+    )
+    .await;
 
     // Should succeed or return method not allowed if endpoint doesn't exist
     assert!(
-        response.status() == StatusCode::OK ||
-        response.status() == StatusCode::METHOD_NOT_ALLOWED ||
-        response.status() == StatusCode::NOT_FOUND,
+        response.status() == StatusCode::OK
+            || response.status() == StatusCode::METHOD_NOT_ALLOWED
+            || response.status() == StatusCode::NOT_FOUND,
         "User should be able to modify their own profile"
     );
 }
@@ -161,9 +143,12 @@ async fn test_rbac_role_hierarchy() {
 
     let tenant = create_test_tenant(&pool, "Role Hierarchy Test").await;
 
-    let super_admin = create_test_user(&pool, tenant.tenant_id, "super@test.com", "Super Admin", "super_admin").await;
+    let super_admin =
+        create_test_user(&pool, tenant.tenant_id, "super@test.com", "Super Admin", "super_admin")
+            .await;
     let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
-    let manager = create_test_user(&pool, tenant.tenant_id, "manager@test.com", "Manager", "manager").await;
+    let manager =
+        create_test_user(&pool, tenant.tenant_id, "manager@test.com", "Manager", "manager").await;
 
     let app = create_test_app(&pool).await;
 
@@ -179,11 +164,11 @@ async fn test_rbac_role_hierarchy() {
             "resource": "/api/v1/test",
             "action": "GET"
         })),
-    ).await;
+    )
+    .await;
 
     assert!(
-        response.status() == StatusCode::OK ||
-        response.status() == StatusCode::BAD_REQUEST,
+        response.status() == StatusCode::OK || response.status() == StatusCode::BAD_REQUEST,
         "Super admin should have admin privileges"
     );
 
@@ -199,11 +184,11 @@ async fn test_rbac_role_hierarchy() {
             "resource": "/api/v1/test",
             "action": "GET"
         })),
-    ).await;
+    )
+    .await;
 
     assert!(
-        response.status() == StatusCode::OK ||
-        response.status() == StatusCode::BAD_REQUEST,
+        response.status() == StatusCode::OK || response.status() == StatusCode::BAD_REQUEST,
         "Admin should have admin privileges"
     );
 }
@@ -232,13 +217,13 @@ async fn test_rbac_permission_inheritance() {
             "resource": "/api/v1/custom/resource",
             "action": "GET"
         })),
-    ).await;
+    )
+    .await;
 
     // Assign custom role to user (this would require an assign role endpoint)
     // For now, we verify the policy was created
     assert!(
-        response.status() == StatusCode::OK ||
-        response.status() == StatusCode::BAD_REQUEST,
+        response.status() == StatusCode::OK || response.status() == StatusCode::BAD_REQUEST,
         "Admin should be able to create policies"
     );
 }
@@ -258,13 +243,7 @@ async fn test_rbac_invalid_jwt_rejection() {
     ];
 
     for token in invalid_tokens {
-        let response = make_authenticated_request(
-            &app,
-            "GET",
-            "/api/v1/users",
-            token,
-            None,
-        ).await;
+        let response = make_authenticated_request(&app, "GET", "/api/v1/users", token, None).await;
 
         assert_eq!(
             response.status(),
@@ -279,8 +258,8 @@ async fn test_rbac_invalid_jwt_rejection() {
 #[tokio::test]
 #[ignore]
 async fn test_rbac_expired_jwt_rejection() {
-    use shared_jwt::{encode_jwt, Claims};
     use chrono::Utc;
+    use shared_jwt::{encode_jwt, Claims};
 
     let pool = setup_test_db().await;
     let tenant = create_test_tenant(&pool, "Expired JWT Test").await;
@@ -295,19 +274,10 @@ async fn test_rbac_expired_jwt_rejection() {
 
     let app = create_test_app(&pool).await;
 
-    let response = make_authenticated_request(
-        &app,
-        "GET",
-        "/api/v1/users",
-        &expired_token,
-        None,
-    ).await;
+    let response =
+        make_authenticated_request(&app, "GET", "/api/v1/users", &expired_token, None).await;
 
-    assert_eq!(
-        response.status(),
-        StatusCode::UNAUTHORIZED,
-        "Expired JWT should be rejected"
-    );
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "Expired JWT should be rejected");
 }
 
 /// Test: Missing authorization header is rejected
@@ -344,12 +314,7 @@ async fn test_rbac_malformed_auth_header() {
     let pool = setup_test_db().await;
     let app = create_test_app(&pool).await;
 
-    let malformed_headers = vec![
-        "NotBearer token",
-        "Bearer",
-        "bearer token",
-        "Token value",
-    ];
+    let malformed_headers = vec!["NotBearer token", "Bearer", "bearer token", "Token value"];
 
     for auth_value in malformed_headers {
         let request = Request::builder()
@@ -397,7 +362,8 @@ async fn test_rbac_role_modification_audit() {
             "resource": "/api/v1/audit",
             "action": "GET"
         })),
-    ).await;
+    )
+    .await;
 
     // Verify policy was created in database
     if response.status() == StatusCode::OK {
@@ -441,7 +407,8 @@ async fn test_rbac_privilege_escalation_prevention() {
             "resource": "/api/v1/admin/*",
             "action": "*"
         })),
-    ).await;
+    )
+    .await;
 
     assert_eq!(
         response.status(),
@@ -474,14 +441,18 @@ async fn test_rbac_complex_policy_evaluation() {
             tenant.tenant_id.to_string(),
             "/api/v1/code".to_string(),
             "GET".to_string(),
-        ]).await.ok();
+        ])
+        .await
+        .ok();
 
         e.add_policy(vec![
             "role:developer".to_string(),
             tenant.tenant_id.to_string(),
             "/api/v1/code".to_string(),
             "POST".to_string(),
-        ]).await.ok();
+        ])
+        .await
+        .ok();
 
         e.save_policy().await.ok();
     }
@@ -489,26 +460,17 @@ async fn test_rbac_complex_policy_evaluation() {
     // Verify policies are enforced correctly
     let mut e = enforcer.write().await;
 
-    let can_get = e.enforce((
-        "role:developer",
-        tenant.tenant_id.to_string(),
-        "/api/v1/code",
-        "GET"
-    )).unwrap();
+    let can_get = e
+        .enforce(("role:developer", tenant.tenant_id.to_string(), "/api/v1/code", "GET"))
+        .unwrap();
 
-    let can_post = e.enforce((
-        "role:developer",
-        tenant.tenant_id.to_string(),
-        "/api/v1/code",
-        "POST"
-    )).unwrap();
+    let can_post = e
+        .enforce(("role:developer", tenant.tenant_id.to_string(), "/api/v1/code", "POST"))
+        .unwrap();
 
-    let can_delete = e.enforce((
-        "role:developer",
-        tenant.tenant_id.to_string(),
-        "/api/v1/code",
-        "DELETE"
-    )).unwrap();
+    let can_delete = e
+        .enforce(("role:developer", tenant.tenant_id.to_string(), "/api/v1/code", "DELETE"))
+        .unwrap();
 
     assert!(can_get, "Developer should be able to GET /api/v1/code");
     assert!(can_post, "Developer should be able to POST /api/v1/code");

@@ -1,0 +1,19 @@
+# SSL certificates (should be mounted at runtime)
+ssl/
+
+# Development files
+*.md
+.gitignore
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log

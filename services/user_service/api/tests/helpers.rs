@@ -1,13 +1,8 @@
-use axum::{
-    body::Body,
-    http::{Request, Response},
-    Router,
-};
-use http_body_util::BodyExt;
+use axum::{body::Body, http::Request, Router};
 use serde_json::Value;
 use shared_config::Config;
 use shared_jwt::{encode_jwt as create_jwt, Claims};
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::{Executor, PgPool};
 use std::sync::Arc;
 use tower::ServiceExt;
 use user_service_api::AppState;
@@ -33,8 +28,14 @@ pub fn get_test_jwt_secret() -> String {
 /// Clean up all test data from the database
 pub async fn cleanup_test_data(pool: &PgPool) {
     // Delete in reverse dependency order to avoid foreign key constraints
-    sqlx::query!("DELETE FROM sessions").execute(pool).await.ok();
-    sqlx::query!("DELETE FROM casbin_rule").execute(pool).await.ok();
+    sqlx::query!("DELETE FROM sessions")
+        .execute(pool)
+        .await
+        .ok();
+    sqlx::query!("DELETE FROM casbin_rule")
+        .execute(pool)
+        .await
+        .ok();
     sqlx::query!("DELETE FROM users").execute(pool).await.ok();
     sqlx::query!("DELETE FROM tenants").execute(pool).await.ok();
 }
@@ -98,7 +99,7 @@ pub async fn create_test_user(
         user_id,
         tenant_id,
         email: email.to_string(),
-        password_hash: Some(password_hash),  // Now Option<String>
+        password_hash: Some(password_hash), // Now Option<String>
         email_verified: true,
         email_verified_at: Some(now),
         full_name: Some(full_name.to_string()),
@@ -116,7 +117,7 @@ pub async fn create_test_user(
         // New Phase 4 fields
         kanidm_user_id: None,
         kanidm_synced_at: None,
-        auth_method: "password".to_string(),  // String, not enum
+        auth_method: "password".to_string(), // String, not enum
         migration_invited_at: None,
         migration_completed_at: None,
     };
@@ -212,7 +213,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
                 .await
                 .expect("Failed to insert policy");
             }
-        }
+        },
     }
 }
 

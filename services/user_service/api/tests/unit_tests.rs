@@ -76,12 +76,7 @@ mod validation_tests {
             "admin+tag@company.com",
         ];
 
-        let invalid_emails = vec![
-            "not-an-email",
-            "@example.com",
-            "user@",
-            "user @example.com",
-        ];
+        let invalid_emails = vec!["not-an-email", "@example.com", "user@", "user @example.com"];
 
         for email in valid_emails {
             assert!(email_regex.is_match(email), "Should accept: {}", email);

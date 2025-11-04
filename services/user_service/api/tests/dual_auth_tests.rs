@@ -6,14 +6,12 @@
 /// 3. Transition period (users with both methods)
 ///
 /// Run with: cargo test --test dual_auth_tests
-
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
-use sqlx::PgPool;
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -82,7 +80,8 @@ async fn test_password_user_login() {
 #[tokio::test]
 async fn test_password_user_requires_password() {
     let pool = setup_test_db().await;
-    let _tenant = create_test_tenant(&pool, &format!("Password Required Test {}", Uuid::new_v4())).await;
+    let _tenant =
+        create_test_tenant(&pool, &format!("Password Required Test {}", Uuid::new_v4())).await;
     let app = create_test_app(&pool).await;
 
     // Attempt to register without password
@@ -152,7 +151,8 @@ async fn test_kanidm_user_no_password() {
 #[tokio::test]
 async fn test_kanidm_user_password_login_rejected() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, &format!("Kanidm No Password Test {}", Uuid::new_v4())).await;
+    let tenant =
+        create_test_tenant(&pool, &format!("Kanidm No Password Test {}", Uuid::new_v4())).await;
 
     // Create Kanidm-only user
     let user = sqlx::query!(
@@ -192,16 +192,24 @@ async fn test_kanidm_user_password_login_rejected() {
         .unwrap();
 
     assert!(
-        response.status() == StatusCode::UNAUTHORIZED ||
-        response.status() == StatusCode::BAD_REQUEST
+        response.status() == StatusCode::UNAUTHORIZED
+            || response.status() == StatusCode::BAD_REQUEST
     );
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let json: Value = serde_json::from_slice(&body).unwrap();
 
     assert!(
-        json["error"].as_str().unwrap().to_lowercase().contains("kanidm") ||
-        json["error"].as_str().unwrap().to_lowercase().contains("oauth")
+        json["error"]
+            .as_str()
+            .unwrap()
+            .to_lowercase()
+            .contains("kanidm")
+            || json["error"]
+                .as_str()
+                .unwrap()
+                .to_lowercase()
+                .contains("oauth")
     );
 
     println!("✅ Kanidm-only user cannot use password login");
@@ -356,11 +364,7 @@ async fn test_migration_progress_view() {
     // migration_percent is Numeric type (BigDecimal)
     if let Some(percent) = progress.migration_percent {
         let percent_str = percent.to_string();
-        assert!(
-            percent_str.starts_with("50"),
-            "Expected ~50%, got {}",
-            percent_str
-        );
+        assert!(percent_str.starts_with("50"), "Expected ~50%, got {}", percent_str);
         println!("✅ Migration progress view working correctly");
         println!(
             "   Total: {}, Password: {}, Kanidm: {}, Dual: {}, Progress: {}%",
@@ -379,7 +383,8 @@ async fn test_migration_progress_view() {
 #[tokio::test]
 async fn test_migration_invitation_tracking() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, &format!("Migration Invite Test {}", Uuid::new_v4())).await;
+    let tenant =
+        create_test_tenant(&pool, &format!("Migration Invite Test {}", Uuid::new_v4())).await;
 
     // Create user and invite to migration
     let user = sqlx::query!(
@@ -491,7 +496,8 @@ async fn test_jwt_session_creation() {
 #[tokio::test]
 async fn test_kanidm_session_creation() {
     let pool = setup_test_db().await;
-    let tenant = create_test_tenant(&pool, &format!("Kanidm Session Test {}", Uuid::new_v4())).await;
+    let tenant =
+        create_test_tenant(&pool, &format!("Kanidm Session Test {}", Uuid::new_v4())).await;
 
     let user = sqlx::query!(
         r#"
@@ -530,7 +536,10 @@ async fn test_kanidm_session_creation() {
 
     assert_eq!(session.auth_method, "kanidm");
     assert!(session.access_token_hash.is_none(), "Kanidm session should not have token hash");
-    assert!(session.kanidm_session_id.is_some(), "Kanidm session should have kanidm_session_id");
+    assert!(
+        session.kanidm_session_id.is_some(),
+        "Kanidm session should have kanidm_session_id"
+    );
 
     println!("✅ Kanidm session created without token hashes");
 }
@@ -580,7 +589,10 @@ async fn test_dual_session_creation() {
 
     assert_eq!(session.auth_method, "dual");
     assert!(session.access_token_hash.is_some(), "Dual session should have token hash");
-    assert!(session.kanidm_session_id.is_some(), "Dual session should have kanidm_session_id");
+    assert!(
+        session.kanidm_session_id.is_some(),
+        "Dual session should have kanidm_session_id"
+    );
 
     println!("✅ Dual session created with both auth methods");
 }
@@ -695,12 +707,10 @@ async fn test_cleanup_expired_sessions() {
     .unwrap();
 
     // Run cleanup
-    let result = sqlx::query!(
-        "SELECT * FROM cleanup_expired_sessions(30)"
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let result = sqlx::query!("SELECT * FROM cleanup_expired_sessions(30)")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
 
     assert_eq!(result.deleted_count.unwrap(), 1);
 
@@ -715,5 +725,8 @@ async fn test_cleanup_expired_sessions() {
 
     assert_eq!(remaining.count.unwrap(), 1);
 
-    println!("✅ Cleanup function removed {} expired session(s)", result.deleted_count.unwrap());
+    println!(
+        "✅ Cleanup function removed {} expired session(s)",
+        result.deleted_count.unwrap()
+    );
 }

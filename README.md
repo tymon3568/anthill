@@ -42,18 +42,25 @@ anthill/
 │   ├── integration-service/    # Marketplace integration
 │   └── payment-service/        # Payment processing
 ├── shared/                      # Shared libraries
-│   ├── common/                 # Error types, config, tracing
-│   ├── db/                     # Database utilities
 │   ├── auth/                   # Casbin RBAC, Kanidm integration
+│   ├── config/                 # Environment config loader
+│   ├── db/                     # Database utilities
+│   ├── error/                  # Error types and HTTP responses
+│   ├── jwt/                    # JWT encoding/decoding
 │   ├── kanidm_client/          # Kanidm OAuth2/OIDC client
-│   └── events/                 # Event definitions, NATS client
-├── frontend/                    # SvelteKit application
+│   └── openapi/                # OpenAPI spec generation
+├── frontend/                    # SvelteKit application (planned)
 ├── infra/                       # Infrastructure config
-│   ├── docker-compose/         # Local dev environment
-│   └── sql-migrations/         # Database migrations
+│   ├── docker_compose/         # Local dev environment
+│   ├── nginx/                  # API Gateway configuration
+│   └── monitoring/             # Prometheus, Grafana, Loki setup
+├── migrations/                  # Database migrations
+├── scripts/                     # Utility scripts
+├── docs/                        # Documentation
 ├── Cargo.toml                   # Rust workspace
 ├── ARCHITECTURE.md              # Architecture documentation
-├── TODO.md                      # Task list
+├── STRUCTURE.md                 # Code structure guide
+├── TODO.md                      # Task list and progress
 └── README.md                    # This file
 ```
 
@@ -63,7 +70,6 @@ anthill/
 
 - **Rust** (stable + nightly): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - **Docker & Docker Compose**: For running local environment
-- **Node.js** (>= 20) & **pnpm**: For frontend
 - **PostgreSQL Client**: `psql` (optional, for debugging)
 
 ### 1. Install Rust Tools
@@ -77,7 +83,6 @@ rustup component add clippy rustfmt
 # Install cargo tools
 cargo install cargo-watch        # Auto-reload
 cargo install sqlx-cli --features postgres  # DB migrations
-cargo install cargo-make         # Task runner
 ```
 
 ### 2. Start Local Environment
@@ -100,27 +105,23 @@ docker-compose up -d
 cargo build --workspace
 
 # Run user-service (port 3000)
-cargo run -p user-service
+cargo run --bin user-service
 
 # In another terminal, run inventory-service (port 3001)
-cargo run -p inventory-service
+cargo run --bin inventory-service
 
 # And continue with other services...
 ```
 
-### 4. Setup Frontend (SvelteKit)
+### 4. Setup Database
 
 ```bash
-cd frontend
+# Run database migrations
+sqlx migrate run --database-url postgres://inventory_user:inventory_pass@localhost:5432/inventory_saas
 
-# Install dependencies
-pnpm install
-
-# Run dev server
-pnpm dev
+# Verify schema
+psql postgres://inventory_user:inventory_pass@localhost:5432/inventory_saas -c "\dt"
 ```
-
-Access: `http://localhost:5173`
 
 ## 🛠️ Development Commands
 
@@ -183,28 +184,9 @@ sqlx migrate add <migration_name>
 sqlx migrate revert --database-url postgres://user:password@localhost:5432/inventory_db
 ```
 
-### Frontend
-
-```bash
-cd frontend
-
-# Development
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Preview production build
-pnpm preview
-
-# Lint & format
-pnpm lint
-pnpm format
-```
-
 ## 📊 Database Schema
 
-See details in `infra/sql-migrations/`. Main tables:
+See details in `migrations/`. Main tables:
 
 - `tenants`: Tenant information
 - `users`: Users within each tenant
@@ -213,6 +195,7 @@ See details in `infra/sql-migrations/`. Main tables:
 - `orders`: Orders
 - `integrations`: Marketplace integrations
 - `payments`: Payment transactions
+- `casbin_rule`: RBAC policies
 
 ## 🔐 Authentication & Authorization
 
@@ -242,7 +225,7 @@ Example: `http://localhost:3000/api/docs` for user-service.
 4. Create app in CapRover and connect with GitHub
 5. Push code → CapRover automatically builds & deploys
 
-See details in `TODO.md` - Phase 10.
+See details in `docs/production-deployment.md`
 
 ## 🧪 Testing Strategy
 
@@ -258,6 +241,8 @@ See details in `TODO.md` - Phase 10.
 - **Tracing**: Distributed tracing with Jaeger (optional)
 - **Health Checks**: `/health` endpoint for each service
 
+See details in `docs/monitoring-setup.md`
+
 ## 🤝 Contributing
 
 1. Fork repository
@@ -271,7 +256,6 @@ See details in `TODO.md` - Phase 10.
 ### Code Style
 
 - Rust: Pre-commit hooks will automatically run `cargo fmt` and `cargo clippy`
-- TypeScript/Svelte: Run `pnpm lint` before committing
 - Follow existing patterns in the codebase
 - Write tests for new features
 - Update documentation as needed
@@ -280,7 +264,11 @@ See details in `TODO.md` - Phase 10.
 ## 📝 Documentation
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed system architecture
-- [TODO.md](./TODO.md) - Task list and progress
+- [STRUCTURE.md](./STRUCTURE.md) - Code structure and patterns
+- [TODO.md](./TODO.md) - Task list and progress tracking
+- [docs/production-deployment.md](./docs/production-deployment.md) - Production deployment guide
+- [docs/monitoring-setup.md](./docs/monitoring-setup.md) - Monitoring setup guide
+- [docs/troubleshooting.md](./docs/troubleshooting.md) - Troubleshooting guide
 - API Docs - OpenAPI spec at each service endpoint
 
 ## 📄 License
@@ -302,7 +290,7 @@ MIT License - See `LICENSE` file for more details.
 
 ---
 
-**Status**: 🚧 In Development - Phase 1 (Infrastructure Setup)
+**Status**: 🚧 In Development - Phase 3 (User Service Production Integration)
 
 **MVP Target**: 2-3 months
 

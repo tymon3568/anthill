@@ -53,7 +53,7 @@ impl UserRepository for PgUserRepository {
              WHERE email = $1
                AND status = 'active'
                AND deleted_at IS NULL
-             LIMIT 1"
+             LIMIT 1",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -81,7 +81,7 @@ impl UserRepository for PgUserRepository {
                 user_id, tenant_id, email, password_hash, full_name, avatar_url, phone,
                 role, status, email_verified, email_verified_at, last_login_at,
                 failed_login_attempts, locked_until, password_changed_at,
-                kanidm_user_id, kanidm_synced_at, auth_method, 
+                kanidm_user_id, kanidm_synced_at, auth_method,
                 migration_invited_at, migration_completed_at,
                 created_at, updated_at, deleted_at
             )
@@ -252,14 +252,15 @@ impl UserRepository for PgUserRepository {
     }
 
     async fn find_by_kanidm_id(&self, kanidm_user_id: &str) -> Result<Option<User>, AppError> {
-        let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE kanidm_user_id = $1 AND deleted_at IS NULL",
-        )
-        .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
-            AppError::ValidationError("Invalid Kanidm user ID format".to_string())
-        })?)
-        .fetch_optional(&self.pool)
-        .await?;
+        let user =
+            sqlx::query_as::<_, User>(
+                "SELECT * FROM users WHERE kanidm_user_id = $1 AND deleted_at IS NULL",
+            )
+            .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
+                AppError::ValidationError("Invalid Kanidm user ID format".to_string())
+            })?)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(user)
     }
@@ -271,27 +272,26 @@ impl UserRepository for PgUserRepository {
         _username: Option<&str>,
         tenant_id: Uuid,
     ) -> Result<(User, bool), AppError> {
-        let kanidm_uuid = Uuid::parse_str(kanidm_user_id).map_err(|_| {
-            AppError::ValidationError("Invalid Kanidm user ID format".to_string())
-        })?;
+        let kanidm_uuid = Uuid::parse_str(kanidm_user_id)
+            .map_err(|_| AppError::ValidationError("Invalid Kanidm user ID format".to_string()))?;
 
         // Try to find existing user by kanidm_user_id
         if let Some(mut user) = self.find_by_kanidm_id(kanidm_user_id).await? {
             // Update existing user
             user.kanidm_synced_at = Some(chrono::Utc::now());
             user.updated_at = chrono::Utc::now();
-            
+
             // Set auth_method based on password_hash
             user.auth_method = if user.password_hash.is_some() {
-                "dual".to_string()  // Has both password and Kanidm
+                "dual".to_string() // Has both password and Kanidm
             } else {
-                "kanidm".to_string()  // Kanidm only
+                "kanidm".to_string() // Kanidm only
             };
 
             let updated_user = sqlx::query_as::<_, User>(
                 r#"
                 UPDATE users
-                SET kanidm_synced_at = $1, 
+                SET kanidm_synced_at = $1,
                     updated_at = $2,
                     auth_method = $3,
                     migration_completed_at = COALESCE(migration_completed_at, $4)
@@ -427,19 +427,22 @@ impl TenantRepository for PgTenantRepository {
         group_name: &str,
     ) -> Result<Option<(Tenant, String)>, AppError> {
         // Use dynamic query to avoid compile-time database check
-        let result = sqlx::query_as::<_, (
-            Uuid,
-            String,
-            String,
-            String,
-            Option<DateTime<Utc>>,
-            sqlx::types::Json<serde_json::Value>,
-            String,
-            DateTime<Utc>,
-            DateTime<Utc>,
-            Option<DateTime<Utc>>,
-            String,
-        )>(
+        let result = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                String,
+                String,
+                String,
+                Option<DateTime<Utc>>,
+                sqlx::types::Json<serde_json::Value>,
+                String,
+                DateTime<Utc>,
+                DateTime<Utc>,
+                Option<DateTime<Utc>>,
+                String,
+            ),
+        >(
             r#"
             SELECT t.tenant_id, t.name, t.slug, t.plan, t.plan_expires_at,
                    t.settings, t.status, t.created_at, t.updated_at, t.deleted_at,

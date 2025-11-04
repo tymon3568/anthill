@@ -26,7 +26,10 @@ async fn test_full_user_registration_flow() {
     assert_eq!(snapshot.users_count, 0);
 
     // Create user
-    let user_id = ctx.db.create_test_user(tenant_id, "test@example.com", "user").await;
+    let user_id = ctx
+        .db
+        .create_test_user(tenant_id, "test@example.com", "user")
+        .await;
 
     // Verify user was created
     let snapshot = ctx.db.snapshot_tenant(tenant_id).await;
@@ -40,13 +43,11 @@ async fn test_full_user_registration_flow() {
     ctx.cleanup().await;
 
     // Verify cleanup
-    let snapshot_result = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM tenants WHERE tenant_id = $1",
-        tenant_id
-    )
-    .fetch_one(ctx.db.pool())
-    .await
-    .unwrap();
+    let snapshot_result =
+        sqlx::query_scalar!("SELECT COUNT(*) FROM tenants WHERE tenant_id = $1", tenant_id)
+            .fetch_one(ctx.db.pool())
+            .await
+            .unwrap();
 
     assert_eq!(snapshot_result, Some(0));
 }
@@ -61,9 +62,18 @@ async fn test_multi_tenant_isolation() {
     let tenant_b_id = ctx.db.create_test_tenant("Tenant B").await;
 
     // Create users in each tenant
-    let user_a1 = ctx.db.create_test_user(tenant_a_id, "user1@tenant-a.com", "user").await;
-    let user_a2 = ctx.db.create_test_user(tenant_a_id, "user2@tenant-a.com", "user").await;
-    let user_b1 = ctx.db.create_test_user(tenant_b_id, "user1@tenant-b.com", "user").await;
+    let user_a1 = ctx
+        .db
+        .create_test_user(tenant_a_id, "user1@tenant-a.com", "user")
+        .await;
+    let user_a2 = ctx
+        .db
+        .create_test_user(tenant_a_id, "user2@tenant-a.com", "user")
+        .await;
+    let user_b1 = ctx
+        .db
+        .create_test_user(tenant_b_id, "user1@tenant-b.com", "user")
+        .await;
 
     // Verify isolation
     let snapshot_a = ctx.db.snapshot_tenant(tenant_a_id).await;
@@ -73,23 +83,19 @@ async fn test_multi_tenant_isolation() {
     assert_eq!(snapshot_b.users_count, 1);
 
     // Verify users belong to correct tenant
-    let user_a1_tenant = sqlx::query_scalar!(
-        "SELECT tenant_id FROM users WHERE user_id = $1",
-        user_a1
-    )
-    .fetch_one(ctx.db.pool())
-    .await
-    .unwrap();
+    let user_a1_tenant =
+        sqlx::query_scalar!("SELECT tenant_id FROM users WHERE user_id = $1", user_a1)
+            .fetch_one(ctx.db.pool())
+            .await
+            .unwrap();
 
     assert_eq!(user_a1_tenant, tenant_a_id);
 
-    let user_b1_tenant = sqlx::query_scalar!(
-        "SELECT tenant_id FROM users WHERE user_id = $1",
-        user_b1
-    )
-    .fetch_one(ctx.db.pool())
-    .await
-    .unwrap();
+    let user_b1_tenant =
+        sqlx::query_scalar!("SELECT tenant_id FROM users WHERE user_id = $1", user_b1)
+            .fetch_one(ctx.db.pool())
+            .await
+            .unwrap();
 
     assert_eq!(user_b1_tenant, tenant_b_id);
 
@@ -107,11 +113,10 @@ async fn test_bulk_user_creation() {
     // Create multiple users
     let mut user_ids = Vec::new();
     for i in 1..=50 {
-        let user_id = ctx.db.create_test_user(
-            tenant_id,
-            &format!("user{}@bulk.com", i),
-            "user"
-        ).await;
+        let user_id = ctx
+            .db
+            .create_test_user(tenant_id, &format!("user{}@bulk.com", i), "user")
+            .await;
         user_ids.push(user_id);
     }
 
@@ -123,13 +128,11 @@ async fn test_bulk_user_creation() {
     ctx.cleanup().await;
 
     // Verify all deleted
-    let remaining = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM users WHERE user_id = ANY($1)",
-        &user_ids
-    )
-    .fetch_one(ctx.db.pool())
-    .await
-    .unwrap();
+    let remaining =
+        sqlx::query_scalar!("SELECT COUNT(*) FROM users WHERE user_id = ANY($1)", &user_ids)
+            .fetch_one(ctx.db.pool())
+            .await
+            .unwrap();
 
     assert_eq!(remaining, Some(0));
 }
@@ -275,13 +278,10 @@ async fn test_transaction_rollback() {
     tx.rollback().await.unwrap();
 
     // Verify user was not created
-    let count = sqlx::query_scalar!(
-        "SELECT COUNT(*) FROM users WHERE user_id = $1",
-        user_id
-    )
-    .fetch_one(ctx.db.pool())
-    .await
-    .unwrap();
+    let count = sqlx::query_scalar!("SELECT COUNT(*) FROM users WHERE user_id = $1", user_id)
+        .fetch_one(ctx.db.pool())
+        .await
+        .unwrap();
 
     assert_eq!(count, Some(0));
 

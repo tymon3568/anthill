@@ -208,16 +208,19 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
             .await
             .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
-        kanidm_client: shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
-            kanidm_url: "http://localhost:8300".to_string(),
-            client_id: "dev".to_string(),
-            client_secret: "dev".to_string(),
-            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
-            scopes: vec!["openid".to_string()],
-            skip_jwt_verification: true,
-            allowed_issuers: vec!["http://localhost:8300".to_string()],
-            expected_audience: Some("dev".to_string()),
-        }).expect("Failed to create dev Kanidm client"),
+        kanidm_client: shared_kanidm_client::KanidmClient::new(
+            shared_kanidm_client::KanidmConfig {
+                kanidm_url: "http://localhost:8300".to_string(),
+                client_id: "dev".to_string(),
+                client_secret: "dev".to_string(),
+                redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+                scopes: vec!["openid".to_string()],
+                skip_jwt_verification: true,
+                allowed_issuers: vec!["http://localhost:8300".to_string()],
+                expected_audience: Some("dev".to_string()),
+            },
+        )
+        .expect("Failed to create dev Kanidm client"),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
@@ -341,16 +344,19 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
             .await
             .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
-        kanidm_client: shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
-            kanidm_url: "http://localhost:8300".to_string(),
-            client_id: "dev".to_string(),
-            client_secret: "dev".to_string(),
-            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
-            scopes: vec!["openid".to_string()],
-            skip_jwt_verification: true,
-            allowed_issuers: vec!["http://localhost:8300".to_string()],
-            expected_audience: Some("dev".to_string()),
-        }).expect("Failed to create dev Kanidm client"),
+        kanidm_client: shared_kanidm_client::KanidmClient::new(
+            shared_kanidm_client::KanidmConfig {
+                kanidm_url: "http://localhost:8300".to_string(),
+                client_id: "dev".to_string(),
+                client_secret: "dev".to_string(),
+                redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+                scopes: vec!["openid".to_string()],
+                skip_jwt_verification: true,
+                allowed_issuers: vec!["http://localhost:8300".to_string()],
+                expected_audience: Some("dev".to_string()),
+            },
+        )
+        .expect("Failed to create dev Kanidm client"),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
@@ -457,16 +463,19 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
             .await
             .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
-        kanidm_client: shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
-            kanidm_url: "http://localhost:8300".to_string(),
-            client_id: "dev".to_string(),
-            client_secret: "dev".to_string(),
-            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
-            scopes: vec!["openid".to_string()],
-            skip_jwt_verification: true,
-            allowed_issuers: vec!["http://localhost:8300".to_string()],
-            expected_audience: Some("dev".to_string()),
-        }).expect("Failed to create dev Kanidm client"),
+        kanidm_client: shared_kanidm_client::KanidmClient::new(
+            shared_kanidm_client::KanidmConfig {
+                kanidm_url: "http://localhost:8300".to_string(),
+                client_id: "dev".to_string(),
+                client_secret: "dev".to_string(),
+                redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+                scopes: vec!["openid".to_string()],
+                skip_jwt_verification: true,
+                allowed_issuers: vec!["http://localhost:8300".to_string()],
+                expected_audience: Some("dev".to_string()),
+            },
+        )
+        .expect("Failed to create dev Kanidm client"),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
     };

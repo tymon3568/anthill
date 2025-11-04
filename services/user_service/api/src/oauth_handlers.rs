@@ -110,10 +110,7 @@ pub async fn oauth_callback<S: AuthService>(
             AppError::InvalidToken
         })?;
 
-    debug!(
-        "Token validated - user: {}, email: {:?}",
-        claims.sub, claims.email
-    );
+    debug!("Token validated - user: {}, email: {:?}", claims.sub, claims.email);
 
     // Extract user info from claims
     let user_info = KanidmUserInfo {
@@ -175,10 +172,7 @@ async fn map_tenant_from_groups<S: AuthService>(
     groups: &[String],
 ) -> Result<Option<(user_service_core::domains::auth::domain::model::Tenant, String)>, AppError> {
     // Filter tenant-related groups
-    let tenant_groups: Vec<&String> = groups
-        .iter()
-        .filter(|g| g.starts_with("tenant_"))
-        .collect();
+    let tenant_groups: Vec<&String> = groups.iter().filter(|g| g.starts_with("tenant_")).collect();
 
     if tenant_groups.is_empty() {
         warn!("User has no tenant groups in Kanidm");
@@ -191,7 +185,7 @@ async fn map_tenant_from_groups<S: AuthService>(
         None => {
             warn!("Tenant repository not available in AppState");
             return Ok(None);
-        }
+        },
     };
 
     // Try to find matching tenant for each group

@@ -103,14 +103,10 @@ impl MockDbPool {
     ) -> Result<Vec<User>, AppError> {
         // Validate pagination parameters (match PostgreSQL behavior)
         if limit < 0 {
-            return Err(AppError::ValidationError(
-                "LIMIT must not be negative".to_string(),
-            ));
+            return Err(AppError::ValidationError("LIMIT must not be negative".to_string()));
         }
         if offset < 0 {
-            return Err(AppError::ValidationError(
-                "OFFSET must not be negative".to_string(),
-            ));
+            return Err(AppError::ValidationError("OFFSET must not be negative".to_string()));
         }
 
         let users = self.users.lock().await;
@@ -197,8 +193,8 @@ impl MockQueryResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use user_service_core::domains::auth::domain::model::User;
     use chrono::Utc;
+    use user_service_core::domains::auth::domain::model::User;
 
     fn create_test_user(email: &str, tenant_id: Uuid) -> User {
         let now = Utc::now();
@@ -206,7 +202,7 @@ mod tests {
             user_id: Uuid::new_v4(),
             tenant_id,
             email: email.to_string(),
-            password_hash: Some("hashed_password".to_string()),  // Now Option<String>
+            password_hash: Some("hashed_password".to_string()), // Now Option<String>
             email_verified: false,
             email_verified_at: None,
             full_name: Some("Test User".to_string()),
@@ -220,9 +216,9 @@ mod tests {
             password_changed_at: Some(now),
             kanidm_user_id: None,
             kanidm_synced_at: None,
-            auth_method: "password".to_string(),  // NEW
-            migration_invited_at: None,  // NEW
-            migration_completed_at: None,  // NEW
+            auth_method: "password".to_string(), // NEW
+            migration_invited_at: None,          // NEW
+            migration_completed_at: None,        // NEW
             created_at: now,
             updated_at: now,
             deleted_at: None,
