@@ -34,7 +34,7 @@ Initialize SvelteKit project with TypeScript strict mode and configure essential
 - [ ] TypeScript configuration optimized for strict mode
 - [ ] Code quality tools (ESLint, Prettier) configured
 - [ ] VS Code integration working properly
-- [ ] Environment variables properly configured for backend APIs
+- [ ] Environment variables correctly configured for backend APIs
 - [ ] Basic Svelte 5 runes stores setup for state management
 - [ ] Testing framework configured (Vitest + Playwright)
 - [ ] Build process working correctly for CapRover deployment
