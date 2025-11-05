@@ -5,8 +5,8 @@
 **Phase:** 03_User_Service  
 **Module:** 3.1_Kanidm_Integration  
 **Priority:** High  
-**Status:** Todo  
-**Assignee:**  
+**Status:** Done  
+**Assignee:** Claude  
 **Created Date:** 2025-11-03  
 **Last Updated:** 2025-11-03
 
@@ -16,30 +16,30 @@ Update authentication extractors in `shared/auth` to validate Kanidm JWT tokens 
 
 ## Specific Sub-tasks
 
-- [ ] 1. Remove custom JWT generation code from `shared/auth`
-- [ ] 2. Update `AuthUser` extractor to:
-  - [ ] Validate Kanidm JWT using KanidmClient
-  - [ ] Extract Kanidm claims (sub, email, groups)
-  - [ ] Resolve tenant_id from groups
-  - [ ] Populate AuthUser struct with Kanidm data
-- [ ] 3. Update `RequireAdmin` extractor to check Kanidm admin groups
-- [ ] 4. Update `RequirePermission` for Casbin with Kanidm user ID
-- [ ] 5. Remove `JwtSecretProvider` trait (no longer needed)
-- [ ] 6. Update error handling for Kanidm validation failures
-- [ ] 7. Add caching for validated tokens (Redis)
-- [ ] 8. Write unit tests for extractors
-- [ ] 9. Update all services using auth extractors
+- [x] 1. Remove custom JWT generation code from `shared/auth`
+- [x] 2. Update `AuthUser` extractor to:
+  - [x] Validate Kanidm JWT using KanidmClient
+  - [x] Extract Kanidm claims (sub, email, groups)
+  - [x] Resolve tenant_id from groups
+  - [x] Populate AuthUser struct with Kanidm data
+- [x] 3. Update `RequireAdmin` extractor to check Kanidm admin groups
+- [x] 4. Update `RequirePermission` for Casbin with Kanidm user ID
+- [x] 5. Remove `JwtSecretProvider` trait (no longer needed)
+- [x] 6. Update error handling for Kanidm validation failures
+- [x] 7. Add caching for validated tokens (Redis)
+- [x] 8. Write unit tests for extractors
+- [x] 9. Update all services using auth extractors
 
 ## Acceptance Criteria
 
-- [ ] `AuthUser` extractor validates Kanidm JWT correctly
-- [ ] `kanidm_user_id` (sub claim) is available in AuthUser
-- [ ] `tenant_id` resolved from groups claim
-- [ ] `RequireAdmin` checks for admin groups from Kanidm
-- [ ] Casbin enforcement uses Kanidm user_id as subject
-- [ ] Token validation failures return 401 Unauthorized
-- [ ] Expired tokens handled gracefully
-- [ ] Tests verify all extractor functionality
+- [x] `AuthUser` extractor validates Kanidm JWT correctly
+- [x] `kanidm_user_id` (sub claim) is available in AuthUser
+- [x] `tenant_id` resolved from groups claim
+- [x] `RequireAdmin` checks for admin groups from Kanidm
+- [x] Casbin enforcement uses Kanidm user_id as subject
+- [x] Token validation failures return 401 Unauthorized
+- [x] Expired tokens handled gracefully
+- [x] Tests verify all extractor functionality
 
 ## Dependencies
 
@@ -321,3 +321,10 @@ pub async fn list_users(
 - Handle network errors gracefully (Kanidm unreachable → fail open or closed?)
 - Consider rate limiting token validation to prevent DoS on Kanidm
 - Log all authentication failures for security monitoring
+
+## AI Agent Log:
+---
+*   2025-11-05 10:45: Task status updated by Claude
+    - Verified completion from Kanidm migration Phase 3
+    - Auth extractors updated to use Kanidm JWT validation
+    - Status: Done ✓

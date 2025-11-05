@@ -5,8 +5,8 @@
 **Phase:** 03_User_Service  
 **Module:** 3.1_Kanidm_Integration  
 **Priority:** High  
-**Status:** Todo  
-**Assignee:**  
+**Status:** Done  
+**Assignee:** Claude  
 **Created Date:** 2025-11-03  
 **Last Updated:** 2025-11-03
 
@@ -16,35 +16,35 @@ Create a shared Rust library (`shared/kanidm_client`) to handle OAuth2/OIDC inte
 
 ## Specific Sub-tasks
 
-- [ ] 1. Create `shared/kanidm_client` crate with Cargo.toml
-- [ ] 2. Add dependencies: `oauth2`, `reqwest`, `jsonwebtoken`, `serde`, `thiserror`
-- [ ] 3. Implement `KanidmClient` struct with configuration
-- [ ] 4. Implement OAuth2 Authorization Code + PKCE flow:
-  - [ ] Generate authorization URL with PKCE challenge
-  - [ ] Exchange authorization code for tokens
-  - [ ] Handle token response (access_token, refresh_token, id_token)
-- [ ] 5. Implement token refresh functionality
-- [ ] 6. Implement JWT validation:
-  - [ ] Fetch Kanidm public key (JWKS)
-  - [ ] Validate JWT signature
-  - [ ] Validate token expiration
-  - [ ] Extract and validate claims (sub, email, groups, etc.)
-- [ ] 7. Implement user info retrieval from Kanidm
-- [ ] 8. Create error types for Kanidm operations
-- [ ] 9. Write unit tests for core functionality
-- [ ] 10. Write integration tests with mock Kanidm server
+- [x] 1. Create `shared/kanidm_client` crate with Cargo.toml
+- [x] 2. Add dependencies: `oauth2`, `reqwest`, `jsonwebtoken`, `serde`, `thiserror`
+- [x] 3. Implement `KanidmClient` struct with configuration
+- [x] 4. Implement OAuth2 Authorization Code + PKCE flow:
+  - [x] Generate authorization URL with PKCE challenge
+  - [x] Exchange authorization code for tokens
+  - [x] Handle token response (access_token, refresh_token, id_token)
+- [x] 5. Implement token refresh functionality
+- [x] 6. Implement JWT validation:
+  - [x] Fetch Kanidm public key (JWKS)
+  - [x] Validate JWT signature
+  - [x] Validate token expiration
+  - [x] Extract and validate claims (sub, email, groups, etc.)
+- [x] 7. Implement user info retrieval from Kanidm
+- [x] 8. Create error types for Kanidm operations
+- [x] 9. Write unit tests for core functionality
+- [x] 10. Write integration tests with mock Kanidm server
 
 ## Acceptance Criteria
 
-- [ ] `shared/kanidm_client` crate created and compiles
-- [ ] Can generate OAuth2 authorization URL with PKCE
-- [ ] Can exchange authorization code for tokens
-- [ ] Can refresh access tokens using refresh token
-- [ ] Can validate Kanidm JWT tokens
-- [ ] Can extract claims from validated JWT
-- [ ] Error handling for all failure scenarios
-- [ ] Unit tests achieve >80% coverage
-- [ ] Integration tests verify OAuth2 flow
+- [x] `shared/kanidm_client` crate created and compiles
+- [x] Can generate OAuth2 authorization URL with PKCE
+- [x] Can exchange authorization code for tokens
+- [x] Can refresh access tokens using refresh token
+- [x] Can validate Kanidm JWT tokens
+- [x] Can extract claims from validated JWT
+- [x] Error handling for all failure scenarios
+- [x] Unit tests achieve >80% coverage
+- [x] Integration tests verify OAuth2 flow
 
 ## Dependencies
 
@@ -188,3 +188,10 @@ cargo tarpaulin --out Html
 - Handle token expiration gracefully (auto-refresh if refresh_token available)
 - Validate `iss` claim matches Kanidm issuer URL
 - Validate `aud` claim contains our client_id
+
+## AI Agent Log:
+---
+*   2025-11-05 10:30: Task status updated by Claude
+    - Verified completion from Kanidm migration Phase 3
+    - All sub-tasks completed: shared/kanidm_client crate created with OAuth2/PKCE support
+    - Status: Done ✓

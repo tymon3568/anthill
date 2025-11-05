@@ -5,8 +5,8 @@
 **Phase:** 03_User_Service  
 **Module:** 3.1_Kanidm_Integration  
 **Priority:** High  
-**Status:** Todo  
-**Assignee:**  
+**Status:** Done  
+**Assignee:** Claude  
 **Created Date:** 2025-11-03  
 **Last Updated:** 2025-11-03
 
@@ -16,40 +16,40 @@ Implement OAuth2 endpoints in User Service API to handle the authorization flow 
 
 ## Specific Sub-tasks
 
-- [ ] 1. Remove deprecated endpoints:
-  - [ ] DELETE `POST /api/v1/auth/register`
-  - [ ] DELETE `POST /api/v1/auth/login`
-  - [ ] KEEP `POST /api/v1/auth/logout` (modify to invalidate Kanidm session)
-- [ ] 2. Implement `GET /api/v1/auth/oauth/authorize`
-  - [ ] Generate OAuth2 authorization URL with PKCE
-  - [ ] Store PKCE verifier in session/Redis
-  - [ ] Redirect to Kanidm authorization page
-- [ ] 3. Implement `POST /api/v1/auth/oauth/callback`
-  - [ ] Receive authorization code from Kanidm
-  - [ ] Retrieve PKCE verifier from session
-  - [ ] Exchange code for tokens using KanidmClient
-  - [ ] Validate JWT token
-  - [ ] Map Kanidm user to tenant (via groups)
-  - [ ] Create/update user record in PostgreSQL
-  - [ ] Return access_token to frontend
-- [ ] 4. Implement `POST /api/v1/auth/oauth/refresh`
-  - [ ] Receive refresh_token from client
-  - [ ] Call Kanidm to refresh access_token
-  - [ ] Return new access_token
-- [ ] 5. Update DTOs for OAuth2 flow
-- [ ] 6. Update OpenAPI documentation
-- [ ] 7. Write integration tests
+- [x] 1. Remove deprecated endpoints:
+  - [x] DELETE `POST /api/v1/auth/register`
+  - [x] DELETE `POST /api/v1/auth/login`
+  - [x] KEEP `POST /api/v1/auth/logout` (modify to invalidate Kanidm session)
+- [x] 2. Implement `GET /api/v1/auth/oauth/authorize`
+  - [x] Generate OAuth2 authorization URL with PKCE
+  - [x] Store PKCE verifier in session/Redis
+  - [x] Redirect to Kanidm authorization page
+- [x] 3. Implement `POST /api/v1/auth/oauth/callback`
+  - [x] Receive authorization code from Kanidm
+  - [x] Retrieve PKCE verifier from session
+  - [x] Exchange code for tokens using KanidmClient
+  - [x] Validate JWT token
+  - [x] Map Kanidm user to tenant (via groups)
+  - [x] Create/update user record in PostgreSQL
+  - [x] Return access_token to frontend
+- [x] 4. Implement `POST /api/v1/auth/oauth/refresh`
+  - [x] Receive refresh_token from client
+  - [x] Call Kanidm to refresh access_token
+  - [x] Return new access_token
+- [x] 5. Update DTOs for OAuth2 flow
+- [x] 6. Update OpenAPI documentation
+- [x] 7. Write integration tests
 
 ## Acceptance Criteria
 
-- [ ] Old auth endpoints removed from codebase
-- [ ] OAuth2 authorize endpoint generates valid authorization URL
-- [ ] OAuth2 callback successfully exchanges code for tokens
-- [ ] User is created/updated in PostgreSQL after OAuth callback
-- [ ] Tenant mapping works correctly (groups → tenant_id)
-- [ ] Token refresh endpoint returns new access_token
-- [ ] All endpoints documented in OpenAPI spec
-- [ ] Integration tests pass
+- [x] Old auth endpoints removed from codebase
+- [x] OAuth2 authorize endpoint generates valid authorization URL
+- [x] OAuth2 callback successfully exchanges code for tokens
+- [x] User is created/updated in PostgreSQL after OAuth callback
+- [x] Tenant mapping works correctly (groups → tenant_id)
+- [x] Token refresh endpoint returns new access_token
+- [x] All endpoints documented in OpenAPI spec
+- [x] Integration tests pass
 
 ## Dependencies
 
@@ -243,3 +243,10 @@ cargo test --package user_service_api --test oauth_integration
 - Use httpOnly cookies for tokens if possible (more secure than localStorage)
 - Consider implementing "login with Kanidm" button in frontend
 - Handle edge cases: user closes browser during OAuth flow, expired state, etc.
+
+## AI Agent Log:
+---
+*   2025-11-05 10:35: Task status updated by Claude
+    - Verified completion from Kanidm migration Phase 3
+    - All OAuth2 endpoints implemented: authorize, callback, refresh
+    - Status: Done ✓
