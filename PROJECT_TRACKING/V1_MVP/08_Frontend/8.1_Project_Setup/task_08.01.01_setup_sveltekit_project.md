@@ -14,7 +14,7 @@
 Initialize SvelteKit project with TypeScript strict mode and configure essential development tools, dependencies, and project structure for the inventory management frontend.
 
 ## Specific Sub-tasks:
-- [ ] 1. Initialize SvelteKit 5 project với TypeScript strict mode
+- [ ] 1. Initialize SvelteKit 5 project with TypeScript strict mode
 - [ ] 2. Install essential dependencies (TailwindCSS, shadcn-svelte, Valibot, Frappe UI components)
 - [ ] 3. Configure project structure and folder organization
 - [ ] 4. Set up development environment with Vite configuration
