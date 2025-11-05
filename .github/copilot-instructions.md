@@ -306,6 +306,16 @@ Each service:
 
 Stateful services (PostgreSQL, Redis, NATS) deployed as One-Click Apps.
 
+## Documentation Lookup with Context7
+
+Before implementing any code related to frameworks, libraries, installations, or configurations, always consult up-to-date documentation using Context7 tools:
+
+1. **Resolve Library ID**: Use `mcp_upstash_conte_resolve-library-id` to find the correct Context7-compatible library ID for the framework or library in question.
+2. **Fetch Documentation**: Use `mcp_upstash_conte_get-library-docs` with the resolved ID to retrieve current documentation, examples, and best practices.
+3. **Reference Implementation**: Base your code on the retrieved documentation to ensure accuracy and adherence to official guidelines.
+
+This ensures all implementations follow the latest standards and avoid deprecated patterns.
+
 ## Critical Files Reference
 
 - `ARCHITECTURE.md` - System design, multi-tenancy strategy, technology decisions
