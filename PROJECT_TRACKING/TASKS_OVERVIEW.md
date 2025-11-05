@@ -50,7 +50,7 @@
 
 > **Timeline**: Weeks 3-5 (21 days)  
 > **Dependencies**: Phase 1, 2 completed, Kanidm server
-> **Progress**: 14/27 tasks completed (Updated: 2025-11-05)
+> **Progress**: 16/25 tasks completed (Updated: 2025-11-05)
 
     - [✅] 3.0 Architecture Implementation - `Completed`
           → [View folder](./V1_MVP/03_User_Service/3.0_Architecture/)

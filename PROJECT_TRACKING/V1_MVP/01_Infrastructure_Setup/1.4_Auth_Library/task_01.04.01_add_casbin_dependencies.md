@@ -40,6 +40,6 @@ Add necessary Casbin dependencies to the `shared/auth` crate to enable RBAC func
 ## AI Agent Log:
 ---
 *   2025-11-05 10:55: Task status updated by Claude
-    - Casbin dependencies added early in project setup
-    - Still valid and in use for authorization after Kanidm migration
-    - Status: Done ✓
+  - Casbin dependencies added early in project setup
+  - Still valid and in use for authorization after Kanidm migration
+  - Status: Done ✓

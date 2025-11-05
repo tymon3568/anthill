@@ -49,7 +49,7 @@ Implement Axum middleware for Casbin authorization that checks JWT tokens and en
 ## AI Agent Log:
 ---
 *   2025-11-05 10:59: Task status updated by Claude
-    - Axum middleware implemented early in project setup
-    - Updated to work with Kanidm JWT tokens instead of custom JWT
-    - Still valid and in use for authorization after Kanidm migration
-    - Status: Done ✓
+  - Axum middleware implemented early in project setup
+  - Updated to work with Kanidm JWT tokens instead of custom JWT
+  - Still valid and in use for authorization after Kanidm migration
+  - Status: Done ✓
