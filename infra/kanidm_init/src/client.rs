@@ -202,7 +202,7 @@ impl KanidmAdminClient {
             .context("Failed to parse auth response")?;
 
         match auth_response.state.as_str() {
-            "success" => {
+            "Success" => {
                 // Use bearer token if available, otherwise token
                 let jwt_token = auth_response.bearer.or(auth_response.token)
                     .context("No bearer or token field in successful auth response")?;
@@ -210,7 +210,7 @@ impl KanidmAdminClient {
                 info!("✅ Authentication successful");
                 Ok(())
             }
-            "denied" => {
+            "Denied" => {
                 anyhow::bail!("Authentication denied")
             }
             other => {

@@ -57,10 +57,7 @@ where
         }
     }
 
-    pub fn with_kanidm_client(
-        mut self,
-        client: Box<dyn KanidmOAuth2Client + Send + Sync>,
-    ) -> Self {
+    pub fn with_kanidm_client(mut self, client: Box<dyn KanidmOAuth2Client + Send + Sync>) -> Self {
         self.kanidm_client = Some(client);
         self
     }
