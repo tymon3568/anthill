@@ -324,3 +324,9 @@ This ensures all implementations follow the latest standards and avoid deprecate
 - `Cargo.toml` - Workspace config, all crate versions centralized
 - `shared/auth/src/lib.rs` - Auth exports (enforcer, middleware, extractors)
 - `shared/error/src/lib.rs` - Error types and HTTP status mappings
+
+# Frontend Development
+
+For Svelte 5 development guidelines, see:
+- `frontend/.svelte-instructions.md` - Complete Svelte 5 guidelines
+- `frontend/.cursor-instructions.md` - Cursor AI specific instructions

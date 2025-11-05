@@ -1,0 +1,42 @@
+{
+	"schemaVersion": 2,
+	"dockerfilePath": "./Dockerfile",
+	"serviceName": "anthill-frontend",
+	"ports": [
+		{
+			"containerPort": 3000,
+			"httpPublishPort": 80
+		}
+	],
+	"environments": [
+		{
+			"key": "NODE_ENV",
+			"value": "production"
+		},
+		{
+			"key": "VITE_API_BASE_URL",
+			"value": "http://srv-anthill-user-service"
+		},
+		{
+			"key": "VITE_KANIDM_BASE_URL",
+			"value": "https://idm.example.com"
+		}
+	],
+	"instructions": {
+		"start": {
+			"type": "script",
+			"value": "bun run .svelte-kit/output/server/index.js"
+		},
+		"build": {
+			"type": "script",
+			"value": "bun run build"
+		},
+		"dependencies": [
+			{
+				"type": "service",
+				"name": "anthill-user-service",
+				"image": "anthill-user-service:latest"
+			}
+		]
+	}
+}

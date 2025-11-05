@@ -68,4 +68,4 @@ Each service exposes Swagger UI during development:
 **Frontend types out of sync?**
 - Ensure CI completed successfully
 - Check that `api.yaml` was committed
-- Run `pnpm orval` in frontend directory
+- Run `bun run orval` in frontend directory
