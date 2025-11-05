@@ -16,14 +16,14 @@ Create responsive and accessible login and registration pages with form validati
 ## Specific Sub-tasks:
 - [ ] 1. Create login page component with email/password fields
 - [ ] 2. Create registration page component with form validation
-- [ ] 3. Implement client-side form validation with Zod schema
+- [ ] 3. Implement client-side form validation with Valibot schema
 - [ ] 4. Add password strength indicator and requirements
 - [ ] 5. Implement "Remember Me" functionality for login
 - [ ] 6. Add "Forgot Password" link and functionality
 - [ ] 7. Create loading states and error handling
 - [ ] 8. Implement responsive design for mobile and desktop
 - [ ] 9. Add accessibility features (ARIA labels, keyboard navigation)
-- [ ] 10. Create session management and token storage
+- [ ] 10. Create session management and JWT token storage
 
 ## Acceptance Criteria:
 - [ ] Login page fully functional with API integration
@@ -35,7 +35,8 @@ Create responsive and accessible login and registration pages with form validati
 - [ ] Accessibility standards met (WCAG 2.1)
 - [ ] Session management working correctly
 - [ ] Integration with backend authentication API
-- [ ] Comprehensive test coverage for auth flows
+- [ ] Unit tests written with Vitest for components and validation
+- [ ] E2E tests written with Playwright for auth flows
 
 ## Dependencies:
 - V1_MVP/08_Frontend/8.1_Project_Setup/task_08.01.01_setup_sveltekit_project.md
@@ -51,8 +52,12 @@ Create responsive and accessible login and registration pages with form validati
 * Use SvelteKit's form actions for server-side validation
 * Implement proper error handling for network failures
 * Consider social login options for future enhancement
-* Ensure secure token storage (httpOnly cookies vs localStorage)
+* Ensure secure JWT token storage (httpOnly cookies vs localStorage)
 * Add rate limiting indicators for user feedback
+* Use native fetch API for backend communication
+* Handle JWT refresh tokens automatically
+* Write unit tests with Vitest for form validation and component logic
+* Write E2E tests with Playwright for complete auth user journeys
 
 ## AI Agent Log:
 ---
