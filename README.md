@@ -86,8 +86,7 @@ anthill/
 ### Prerequisites
 
 - **Rust** (stable + nightly): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- **Node.js** (LTS): `https://nodejs.org/` (for SvelteKit frontend)
-- **Bun**: `curl -fsSL https://bun.sh/install | bash` (fast JavaScript runtime and package manager)
+- **Bun**: `curl -fsSL https://bun.sh/install | bash` (fast JavaScript runtime and package manager for SvelteKit frontend - replaces Node.js)
 - **Docker & Docker Compose**: For running local environment
 - **PostgreSQL Client**: `psql` (optional, for debugging)
 
