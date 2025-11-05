@@ -22,8 +22,8 @@ class ApiClient {
 			...options
 		};
 
-		// Add auth token if available
-		const token = localStorage.getItem('auth_token');
+		// Add auth token if available (only in browser)
+		const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
 		if (token) {
 			config.headers = {
 				...config.headers,
@@ -42,7 +42,20 @@ class ApiClient {
 				};
 			}
 
-			const data = await response.json();
+			// Handle 204 No Content or empty responses
+			if (response.status === 204 || response.headers.get('content-length') === '0') {
+				return { success: true };
+			}
+
+			// Parse JSON only if content-type indicates JSON
+			const contentType = response.headers.get('content-type') ?? '';
+			let data: T;
+			if (contentType.includes('application/json')) {
+				data = await response.json();
+			} else {
+				data = (await response.text()) as unknown as T;
+			}
+
 			return {
 				success: true,
 				data

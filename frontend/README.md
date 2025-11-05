@@ -76,8 +76,7 @@ $effect(() => {
 
 ### Prerequisites
 
-- Node.js 20+
-- Bun (recommended) or npm/pnpm
+- Bun (recommended) or npm/pnpm (fast JavaScript runtime and package manager - replaces Node.js)
 - Docker (for local development)
 
 ### Setup

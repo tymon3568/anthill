@@ -27,11 +27,11 @@ export const inventoryApi = {
 	},
 
 	async createProduct(product: ProductForm): Promise<ApiResponse<Product>> {
-		return apiClient.post<Product>('/products', product);
+		return apiClient.post<Product>('/products', product as unknown as Record<string, unknown>);
 	},
 
 	async updateProduct(id: string, product: Partial<ProductForm>): Promise<ApiResponse<Product>> {
-		return apiClient.put<Product>(`/products/${id}`, product);
+		return apiClient.put<Product>(`/products/${id}`, product as unknown as Record<string, unknown>);
 	},
 
 	async deleteProduct(id: string): Promise<ApiResponse<void>> {

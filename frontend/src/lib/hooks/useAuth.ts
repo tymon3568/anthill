@@ -11,16 +11,24 @@ export function useAuth() {
 		// Try to get user profile if we have a token
 		const token = localStorage.getItem('auth_token');
 		if (token && !authState.user) {
-			authApi.getProfile().then((result) => {
-				if (result.success && result.data) {
-					authStore.setUser(result.data);
-				} else {
-					// Token invalid, clear it
+			authApi.getProfile()
+				.then((result) => {
+					if (result.success && result.data) {
+						authStore.setUser(result.data);
+					} else {
+						// Token invalid, clear it
+						localStorage.removeItem('auth_token');
+						localStorage.removeItem('refresh_token');
+					}
+				})
+				.catch(() => {
+					// Network or other error - clear tokens
 					localStorage.removeItem('auth_token');
 					localStorage.removeItem('refresh_token');
-				}
-				authStore.setLoading(false);
-			});
+				})
+				.finally(() => {
+					authStore.setLoading(false);
+				});
 		} else {
 			authStore.setLoading(false);
 		}

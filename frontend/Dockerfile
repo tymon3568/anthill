@@ -20,10 +20,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
+# SvelteKit telemetry can be disabled if needed
+# Learn more: https://kit.svelte.dev/docs/cli#svelte-kit-sync
 # Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED 1
+# ENV SVELTEKIT_TELEMETRY_DISABLED 1
 
 RUN bun run build
 
@@ -33,7 +33,7 @@ WORKDIR /app
 
 ENV NODE_ENV production
 # Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED 1
+# ENV SVELTEKIT_TELEMETRY_DISABLED 1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 sveltekit
@@ -44,8 +44,7 @@ COPY --from=builder /app/public ./public
 RUN mkdir .svelte-kit
 RUN chown sveltekit:nodejs .svelte-kit
 
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# Copy SvelteKit build output
 COPY --from=builder --chown=sveltekit:nodejs /app/.svelte-kit/output ./.svelte-kit/output
 COPY --from=builder --chown=sveltekit:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=sveltekit:nodejs /app/bun.lock ./bun.lock

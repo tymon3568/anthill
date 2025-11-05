@@ -10,7 +10,7 @@ export interface AuthResponse {
 
 export const authApi = {
 	async login(credentials: LoginForm): Promise<ApiResponse<AuthResponse>> {
-		return apiClient.post<AuthResponse>('/auth/login', credentials);
+		return apiClient.post<AuthResponse>('/auth/login', credentials as unknown as Record<string, unknown>);
 	},
 
 	async refreshToken(

@@ -27,6 +27,9 @@ export const authStore = {
 	},
 
 	logout: () => {
+		if (typeof localStorage !== 'undefined') {
+			localStorage.removeItem('auth_token');
+		}
 		authState.user = null;
 		authState.tenant = null;
 		authState.isAuthenticated = false;
@@ -35,12 +38,7 @@ export const authStore = {
 
 	initialize: () => {
 		// Check for stored auth data (JWT, etc.)
-		const token = localStorage.getItem('auth_token');
-		if (token) {
-			// TODO: Validate token and set user data
-			authState.isLoading = false;
-		} else {
-			authState.isLoading = false;
-		}
-	}
+		// Let useAuth hook manage loading state for async operations
+		// This prevents redirects from triggering before profile validation completes
+	},
 };

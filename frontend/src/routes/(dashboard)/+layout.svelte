@@ -6,6 +6,8 @@
 	import { useAuth } from '$lib/hooks/useAuth';
 	import { goto } from '$app/navigation';
 
+	let { children } = $props();
+
 	const { user, isAuthenticated, isLoading, logout } = useAuth();
 
 	// Redirect to login if not authenticated
