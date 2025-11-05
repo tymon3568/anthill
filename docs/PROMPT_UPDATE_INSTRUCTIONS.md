@@ -37,6 +37,16 @@ Valid statuses ONLY:
 
 ❌ INVALID: Completed, InProgress, Pending, WaitingFor, Custom_Status
 ```
+```text
+Valid statuses ONLY:
+- Todo                      (Initial state, ready to be claimed)
+- InProgress_By_[Agent]     (Agent actively working)
+- Blocked_By_[Reason]       (Cannot proceed - MUST specify reason)
+- NeedsReview              (Work complete, awaiting review)
+- Done                      (Reviewed and approved)
+
+❌ INVALID: Completed, InProgress, Pending, WaitingFor, Custom_Status
+```
 
 ## Task Completion Flow
 ```text
