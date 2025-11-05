@@ -73,7 +73,23 @@ Legend:
   3.  Kết nối CapRover với GitHub/GitLab, và nó sẽ tự động build và deploy mỗi khi có `git push`.
   4.  Scaling (tăng/giảm số container) được thực hiện dễ dàng qua giao diện.
 
-### 3. Giao tiếp giữa các Service: Docker Swarm Network
+### 3. Frontend Application: SvelteKit 5
+
+- **Công nghệ**: SvelteKit 5, TypeScript, Tailwind CSS, shadcn-svelte.
+- **Vai trò**: Giao diện người dùng chính cho hệ thống, bao gồm dashboard, quản lý sản phẩm, đơn hàng, và cài đặt.
+- **Tính năng chính**:
+  - **State Management**: Sử dụng Svelte 5 runes cho reactive state.
+  - **Form Validation**: Valibot cho client-side validation.
+  - **UI Components**: shadcn-svelte theo chuẩn thiết kế Frappe UI.
+  - **Authentication**: JWT từ Kanidm OAuth2, handle refresh tokens.
+  - **API Client**: Native fetch API để call backend APIs.
+  - **Testing**: Vitest cho unit tests, Playwright cho E2E tests.
+- **Triển khai**:
+  - Deployed như một CapRover App riêng biệt.
+  - Build thành static assets hoặc SSR dựa trên nhu cầu.
+  - Kết nối với backend services qua internal network.
+
+### 4. Giao tiếp giữa các Service: Docker Swarm Network
 
 - **Công nghệ**: Docker Swarm Overlay Network.
 - **Vai trò**: Tạo một mạng ảo riêng tư và an toàn cho tất cả các app trong CapRover.
@@ -261,6 +277,16 @@ WHERE kanidm_group_name = 'tenant_acme_users'
 - **Web Framework**: Axum
 - **Async Runtime**: Tokio
 - **Database Driver**: SQLx
+
+### Frontend Application
+- **Framework**: SvelteKit 5
+- **Language**: TypeScript (strict mode)
+- **State Management**: Svelte 5 runes
+- **Form Validation**: Valibot
+- **UI Components**: shadcn-svelte + Tailwind CSS
+- **Design System**: Frappe UI standards
+- **API Client**: Native fetch API
+- **Testing**: Vitest (unit) + Playwright (E2E)
 
 ### Authentication & Authorization
 - **Identity Provider**: Kanidm (OAuth2/OIDC)

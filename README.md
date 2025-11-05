@@ -19,9 +19,9 @@
 The project uses **Event-Driven Microservices** architecture with the following technologies:
 
 - **Backend**: Rust + Axum + Tokio + SQLx
+- **Frontend**: SvelteKit 5 + TypeScript + Tailwind CSS + shadcn-svelte
 - **Authentication**: Kanidm (OAuth2/OIDC Identity Provider)
 - **Authorization**: Casbin-rs (RBAC)
-- **Frontend**: SvelteKit 5 + TypeScript + Tailwind CSS
 - **Database**: PostgreSQL
 - **Cache**: Redis
 - **Message Queue**: NATS
@@ -41,6 +41,24 @@ anthill/
 │   ├── order-service/          # Order management
 │   ├── integration-service/    # Marketplace integration
 │   └── payment-service/        # Payment processing
+├── frontend/                    # SvelteKit 5 application
+│   ├── src/
+│   │   ├── app.html            # Main HTML template
+│   │   ├── app.d.ts            # TypeScript declarations
+│   │   ├── lib/                # Shared libraries
+│   │   │   ├── components/     # Reusable UI components (shadcn-svelte)
+│   │   │   ├── stores/         # Svelte 5 runes state management
+│   │   │   ├── utils/          # Utility functions
+│   │   │   ├── auth/           # Authentication helpers
+│   │   │   └── api/            # API client functions
+│   │   └── routes/             # Page routes
+│   ├── static/                 # Static assets
+│   ├── package.json            # Dependencies and scripts
+│   ├── svelte.config.js        # SvelteKit configuration
+│   ├── vite.config.ts          # Vite build configuration
+│   ├── tsconfig.json           # TypeScript configuration
+│   ├── tailwind.config.js      # Tailwind CSS configuration
+│   └── playwright.config.ts    # E2E testing configuration
 ├── shared/                      # Shared libraries
 │   ├── auth/                   # Casbin RBAC, Kanidm integration
 │   ├── config/                 # Environment config loader
@@ -49,7 +67,6 @@ anthill/
 │   ├── jwt/                    # JWT encoding/decoding
 │   ├── kanidm_client/          # Kanidm OAuth2/OIDC client
 │   └── openapi/                # OpenAPI spec generation
-├── frontend/                    # SvelteKit application (planned)
 ├── infra/                       # Infrastructure config
 │   ├── docker_compose/         # Local dev environment
 │   ├── nginx/                  # API Gateway configuration
@@ -69,10 +86,11 @@ anthill/
 ### Prerequisites
 
 - **Rust** (stable + nightly): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- **Node.js** (LTS): `https://nodejs.org/` (for SvelteKit frontend)
 - **Docker & Docker Compose**: For running local environment
 - **PostgreSQL Client**: `psql` (optional, for debugging)
 
-### 1. Install Rust Tools
+### 1. Install Development Tools
 
 ```bash
 # Install Rust toolchain
@@ -83,6 +101,9 @@ rustup component add clippy rustfmt
 # Install cargo tools
 cargo install cargo-watch        # Auto-reload
 cargo install sqlx-cli --features postgres  # DB migrations
+
+# Install Node.js tools (optional, for frontend)
+npm install -g pnpm              # Fast package manager
 ```
 
 ### 2. Start Local Environment
@@ -98,9 +119,27 @@ docker-compose up -d
 # Return to root directory
 ```
 
-### 3. Build & Run Backend Services
+### 3. Setup Frontend (SvelteKit)
 
 ```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev
+
+# In another terminal, run backend services...
+```
+
+### 4. Build & Run Backend Services
+
+```bash
+# Return to root directory
+cd ..
+
 # Build all services
 cargo build --workspace
 
@@ -113,7 +152,7 @@ cargo run --bin inventory-service
 # And continue with other services...
 ```
 
-### 4. Setup Database
+### 5. Setup Database
 
 ```bash
 # Run database migrations
@@ -151,6 +190,37 @@ git commit --no-verify
 - ✅ Fix end-of-file issues
 - ✅ Format TOML files
 - ✅ Prevent large files from being committed
+
+### Frontend (SvelteKit)
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev
+
+# Build for production
+pnpm build
+
+# Preview production build
+pnpm preview
+
+# Run unit tests (Vitest)
+pnpm test
+
+# Run E2E tests (Playwright)
+pnpm test:e2e
+
+# Format code
+pnpm format
+
+# Lint code
+pnpm lint
+```
 
 ### Backend (Rust)
 
