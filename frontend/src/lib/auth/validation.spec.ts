@@ -141,7 +141,7 @@ describe('Auth Validation', () => {
 			expect(validatePasswordConfirmation('password123', 'different123')).toBe(false);
 		});
 
-		it('should return false when passwords are empty', () => {
+		it('should return true when both passwords are empty', () => {
 			expect(validatePasswordConfirmation('', '')).toBe(true);
 		});
 

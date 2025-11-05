@@ -2,16 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Authentication E2E Tests', () => {
 	test.beforeEach(async ({ page }) => {
-		// Navigate to login page directly
-		await page.goto('http://localhost:5173/login');
+		await page.goto('/login');
 		await page.waitForLoadState('networkidle');
-		await page.waitForTimeout(2000); // Extra wait for Svelte hydration
+		await page.waitForSelector('h1:has-text("Welcome back")', { state: 'visible' });
 	});
 
 	test('should display login page by default', async ({ page }) => {
-		// Navigate to login page
-		await page.goto('/login');
-
 		// Check if we're on login page
 		await expect(page.locator('h1')).toContainText(/Welcome back/i);
 		await expect(page.locator('text=/Sign in to your account/i')).toBeVisible();
@@ -21,9 +17,6 @@ test.describe('Authentication E2E Tests', () => {
 	});
 
 	test('should show validation errors for empty login form', async ({ page }) => {
-		// Navigate to login page
-		await page.goto('/login');
-
 		// Submit form to trigger validation
 		await page.getByRole('button', { name: 'Sign In' }).click();
 
@@ -62,9 +55,6 @@ test.describe('Authentication E2E Tests', () => {
 	});
 
 	test('should navigate to register page', async ({ page }) => {
-		// Navigate to login first
-		await page.goto('/login');
-
 		// Click register link
 		await page.locator('a[href*="register"]').click();
 
@@ -79,7 +69,6 @@ test.describe('Authentication E2E Tests', () => {
 
 	test('should show validation errors for empty register form', async ({ page }) => {
 		// Navigate to register
-		await page.goto('/login');
 		await page.locator('a[href*="register"]').click();
 
 		// Wait for register page to load
@@ -99,7 +88,6 @@ test.describe('Authentication E2E Tests', () => {
 
 	test('should show password strength indicator', async ({ page }) => {
 		// Navigate to register
-		await page.goto('/login');
 		await page.locator('a[href*="register"]').click();
 
 		// Wait for register page to load
@@ -120,7 +108,6 @@ test.describe('Authentication E2E Tests', () => {
 
 	test('should show password confirmation mismatch error', async ({ page }) => {
 		// Navigate to register
-		await page.goto('/login');
 		await page.locator('a[href*="register"]').click();
 
 		// Wait for register page to load
@@ -135,12 +122,10 @@ test.describe('Authentication E2E Tests', () => {
 		// Submit form to trigger validation
 		await page.getByRole('button', { name: 'Create Account' }).click();
 
-		// Wait a bit for validation to process
-		await page.waitForTimeout(500);
-
-		// The validation happens on submit, check if form is not submitted
-		// (button should still be visible, meaning validation failed)
-		await expect(page.getByRole('button', { name: 'Create Account' })).toBeVisible();
+		// Wait for password mismatch error to appear
+		await expect(page.locator('text=/Passwords do not match/i')).toBeVisible({
+			timeout: 5000
+		});
 	});
 
 	test('should validate name field', async ({ page }) => {

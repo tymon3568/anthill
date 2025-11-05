@@ -23,17 +23,17 @@
 	const { register, isAuthenticated } = useAuth();
 
 	// Password strength calculation using Valibot helper
-	let passwordStrength = $derived(() => calculatePasswordStrength(password));
+	let passwordStrength = $derived.by(() => calculatePasswordStrength(password));
 
-	let passwordStrengthText = $derived(() => passwordStrength().strength);
-	let passwordStrengthColor = $derived(() => passwordStrength().color);
+	let passwordStrengthText = $derived(passwordStrength.strength);
+	let passwordStrengthColor = $derived(passwordStrength.color);
 
 	// Form validation using Valibot
 	let isFormValid = $derived.by(() => {
 		try {
 			parse(registerSchema, { name, email, password, confirmPassword });
 			const passwordsMatch = validatePasswordConfirmation(password, confirmPassword);
-			const strength = passwordStrength();
+			const strength = passwordStrength;
 			return passwordsMatch && strength.score >= 3;
 		} catch {
 			return false;
@@ -53,6 +53,12 @@
 				}
 			});
 		}
+
+		// Check password confirmation
+		if (!validatePasswordConfirmation(password, confirmPassword)) {
+			errors.confirmPassword = 'Passwords do not match';
+		}
+
 		return errors;
 	});				// Handle form submission
 	async function handleSubmit(event: Event) {
@@ -174,10 +180,10 @@
 									<div class="flex-1 bg-gray-200 rounded-full h-2">
 										<div
 											class="h-2 rounded-full transition-all duration-300"
-											style="width: {(passwordStrength().score / 5) * 100}%; background-color: {passwordStrengthColor()}"
+											style="width: {(passwordStrength.score / 5) * 100}%; background-color: {passwordStrengthColor}"
 										></div>
 									</div>
-									<span class="text-xs text-gray-600">{passwordStrengthText()}</span>
+									<span class="text-xs text-gray-600">{passwordStrengthText}</span>
 								</div>
 							</div>
 						{/if}

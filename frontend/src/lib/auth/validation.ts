@@ -1,4 +1,5 @@
 import { object, string, minLength, email, regex, pipe, parse, safeParse, nonEmpty } from 'valibot';
+import type { LoginForm, RegisterForm } from '$lib/types';
 
 // Password validation rules
 const passwordSchema = pipe(
@@ -21,7 +22,7 @@ export const loginSchema = object({
 	password: pipe(
 		string('Password is required'),
 		nonEmpty('Password is required'),
-		minLength(6, 'Password must be at least 6 characters')
+		minLength(8, 'Password must be at least 8 characters')
 	)
 });
 
@@ -53,7 +54,7 @@ export function validatePasswordConfirmation(password: string, confirmPassword: 
 // Password strength calculation (for UI feedback)
 export function calculatePasswordStrength(password: string): {
 	score: number;
-	strength: 'Very Weak' | 'Weak' | 'Fair' | 'Good' | 'Strong' | 'Very Strong';
+	strength: 'Very Weak' | 'Weak' | 'Fair' | 'Strong' | 'Very Strong';
 	color: string;
 } {
 	let score = 0;
@@ -75,7 +76,7 @@ export function calculatePasswordStrength(password: string): {
 			break;
 		case 2:
 			strength = 'Weak';
-			color = 'text-red-600';
+			color = 'text-orange-500';
 			break;
 		case 3:
 			strength = 'Fair';
@@ -96,16 +97,3 @@ export function calculatePasswordStrength(password: string): {
 
 	return { score, strength, color };
 }
-
-// Type exports for TypeScript
-export type LoginForm = {
-	email: string;
-	password: string;
-};
-
-export type RegisterForm = {
-	name: string;
-	email: string;
-	password: string;
-	confirmPassword: string;
-};

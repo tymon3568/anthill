@@ -1,18 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import { authState } from '$lib/stores/auth.svelte';
-
-	// Handle authentication check and redirect
-	onMount(() => {
-		if (!authState.isLoading) {
-			if (authState.isAuthenticated) {
-				goto('/dashboard');
-			} else {
-				goto('/login');
-			}
-		}
-	});
 
 	// Show loading while checking auth
 	$: if (!authState.isLoading) {
