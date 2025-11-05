@@ -87,6 +87,7 @@ anthill/
 
 - **Rust** (stable + nightly): `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 - **Node.js** (LTS): `https://nodejs.org/` (for SvelteKit frontend)
+- **Bun**: `curl -fsSL https://bun.sh/install | bash` (fast JavaScript runtime and package manager)
 - **Docker & Docker Compose**: For running local environment
 - **PostgreSQL Client**: `psql` (optional, for debugging)
 
@@ -102,8 +103,8 @@ rustup component add clippy rustfmt
 cargo install cargo-watch        # Auto-reload
 cargo install sqlx-cli --features postgres  # DB migrations
 
-# Install Node.js tools (optional, for frontend)
-npm install -g pnpm              # Fast package manager
+# Install Bun (if not already installed)
+curl -fsSL https://bun.sh/install | bash
 ```
 
 ### 2. Start Local Environment
@@ -119,17 +120,17 @@ docker-compose up -d
 # Return to root directory
 ```
 
-### 3. Setup Frontend (SvelteKit)
+### 4. Setup Frontend (SvelteKit)
 
 ```bash
 # Navigate to frontend directory
 cd frontend
 
 # Install dependencies
-pnpm install
+bun install
 
 # Start development server
-pnpm dev
+bun dev
 
 # In another terminal, run backend services...
 ```
@@ -198,28 +199,28 @@ git commit --no-verify
 cd frontend
 
 # Install dependencies
-pnpm install
+bun install
 
 # Start development server
-pnpm dev
+bun dev
 
 # Build for production
-pnpm build
+bun run build
 
 # Preview production build
-pnpm preview
+bun run preview
 
 # Run unit tests (Vitest)
-pnpm test
+bun run test:unit
 
 # Run E2E tests (Playwright)
-pnpm test:e2e
+bun run test:e2e
 
 # Format code
-pnpm format
+bun run format
 
 # Lint code
-pnpm lint
+bun run lint
 ```
 
 ### Backend (Rust)
