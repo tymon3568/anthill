@@ -76,7 +76,7 @@ $effect(() => {
 
 ### Prerequisites
 
-- Bun (recommended) or npm/pnpm (fast JavaScript runtime and package manager - replaces Node.js)
+- **Bun** (MANDATORY - see [`.svelte-instructions.md`](.svelte-instructions.md) for usage guidelines)
 - Docker (for local development)
 
 ### Setup
