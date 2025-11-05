@@ -36,6 +36,8 @@ Create the main dashboard layout with responsive sidebar navigation, header, and
 - [ ] Loading states and skeleton screens displayed
 - [ ] Keyboard navigation and accessibility features working
 - [ ] Cross-browser compatibility ensured
+- [ ] Unit tests written with Vitest for layout components
+- [ ] E2E tests written with Playwright for navigation flows
 
 ## Dependencies:
 - V1_MVP/08_Frontend/8.1_Project_Setup/task_08.01.01_setup_sveltekit_project.md
@@ -52,6 +54,8 @@ Create the main dashboard layout with responsive sidebar navigation, header, and
 * Implement proper state management for navigation
 * Ensure optimal performance with lazy loading
 * Consider future PWA requirements for navigation
+* Write unit tests with Vitest for layout components and navigation logic
+* Write E2E tests with Playwright for complete navigation user journeys
 
 ## AI Agent Log:
 ---
