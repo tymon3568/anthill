@@ -100,6 +100,13 @@ export interface LoginForm {
 	password: string;
 }
 
+export interface RegisterForm {
+	email: string;
+	password: string;
+	confirmPassword: string;
+	name: string;
+}
+
 export interface ProductForm {
 	sku: string;
 	name: string;

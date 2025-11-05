@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { inventoryState, inventoryStore } from '$lib/stores/inventory';
+	import { inventoryState, inventoryStore } from '$lib/stores/inventory.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
 	import type { Product } from '$lib/types';

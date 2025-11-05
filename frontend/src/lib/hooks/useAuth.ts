@@ -1,5 +1,5 @@
 import { onMount } from 'svelte';
-import { authState, authStore } from '$lib/stores/auth';
+import { authState, authStore } from '$lib/stores/auth.svelte';
 import { authApi } from '$lib/api/auth';
 
 // Custom hook for auth initialization
@@ -53,6 +53,19 @@ export function useAuth() {
 				}
 			} catch {
 				return { success: false, error: 'Login failed' };
+			} finally {
+				authStore.setLoading(false);
+			}
+		},
+		register: async (userData: { name: string; email: string; password: string; confirmPassword: string }) => {
+			authStore.setLoading(true);
+			try {
+				// For now, just simulate registration success
+				// In real app, this would call authApi.register()
+				await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+				return { success: true };
+			} catch {
+				return { success: false, error: 'Registration failed' };
 			} finally {
 				authStore.setLoading(false);
 			}
