@@ -27,7 +27,7 @@ Before claiming ANY task:
 6. ✅ Run `git pull` if task involves code changes
 
 ## Status Transitions (STRICT - NO EXCEPTIONS)
-```
+```text
 Valid statuses ONLY:
 - Todo                      (Initial state, ready to be claimed)
 - InProgress_By_[Agent]     (Agent actively working)
@@ -39,14 +39,14 @@ Valid statuses ONLY:
 ```
 
 ## Task Completion Flow
-```
+```text
 Todo → InProgress_By_Agent → All sub-tasks done → NeedsReview → User reviews → Done
            ↓
       Blocked_By_[Reason] (if issues arise)
 ```
 
 ## Dependency Verification Logic
-```pseudocode
+```text
 # Agent verification process:
 # 1. Read dependency task file
 #    Extract Status field → "Done" ✓
@@ -73,20 +73,20 @@ Todo → InProgress_By_Agent → All sub-tasks done → NeedsReview → User rev
 When user says "find next task" or "what should I work on":
 
 1. **Read Project Overview**:
-   ```
+   ```text
    Read: PROJECT_TRACKING/TASKS_OVERVIEW.md
    Identify current active phase and progress
    ```
 
 2. **Search for Available Tasks**:
-   ```
+   ```text
    Search pattern: **Status:** Todo
    Within: PROJECT_TRACKING/V1_MVP/[current_phase]/
    Filter: Assignee field is empty OR not assigned
    ```
 
 3. **Verify Dependencies**:
-   ```
+   ```text
    For each candidate task:
    - Read Dependencies section
    - Check each dependency's Status
@@ -94,7 +94,7 @@ When user says "find next task" or "what should I work on":
    ```
 
 4. **Propose Task**:
-   ```
+   ```text
    Format:
    "Found available task: task_XX.YY.ZZ_description.md
    - Priority: [High/Medium/Low]
@@ -117,7 +117,7 @@ When user says "find next task" or "what should I work on":
 4. Do NOT attempt workarounds without explicit user approval
 
 ## Commit Message Format
-```
+```text
 task_XX.YY.ZZ: <subject>
 
 <body with details>
