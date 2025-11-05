@@ -153,7 +153,11 @@ check_containers() {
         fi
     done
 
-    return $([ "$all_up" == true ] && echo 0 || echo 1)
+    if [ "$all_up" == true ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # Function to check metrics collection
@@ -291,7 +295,7 @@ if [[ "$JSON_OUTPUT" == true ]]; then
     echo "  \"overall_status\": \"$OVERALL_STATUS\","
     echo "  \"services\": {"
 
-    local first=true
+    first=true
     for service in "${!RESULTS[@]}"; do
         if [[ "$first" == false ]]; then
             echo ","

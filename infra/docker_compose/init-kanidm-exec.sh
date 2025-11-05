@@ -9,7 +9,12 @@ echo "Kanidm Initialization for Anthill"
 echo "========================================="
 
 KANIDM_URL="${KANIDM_URL:-https://localhost:8300}"
-ADMIN_PASSWORD="${KANIDM_ADMIN_PASSWORD:-NA6LYuMh5zPWT8VTFaWFLT6TD9jdM3BcVquLy031e8RFY8Ps}"
+ADMIN_PASSWORD="${KANIDM_ADMIN_PASSWORD}"
+
+if [ -z "$ADMIN_PASSWORD" ]; then
+  echo "❌ Error: KANIDM_ADMIN_PASSWORD environment variable is required"
+  exit 1
+fi
 
 # Wait for Kanidm to be ready
 echo "Waiting for Kanidm to be ready..."

@@ -86,6 +86,18 @@ async fn main() {
 
             KanidmClient::new(kanidm_config).expect("Failed to initialize Kanidm client")
         } else {
+            // Check if we're in production - dev mode is not allowed
+            let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
+            let rust_env = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string());
+
+            if app_env == "production" || rust_env == "production" {
+                panic!(
+                    "Kanidm configuration is required in production environment. \
+                 Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
+                 and KANIDM_REDIRECT_URL environment variables."
+                );
+            }
+
             tracing::warn!("⚠️ Kanidm configuration not found - using dev mode (legacy JWT only)");
 
             // Create a dummy Kanidm client for dev mode

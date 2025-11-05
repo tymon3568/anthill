@@ -66,13 +66,7 @@ impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
         // Load .env file if exists
-        let dotenv_result = dotenvy::dotenv();
-        println!("DEBUG: dotenv result = {:?}", dotenv_result);
-
-        println!("DEBUG: Loading config...");
-        println!("DEBUG: DATABASE_URL = {:?}", std::env::var("DATABASE_URL"));
-        println!("DEBUG: JWT_SECRET = {:?}", std::env::var("JWT_SECRET"));
-        println!("DEBUG: Current dir = {:?}", std::env::current_dir());
+        let _ = dotenvy::dotenv();
 
         let mut builder = config::Config::builder()
             .set_default("database_url", "")?
@@ -88,11 +82,7 @@ impl Config {
 
         let config = builder.build()?;
 
-        println!("DEBUG: Config built ok");
-        println!("DEBUG: Config keys: {:?}", config.cache);
-
         let deserialized = config.try_deserialize::<Config>()?;
-        println!("DEBUG: Config deserialized: database_url = '{}'", deserialized.database_url);
 
         Ok(deserialized)
     }

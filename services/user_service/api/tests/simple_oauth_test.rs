@@ -20,6 +20,7 @@ async fn test_oauth_authorize_url_generation() {
         kanidm_client_id: Some("anthill".to_string()),
         kanidm_client_secret: Some("test-secret".to_string()),
         kanidm_redirect_url: Some("http://localhost:3000/api/v1/auth/oauth/callback".to_string()),
+        casbin_model_path: "shared/auth/model.conf".to_string(),
     };
 
     let db_pool = shared_db::init_pool(&config.database_url, 5)

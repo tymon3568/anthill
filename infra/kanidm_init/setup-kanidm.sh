@@ -66,7 +66,7 @@ echo "════════════════════════�
 # Login as admin
 echo "🔐 Logging in as $ADMIN_USER..."
 expect << EOF
-spawn kanidm login -C /dev/null -D $ADMIN_USER
+spawn kanidm -C ~/.config/kanidm login -D $ADMIN_USER
 expect "Enter password:"
 send "$ADMIN_PASS\r"
 expect eof
@@ -75,24 +75,24 @@ EOF
 # Create OAuth2 client
 echo "🔧 Creating OAuth2 client: anthill"
 kanidm system oauth2 create \
-    -C /dev/null \
+    -C ~/.config/kanidm \
     anthill \
     "Anthill Inventory SaaS" \
     "https://localhost:5173" || echo "⚠️  OAuth2 client may already exist"
 
 # Enable PKCE
 echo "🔒 Enabling PKCE..."
-kanidm system oauth2 enable-pkce -C /dev/null anthill || true
+kanidm system oauth2 enable-pkce -C ~/.config/kanidm anthill || true
 
 # Add redirect URLs
 echo "🔗 Adding redirect URLs..."
 kanidm system oauth2 add-redirect-url \
-    -C /dev/null \
+    -C ~/.config/kanidm \
     anthill \
     "https://localhost:5173/auth/callback" || true
 
 kanidm system oauth2 add-redirect-url \
-    -C /dev/null \
+    -C ~/.config/kanidm \
     anthill \
     "http://localhost:5173/auth/callback" || true
 
@@ -113,7 +113,7 @@ for group_spec in "${GROUPS[@]}"; do
     group_name="${group_spec%%:*}"
     group_display="${group_spec#*:}"
     echo "👥 Creating group: $group_name"
-    kanidm group create -C /dev/null "$group_name" || echo "⚠️  Group may already exist"
+    kanidm group create -C ~/.config/kanidm "$group_name" || echo "⚠️  Group may already exist"
 done
 
 # Setup scope maps
@@ -122,28 +122,28 @@ echo "🔐 Setting up scope maps..."
 
 # ACME users get basic profile + email
 kanidm system oauth2 update-scope-map \
-    -C /dev/null \
+    -C ~/.config/kanidm \
     anthill \
     tenant_acme_users \
     openid profile email groups || true
 
 # ACME admins get additional admin scope
 kanidm system oauth2 update-scope-map \
-    -C /dev/null \
+    -C ~/.config/kanidm \
     anthill \
     tenant_acme_admins \
     openid profile email groups admin || true
 
 # Globex users
 kanidm system oauth2 update-scope-map \
-    -C /dev/null \
+    -C ~/.config/kanidm \
     anthill \
     tenant_globex_users \
     openid profile email groups || true
 
 # Anthill platform users
 kanidm system oauth2 update-scope-map \
-    -C /dev/null \
+    -C ~/.config/kanidm \
     anthill \
     anthill_users \
     openid profile email groups || true
@@ -165,20 +165,20 @@ for user_spec in "${USERS[@]}"; do
 
     echo "👤 Creating user: $username ($displayname)"
     kanidm person create \
-        -C /dev/null \
+        -C ~/.config/kanidm \
         "$username" \
         "$displayname" || echo "⚠️  User may already exist"
 
     # Set email
     kanidm person update \
-        -C /dev/null \
+        -C ~/.config/kanidm \
         "$username" \
         mail "$email" || true
 
     # Set password (for testing)
     echo "🔑 Setting password for $username"
     kanidm person credential create-reset-token \
-        -C /dev/null \
+        -C ~/.config/kanidm \
         "$username" || true
 
     # Add to groups
@@ -186,7 +186,7 @@ for user_spec in "${USERS[@]}"; do
     for group in "${user_groups[@]}"; do
         echo "  ➕ Adding $username to $group"
         kanidm group add-members \
-            -C /dev/null \
+            -C ~/.config/kanidm \
             "$group" \
             "$username" || true
     done
