@@ -57,6 +57,19 @@ export function useAuth() {
 				authStore.setLoading(false);
 			}
 		},
+		register: async (userData: { name: string; email: string; password: string; confirmPassword: string }) => {
+			authStore.setLoading(true);
+			try {
+				// For now, just simulate registration success
+				// In real app, this would call authApi.register()
+				await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+				return { success: true };
+			} catch {
+				return { success: false, error: 'Registration failed' };
+			} finally {
+				authStore.setLoading(false);
+			}
+		},
 		logout: () => {
 			localStorage.removeItem('auth_token');
 			localStorage.removeItem('refresh_token');

@@ -1,8 +1,9 @@
-import { object, string, minLength, email, regex, pipe, parse, safeParse } from 'valibot';
+import { object, string, minLength, email, regex, pipe, parse, safeParse, nonEmpty } from 'valibot';
 
 // Password validation rules
 const passwordSchema = pipe(
 	string('Password must be a string'),
+	nonEmpty('Password is required'),
 	minLength(8, 'Password must be at least 8 characters'),
 	regex(/[a-z]/, 'Password must contain at least one lowercase letter'),
 	regex(/[A-Z]/, 'Password must contain at least one uppercase letter'),
@@ -14,10 +15,12 @@ const passwordSchema = pipe(
 export const loginSchema = object({
 	email: pipe(
 		string('Email is required'),
+		nonEmpty('Email is required'),
 		email('Please enter a valid email address')
 	),
 	password: pipe(
 		string('Password is required'),
+		nonEmpty('Password is required'),
 		minLength(6, 'Password must be at least 6 characters')
 	)
 });
@@ -26,15 +29,20 @@ export const loginSchema = object({
 export const registerSchema = object({
 	name: pipe(
 		string('Name is required'),
+		nonEmpty('Name is required'),
 		minLength(2, 'Name must be at least 2 characters'),
 		regex(/^[a-zA-Z\s]+$/, 'Name can only contain letters and spaces')
 	),
 	email: pipe(
 		string('Email is required'),
+		nonEmpty('Email is required'),
 		email('Please enter a valid email address')
 	),
 	password: passwordSchema,
-	confirmPassword: string('Please confirm your password')
+	confirmPassword: pipe(
+		string('Please confirm your password'),
+		nonEmpty('Please confirm your password')
+	)
 });
 
 // Custom validation function for password confirmation

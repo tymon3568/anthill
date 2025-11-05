@@ -1,33 +1,30 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { useAuth } from '$lib/hooks/useAuth';
-	import type { LoginForm } from '$lib/types';
-	import { loginSchema, type LoginForm as ValibotLoginForm } from '$lib/auth/validation';
+	import { loginSchema } from '$lib/auth/validation';
 	import { parse, safeParse } from 'valibot';
 
 	// Form state using Svelte 5 runes
 	let email = $state('');
 	let password = $state('');
-	let rememberMe = $state(false);
 	let isLoading = $state(false);
 	let error = $state('');
+	let submitted = $state(false);
+	let touched = $state({ email: false, password: false });
 
 	// Auth hook
 	const { login, isAuthenticated } = useAuth();
 
-	// Redirect if already authenticated
-	$effect(() => {
-		if (isAuthenticated) {
-			goto('/dashboard');
-		}
-	});
+	// Get success message from URL params
+	let successMessage = $state(page.url.searchParams.get('message'));
 
 	// Form validation using Valibot
-	let isFormValid = $derived(() => {
+	let isFormValid = $derived.by(() => {
 		try {
 			parse(loginSchema, { email, password });
 			return true;
@@ -36,127 +33,126 @@
 		}
 	});
 
-	// Get validation errors
-	let validationErrors = $derived(() => {
+	// Get validation errors - only show after form submission attempt
+	let validationErrors = $derived.by(() => {
 		const result = safeParse(loginSchema, { email, password });
+		const errors: Record<string, string> = {};
+
 		if (!result.success) {
-			return result.issues.reduce((acc: Record<string, string>, issue: any) => {
+			result.issues.forEach((issue: any) => {
 				const field = issue.path?.[0]?.key as string;
-				if (field) {
-					acc[field] = issue.message;
+				if (field && !errors[field]) { // Only take the first error per field
+					errors[field] = issue.message;
 				}
-				return acc;
-			}, {});
+			});
 		}
-		return {};
-	});
+		return errors;
+	});	// Handle form submission
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
 
-	async function handleSubmit(e: Event) {
-		e.preventDefault();
+		// Mark all fields as touched and enable error display
+		touched = { email: true, password: true };
+		submitted = true;
 
-		const validation = safeParse(loginSchema, { email, password });
-		if (!validation.success) {
-			error = 'Please fix the errors below';
-			return;
-		}
+		if (!isFormValid) return;
 
 		isLoading = true;
 		error = '';
 
 		try {
-			const result = await login(email, password);
-			if (result.success) {
-				goto('/dashboard');
-			} else {
-				error = result.error || 'Login failed';
-			}
+			await login(email, password);
+			// Redirect will be handled by auth store
 		} catch (err) {
-			error = 'An unexpected error occurred';
+			error = err instanceof Error ? err.message : 'Login failed';
 		} finally {
 			isLoading = false;
 		}
 	}
+
+	// Redirect if already authenticated
+	$effect(() => {
+		if (isAuthenticated) {
+			goto('/dashboard');
+		}
+	});
 </script>
 
 <svelte:head>
-	<title>Login - Anthill Inventory</title>
-	<meta name="description" content="Login to your Anthill Inventory account" />
+	<title>Sign In - Anthill</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
 	<div class="max-w-md w-full space-y-8">
 		<div class="text-center">
-			<h1 class="text-3xl font-bold text-gray-900">Anthill Inventory</h1>
+			<h1 class="text-3xl font-bold text-gray-900">Welcome back</h1>
 			<p class="mt-2 text-sm text-gray-600">Sign in to your account</p>
 		</div>
 
-		<Card class="w-full">
-			<CardHeader class="space-y-1">
-				<CardTitle class="text-2xl text-center">Login</CardTitle>
-				<CardDescription class="text-center">
-					Enter your email and password to access your account
+		<Card>
+			<CardHeader>
+				<CardTitle>Sign In</CardTitle>
+				<CardDescription>
+					Enter your credentials to access your account
 				</CardDescription>
 			</CardHeader>
+
 			<CardContent>
-				<form onsubmit={handleSubmit} class="space-y-4">
-					<div class="space-y-2">
+				{#if successMessage}
+					<div
+						class="text-sm text-green-600 bg-green-50 border border-green-200 rounded-md p-3 mb-4"
+						role="alert"
+						aria-live="polite"
+					>
+						{successMessage}
+					</div>
+				{/if}
+
+				<form class="space-y-4">
+					<div>
 						<Label for="email">Email</Label>
 						<Input
 							id="email"
+							name="email"
 							type="email"
 							placeholder="Enter your email"
 							bind:value={email}
 							required
 							autocomplete="email"
 							disabled={isLoading}
-							aria-describedby={validationErrors().email ? "email-error" : error ? "error-message" : undefined}
+							aria-describedby={validationErrors.email ? "email-error" : undefined}
+							onblur={() => touched.email = true}
 						/>
-					</div>
-						{#if validationErrors().email}
-							<p id="email-error" class="text-sm text-red-600" role="alert">
-								{validationErrors().email}
+						{#if touched.email && validationErrors.email}
+							<p id="email-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.email}
 							</p>
-						{/if}					<div class="space-y-2">
+						{/if}
+					</div>
+
+					<div>
 						<Label for="password">Password</Label>
 						<Input
 							id="password"
+							name="password"
 							type="password"
 							placeholder="Enter your password"
 							bind:value={password}
 							required
 							autocomplete="current-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors().password ? "password-error" : error ? "error-message" : undefined}
+							aria-describedby={validationErrors.password ? "password-error" : undefined}
+							onblur={() => touched.password = true}
 						/>
-					</div>
-						{#if validationErrors().password}
-							<p id="password-error" class="text-sm text-red-600" role="alert">
-								{validationErrors().password}
+						{#if touched.password && validationErrors.password}
+							<p id="password-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.password}
 							</p>
-						{/if}					<div class="flex items-center justify-between">
-						<div class="flex items-center space-x-2">
-							<input
-								id="remember-me"
-								type="checkbox"
-								bind:checked={rememberMe}
-								disabled={isLoading}
-								class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-							/>
-							<Label for="remember-me" class="text-sm">Remember me</Label>
-						</div>
-
-						<a
-							href="/forgot-password"
-							class="text-sm text-primary hover:text-primary/80 underline"
-							tabindex={isLoading ? -1 : 0}
-						>
-							Forgot password?
-						</a>
+						{/if}
 					</div>
 
 					{#if error}
 						<div
-							id="error-message"
 							class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3"
 							role="alert"
 							aria-live="polite"
@@ -166,9 +162,10 @@
 					{/if}
 
 					<Button
-						type="submit"
+						type="button"
 						class="w-full"
-						disabled={!isFormValid || isLoading}
+						disabled={isLoading}
+						onclick={handleSubmit}
 					>
 						{#if isLoading}
 							<span class="flex items-center space-x-2">
@@ -176,7 +173,7 @@
 								<span>Signing in...</span>
 							</span>
 						{:else}
-							Sign in
+							Sign In
 						{/if}
 					</Button>
 				</form>
@@ -189,7 +186,7 @@
 							class="text-primary hover:text-primary/80 underline font-medium"
 							tabindex={isLoading ? -1 : 0}
 						>
-							Sign up
+							Create one
 						</a>
 					</p>
 				</div>

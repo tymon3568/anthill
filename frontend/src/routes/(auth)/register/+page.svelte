@@ -16,9 +16,11 @@
 	let name = $state('');
 	let isLoading = $state(false);
 	let error = $state('');
+	let submitted = $state(false);
+	let touched = $state({ name: false, email: false, password: false, confirmPassword: false });
 
 	// Auth hook
-	const { isAuthenticated } = useAuth();
+	const { register, isAuthenticated } = useAuth();
 
 	// Password strength calculation using Valibot helper
 	let passwordStrength = $derived(() => calculatePasswordStrength(password));
@@ -27,7 +29,7 @@
 	let passwordStrengthColor = $derived(() => passwordStrength().color);
 
 	// Form validation using Valibot
-	let isFormValid = $derived(() => {
+	let isFormValid = $derived.by(() => {
 		try {
 			parse(registerSchema, { name, email, password, confirmPassword });
 			const passwordsMatch = validatePasswordConfirmation(password, confirmPassword);
@@ -38,33 +40,43 @@
 		}
 	});
 
-	// Get validation errors
-	let validationErrors = $derived(() => {
+	// Get validation errors - only show after form submission attempt
+	let validationErrors = $derived.by(() => {
 		const result = safeParse(registerSchema, { name, email, password, confirmPassword });
 		const errors: Record<string, string> = {};
 
 		if (!result.success) {
 			result.issues.forEach((issue: any) => {
 				const field = issue.path?.[0]?.key as string;
-				if (field) {
+				if (field && !errors[field]) { // Only take the first error per field
 					errors[field] = issue.message;
 				}
 			});
 		}
-
-		// Check password confirmation
-		if (!validatePasswordConfirmation(password, confirmPassword)) {
-			errors.confirmPassword = 'Passwords do not match';
-		}
-
-		// Check password strength
-		const strength = passwordStrength();
-		if (strength.score < 3) {
-			errors.password = 'Password is too weak';
-		}
-
 		return errors;
-	});
+	});				// Handle form submission
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
+
+		// Mark all fields as touched and enable error display
+		touched = { name: true, email: true, password: true, confirmPassword: true };
+		submitted = true;
+
+		if (!isFormValid) return;
+
+		isLoading = true;
+		error = '';
+
+		try {
+			await register({ name, email, password, confirmPassword });
+			// Redirect to login with success message
+			goto('/login?message=Registration successful, please login');
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Registration failed';
+		} finally {
+			isLoading = false;
+		}
+	}
 
 	// Redirect if already authenticated
 	$effect(() => {
@@ -72,143 +84,122 @@
 			goto('/dashboard');
 		}
 	});
-
-	async function handleSubmit(e: Event) {
-		e.preventDefault();
-
-		const validation = safeParse(registerSchema, { name, email, password, confirmPassword });
-		const passwordsMatch = validatePasswordConfirmation(password, confirmPassword);
-		const strength = passwordStrength();
-
-		if (!validation.success || !passwordsMatch || strength.score < 3) {
-			error = 'Please fix the errors above';
-			return;
-		}
-
-		isLoading = true;
-		error = '';
-
-		try {
-			// TODO: Implement registration API call
-			// For now, just redirect to login
-			goto('/login?message=Registration successful, please login');
-		} catch (err) {
-			error = 'Registration failed. Please try again.';
-		} finally {
-			isLoading = false;
-		}
-	}
 </script>
 
 <svelte:head>
-	<title>Register - Anthill Inventory</title>
-	<meta name="description" content="Create your Anthill Inventory account" />
+	<title>Sign Up - Anthill</title>
 </svelte:head>
 
 <div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
 	<div class="max-w-md w-full space-y-8">
 		<div class="text-center">
-			<h1 class="text-3xl font-bold text-gray-900">Anthill Inventory</h1>
-			<p class="mt-2 text-sm text-gray-600">Create your account</p>
+			<h1 class="text-3xl font-bold text-gray-900">Create your account</h1>
+			<p class="mt-2 text-sm text-gray-600">Join Anthill to manage your inventory</p>
 		</div>
 
-		<Card class="w-full">
-			<CardHeader class="space-y-1">
-				<CardTitle class="text-2xl text-center">Register</CardTitle>
-				<CardDescription class="text-center">
-					Enter your details to create a new account
+		<Card>
+			<CardHeader>
+				<CardTitle>Sign Up</CardTitle>
+				<CardDescription>
+					Create a new account to get started
 				</CardDescription>
 			</CardHeader>
+
 			<CardContent>
-				<form onsubmit={handleSubmit} class="space-y-4">
-					<div class="space-y-2">
+				<form class="space-y-4">
+					<div>
 						<Label for="name">Full Name</Label>
 						<Input
 							id="name"
+							name="name"
 							type="text"
 							placeholder="Enter your full name"
 							bind:value={name}
 							required
 							autocomplete="name"
 							disabled={isLoading}
-							aria-describedby={validationErrors().name ? "name-error" : undefined}
+							aria-describedby={validationErrors.name ? "name-error" : undefined}
+							onblur={() => touched.name = true}
 						/>
-						{#if validationErrors().name}
-							<p id="name-error" class="text-sm text-red-600" role="alert">
-								{validationErrors().name}
+						{#if touched.name && validationErrors.name}
+							<p id="name-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.name}
 							</p>
 						{/if}
 					</div>
 
-					<div class="space-y-2">
+					<div>
 						<Label for="email">Email</Label>
 						<Input
 							id="email"
+							name="email"
 							type="email"
 							placeholder="Enter your email"
 							bind:value={email}
 							required
 							autocomplete="email"
 							disabled={isLoading}
-							aria-describedby={validationErrors().email ? "email-error" : undefined}
+							aria-describedby={validationErrors.email ? "email-error" : undefined}
+							onblur={() => touched.email = true}
 						/>
-						{#if validationErrors().email}
-							<p id="email-error" class="text-sm text-red-600" role="alert">
-								{validationErrors().email}
+						{#if touched.email && validationErrors.email}
+							<p id="email-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.email}
 							</p>
 						{/if}
 					</div>
 
-					<div class="space-y-2">
+					<div>
 						<Label for="password">Password</Label>
 						<Input
 							id="password"
+							name="password"
 							type="password"
 							placeholder="Create a password"
 							bind:value={password}
 							required
 							autocomplete="new-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors().password ? "password-error" : "password-strength"}
+							aria-describedby={validationErrors.password ? "password-error" : undefined}
+							onblur={() => touched.password = true}
 						/>
-						{#if password}
-							<div id="password-strength" class="flex items-center space-x-2">
-								<div class="flex-1 bg-gray-200 rounded-full h-2">
-								<div
-									class="h-2 rounded-full transition-all duration-300 {passwordStrengthColor().replace('text-', 'bg-')}"
-									style="width: {(passwordStrength().score / 5) * 100}%"
-								></div>
-								</div>
-								<span class="text-sm {passwordStrengthColor()}">
-									{passwordStrengthText()}
-								</span>
-							</div>
-							<div class="text-xs text-gray-500 mt-1">
-								Password must contain at least 8 characters with uppercase, lowercase, and numbers
-							</div>
-						{/if}
-						{#if validationErrors().password}
-							<p id="password-error" class="text-sm text-red-600" role="alert">
-								{validationErrors().password}
+						{#if touched.password && validationErrors.password}
+							<p id="password-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.password}
 							</p>
+						{/if}
+						{#if password}
+							<div class="mt-2">
+								<div class="flex items-center space-x-2">
+									<div class="flex-1 bg-gray-200 rounded-full h-2">
+										<div
+											class="h-2 rounded-full transition-all duration-300"
+											style="width: {(passwordStrength().score / 5) * 100}%; background-color: {passwordStrengthColor()}"
+										></div>
+									</div>
+									<span class="text-xs text-gray-600">{passwordStrengthText()}</span>
+								</div>
+							</div>
 						{/if}
 					</div>
 
-					<div class="space-y-2">
+					<div>
 						<Label for="confirmPassword">Confirm Password</Label>
 						<Input
 							id="confirmPassword"
+							name="confirmPassword"
 							type="password"
 							placeholder="Confirm your password"
 							bind:value={confirmPassword}
 							required
 							autocomplete="new-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors().confirmPassword ? "confirm-error" : undefined}
+							aria-describedby={validationErrors.confirmPassword ? "confirm-error" : undefined}
+							onblur={() => touched.confirmPassword = true}
 						/>
-						{#if validationErrors().confirmPassword}
-							<p id="confirm-error" class="text-sm text-red-600" role="alert">
-								{validationErrors().confirmPassword}
+						{#if touched.confirmPassword && validationErrors.confirmPassword}
+							<p id="confirm-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.confirmPassword}
 							</p>
 						{/if}
 					</div>
@@ -224,9 +215,10 @@
 					{/if}
 
 					<Button
-						type="submit"
+						type="button"
 						class="w-full"
-						disabled={!isFormValid || isLoading}
+						disabled={isLoading}
+						onclick={handleSubmit}
 					>
 						{#if isLoading}
 							<span class="flex items-center space-x-2">

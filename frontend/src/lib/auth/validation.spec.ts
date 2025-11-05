@@ -164,7 +164,7 @@ describe('Auth Validation', () => {
 
 		it('should return higher strength for longer password', () => {
 			const shortResult = calculatePasswordStrength('12345678');
-			const longResult = calculatePasswordStrength('12345678901234567890');
+			const longResult = calculatePasswordStrength('12345678901234567890abc');
 			expect(longResult.score).toBeGreaterThan(shortResult.score);
 		});
 
