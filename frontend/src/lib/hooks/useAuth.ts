@@ -1,5 +1,5 @@
 import { onMount } from 'svelte';
-import { authState, authStore } from '$lib/stores/auth';
+import { authState, authStore } from '$lib/stores/auth.svelte';
 import { authApi } from '$lib/api/auth';
 
 // Custom hook for auth initialization
