@@ -6,7 +6,7 @@
 **Module:** 3.1_Kanidm_Integration  
 **Priority:** High  
 **Status:** Done  
-**Assignee:**  
+**Assignee:** Claude  
 **Created Date:** 2025-11-03  
 **Last Updated:** 2025-11-03
 

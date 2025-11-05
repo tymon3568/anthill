@@ -6,7 +6,7 @@
 **Module:** 3.1_Kanidm_Integration  
 **Priority:** Medium  
 **Status:** InProgress_By_Claude  
-**Assignee:**  
+**Assignee:** Claude  
 **Created Date:** 2025-11-03  
 **Last Updated:** 2025-11-03
 
