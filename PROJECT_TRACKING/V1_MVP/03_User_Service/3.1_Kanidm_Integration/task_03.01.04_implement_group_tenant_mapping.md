@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service  
 **Module:** 3.1_Kanidm_Integration  
 **Priority:** High  
-**Status:** Todo  
+**Status:** Done  
 **Assignee:**  
 **Created Date:** 2025-11-03  
 **Last Updated:** 2025-11-03
@@ -16,28 +16,28 @@ Implement the mapping system between Kanidm groups and Anthill tenants to enable
 
 ## Specific Sub-tasks
 
-- [ ] 1. Create database migration for `kanidm_tenant_groups` table
-- [ ] 2. Create repository trait for tenant group mapping
-- [ ] 3. Implement PostgreSQL repository for mapping
-- [ ] 4. Create service methods for:
-  - [ ] Map Kanidm group to tenant
-  - [ ] Get tenant from Kanidm groups (from JWT claims)
-  - [ ] List all groups for a tenant
-  - [ ] Sync group membership from Kanidm
-- [ ] 5. Update user creation logic to link kanidm_user_id
-- [ ] 6. Implement group extraction from Kanidm JWT
-- [ ] 7. Create admin API endpoints for managing mappings
-- [ ] 8. Write unit and integration tests
+- [x] 1. Create database migration for `kanidm_tenant_groups` table
+- [x] 2. Create repository trait for tenant group mapping
+- [x] 3. Implement PostgreSQL repository for mapping
+- [x] 4. Create service methods for:
+  - [x] Map Kanidm group to tenant
+  - [x] Get tenant from Kanidm groups (from JWT claims)
+  - [x] List all groups for a tenant
+  - [x] Sync group membership from Kanidm
+- [x] 5. Update user creation logic to link kanidm_user_id
+- [x] 6. Implement group extraction from Kanidm JWT
+- [x] 7. Create admin API endpoints for managing mappings
+- [x] 8. Write unit and integration tests
 
 ## Acceptance Criteria
 
-- [ ] `kanidm_tenant_groups` table created in database
-- [ ] Can create mapping: Kanidm group UUID → tenant_id
-- [ ] Can resolve tenant_id from JWT groups claim
-- [ ] User record includes kanidm_user_id
-- [ ] Admin can manage group-tenant mappings via API
-- [ ] Multiple groups can map to same tenant (e.g., users + admins)
-- [ ] Tests verify correct tenant isolation
+- [x] `kanidm_tenant_groups` table created in database
+- [x] Can create mapping: Kanidm group UUID → tenant_id
+- [x] Can resolve tenant_id from JWT groups claim
+- [x] User record includes kanidm_user_id
+- [x] Admin can manage group-tenant mappings via API
+- [x] Multiple groups can map to same tenant (e.g., users + admins)
+- [x] Tests verify correct tenant isolation
 
 ## Dependencies
 
@@ -311,3 +311,10 @@ kanidm group add-members tenant_${TENANT_NAME}_users testuser
 - For multi-role scenarios, use Casbin policies to differentiate permissions within tenant
 - Consider caching group→tenant mappings (Redis) for performance
 - Handle case where user has no groups (should fail gracefully with clear error)
+
+## AI Agent Log:
+---
+*   2025-11-05 10:40: Task status updated by Claude
+    - Verified completion from Kanidm migration Phase 3
+    - Database migration and tenant mapping logic implemented
+    - Status: Done ✓

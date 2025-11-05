@@ -5,7 +5,7 @@
 **Phase:** 01_Infrastructure_Setup
 **Module:** 1.4_Auth_Library
 **Priority:** High
-**Status:** Todo
+**Status:** Done
 **Assignee:**
 **Created Date:** 2025-01-21
 **Last Updated:** 2025-01-21
@@ -22,9 +22,9 @@ Create the Casbin model configuration file at `shared/auth/model.conf`. This mod
 - [ ] 6. Add the `[matchers]` with `m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act`
 
 ## Acceptance Criteria:
-- [ ] The file `shared/auth/model.conf` is created with the exact content specified
-- [ ] The model correctly defines request, policy, role, effect, and matchers for multi-tenant RBAC
-- [ ] Multi-tenant isolation is enforced through `r.dom == p.dom` matcher
+- [x] The file `shared/auth/model.conf` is created with the exact content specified
+- [x] The model correctly defines request, policy, role, effect, and matchers for multi-tenant RBAC
+- [x] Multi-tenant isolation is enforced through `r.dom == p.dom` matcher
 
 ## Dependencies:
 - V1_MVP/01_Infrastructure_Setup/1.4_Auth_Library/task_01.04.01_add_casbin_dependencies.md
@@ -40,4 +40,7 @@ Create the Casbin model configuration file at `shared/auth/model.conf`. This mod
 
 ## AI Agent Log:
 ---
-* (Log will be automatically updated by AI agent when starting and executing task)
+*   2025-11-05 10:56: Task status updated by Claude
+    - Casbin model file created early in project setup
+    - Still valid and in use for multi-tenant RBAC after Kanidm migration
+    - Status: Done ✓
