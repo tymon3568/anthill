@@ -71,6 +71,11 @@ flags:
       - services/integration-service/
     carryforward: true
 
+  frontend:
+    paths:
+      - frontend/
+    carryforward: true
+
 # Ignore patterns
 ignore:
   - "**/*_test.rs"
@@ -78,7 +83,7 @@ ignore:
   - "**/benches/**"
   - "**/examples/**"
   - "target/**"
-  - "**/main.rs"  # Main files usually don't need coverage
+  - "**/main.rs" # Main files usually don't need coverage
 
 # GitHub integration
 github_checks:

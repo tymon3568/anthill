@@ -8,12 +8,21 @@ on:
       - "services/**/Cargo.toml"
       - "shared/**/*.rs"
       - "shared/**/Cargo.toml"
+      - "frontend/**/*.{js,ts,svelte}"
+      - "frontend/package.json"
+      - "frontend/vite.config.ts"
+      - "frontend/playwright.config.ts"
       - ".github/workflows/test-coverage.yml"
   pull_request:
     paths:
       - "services/**/*.rs"
       - "services/**/Cargo.toml"
       - "shared/**/*.rs"
+      - "shared/**/Cargo.toml"
+      - "frontend/**/*.{js,ts,svelte}"
+      - "frontend/package.json"
+      - "frontend/vite.config.ts"
+      - "frontend/playwright.config.ts"</parameter>
       - "shared/**/Cargo.toml"
 
 env:
@@ -177,11 +186,43 @@ jobs:
           flags: inventory-service
           name: inventory-service-coverage
 
+  coverage-frontend:
+    name: Coverage - Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        working-directory: frontend
+        run: bun run test:unit -- --coverage --run
+        env:
+          CI: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./frontend
+          files: ./coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
   # Summary job
   coverage-summary:
     name: Coverage Summary
-    needs: [coverage, coverage-user-service, coverage-inventory-service]
+    needs: [coverage, coverage-user-service, coverage-inventory-service, coverage-frontend]
     runs-on: ubuntu-latest
+    if: always()</parameter>
     if: always()
 
     steps:
@@ -222,6 +263,7 @@ jobs:
               **Services tested:**
               - ✅ User Service
               - ✅ Inventory Service
+              - ✅ Frontend (SvelteKit)
               - ✅ Workspace (all services)
 
               *Coverage data will be available on Codecov shortly.*`
