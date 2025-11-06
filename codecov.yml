@@ -85,6 +85,14 @@ ignore:
   - "target/**"
   - "**/main.rs" # Main files usually don't need coverage
 
+  # Frontend ignore patterns
+  - "frontend/node_modules/**"
+  - "frontend/.svelte-kit/**"
+  - "frontend/coverage/**"
+  - "frontend/**/*.test.*"
+  - "frontend/**/*.spec.*"
+  - "frontend/e2e/**"
+
 # GitHub integration
 github_checks:
   annotations: true
