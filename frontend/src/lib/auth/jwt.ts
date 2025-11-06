@@ -1,8 +1,8 @@
 // Conditionally import environment variable for testing compatibility
 let kanidmIssuerUrl = 'https://idm.example.com';
 try {
-	const env = await import('$env/static/public');
-	kanidmIssuerUrl = env.VITE_KANIDM_ISSUER_URL || 'https://idm.example.com';
+	const env = await import('$env/dynamic/public');
+	kanidmIssuerUrl = env.env.PUBLIC_KANIDM_ISSUER_URL || kanidmIssuerUrl;
 } catch {
 	// For testing environments, use default
 	kanidmIssuerUrl = 'https://idm.example.com';

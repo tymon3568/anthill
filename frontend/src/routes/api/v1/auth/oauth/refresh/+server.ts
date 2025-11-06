@@ -1,11 +1,19 @@
 import { json, error } from '@sveltejs/kit';
-import { VITE_KANIDM_ISSUER_URL, VITE_KANIDM_CLIENT_ID } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import { createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { RequestHandler } from './$types';
+import type { Cookies } from '@sveltejs/kit';
+
+interface TokenResponse {
+	access_token: string;
+	refresh_token?: string;
+	expires_in?: number;
+	token_type?: string;
+}
 
 // OAuth2 Configuration from environment variables
-const KANIDM_BASE_URL = VITE_KANIDM_ISSUER_URL;
-const CLIENT_ID = VITE_KANIDM_CLIENT_ID;
+const KANIDM_BASE_URL = (env as any).PUBLIC_KANIDM_ISSUER_URL;
+const CLIENT_ID = (env as any).PUBLIC_KANIDM_CLIENT_ID;
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
@@ -79,7 +87,7 @@ async function refreshAccessToken(refreshToken: string) {
 }
 
 // Store tokens securely in httpOnly cookies
-function storeTokensSecurely(cookies: any, tokenResponse: any) {
+function storeTokensSecurely(cookies: Cookies, tokenResponse: TokenResponse) {
 	const maxAge = tokenResponse.expires_in || 3600; // Default 1 hour
 
 	cookies.set('access_token', tokenResponse.access_token, {

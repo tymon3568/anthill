@@ -1,19 +1,34 @@
 import { redirect } from '@sveltejs/kit';
-import { VITE_KANIDM_ISSUER_URL, VITE_KANIDM_CLIENT_ID, VITE_KANIDM_REDIRECT_URI } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import { validateAndParseToken } from '$lib/auth/jwt';
 import { createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { RequestHandler } from './$types';
+import type { Cookies } from '@sveltejs/kit';
+
+interface TokenResponse {
+	access_token: string;
+	refresh_token?: string;
+	expires_in?: number;
+	token_type?: string;
+}
 
 // OAuth2 Configuration from environment variables
-const KANIDM_BASE_URL = VITE_KANIDM_ISSUER_URL;
-const CLIENT_ID = VITE_KANIDM_CLIENT_ID;
-const REDIRECT_URI = VITE_KANIDM_REDIRECT_URI;
+const KANIDM_BASE_URL = (env as any).PUBLIC_KANIDM_ISSUER_URL;
+const CLIENT_ID = (env as any).PUBLIC_KANIDM_CLIENT_ID;
+const REDIRECT_URI = (env as any).PUBLIC_KANIDM_REDIRECT_URI;
 
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	try {
 		const code = url.searchParams.get('code');
 		const state = url.searchParams.get('state');
 		const error = url.searchParams.get('error');
+
+		// Validate state parameter for CSRF protection
+		const storedState = cookies.get('oauth_state');
+		if (!state || !storedState || state !== storedState) {
+			throw createAuthError(AuthErrorCode.INVALID_STATE, 'Invalid state parameter');
+		}
+		cookies.delete('oauth_state', { path: '/' });
 
 		// Handle OAuth2 errors from Kanidm
 		if (error) {
@@ -98,7 +113,7 @@ async function exchangeCodeForTokens(code: string, codeVerifier: string) {
 	const tokenData = await response.json();
 
 	if (!tokenData.access_token) {
-		throw new Error('No access token received');
+		throw createAuthError(AuthErrorCode.TOKEN_EXCHANGE_FAILED, 'No access token received');
 	}
 
 	return {
@@ -110,7 +125,7 @@ async function exchangeCodeForTokens(code: string, codeVerifier: string) {
 }
 
 // Store tokens securely in httpOnly cookies
-function storeTokensSecurely(cookies: any, tokenResponse: any) {
+function storeTokensSecurely(cookies: Cookies, tokenResponse: TokenResponse) {
 	const maxAge = tokenResponse.expires_in || 3600; // Default 1 hour
 
 	cookies.set('access_token', tokenResponse.access_token, {
