@@ -22,8 +22,7 @@ on:
       - "frontend/**/*.{js,ts,svelte}"
       - "frontend/package.json"
       - "frontend/vite.config.ts"
-      - "frontend/playwright.config.ts"</parameter>
-      - "shared/**/Cargo.toml"
+      - "frontend/playwright.config.ts"
 
 env:
   CARGO_TERM_COLOR: always
