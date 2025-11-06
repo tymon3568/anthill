@@ -25,17 +25,52 @@ export interface UserProfile {
 	permissions: string[];
 	created_at: string;
 	updated_at: string;
+	// Extended profile fields from backend spec
+	full_name?: string;
+	phone?: string;
+	avatar_url?: string;
+	role?: string;
+	email_verified?: boolean;
+	bio?: string;
+	title?: string;
+	department?: string;
+	location?: string;
+	website_url?: string;
+	social_links?: Record<string, string>;
+	language?: string;
+	timezone?: string;
+	date_format?: string;
+	time_format?: string;
+	notification_preferences?: UserPreferences['notification_preferences'];
+	profile_visibility?: UserPreferences['profile_visibility'];
+	show_email?: boolean;
+	show_phone?: boolean;
+	completeness_score?: number;
+	verified?: boolean;
+	verification_badge?: string | null;
+	custom_fields?: Record<string, any>;
 }
 
 export interface UserPreferences {
-	theme: 'light' | 'dark' | 'system';
-	notifications: {
-		email: boolean;
-		push: boolean;
-		marketing: boolean;
-	};
 	language: string;
 	timezone: string;
+	date_format: string;
+	time_format: string;
+	notification_preferences: {
+		email_notifications: boolean;
+		push_notifications: boolean;
+		sms_notifications: boolean;
+		notification_types: {
+			order_updates: boolean;
+			inventory_alerts: boolean;
+			system_announcements: boolean;
+			security_alerts: boolean;
+			marketing_emails: boolean;
+		};
+	};
+	profile_visibility: 'public' | 'private' | 'team_only';
+	show_email: boolean;
+	show_phone: boolean;
 }
 
 export const authApi = {
@@ -117,11 +152,11 @@ export const authApi = {
 
 	// User Preferences
 	async getPreferences(): Promise<ApiResponse<UserPreferences>> {
-		return apiClient.get<UserPreferences>('/auth/preferences');
+		return apiClient.get<UserPreferences>('/users/preferences');
 	},
 
 	async updatePreferences(preferences: Partial<UserPreferences>): Promise<ApiResponse<UserPreferences>> {
-		return apiClient.put<UserPreferences>('/auth/preferences', preferences);
+		return apiClient.put<UserPreferences>('/users/preferences', preferences);
 	},
 
 	// Permission Checking

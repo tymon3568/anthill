@@ -30,9 +30,9 @@ export enum AuthErrorCode {
 	SESSION_EXPIRED = 'session_expired',
 	NO_SESSION = 'no_session',
 
-	// Network errors
-	NETWORK_ERROR = 'network_error',
-	KANIDM_UNAVAILABLE = 'kanidm_unavailable',
+	// Profile errors
+	PROFILE_FETCH_FAILED = 'profile_fetch_failed',
+	PROFILE_UPDATE_FAILED = 'profile_update_failed',
 
 	// Generic errors
 	UNKNOWN_ERROR = 'unknown_error'
@@ -88,7 +88,8 @@ export function createAuthError(code: AuthErrorCode, message?: string): AuthErro
 		[AuthErrorCode.SESSION_EXPIRED]: 'Session has expired',
 		[AuthErrorCode.NO_SESSION]: 'No active session',
 		[AuthErrorCode.NETWORK_ERROR]: 'Network communication error',
-		[AuthErrorCode.KANIDM_UNAVAILABLE]: 'Authentication service unavailable',
+		[AuthErrorCode.PROFILE_FETCH_FAILED]: 'Failed to fetch user profile',
+		[AuthErrorCode.PROFILE_UPDATE_FAILED]: 'Failed to update user profile',
 		[AuthErrorCode.UNKNOWN_ERROR]: 'Unknown authentication error'
 	};
 
@@ -106,7 +107,8 @@ export function createAuthError(code: AuthErrorCode, message?: string): AuthErro
 		[AuthErrorCode.SESSION_EXPIRED]: 401,
 		[AuthErrorCode.NO_SESSION]: 401,
 		[AuthErrorCode.NETWORK_ERROR]: 503,
-		[AuthErrorCode.KANIDM_UNAVAILABLE]: 503,
+		[AuthErrorCode.PROFILE_FETCH_FAILED]: 500,
+		[AuthErrorCode.PROFILE_UPDATE_FAILED]: 500,
 		[AuthErrorCode.UNKNOWN_ERROR]: 500
 	};
 
