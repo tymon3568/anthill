@@ -75,18 +75,64 @@
           → [View folder](./V1_MVP/03_User_Service/3.4_Testing/)
           → Progress: 0/4 tasks completed
 
-### [⏳] Phase 4: Inventory Service - `Todo 0%`
-    - [⏳] 4.1 Product Master Data - `Todo`
+### [⏳] Phase 4: Inventory Service - `Todo 0%` *(Optimized Structure)*
+    - [⏳] 4.1 Product Master - `Todo`
           → [View folder](./V1_MVP/04_Inventory_Service/4.1_Product_Master/)
-          → Progress: 0/8 tasks completed
+          → Progress: 0/6 tasks completed
 
     - [⏳] 4.2 Warehouse Management - `Todo`
           → [View folder](./V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/)
-          → Progress: 0/5 tasks completed
+          → Progress: 0/1 tasks completed
 
-    - [⏳] 4.3 Stock Operations - `Todo`
+    - [⏳] 4.3 Stock Operations Core - `Todo`
           → [View folder](./V1_MVP/04_Inventory_Service/4.3_Stock_Operations/)
-          → Progress: 0/15 tasks completed
+          → Progress: 0/3 tasks completed
+
+    - [⏳] 4.4 Stock Transactions - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.4_Stock_Operations/)
+          → Progress: 0/19 tasks completed
+          → **Note**: Consolidates GRN, DO, Transfers, Adjustments, RMA into unified workflow
+
+    - [⏳] 4.5 Lot & Serial Tracking - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/)
+          → Progress: 0/4 tasks completed
+
+    - [⏳] 4.6 Inventory Valuation - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/)
+          → Progress: 0/1 tasks completed
+          → **Note**: Core valuation methods (FIFO, Average, Standard)
+
+    - [⏳] 4.7 Stock Replenishment - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.7_Stock_Replenishment/)
+          → Progress: 0/1 tasks completed
+
+    - [🆕] 4.8 Quality Management - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.8_Quality_Management/)
+          → Progress: 0/3 tasks completed *(New module - moved from 4.6)*
+          → **Features**: QC points, checks, alerts, inventory integration
+
+    - [⏳] 4.9 Stock Reports & Analytics - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/)
+          → Progress: 0/2 tasks completed
+
+    - [🆕] 4.10 Advanced Warehouse Features - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/)
+          → Progress: 0/3 tasks completed *(New module)*
+          → **Features**: Putaway rules, advanced picking, removal strategies
+
+    - [⏳] 4.11 Technical Implementation - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/)
+          → Progress: 0/4 tasks completed
+          → **Note**: Removed mobile PWA from MVP scope
+
+    - [⏳] 4.12 Multi-Echelon Inventory - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.12_Multi_Echelon_Inventory/)
+          → Progress: 0/2 tasks completed
+          → **Note**: Simplified for MVP - basic distribution network only
+
+    - [⏳] 4.13 Testing & Quality Assurance - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.13_Testing_Quality_Assurance/)
+          → Progress: 0/4 tasks completed
 
 ### [⏳] Phase 5: Order Service - `Todo 0%`
     - [⏳] 5.1 Order Management - `Todo`
@@ -245,7 +291,7 @@
 - **Phase 1** (Infrastructure): ✅ 95% - Production ready
 - **Phase 2** (Database): ✅ 100% - Foundation complete
 - **Phase 3** (User Service): 🔄 52% - Kanidm integration mostly complete, Casbin authorization nearly done (Updated: 2025-11-05)
-- **Phase 4** (Inventory): ⏳ 0% - Not started (core business logic)
+- **Phase 4** (Inventory): ⏳ 0% - Optimized structure with 42 tasks (Updated: 2025-10-29)
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
@@ -257,7 +303,7 @@
 
 #### By Priority:
 - **🔴 P0** (MVP Critical): 25+ tasks - 10% complete
-- **🟡 P1** (Production Ready): 20+ tasks - 0% complete
+- **🟡 P1** (Production Ready): 42+ tasks - 0% complete *(Phase 4 optimized)*
 - **🔵 P2** (Enhancement): 35+ tasks - 0% complete
 
 ### 🎯 Critical Path for MVP
@@ -267,11 +313,12 @@
 2. **Casbin Authorization** (3.2.x) - Multi-tenant RBAC middleware (works with Kanidm JWT)
 2. **User Management** (3.3.x) - Basic CRUD operations with tenant isolation
 3. **Security Testing** (3.4.x) - Critical tenant isolation validation
-4. **Core Inventory** (4.1-4.3) - Product catalog and stock tracking
-5. **Order Management** (5.1) - Basic order CRUD operations
-6. **Marketplace Integration** (6.1-6.3) - Shopee/Lazada/Tiki adapters
+4. **Core Inventory** (4.1-4.4) - Product catalog, warehouse, and stock operations *(optimized)*
+5. **Quality Management** (4.8) - QC integration with inventory *(new)*
+6. **Order Management** (5.1) - Basic order CRUD operations
+7. **Marketplace Integration** (6.1-6.3) - Shopee/Lazada/Tiki adapters
 
-**Estimated Effort**: 25 P0 tasks × 2-3 days each = **50-75 days**
+**Estimated Effort**: 30 P0 tasks × 2-3 days each = **60-90 days** *(updated for optimized Phase 4)*
 
 ## 🚀 Quick Start for Contributors
 
@@ -362,18 +409,24 @@ open http://localhost:3000/docs  # Swagger UI
 **Last Updated**: 2025-11-06
 **Project Status**: In Progress (Phase 3 Kanidm Integration)
 
-**Recent Changes (2025-11-06)**:
+**Recent Changes (2025-10-29)**:
+- ✅ **Inventory Optimization**: Completed Phase 4 structure optimization based on Odoo/ERPNext analysis
+- ✅ **Quality Management**: Moved QC from 4.6 to dedicated 4.8 module with 3 comprehensive tasks
+- ✅ **Advanced Warehouse**: Created 4.10 module with putaway rules, advanced picking, and removal strategies
+- ✅ **Task Consolidation**: Merged redundant Stock Operations modules (4.3+4.4) into unified workflow
+- ✅ **MVP Scope**: Removed mobile PWA from Phase 4, simplified multi-echelon features
+- ✅ **New Tasks Created**: Added 6 new tasks across Quality Management and Advanced Warehouse modules
 - ✅ **Backend Auth Integration**: Completed task_08.02.02_integrate_backend_auth.md (12/16 sub-tasks done)
 - ✅ **Task File Updates**: Synchronized checkboxes and progress tracking per folder-tasks workflow
 - ✅ **Progress Update**: Updated Phase 8 progress from 0% to ~15% (1/2 auth tasks completed)
 - ✅ **Frontend Setup**: Completed SvelteKit project foundation (task_08.01.01_setup_sveltekit_project.md)
 - ✅ **Progress Update**: Updated Phase 3 progress from 60% to 64% (16/25 tasks completed)
 - ✅ **Kanidm Integration**: 5/6 tasks completed (83% complete)
-- ✅ **Casbin Authorization**: 9/10 tasks completed (90% complete) 
+- ✅ **Casbin Authorization**: 9/10 tasks completed (90% complete)
 - ✅ **User Management**: 2/5 tasks completed (40% complete)
 - ✅ **Task Tracking**: Fixed missing Assignee fields in completed tasks
 - ✅ **Documentation**: Updated folder-tasks workflow from Context7
 - 🔄 Migrating from custom JWT authentication to Kanidm (OAuth2/OIDC)
 - 📚 Updated all documentation (ARCHITECTURE.md, README.md, etc.)
 - 📋 See `docs/KANIDM_MIGRATION_PLAN.md` for detailed migration plan
-**Next Milestone**: Complete remaining Phase 3 tasks (Week 2)
+**Next Milestone**: Complete remaining Phase 3 tasks, then start optimized Phase 4
