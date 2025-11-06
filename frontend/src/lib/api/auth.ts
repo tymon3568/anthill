@@ -161,15 +161,15 @@ export const authApi = {
 
 	// Permission Checking
 	async checkPermission(resource: string, action: string): Promise<ApiResponse<{ allowed: boolean }>> {
-		return apiClient.get<{ allowed: boolean }>(`/auth/permissions/check?resource=${resource}&action=${action}`);
+		return apiClient.get<{ allowed: boolean }>(`/users/permissions/check?resource=${resource}&action=${action}`);
 	},
 
 	async getUserPermissions(): Promise<ApiResponse<{ roles: string[]; permissions: string[] }>> {
-		return apiClient.get<{ roles: string[]; permissions: string[] }>('/auth/permissions');
+		return apiClient.get<{ roles: string[]; permissions: string[] }>('/users/permissions');
 	},
 
 	async getUserRoles(): Promise<ApiResponse<{ roles: string[]; groups: string[] }>> {
-		return apiClient.get<{ roles: string[]; groups: string[] }>('/auth/roles');
+		return apiClient.get<{ roles: string[]; groups: string[] }>('/users/roles');
 	},
 
 	// Session Management
