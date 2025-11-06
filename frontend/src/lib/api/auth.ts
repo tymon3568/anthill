@@ -174,11 +174,11 @@ export const authApi = {
 
 	// Session Management
 	async validateSession(): Promise<ApiResponse<{ valid: boolean; user?: UserProfile }>> {
-		return apiClient.get<{ valid: boolean; user?: UserProfile }>('/auth/session/validate');
+		return apiClient.get<{ valid: boolean; user?: UserProfile }>('/users/session/validate');
 	},
 
 	async getSessionInfo(): Promise<ApiResponse<{ user: UserProfile; expires_at: string }>> {
-		return apiClient.get<{ user: UserProfile; expires_at: string }>('/auth/session');
+		return apiClient.get<{ user: UserProfile; expires_at: string }>('/users/session');
 	},
 
 	async refreshSession(): Promise<ApiResponse<OAuth2Tokens>> {
@@ -186,14 +186,14 @@ export const authApi = {
 	},
 
 	async endAllSessions(): Promise<ApiResponse<void>> {
-		return apiClient.post<void>('/auth/sessions/end-all');
+		return apiClient.delete<void>('/users/sessions');
 	},
 
 	async getActiveSessions(): Promise<ApiResponse<{ sessions: Array<{ id: string; created_at: string; last_activity: string; user_agent?: string }> }>> {
-		return apiClient.get<{ sessions: Array<{ id: string; created_at: string; last_activity: string; user_agent?: string }> }>('/auth/sessions');
+		return apiClient.get<{ sessions: Array<{ id: string; created_at: string; last_activity: string; user_agent?: string }> }>('/users/sessions');
 	},
 
 	async terminateSession(sessionId: string): Promise<ApiResponse<void>> {
-		return apiClient.delete<void>(`/auth/sessions/${sessionId}`);
+		return apiClient.delete<void>(`/users/sessions/${sessionId}`);
 	}
 };
