@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type { ApiResponse, User, LoginForm } from '$lib/types';
+import { AuthError, AuthErrorCode, createAuthError } from '$lib/auth/errors';
 
 export interface AuthResponse {
 	user: User;
@@ -114,11 +115,19 @@ export const authApi = {
 
 	// User Profile Management (matches backend API spec)
 	async getProfile(): Promise<ApiResponse<UserProfile>> {
-		return apiClient.get<UserProfile>('/users/profile');
+		try {
+			return await apiClient.get<UserProfile>('/users/profile');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.PROFILE_FETCH_FAILED, 'Failed to fetch user profile');
+		}
 	},
 
 	async updateProfile(userData: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
-		return apiClient.put<UserProfile>('/users/profile', userData);
+		try {
+			return await apiClient.put<UserProfile>('/users/profile', userData);
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.PROFILE_UPDATE_FAILED, 'Failed to update user profile');
+		}
 	},
 
 	async uploadProfileImage(file: File): Promise<ApiResponse<{ image_url: string }>> {
@@ -152,33 +161,61 @@ export const authApi = {
 
 	// User Preferences
 	async getPreferences(): Promise<ApiResponse<UserPreferences>> {
-		return apiClient.get<UserPreferences>('/users/preferences');
+		try {
+			return await apiClient.get<UserPreferences>('/users/preferences');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.PREFERENCES_FETCH_FAILED, 'Failed to fetch user preferences');
+		}
 	},
 
 	async updatePreferences(preferences: Partial<UserPreferences>): Promise<ApiResponse<UserPreferences>> {
-		return apiClient.put<UserPreferences>('/users/preferences', preferences);
+		try {
+			return await apiClient.put<UserPreferences>('/users/preferences', preferences);
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.PREFERENCES_UPDATE_FAILED, 'Failed to update user preferences');
+		}
 	},
 
 	// Permission Checking
 	async checkPermission(resource: string, action: string): Promise<ApiResponse<{ allowed: boolean }>> {
-		return apiClient.get<{ allowed: boolean }>(`/users/permissions/check?resource=${resource}&action=${action}`);
+		try {
+			return await apiClient.get<{ allowed: boolean }>(`/users/permissions/check?resource=${resource}&action=${action}`);
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.PERMISSION_CHECK_FAILED, 'Failed to check user permissions');
+		}
 	},
 
 	async getUserPermissions(): Promise<ApiResponse<{ roles: string[]; permissions: string[] }>> {
-		return apiClient.get<{ roles: string[]; permissions: string[] }>('/users/permissions');
+		try {
+			return await apiClient.get<{ roles: string[]; permissions: string[] }>('/users/permissions');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.PERMISSION_CHECK_FAILED, 'Failed to fetch user permissions');
+		}
 	},
 
 	async getUserRoles(): Promise<ApiResponse<{ roles: string[]; groups: string[] }>> {
-		return apiClient.get<{ roles: string[]; groups: string[] }>('/users/roles');
+		try {
+			return await apiClient.get<{ roles: string[]; groups: string[] }>('/users/roles');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.ROLES_FETCH_FAILED, 'Failed to fetch user roles');
+		}
 	},
 
 	// Session Management
 	async validateSession(): Promise<ApiResponse<{ valid: boolean; user?: UserProfile }>> {
-		return apiClient.get<{ valid: boolean; user?: UserProfile }>('/users/session/validate');
+		try {
+			return await apiClient.get<{ valid: boolean; user?: UserProfile }>('/users/session/validate');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.SESSION_VALIDATION_FAILED, 'Failed to validate session');
+		}
 	},
 
 	async getSessionInfo(): Promise<ApiResponse<{ user: UserProfile; expires_at: string }>> {
-		return apiClient.get<{ user: UserProfile; expires_at: string }>('/users/session');
+		try {
+			return await apiClient.get<{ user: UserProfile; expires_at: string }>('/users/session');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.SESSION_VALIDATION_FAILED, 'Failed to get session info');
+		}
 	},
 
 	async refreshSession(): Promise<ApiResponse<OAuth2Tokens>> {
@@ -186,14 +223,26 @@ export const authApi = {
 	},
 
 	async endAllSessions(): Promise<ApiResponse<void>> {
-		return apiClient.delete<void>('/users/sessions');
+		try {
+			return await apiClient.delete<void>('/users/sessions');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.SESSION_TERMINATION_FAILED, 'Failed to end all sessions');
+		}
 	},
 
 	async getActiveSessions(): Promise<ApiResponse<{ sessions: Array<{ id: string; created_at: string; last_activity: string; user_agent?: string }> }>> {
-		return apiClient.get<{ sessions: Array<{ id: string; created_at: string; last_activity: string; user_agent?: string }> }>('/users/sessions');
+		try {
+			return await apiClient.get<{ sessions: Array<{ id: string; created_at: string; last_activity: string; user_agent?: string }> }>('/users/sessions');
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.SESSION_VALIDATION_FAILED, 'Failed to get active sessions');
+		}
 	},
 
 	async terminateSession(sessionId: string): Promise<ApiResponse<void>> {
-		return apiClient.delete<void>(`/users/sessions/${sessionId}`);
+		try {
+			return await apiClient.delete<void>(`/users/sessions/${sessionId}`);
+		} catch (error) {
+			throw createAuthError(AuthErrorCode.SESSION_TERMINATION_FAILED, 'Failed to terminate session');
+		}
 	}
 };
