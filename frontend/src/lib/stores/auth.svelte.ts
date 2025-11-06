@@ -3,6 +3,8 @@
 //    - Always consult MCP documentation before changes
 //    - See .svelte-instructions.md for guidelines
 import type { AuthStore, User, Tenant } from '$lib/types';
+import { validateAndParseToken, shouldRefreshToken } from '$lib/auth/jwt';
+import { browser } from '$app/environment';
 
 // Auth state using Svelte 5 runes
 export const authState = $state<AuthStore>({
@@ -26,19 +28,62 @@ export const authStore = {
 		authState.isLoading = loading;
 	},
 
-	logout: () => {
-		if (typeof localStorage !== 'undefined') {
-			localStorage.removeItem('auth_token');
+	initialize: () => {
+		// Client-side initialization
+		if (browser) {
+			authStore.initializeFromStorage();
 		}
+	},
+
+	initializeFromStorage: async () => {
+		if (!browser) return;
+
+		authStore.setLoading(true);
+		try {
+			// Token validation happens server-side in hooks.server.ts
+			// Client gets user info from server-side locals
+			// This initialization is not needed for httpOnly cookie flow
+		} catch (error) {
+			console.error('Auth initialization error:', error);
+		} finally {
+			authStore.setLoading(false);
+		}
+	},
+
+	logout: () => {
+		// Token cleanup happens server-side via /api/v1/auth/logout
+		// Client just clears local state
 		authState.user = null;
 		authState.tenant = null;
 		authState.isAuthenticated = false;
 		authState.isLoading = false;
 	},
 
-	initialize: () => {
-		// Check for stored auth data (JWT, etc.)
-		// Let useAuth hook manage loading state for async operations
-		// This prevents redirects from triggering before profile validation completes
+	// Check if user has permission for an action
+	hasPermission: (resource: string, action: string): boolean => {
+		// TODO: Implement Casbin permission checking via backend API
+		// For now, just check if user is authenticated and has basic role
+		// Full permission checking will be implemented in backend services
+		if (!authState.isAuthenticated || !authState.user) return false;
+
+		// Basic role-based permissions (will be replaced with Casbin)
+		const userRole = authState.user.role;
+		switch (action) {
+			case 'read':
+				return ['admin', 'manager', 'user'].includes(userRole);
+			case 'write':
+			case 'create':
+				return ['admin', 'manager'].includes(userRole);
+			case 'delete':
+			case 'admin':
+				return userRole === 'admin';
+			default:
+				return false;
+		}
 	},
+
+	// Get current tenant context
+	getTenantId: (): string | null => {
+		return authState.tenant?.id || null;
+	}
 };
