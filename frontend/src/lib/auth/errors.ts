@@ -14,6 +14,7 @@ export class AuthError extends Error {
 export enum AuthErrorCode {
 	// OAuth2 errors
 	INVALID_CODE = 'invalid_code',
+	INVALID_STATE = 'invalid_state',
 	MISSING_VERIFIER = 'missing_verifier',
 	TOKEN_EXCHANGE_FAILED = 'token_exchange_failed',
 	INVALID_TOKEN = 'invalid_token',
@@ -63,17 +64,19 @@ export function handleAuthError(error: unknown, redirectTo: string = '/login'): 
 		}
 	}
 
-	// Redirect to login with error information
-	const redirectUrl = new URL(redirectTo, 'http://localhost:5173'); // Base URL will be overridden
+	// Build redirect URL with error parameters
+	const redirectUrl = new URL(redirectTo, 'http://placeholder');
 	redirectUrl.searchParams.set('error', errorCode);
 	redirectUrl.searchParams.set('message', encodeURIComponent(errorMessage));
 
-	throw redirect(302, redirectUrl.toString().replace('http://localhost:5173', ''));
+	// Use pathname and search params to build relative URL
+	throw redirect(302, `${redirectUrl.pathname}${redirectUrl.search}`);
 }
 
 export function createAuthError(code: AuthErrorCode, message?: string): AuthError {
 	const defaultMessages: Record<AuthErrorCode, string> = {
 		[AuthErrorCode.INVALID_CODE]: 'Invalid authorization code',
+		[AuthErrorCode.INVALID_STATE]: 'Invalid state parameter',
 		[AuthErrorCode.MISSING_VERIFIER]: 'Missing code verifier',
 		[AuthErrorCode.TOKEN_EXCHANGE_FAILED]: 'Failed to exchange authorization code for tokens',
 		[AuthErrorCode.INVALID_TOKEN]: 'Invalid or malformed token',
@@ -91,6 +94,7 @@ export function createAuthError(code: AuthErrorCode, message?: string): AuthErro
 
 	const statusCodes: Record<AuthErrorCode, number> = {
 		[AuthErrorCode.INVALID_CODE]: 400,
+		[AuthErrorCode.INVALID_STATE]: 400,
 		[AuthErrorCode.MISSING_VERIFIER]: 400,
 		[AuthErrorCode.TOKEN_EXCHANGE_FAILED]: 502,
 		[AuthErrorCode.INVALID_TOKEN]: 401,

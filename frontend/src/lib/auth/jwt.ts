@@ -22,12 +22,15 @@ export interface UserInfo {
 
 /**
  * Decode JWT payload without verification (for client-side use)
- * In production, JWT verification should be done on the server
+ * WARNING: This does NOT verify the JWT signature - only use for display purposes
+ * Server-side verification should always be performed for security
  */
 export function decodeJwtPayload(token: string): KanidmJWT | null {
 	try {
 		const payload = token.split('.')[1];
-		const decoded = JSON.parse(atob(payload));
+		// Handle URL-safe base64 (base64url)
+		const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+		const decoded = JSON.parse(atob(base64));
 		return decoded as KanidmJWT;
 	} catch (error) {
 		console.error('Failed to decode JWT:', error);
@@ -36,9 +39,84 @@ export function decodeJwtPayload(token: string): KanidmJWT | null {
 }
 
 /**
- * Validate JWT structure and extract user information
+ * Verify JWT signature using Kanidm's public key
+ * NOTE: This should ideally be done server-side for security
+ * Client-side verification is provided for completeness but has limitations
  */
-export function validateAndParseToken(accessToken: string): UserInfo | null {
+export async function verifyJwtSignature(token: string): Promise<boolean> {
+	try {
+		// Split token into parts
+		const parts = token.split('.');
+		if (parts.length !== 3) return false;
+
+		const [header, payload, signature] = parts;
+
+		// Decode header to get algorithm and key ID
+		const headerData = JSON.parse(atob(header.replace(/-/g, '+').replace(/_/g, '/')));
+		const { alg, kid } = headerData;
+
+		if (alg !== 'RS256') {
+			console.error('Unsupported JWT algorithm:', alg);
+			return false;
+		}
+
+		// Fetch JWKS from Kanidm
+		const jwksUrl = `${VITE_KANIDM_ISSUER_URL}/.well-known/jwks.json`;
+		const jwksResponse = await fetch(jwksUrl);
+
+		if (!jwksResponse.ok) {
+			console.error('Failed to fetch JWKS');
+			return false;
+		}
+
+		const jwks = await jwksResponse.json();
+		const key = jwks.keys.find((k: any) => k.kid === kid);
+
+		if (!key) {
+			console.error('Public key not found for kid:', kid);
+			return false;
+		}
+
+		// Import the RSA public key
+		const publicKey = await crypto.subtle.importKey(
+			'jwk',
+			key,
+			{
+				name: 'RSASSA-PKCS1-v1_5',
+				hash: 'SHA-256',
+			},
+			false,
+			['verify']
+		);
+
+		// Verify signature
+		const encoder = new TextEncoder();
+		const data = encoder.encode(`${header}.${payload}`);
+		const signatureBytes = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+
+		return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', publicKey, signatureBytes, data);
+
+	} catch (error) {
+		console.error('JWT signature verification failed:', error);
+		return false;
+	}
+}
+
+/**
+ * Validate JWT structure and extract user information
+ * @param accessToken JWT token to validate
+ * @param verifySignature Whether to verify JWT signature (default: false for client-side)
+ */
+export async function validateAndParseToken(accessToken: string, verifySignature = false): Promise<UserInfo | null> {
+	// Verify signature if requested
+	if (verifySignature) {
+		const isValid = await verifyJwtSignature(accessToken);
+		if (!isValid) {
+			console.error('JWT signature verification failed');
+			return null;
+		}
+	}
+
 	const payload = decodeJwtPayload(accessToken);
 	if (!payload) return null;
 

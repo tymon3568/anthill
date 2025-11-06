@@ -40,32 +40,9 @@ export const authStore = {
 
 		authStore.setLoading(true);
 		try {
-			// Note: In production, tokens are stored in httpOnly cookies
-			// This is for development/demo purposes only
-			const token = localStorage.getItem('auth_token');
-			if (token && !shouldRefreshToken(token)) {
-				const userInfo = validateAndParseToken(token);
-				if (userInfo) {
-					authStore.setUser({
-						id: userInfo.userId,
-						email: userInfo.email,
-						name: userInfo.name || userInfo.email, // Fallback to email if no name
-						role: 'user', // Default role, should be determined by groups
-						tenantId: userInfo.tenantId || '',
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString()
-					});
-					if (userInfo.tenantId) {
-						authStore.setTenant({
-							id: userInfo.tenantId,
-							name: userInfo.tenantId,
-							domain: `${userInfo.tenantId}.example.com`, // Placeholder
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString()
-						});
-					}
-				}
-			}
+			// Token validation happens server-side in hooks.server.ts
+			// Client gets user info from server-side locals
+			// This initialization is not needed for httpOnly cookie flow
 		} catch (error) {
 			console.error('Auth initialization error:', error);
 		} finally {
@@ -74,10 +51,8 @@ export const authStore = {
 	},
 
 	logout: () => {
-		if (browser) {
-			localStorage.removeItem('auth_token');
-			localStorage.removeItem('refresh_token');
-		}
+		// Token cleanup happens server-side via /api/v1/auth/logout
+		// Client just clears local state
 		authState.user = null;
 		authState.tenant = null;
 		authState.isAuthenticated = false;

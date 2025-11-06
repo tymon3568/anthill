@@ -48,6 +48,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Check if token needs refresh
+	let currentAccessToken = accessToken;
 	if (shouldRefreshToken(accessToken)) {
 		try {
 			// Attempt to refresh token
@@ -70,6 +71,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 						sameSite: 'strict',
 						maxAge: refreshData.expires_in || 3600,
 					});
+					// Use the new access token for validation
+					currentAccessToken = refreshData.access_token;
 				} else {
 					// Refresh failed, redirect to login
 					handleAuthError(createAuthError(AuthErrorCode.SESSION_EXPIRED), `/login?redirect=${encodeURIComponent(pathname)}`);
@@ -85,7 +88,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Validate token and extract user info
-	const userInfo = validateAndParseToken(accessToken);
+	const userInfo = await validateAndParseToken(currentAccessToken, true); // Enable signature verification server-side
 	if (!userInfo) {
 		// Invalid token, redirect to login
 		cookies.delete('access_token', { path: '/' });
