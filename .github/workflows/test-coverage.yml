@@ -222,8 +222,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./frontend
-          files: ./coverage/lcov.info
+          files: ./frontend/coverage/lcov.info
           flags: frontend
           name: frontend-coverage
 
@@ -232,7 +231,6 @@ jobs:
     name: Coverage Summary
     needs: [coverage, coverage-user-service, coverage-inventory-service, coverage-frontend]
     runs-on: ubuntu-latest
-    if: always()</parameter>
     if: always()
 
     steps:

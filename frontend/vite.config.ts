@@ -7,7 +7,7 @@ export default defineConfig({
 	test: {
 		expect: { requireAssertions: true },
 		coverage: {
-			reporter: ['lcov'],
+			reporter: ['lcov', 'text', 'html'],
 			exclude: ['e2e/**', 'node_modules/**', '.svelte-kit/**']
 		},
 		projects: [
