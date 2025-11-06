@@ -1,4 +1,12 @@
-import { VITE_KANIDM_ISSUER_URL } from '$env/static/public';
+// Conditionally import environment variable for testing compatibility
+let kanidmIssuerUrl = 'https://idm.example.com';
+try {
+	const env = await import('$env/static/public');
+	kanidmIssuerUrl = env.VITE_KANIDM_ISSUER_URL || 'https://idm.example.com';
+} catch {
+	// For testing environments, use default
+	kanidmIssuerUrl = 'https://idm.example.com';
+}
 
 export interface KanidmJWT {
 	sub: string;           // Kanidm user UUID
@@ -61,7 +69,7 @@ export async function verifyJwtSignature(token: string): Promise<boolean> {
 		}
 
 		// Fetch JWKS from Kanidm
-		const jwksUrl = `${VITE_KANIDM_ISSUER_URL}/.well-known/jwks.json`;
+		const jwksUrl = `${kanidmIssuerUrl}/.well-known/jwks.json`;
 		const jwksResponse = await fetch(jwksUrl);
 
 		if (!jwksResponse.ok) {
