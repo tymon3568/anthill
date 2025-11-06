@@ -6,6 +6,10 @@ export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	test: {
 		expect: { requireAssertions: true },
+		coverage: {
+			reporter: ['lcov'],
+			exclude: ['e2e/**', 'node_modules/**', '.svelte-kit/**']
+		},
 		projects: [
 			{
 				extends: './vite.config.ts',
