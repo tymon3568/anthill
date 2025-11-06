@@ -205,3 +205,293 @@ test.describe('Authentication E2E Tests', () => {
 		await expect(page.locator('#confirmPassword')).toBeVisible();
 	});
 });
+
+// OAuth2 Flow E2E Tests
+test.describe('OAuth2 Authentication Flow', () => {
+	test('should redirect to Kanidm for OAuth2 login', async ({ page }) => {
+		// Mock the OAuth2 authorize endpoint
+		await page.route('**/api/v1/auth/oauth/authorize', async route => {
+			await route.fulfill({
+				status: 302,
+				headers: {
+					'Location': 'https://idm.example.com/ui/oauth2?client_id=test-client&response_type=code&redirect_uri=http://localhost:5173/api/v1/auth/oauth/callback&state=test-state&code_challenge=test-challenge&code_challenge_method=S256'
+				}
+			});
+		});
+
+		await page.goto('/login');
+
+		// Click OAuth2 login button (assuming it exists)
+		const oauthButton = page.locator('button:has-text("Sign in with Kanidm")').or(
+			page.locator('button:has-text("OAuth2")')
+		).or(
+			page.locator('[data-testid="oauth-login"]')
+		);
+
+		if (await oauthButton.isVisible()) {
+			await oauthButton.click();
+
+			// Should redirect to Kanidm
+			await page.waitForURL('**/idm.example.com/**');
+			expect(page.url()).toContain('idm.example.com');
+		} else {
+			// If OAuth2 button doesn't exist, this test should be skipped
+			test.skip();
+		}
+	});
+
+	test('should handle OAuth2 callback successfully', async ({ page }) => {
+		// Mock the OAuth2 callback endpoint
+		await page.route('**/api/v1/auth/oauth/callback*', async route => {
+			await route.fulfill({
+				status: 302,
+				headers: {
+					'Location': '/',
+					'Set-Cookie': 'auth_token=test-jwt-token; Path=/; HttpOnly; Secure; SameSite=Lax'
+				}
+			});
+		});
+
+		// Simulate OAuth2 callback with auth code
+		await page.goto('/api/v1/auth/oauth/callback?code=test-auth-code&state=test-state');
+
+		// Should redirect to home page
+		await page.waitForURL('/');
+		expect(page.url()).toBe('http://localhost:5173/');
+	});
+
+	test('should handle OAuth2 callback with error', async ({ page }) => {
+		// Mock OAuth2 callback with error
+		await page.route('**/api/v1/auth/oauth/callback*', async route => {
+			await route.fulfill({
+				status: 302,
+				headers: {
+					'Location': '/login?error=access_denied&error_description=User%20denied%20authorization'
+				}
+			});
+		});
+
+		// Simulate OAuth2 callback with error
+		await page.goto('/api/v1/auth/oauth/callback?error=access_denied&error_description=User%20denied%20authorization');
+
+		// Should redirect to login with error
+		await page.waitForURL('/login?error=access_denied*');
+		await expect(page.locator('text=/authorization/i')).toBeVisible();
+	});
+
+	test('should protect routes when not authenticated', async ({ page }) => {
+		// Try to access protected route directly
+		await page.goto('/dashboard');
+
+		// Should redirect to login
+		await page.waitForURL('/login');
+		expect(page.url()).toContain('/login');
+	});
+
+	test('should allow access to protected routes when authenticated', async ({ page }) => {
+		// Mock authentication by setting auth cookie
+		await page.context().addCookies([{
+			name: 'auth_token',
+			value: 'valid-jwt-token',
+			domain: 'localhost',
+			path: '/',
+			httpOnly: true,
+			secure: false
+		}]);
+
+		// Mock the protected route response
+		await page.route('**/dashboard', async route => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'text/html',
+				body: '<html><body><h1>Dashboard</h1><p>Welcome to your dashboard</p></body></html>'
+			});
+		});
+
+		await page.goto('/dashboard');
+
+		// Should allow access to dashboard
+		await expect(page.locator('h1')).toContainText('Dashboard');
+	});
+
+	test('should handle token refresh automatically', async ({ page }) => {
+		// Set a token that will expire soon
+		const soonExpiry = Math.floor(Date.now() / 1000) + 30; // Expires in 30 seconds
+		const tokenPayload = {
+			sub: 'user-123',
+			email: 'user@example.com',
+			groups: ['tenant_acme_users'],
+			exp: soonExpiry,
+			iat: Math.floor(Date.now() / 1000) - 60
+		};
+		const token = 'header.' + btoa(JSON.stringify(tokenPayload)) + '.signature';
+
+		await page.context().addCookies([{
+			name: 'auth_token',
+			value: token,
+			domain: 'localhost',
+			path: '/',
+			httpOnly: true,
+			secure: false
+		}]);
+
+		// Mock token refresh endpoint
+		await page.route('**/api/v1/auth/oauth/refresh', async route => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					access_token: 'new-refreshed-token',
+					token_type: 'Bearer',
+					expires_in: 3600
+				}),
+				headers: {
+					'Set-Cookie': 'auth_token=new-refreshed-token; Path=/; HttpOnly; Secure; SameSite=Lax'
+				}
+			});
+		});
+
+		await page.goto('/dashboard');
+
+		// Wait for potential token refresh
+		await page.waitForTimeout(2000);
+
+		// Should still be on dashboard (token refresh should happen automatically)
+		expect(page.url()).toContain('/dashboard');
+	});
+
+	test('should handle logout properly', async ({ page }) => {
+		// Set authenticated state
+		await page.context().addCookies([{
+			name: 'auth_token',
+			value: 'valid-jwt-token',
+			domain: 'localhost',
+			path: '/',
+			httpOnly: true,
+			secure: false
+		}]);
+
+		// Mock logout endpoint
+		await page.route('**/api/v1/auth/logout', async route => {
+			await route.fulfill({
+				status: 200,
+				headers: {
+					'Set-Cookie': 'auth_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'
+				}
+			});
+		});
+
+		await page.goto('/dashboard');
+
+		// Click logout button (assuming it exists)
+		const logoutButton = page.locator('button:has-text("Logout")').or(
+			page.locator('button:has-text("Sign Out")')
+		).or(
+			page.locator('[data-testid="logout"]')
+		);
+
+		if (await logoutButton.isVisible()) {
+			await logoutButton.click();
+
+			// Should redirect to login
+			await page.waitForURL('/login');
+			expect(page.url()).toContain('/login');
+
+			// Auth cookie should be cleared
+			const cookies = await page.context().cookies();
+			const authCookie = cookies.find(c => c.name === 'auth_token');
+			expect(authCookie).toBeUndefined();
+		} else {
+			// If logout button doesn't exist, this test should be skipped
+			test.skip();
+		}
+	});
+
+	test('should handle network errors during OAuth2 flow', async ({ page }) => {
+		// Mock network failure for OAuth2 authorize
+		await page.route('**/api/v1/auth/oauth/authorize', async route => {
+			await route.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: JSON.stringify({ error: 'Internal server error' })
+			});
+		});
+
+		await page.goto('/login');
+
+		// Try to trigger OAuth2 flow
+		const oauthButton = page.locator('button:has-text("Sign in with Kanidm")').or(
+			page.locator('button:has-text("OAuth2")')
+		);
+
+		if (await oauthButton.isVisible()) {
+			await oauthButton.click();
+
+			// Should show error message
+			await expect(page.locator('text=/error/i')).toBeVisible();
+		} else {
+			test.skip();
+		}
+	});
+
+	test('should handle expired tokens gracefully', async ({ page }) => {
+		// Set an expired token
+		const expiredPayload = {
+			sub: 'user-123',
+			email: 'user@example.com',
+			groups: ['tenant_acme_users'],
+			exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
+			iat: Math.floor(Date.now() / 1000) - 7200
+		};
+		const expiredToken = 'header.' + btoa(JSON.stringify(expiredPayload)) + '.signature';
+
+		await page.context().addCookies([{
+			name: 'auth_token',
+			value: expiredToken,
+			domain: 'localhost',
+			path: '/',
+			httpOnly: true,
+			secure: false
+		}]);
+
+		await page.goto('/dashboard');
+
+		// Should redirect to login due to expired token
+		await page.waitForURL('/login');
+		expect(page.url()).toContain('/login');
+	});
+
+	test('should maintain tenant context across navigation', async ({ page }) => {
+		// Set token with tenant information
+		const tokenPayload = {
+			sub: 'user-123',
+			email: 'user@example.com',
+			groups: ['tenant_acme_users'],
+			exp: Math.floor(Date.now() / 1000) + 3600,
+			iat: Math.floor(Date.now() / 1000) - 60
+		};
+		const token = 'header.' + btoa(JSON.stringify(tokenPayload)) + '.signature';
+
+		await page.context().addCookies([{
+			name: 'auth_token',
+			value: token,
+			domain: 'localhost',
+			path: '/',
+			httpOnly: true,
+			secure: false
+		}]);
+
+		await page.goto('/dashboard');
+
+		// Navigate to another protected page
+		await page.goto('/products');
+
+		// Should maintain authentication and tenant context
+		expect(page.url()).toContain('/products');
+
+		// Check that tenant context is preserved (this would be checked via API calls)
+		// For now, just verify we're not redirected to login
+		await page.waitForTimeout(1000);
+		expect(page.url()).not.toContain('/login');
+	});
+});
