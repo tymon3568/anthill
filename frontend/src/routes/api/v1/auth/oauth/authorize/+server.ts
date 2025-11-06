@@ -21,6 +21,16 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 			maxAge: 600 // 10 minutes
 		});
 
+		// Generate and store state for CSRF protection
+		const state = generateState();
+		cookies.set('oauth_state', state, {
+			path: '/',
+			httpOnly: true,
+			secure: true,
+			sameSite: 'strict',
+			maxAge: 600 // 10 minutes
+		});
+
 		// Build OAuth2 authorization URL
 		const authUrl = new URL('/ui/oauth2', KANIDM_BASE_URL);
 		authUrl.searchParams.set('client_id', CLIENT_ID);
@@ -29,7 +39,7 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 		authUrl.searchParams.set('scope', 'openid profile email groups');
 		authUrl.searchParams.set('code_challenge', codeChallenge);
 		authUrl.searchParams.set('code_challenge_method', 'S256');
-		authUrl.searchParams.set('state', generateState()); // CSRF protection
+		authUrl.searchParams.set('state', state);
 
 		// Redirect to Kanidm OAuth2 authorization endpoint
 		throw redirect(302, authUrl.toString());

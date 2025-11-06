@@ -72,7 +72,216 @@ DOMAIN=your-domain.com ./scripts/generate-ssl-cert.sh letsencrypt
 # CapRover Dashboard → Apps → anthill-nginx-gateway → HTTP Settings → Force HTTPS
 ```
 
-## Triển Khai Stateful Services
+## Triển Khai Kanidm Authentication
+
+### Kanidm Server Setup
+
+1. **Deploy Kanidm Server**:
+   ```bash
+   # One-Click App hoặc custom deployment
+   caprover deploy --appName anthill-kanidm --image kanidm/server:latest
+   ```
+
+2. **Kanidm Configuration**:
+   ```bash
+   # Environment Variables cho Kanidm
+   KANIDM_DOMAIN=idm.your-domain.com
+   KANIDM_ORIGIN=https://idm.your-domain.com
+   KANIDM_TLS_CHAIN=/data/chain.pem
+   KANIDM_TLS_KEY=/data/key.pem
+   KANIDM_DB_PATH=/data/kanidm.db
+   ```
+
+3. **SSL Certificates cho Kanidm**:
+   ```bash
+   # Generate certificates
+   ./scripts/generate-ssl-cert.sh kanidm idm.your-domain.com
+   ```
+
+### OAuth2 Client Configuration
+
+1. **Tạo OAuth2 Client trong Kanidm**:
+   ```bash
+   # Via Kanidm CLI hoặc Web UI
+   kanidm system oauth2 create \
+     --name anthill \
+     --displayname "Anthill SaaS" \
+     --origin https://your-domain.com \
+     --scope openid profile email groups
+   ```
+
+2. **Lấy Client Credentials**:
+   ```bash
+   # Sau khi tạo client
+   kanidm system oauth2 show-basic-secret --name anthill
+   # Output: Client ID và Secret
+   ```
+
+### Service Authentication Configuration
+
+Mỗi microservice cần cấu hình Kanidm:
+
+```bash
+# Environment Variables cho tất cả services
+KANIDM_URL=https://idm.your-domain.com
+KANIDM_CLIENT_ID=anthill
+KANIDM_CLIENT_SECRET=YOUR_OAUTH2_CLIENT_SECRET
+JWT_SECRET=CHANGE_THIS_STRONG_SECRET_64_CHARS_MIN
+OAUTH2_REDIRECT_URI=https://your-domain.com/api/v1/auth/oauth/callback
+```
+
+### Frontend Authentication Configuration
+
+```bash
+# Frontend Environment Variables
+PUBLIC_KANIDM_AUTHORIZE_URL=https://idm.your-domain.com/ui/oauth2
+PUBLIC_KANIDM_TOKEN_URL=https://idm.your-domain.com/oauth2/token
+PUBLIC_KANIDM_CLIENT_ID=anthill
+PUBLIC_OAUTH2_REDIRECT_URI=https://your-domain.com/api/v1/auth/oauth/callback
+PUBLIC_API_BASE_URL=https://your-domain.com/api/v1
+```
+
+### Tenant Mapping Setup
+
+1. **Tạo Kanidm Groups cho Tenants**:
+   ```bash
+   # Tạo groups trong Kanidm
+   kanidm group create tenant_acme_users
+   kanidm group create tenant_acme_admins
+   kanidm group create tenant_xyz_users
+   ```
+
+2. **Database Mapping**:
+   ```sql
+   -- Insert tenant-group mappings
+   INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name)
+   VALUES
+     ('550e8400-e29b-41d4-a716-446655440000', 'group-uuid-1', 'tenant_acme_users'),
+     ('550e8400-e29b-41d4-a716-446655440001', 'group-uuid-2', 'tenant_xyz_users');
+   ```
+
+### Authentication Flow Testing
+
+Sau khi deploy, test authentication flow:
+
+```bash
+# 1. Test OAuth2 authorize endpoint
+curl -X GET "https://your-domain.com/api/v1/auth/oauth/authorize" \
+  -H "Accept: application/json"
+
+# Should redirect to Kanidm login
+
+# 2. Test protected endpoint
+curl -X GET "https://your-domain.com/api/v1/users/profile" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Should return user profile or 401 if not authenticated
+
+# 3. Test token refresh
+curl -X POST "https://your-domain.com/api/v1/auth/oauth/refresh" \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "YOUR_REFRESH_TOKEN"}'
+
+# Should return new access token
+```
+
+### Monitoring Authentication
+
+Thêm authentication metrics vào monitoring:
+
+```rust
+// Trong mỗi service, track auth events
+use prometheus::{register_counter, register_histogram};
+
+lazy_static! {
+    static ref AUTH_REQUESTS: Counter = register_counter!(
+        "auth_requests_total",
+        "Total number of authentication requests"
+    ).unwrap();
+
+    static ref AUTH_SUCCESS: Counter = register_counter!(
+        "auth_success_total",
+        "Total number of successful authentications"
+    ).unwrap();
+
+    static ref AUTH_FAILURES: Counter = register_counter!(
+        "auth_failures_total",
+        "Total number of authentication failures"
+    ).unwrap();
+
+    static ref TOKEN_REFRESH_DURATION: Histogram = register_histogram!(
+        "token_refresh_duration_seconds",
+        "Time taken for token refresh"
+    ).unwrap();
+}
+```
+
+### Security Considerations
+
+1. **Token Storage**: HttpOnly cookies, never localStorage
+2. **CORS Policy**: Restrict origins to your domain only
+3. **Rate Limiting**: Implement OAuth2 endpoint rate limiting
+4. **Audit Logging**: Log all authentication events
+5. **Session Management**: Short-lived access tokens (15 min), refresh tokens (24h)
+
+### Backup & Recovery
+
+1. **Kanidm Database Backup**:
+   ```bash
+   # Backup Kanidm data
+   caprover exec --appName anthill-kanidm --command "sqlite3 /data/kanidm.db .backup /backup/kanidm-$(date +%Y%m%d).db"
+   ```
+
+2. **JWT Secrets Backup**:
+   - Store JWT secrets in secure vault (HashiCorp Vault, AWS Secrets Manager)
+   - Rotate secrets quarterly
+   - Document secret rotation procedure
+
+### Troubleshooting Authentication
+
+#### Common Issues
+
+1. **OAuth2 Redirect URI Mismatch**:
+   ```
+   Error: redirect_uri does not match
+   Solution: Verify OAUTH2_REDIRECT_URI matches Kanidm client configuration
+   ```
+
+2. **Token Validation Failed**:
+   ```
+   Error: JWT signature verification failed
+   Solution: Check JWT_SECRET consistency across services
+   ```
+
+3. **Tenant Context Missing**:
+   ```
+   Error: No tenant found for user
+   Solution: Verify kanidm_tenant_groups table has correct mappings
+   ```
+
+4. **CORS Errors**:
+   ```
+   Error: CORS policy blocked
+   Solution: Check Nginx CORS configuration for auth endpoints
+   ```
+
+#### Debug Commands
+
+```bash
+# Check Kanidm service status
+caprover logs --appName anthill-kanidm
+
+# Test OAuth2 endpoints
+curl -v "https://idm.your-domain.com/.well-known/openid-configuration"
+
+# Check JWT token contents
+curl -X POST "https://your-domain.com/api/v1/auth/oauth/callback" \
+  -d "code=test-code&state=test-state" \
+  -v
+
+# Verify tenant mapping
+caprover exec --appName anthill-postgres --command "psql -c 'SELECT * FROM kanidm_tenant_groups;'"
+```
 
 ### PostgreSQL Database
 

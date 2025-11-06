@@ -1,11 +1,10 @@
-/// <reference types="@vitest/browser/matchers" />
-/// <reference types="@vitest/browser/providers/playwright" />
+/// <reference types="vitest" />
 
-// Mock SvelteKit imports for testing
+// Mock SvelteKit imports for server-side testing
 import { vi } from 'vitest';
 
 vi.mock('$app/environment', () => ({
-	browser: true
+	browser: false
 }));
 
 vi.mock('$app/navigation', () => ({

@@ -67,7 +67,7 @@ export function handleAuthError(error: unknown, redirectTo: string = '/login'): 
 	// Build redirect URL with error parameters
 	const redirectUrl = new URL(redirectTo, 'http://placeholder');
 	redirectUrl.searchParams.set('error', errorCode);
-	redirectUrl.searchParams.set('message', encodeURIComponent(errorMessage));
+	redirectUrl.searchParams.set('message', errorMessage);
 
 	// Use pathname and search params to build relative URL
 	throw redirect(302, `${redirectUrl.pathname}${redirectUrl.search}`);

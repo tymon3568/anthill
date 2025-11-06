@@ -15,20 +15,20 @@ declare global {
 // Environment variables
 declare module '$env/dynamic/public' {
 	export const env: {
-		VITE_API_BASE_URL?: string;
-		VITE_APP_ENV?: string;
-		VITE_KANIDM_CLIENT_ID?: string;
-		VITE_KANIDM_ISSUER_URL?: string;
-		VITE_KANIDM_REDIRECT_URI?: string;
+		PUBLIC_API_BASE_URL?: string;
+		PUBLIC_APP_ENV?: string;
+		PUBLIC_KANIDM_CLIENT_ID?: string;
+		PUBLIC_KANIDM_ISSUER_URL?: string;
+		PUBLIC_KANIDM_REDIRECT_URI?: string;
 	};
 }
 
 declare module '$env/static/public' {
-	export const VITE_API_BASE_URL: string;
-	export const VITE_APP_ENV: string;
-	export const VITE_KANIDM_CLIENT_ID: string;
-	export const VITE_KANIDM_ISSUER_URL: string;
-	export const VITE_KANIDM_REDIRECT_URI: string;
+	export const PUBLIC_API_BASE_URL: string;
+	export const PUBLIC_APP_ENV: string;
+	export const PUBLIC_KANIDM_CLIENT_ID: string;
+	export const PUBLIC_KANIDM_ISSUER_URL: string;
+	export const PUBLIC_KANIDM_REDIRECT_URI: string;
 }
 
 export {};
