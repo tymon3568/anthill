@@ -6,19 +6,8 @@ import type { AuthStore, User, Tenant } from '$lib/types';
 import { validateAndParseToken, shouldRefreshToken } from '$lib/auth/jwt';
 import { authLogic } from '$lib/auth/auth-logic';
 
-// Browser check with fallback for testing
-const getBrowser = (): boolean => {
-	try {
-		// This will work in SvelteKit environment
-		const { browser } = require('$app/environment');
-		return browser;
-	} catch {
-		// Fallback for testing environments
-		return typeof window !== 'undefined';
-	}
-};
-
-const browser = getBrowser();
+// Browser detection - fallback for testing environments
+import { browser } from '$app/environment';
 
 // Auth state using Svelte 5 runes - mirrors the logic state
 export const authState = $state<AuthStore>({

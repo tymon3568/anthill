@@ -57,7 +57,7 @@ describe('handleAuthError', () => {
 		expect(() => {
 			handleAuthError(authError, '/login');
 		}).toThrow();
-		expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=invalid_token&message=Invalid%2520or%2520malformed%2520token');
+			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=invalid_token&message=Invalid%20or%20malformed%20token');
 	});
 
 	it('should handle generic Error instances', () => {
@@ -66,14 +66,14 @@ describe('handleAuthError', () => {
 		expect(() => {
 			handleAuthError(error, '/login');
 		}).toThrow();
-		expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=network_error&message=Network%2520error%2520occurred');
+			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=network_error&message=Network%20error%20occurred');
 	});
 
 	it('should handle unknown errors', () => {
 		expect(() => {
 			handleAuthError('string error', '/login');
 		}).toThrow();
-		expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=unknown_error&message=An%2520unexpected%2520error%2520occurred');
+			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=unknown_error&message=An%20unexpected%20error%20occurred');
 	});
 
 	it('should use default redirect path', () => {

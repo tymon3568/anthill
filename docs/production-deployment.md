@@ -134,11 +134,11 @@ OAUTH2_REDIRECT_URI=https://your-domain.com/api/v1/auth/oauth/callback
 
 ```bash
 # Frontend Environment Variables
-VITE_KANIDM_AUTHORIZE_URL=https://idm.your-domain.com/ui/oauth2
-VITE_KANIDM_TOKEN_URL=https://idm.your-domain.com/oauth2/token
-VITE_KANIDM_CLIENT_ID=anthill
-VITE_OAUTH2_REDIRECT_URI=https://your-domain.com/api/v1/auth/oauth/callback
-VITE_API_BASE_URL=https://your-domain.com/api/v1
+PUBLIC_KANIDM_AUTHORIZE_URL=https://idm.your-domain.com/ui/oauth2
+PUBLIC_KANIDM_TOKEN_URL=https://idm.your-domain.com/oauth2/token
+PUBLIC_KANIDM_CLIENT_ID=anthill
+PUBLIC_OAUTH2_REDIRECT_URI=https://your-domain.com/api/v1/auth/oauth/callback
+PUBLIC_API_BASE_URL=https://your-domain.com/api/v1
 ```
 
 ### Tenant Mapping Setup

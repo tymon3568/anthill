@@ -12,10 +12,22 @@ interface TokenResponse {
 	token_type?: string;
 }
 
+// Validate required environment variables
+function getRequiredEnv(key: string): string {
+	const value = (env as Record<string, string | undefined>)[key];
+	if (!value) {
+		throw createAuthError(
+			AuthErrorCode.KANIDM_UNAVAILABLE,
+			`Missing required environment variable: ${key}`
+		);
+	}
+	return value;
+}
+
 // OAuth2 Configuration from environment variables
-const KANIDM_BASE_URL = (env as any).PUBLIC_KANIDM_ISSUER_URL;
-const CLIENT_ID = (env as any).PUBLIC_KANIDM_CLIENT_ID;
-const REDIRECT_URI = (env as any).PUBLIC_KANIDM_REDIRECT_URI;
+const KANIDM_BASE_URL = getRequiredEnv('PUBLIC_KANIDM_ISSUER_URL');
+const CLIENT_ID = getRequiredEnv('PUBLIC_KANIDM_CLIENT_ID');
+const REDIRECT_URI = getRequiredEnv('PUBLIC_KANIDM_REDIRECT_URI');
 
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	try {

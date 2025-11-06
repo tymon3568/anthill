@@ -400,7 +400,7 @@ test.describe('OAuth2 Authentication Flow', () => {
 			// Auth cookie should be cleared
 			const cookies = await page.context().cookies();
 			const authCookie = cookies.find(c => c.name === 'auth_token');
-			expect(authCookie?.value).toBe('');
+			expect(authCookie).toBeUndefined();
 		} else {
 			// If logout button doesn't exist, this test should be skipped
 			test.skip();
