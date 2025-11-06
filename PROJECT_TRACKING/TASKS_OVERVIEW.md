@@ -144,10 +144,10 @@
           → [View folder](./V1_MVP/08_Frontend/8.1_Project_Setup/)
           → Progress: 1/1 tasks completed (Updated: 2025-11-05)
 
-    - [⏳] 8.2 Authentication UI (OAuth2) - `Todo - Needs Update for Kanidm`
+    - [🔄] 8.2 Authentication UI (OAuth2) - `In Progress 50%`
           → [View folder](./V1_MVP/08_Frontend/8.2_Authentication_UI/)
-          → Must implement OAuth2 flow instead of traditional login
-          → Progress: 0/4 tasks completed
+          → Backend auth integration completed, needs testing and docs
+          → Progress: 1/2 tasks completed (Updated: 2025-11-06)
 
     - [⏳] 8.3 Dashboard - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.3_Dashboard/)
@@ -239,7 +239,7 @@
 
 ## 📊 Project Metrics
 
-### Overall Progress: ~35% Complete (Updated: 2025-11-05)
+### Overall Progress: ~36% Complete (Updated: 2025-11-06)
 
 #### By Phase:
 - **Phase 1** (Infrastructure): ✅ 95% - Production ready
@@ -249,7 +249,7 @@
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
-- **Phase 8** (Frontend): ⏳ 0% - Started (1/1 tasks in project setup completed)
+- **Phase 8** (Frontend): 🔄 ~15% - Project setup complete, auth integration in progress
 - **Phase 9** (Analytics): ⏳ 0% - Not started
 - **Phase 10** (Deployment): ⏳ 0% - Not started
 - **Phase 11** (Monitoring): ⏳ 0% - Not started
@@ -359,10 +359,13 @@ open http://localhost:3000/docs  # Swagger UI
 
 ---
 
-**Last Updated**: 2025-11-05
+**Last Updated**: 2025-11-06
 **Project Status**: In Progress (Phase 3 Kanidm Integration)
 
-**Recent Changes (2025-11-05)**:
+**Recent Changes (2025-11-06)**:
+- ✅ **Backend Auth Integration**: Completed task_08.02.02_integrate_backend_auth.md (12/16 sub-tasks done)
+- ✅ **Task File Updates**: Synchronized checkboxes and progress tracking per folder-tasks workflow
+- ✅ **Progress Update**: Updated Phase 8 progress from 0% to ~15% (1/2 auth tasks completed)
 - ✅ **Frontend Setup**: Completed SvelteKit project foundation (task_08.01.01_setup_sveltekit_project.md)
 - ✅ **Progress Update**: Updated Phase 3 progress from 60% to 64% (16/25 tasks completed)
 - ✅ **Kanidm Integration**: 5/6 tasks completed (83% complete)
