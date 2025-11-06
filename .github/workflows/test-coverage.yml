@@ -4,17 +4,17 @@ on:
   push:
     branches: [master, main, develop]
     paths:
-      - 'services/**/*.rs'
-      - 'services/**/Cargo.toml'
-      - 'shared/**/*.rs'
-      - 'shared/**/Cargo.toml'
-      - '.github/workflows/test-coverage.yml'
+      - "services/**/*.rs"
+      - "services/**/Cargo.toml"
+      - "shared/**/*.rs"
+      - "shared/**/Cargo.toml"
+      - ".github/workflows/test-coverage.yml"
   pull_request:
     paths:
-      - 'services/**/*.rs'
-      - 'services/**/Cargo.toml'
-      - 'shared/**/*.rs'
-      - 'shared/**/Cargo.toml'
+      - "services/**/*.rs"
+      - "services/**/Cargo.toml"
+      - "shared/**/*.rs"
+      - "shared/**/Cargo.toml"
 
 env:
   CARGO_TERM_COLOR: always
@@ -122,10 +122,12 @@ jobs:
           # Grant privileges (idempotent)
           sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;"
 
-      - name: Run Integration Tests
+      - name: Run Integration Tests with Coverage
         run: |
           cd services/user_service/api
-          cargo test --test security -- --ignored --test-threads=1 --nocapture
+          cargo llvm-cov --test security -- --ignored --test-threads=1 --nocapture \
+            --lcov \
+            --output-path ../../../lcov-user.info
         env:
           DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
           JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}

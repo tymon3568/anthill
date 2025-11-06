@@ -4,6 +4,8 @@
 
 > 🐜 Just like an anthill works efficiently and organized, Anthill helps you manage inventory intelligently and automatically.
 
+[![codecov](https://codecov.io/gh/tymon3568/anthill/branch/master/graph/badge.svg)](https://codecov.io/gh/tymon3568/anthill)
+
 ## 🎯 Key Features
 
 - ✅ **Multi-tenant Architecture**: Support multiple tenants on the same infrastructure
