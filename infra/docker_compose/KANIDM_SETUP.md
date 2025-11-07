@@ -71,7 +71,7 @@ docker exec kanidm_idm kanidm system oauth2 show-basic-secret \
 - **Client Secret**: Use `show-basic-secret` command above
 - **Redirect URLs**:
   - `http://localhost:5173/oauth/callback` (Frontend dev)
-  - `http://localhost:3000/oauth/callback` (Backend dev)
+  - `http://localhost:8000/oauth/callback` (Backend dev)
   - `https://app.example.com/oauth/callback` (Production)
 
 ### OAuth2 Endpoints
@@ -191,7 +191,7 @@ Add these to your `.env` or export:
 KANIDM_URL=http://localhost:8300
 KANIDM_OAUTH2_CLIENT_ID=anthill
 KANIDM_OAUTH2_CLIENT_SECRET=<from show-basic-secret command>
-OAUTH2_REDIRECT_URI=http://localhost:3000/oauth/callback
+OAUTH2_REDIRECT_URI=http://localhost:8000/oauth/callback
 OAUTH2_SCOPES=openid,profile,email,groups
 ```
 

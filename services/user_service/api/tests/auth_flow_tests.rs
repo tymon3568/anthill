@@ -14,19 +14,16 @@ use test_database::TestDatabaseConfig;
 use tower::ServiceExt;
 
 /// Test helper to create app router
-async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
-    use std::sync::Arc;
-    use user_service_api::AppState;
-    use user_service_infra::auth::{
-        AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
-    };
+async fn create_test_app(db_pool: PgPool) -> Router {
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .or_else(|_| std::env::var("DATABASE_URL"))
+        .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5433/anthill_test".to_string());
 
-    let user_repo = PgUserRepository::new(pool.clone());
-    let tenant_repo = PgTenantRepository::new(pool.clone());
-    let session_repo = PgSessionRepository::new(pool.clone());
+    let user_repo = PgUserRepository::new(db_pool.clone());
+    let tenant_repo = PgTenantRepository::new(db_pool.clone());
+    let session_repo = PgSessionRepository::new(db_pool.clone());
 
-    let jwt_secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string());
+    let jwt_secret = "test-secret-key-at-least-32-characters-long".to_string();
 
     let auth_service = AuthServiceImpl::new(
         user_repo.clone(),
@@ -37,16 +34,11 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         604800, // 7 days
     );
 
-    let database_url = std::env::var("TEST_DATABASE_URL")
-        .or_else(|_| std::env::var("DATABASE_URL"))
-        .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5433/anthill_test".to_string());
-
-    // Create dev Kanidm client for testing
     let kanidm_config = shared_kanidm_client::KanidmConfig {
         kanidm_url: "http://localhost:8300".to_string(),
         client_id: "dev".to_string(),
         client_secret: "dev".to_string(),
-        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+        redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
         scopes: vec!["openid".to_string()],
         skip_jwt_verification: true, // DEV/TEST MODE ONLY
         allowed_issuers: vec!["http://localhost:8300".to_string()],
@@ -430,7 +422,7 @@ async fn test_jwt_expiration_flow() {
         kanidm_url: "http://localhost:8300".to_string(),
         client_id: "dev".to_string(),
         client_secret: "dev".to_string(),
-        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+        redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
         scopes: vec!["openid".to_string()],
         skip_jwt_verification: true, // DEV/TEST MODE ONLY
         allowed_issuers: vec!["http://localhost:8300".to_string()],

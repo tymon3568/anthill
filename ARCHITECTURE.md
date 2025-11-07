@@ -272,6 +272,19 @@ WHERE kanidm_group_name = 'tenant_acme_users'
 
 ## 🔧 Technology Stack Summary (CapRover Edition)
 
+### Service Port Assignments
+
+All services use standardized ports for consistency across development and production environments:
+
+- **User Service**: Port 8000 (Authentication, User Management, Casbin RBAC)
+- **Inventory Service**: Port 8001 (Product Management, Stock Tracking)
+- **Order Service**: Port 8002 (Order Processing, Fulfillment)
+- **Integration Service**: Port 8003 (Marketplace Integrations, Sync Operations)
+- **Payment Service**: Port 8004 (Payment Processing, Gateway Integration)
+- **Frontend**: Port 5173 (Development) / Port 3000 (Production via CapRover)
+
+**Port Override Mechanism**: Each service can override the default port via `PORT` environment variable for flexibility in different deployment scenarios.
+
 ### Core Application
 - **Backend Language**: Rust (Stable)
 - **Web Framework**: Axum

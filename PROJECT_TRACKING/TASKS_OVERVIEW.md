@@ -338,8 +338,8 @@ export REDIS_URL="redis://localhost:6379"
 cargo run --bin user-service
 
 # 4. Access API
-curl http://localhost:3000/health
-open http://localhost:3000/docs  # Swagger UI
+curl http://localhost:8000/health
+open http://localhost:8000/docs  # Swagger UI
 ```
 
 ### Task Management Workflow

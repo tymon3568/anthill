@@ -237,7 +237,7 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         kanidm_url: "http://localhost:8300".to_string(),
         client_id: "dev".to_string(),
         client_secret: "dev".to_string(),
-        redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+        redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
         scopes: vec!["openid".to_string()],
         skip_jwt_verification: true, // TEST MODE
         allowed_issuers: vec!["http://localhost:8300".to_string()],

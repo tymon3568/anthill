@@ -56,7 +56,7 @@ kanidm system oauth2 add-redirect-url \
   -D admin \
   --skip-hostname-verification \
   anthill \
-  "http://localhost:3000/oauth/callback" || echo "  (may already exist)"
+  "http://localhost:8000/oauth/callback" || echo "  (may already exist)"
 
 kanidm system oauth2 add-redirect-url \
   -H "${KANIDM_URL}" \
@@ -210,7 +210,7 @@ echo ""
 echo "📋 Summary:"
 echo "  - OAuth2 Client: anthill"
 echo "  - Redirect URLs: http://localhost:5173/oauth/callback"
-echo "                   http://localhost:3000/oauth/callback"
+echo "                   http://localhost:8000/oauth/callback"
 echo "  - PKCE: Enabled"
 echo "  - Groups Created:"
 echo "    * tenant_acme_users (alice, bob)"

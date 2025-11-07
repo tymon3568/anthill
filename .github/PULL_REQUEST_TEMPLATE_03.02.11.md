@@ -78,13 +78,13 @@ cargo check --workspace  # ✅ PASSED
 
 ```bash
 # 1. Login as admin
-TOKEN=$(curl -X POST http://localhost:3000/api/v1/auth/login \
+TOKEN=$(curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"password"}' \
   | jq -r '.access_token')
 
 # 2. Create custom role
-curl -X POST http://localhost:3000/api/v1/admin/roles \
+curl -X POST http://localhost:8000/api/v1/admin/roles \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -97,11 +97,11 @@ curl -X POST http://localhost:3000/api/v1/admin/roles \
   }'
 
 # 3. List all roles
-curl http://localhost:3000/api/v1/admin/roles \
+curl http://localhost:8000/api/v1/admin/roles \
   -H "Authorization: Bearer $TOKEN"
 
 # 4. Assign role to user
-curl -X POST http://localhost:3000/api/v1/admin/users/{user_id}/roles/assign \
+curl -X POST http://localhost:8000/api/v1/admin/users/{user_id}/roles/assign \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"role_name": "inventory_manager"}'

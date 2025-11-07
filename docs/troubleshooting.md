@@ -719,7 +719,7 @@ curl http://localhost:8000/metrics
 curl "http://localhost:9090/api/v1/query?query=up"
 
 # Check Grafana
-curl http://localhost:3000/api/health
+curl http://localhost:8000/api/health
 ```
 
 ### CapRover

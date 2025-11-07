@@ -277,7 +277,7 @@ async def main():
 
         # Add redirect URLs
         await client.oauth2_add_redirect_url("anthill", "http://localhost:5173/oauth/callback")
-        await client.oauth2_add_redirect_url("anthill", "http://localhost:3000/oauth/callback")
+        await client.oauth2_add_redirect_url("anthill", "http://localhost:8000/oauth/callback")
         await client.oauth2_add_redirect_url("anthill", "https://app.example.com/oauth/callback")
 
         # Enable PKCE
@@ -331,7 +331,7 @@ async def main():
             print(f"  - Client Secret: {secret}")
         print("  - Redirect URLs:")
         print("    * http://localhost:5173/oauth/callback")
-        print("    * http://localhost:3000/oauth/callback")
+        print("    * http://localhost:8000/oauth/callback")
         print("    * https://app.example.com/oauth/callback")
         print("  - PKCE: Enabled")
         print("  - Groups:")

@@ -5,7 +5,7 @@
 
 set -e
 
-BASE_URL="http://localhost:3000"
+BASE_URL="http://localhost:8000"
 API_V1="$BASE_URL/api/v1"
 
 # Colors for output

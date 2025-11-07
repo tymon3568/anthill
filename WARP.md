@@ -152,8 +152,8 @@ cargo run --bin user-service
 cargo build --bin user-service --features export-spec
 
 # Access API
-curl http://localhost:3000/health
-open http://localhost:3000/docs    # Swagger UI
+curl http://localhost:8000/health
+open http://localhost:8000/docs    # Swagger UI
 ```
 
 ### **Development Commands**
@@ -244,7 +244,7 @@ cargo build --workspace --release
 
 - **GitHub**: https://github.com/tymon3568/anthill
 - **Clean Axum Demo** (reference): https://github.com/sukjaelee/clean_axum_demo
-- **Swagger UI** (local): http://localhost:3000/docs
+- **Swagger UI** (local): http://localhost:8000/docs
 
 ## 📚 Additional Documentation
 

@@ -254,7 +254,7 @@ docker-compose exec kanidm kanidm group create tenant_acme_admins
 docker-compose exec kanidm kanidm group create tenant_globex_users
 
 # 3. Create tenant-group mappings via API
-curl -X POST http://localhost:3000/api/v1/admin/tenant-groups \
+curl -X POST http://localhost:8000/api/v1/admin/tenant-groups \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

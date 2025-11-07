@@ -147,7 +147,7 @@ export const authApi = {
 		formData.append('image', file);
 
 		// Get API base URL from environment
-		const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
+		const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 		// Custom request for file upload
 		const response = await fetch(`${API_BASE_URL}/auth/profile/image`, {

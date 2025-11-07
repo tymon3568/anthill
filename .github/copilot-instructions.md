@@ -176,7 +176,7 @@ async fn protected(perm: RequirePermission) -> String { ... }
 # Check entire workspace
 cargo check --workspace
 
-# Run user service (port 3000)
+# Run user service (port 8000)
 cargo run --bin user-service
 
 # With auto-reload

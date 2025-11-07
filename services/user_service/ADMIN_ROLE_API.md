@@ -348,7 +348,7 @@ Authorization: Bearer <admin_token>
 ### Creating a Sales Staff Role
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/admin/roles \
+curl -X POST http://localhost:8000/api/v1/admin/roles \
   -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -366,7 +366,7 @@ curl -X POST http://localhost:3000/api/v1/admin/roles \
 ### Assigning Role to User
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/admin/users/${USER_ID}/roles/assign \
+curl -X POST http://localhost:8000/api/v1/admin/users/${USER_ID}/roles/assign \
   -H "Authorization: Bearer ${ADMIN_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -378,11 +378,11 @@ curl -X POST http://localhost:3000/api/v1/admin/users/${USER_ID}/roles/assign \
 
 ```bash
 # First get user's roles
-curl http://localhost:3000/api/v1/admin/users/${USER_ID}/roles \
+curl http://localhost:8000/api/v1/admin/users/${USER_ID}/roles \
   -H "Authorization: Bearer ${ADMIN_TOKEN}"
 
 # Then check each role's permissions
-curl http://localhost:3000/api/v1/admin/roles \
+curl http://localhost:8000/api/v1/admin/roles \
   -H "Authorization: Bearer ${ADMIN_TOKEN}"
 ```
 
@@ -445,8 +445,8 @@ Uses existing Casbin tables:
 ## OpenAPI Documentation
 
 Full OpenAPI/Swagger documentation available at:
-- **Swagger UI**: `http://localhost:3000/docs`
-- **OpenAPI JSON**: `http://localhost:3000/api-docs/openapi.json`
+- **Swagger UI**: `http://localhost:8000/docs`
+- **OpenAPI JSON**: `http://localhost:8000/api-docs/openapi.json`
 - **OpenAPI YAML**: `shared/openapi/user.yaml`
 
 Tags:
@@ -462,17 +462,17 @@ Example test flow:
 
 ```bash
 # 1. Login as admin
-TOKEN=$(curl -X POST http://localhost:3000/api/v1/auth/login \
+TOKEN=$(curl -X POST http://localhost:8000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"password"}' \
   | jq -r '.access_token')
 
 # 2. List available permissions
-curl http://localhost:3000/api/v1/admin/permissions \
+curl http://localhost:8000/api/v1/admin/permissions \
   -H "Authorization: Bearer $TOKEN"
 
 # 3. Create a custom role
-curl -X POST http://localhost:3000/api/v1/admin/roles \
+curl -X POST http://localhost:8000/api/v1/admin/roles \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -485,18 +485,18 @@ curl -X POST http://localhost:3000/api/v1/admin/roles \
   }'
 
 # 4. List all roles
-curl http://localhost:3000/api/v1/admin/roles \
+curl http://localhost:8000/api/v1/admin/roles \
   -H "Authorization: Bearer $TOKEN"
 
 # 5. Assign role to user
 USER_ID="01939f4c-1234-7890-abcd-ef1234567890"
-curl -X POST http://localhost:3000/api/v1/admin/users/$USER_ID/roles/assign \
+curl -X POST http://localhost:8000/api/v1/admin/users/$USER_ID/roles/assign \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"role_name": "warehouse_manager"}'
 
 # 6. Get user's roles
-curl http://localhost:3000/api/v1/admin/users/$USER_ID/roles \
+curl http://localhost:8000/api/v1/admin/users/$USER_ID/roles \
   -H "Authorization: Bearer $TOKEN"
 ```
 

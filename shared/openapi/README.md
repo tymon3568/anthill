@@ -48,7 +48,7 @@ On every push to `services/**`, GitHub Actions will:
 
 Each service exposes Swagger UI during development:
 
-- User Service: http://localhost:3000/docs
+- User Service: http://localhost:8000/docs
 - Inventory Service: http://localhost:3001/docs
 - Order Service: http://localhost:3002/docs
 - Integration Service: http://localhost:3003/docs

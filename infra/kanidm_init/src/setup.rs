@@ -31,7 +31,7 @@ impl KanidmSetup {
             .await?;
 
         self.client
-            .add_redirect_url("anthill", "http://localhost:3000/oauth/callback")
+            .add_redirect_url("anthill", "http://localhost:8000/oauth/callback")
             .await?;
 
         self.client
@@ -136,7 +136,7 @@ impl KanidmSetup {
         info!("  - OAuth2 Client: anthill");
         info!("  - Redirect URLs:");
         info!("    * http://localhost:5173/oauth/callback");
-        info!("    * http://localhost:3000/oauth/callback");
+        info!("    * http://localhost:8000/oauth/callback");
         info!("    * https://app.example.com/oauth/callback");
         info!("  - PKCE: Enabled");
         info!("  - Scope Map: anthill_users -> [email, openid, profile, groups]");

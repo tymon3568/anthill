@@ -8,6 +8,7 @@ use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use user_service_api::{
@@ -107,7 +108,7 @@ async fn main() {
                 kanidm_url: "http://localhost:8300".to_string(),
                 client_id: "dev".to_string(),
                 client_secret: "dev".to_string(),
-                redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+                redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
                 scopes: vec!["openid".to_string()],
                 skip_jwt_verification: true, // DEV MODE ONLY
                 allowed_issuers: vec!["http://localhost:8300".to_string()],
@@ -293,6 +294,17 @@ async fn main() {
         .merge(api_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
         .with_state(combined_state)
+        // CORS configuration
+        .layer(CorsLayer::new()
+            .allow_origin(if let Some(frontend_url) = &config.frontend_url {
+                frontend_url.parse::<axum::http::HeaderValue>()
+                    .map_or(Any, |origin| origin.into())
+            } else {
+                Any // Allow all origins if no frontend_url configured
+            })
+            .allow_methods(Any)
+            .allow_headers(Any)
+        )
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(
             header::STRICT_TRANSPORT_SECURITY,

@@ -130,7 +130,7 @@ export KANIDM_URL="https://idm.example.com"
 export KANIDM_OAUTH2_CLIENT_ID="anthill"
 export KANIDM_OAUTH2_CLIENT_SECRET="your-client-secret"
 export HOST="0.0.0.0"
-export PORT=3000
+export PORT=8000
 
 # 2. Run migrations (TODO)
 # sqlx migrate run
@@ -139,8 +139,8 @@ export PORT=3000
 cargo run --bin user-service
 
 # 4. Access API
-curl http://localhost:3000/health
-open http://localhost:3000/docs  # Swagger UI
+curl http://localhost:8000/health
+open http://localhost:8000/docs  # Swagger UI
 
 # 5. OAuth2 login flow
 # Redirect to: https://idm.example.com/ui/oauth2?client_id=anthill&...
