@@ -20,6 +20,7 @@ export enum AuthErrorCode {
 	INVALID_TOKEN = 'invalid_token',
 	TOKEN_EXPIRED = 'token_expired',
 	REFRESH_FAILED = 'refresh_failed',
+	KANIDM_UNAVAILABLE = 'kanidm_unavailable',
 
 	// Permission errors
 	UNAUTHORIZED = 'unauthorized',
@@ -95,6 +96,7 @@ export function createAuthError(code: AuthErrorCode, message?: string): AuthErro
 		[AuthErrorCode.INVALID_TOKEN]: 'Invalid or malformed token',
 		[AuthErrorCode.TOKEN_EXPIRED]: 'Token has expired',
 		[AuthErrorCode.REFRESH_FAILED]: 'Failed to refresh access token',
+		[AuthErrorCode.KANIDM_UNAVAILABLE]: 'Kanidm service is unavailable',
 		[AuthErrorCode.UNAUTHORIZED]: 'Authentication required',
 		[AuthErrorCode.FORBIDDEN]: 'Access forbidden',
 		[AuthErrorCode.INSUFFICIENT_PERMISSIONS]: 'Insufficient permissions',
@@ -120,6 +122,7 @@ export function createAuthError(code: AuthErrorCode, message?: string): AuthErro
 		[AuthErrorCode.INVALID_TOKEN]: 401,
 		[AuthErrorCode.TOKEN_EXPIRED]: 401,
 		[AuthErrorCode.REFRESH_FAILED]: 502,
+		[AuthErrorCode.KANIDM_UNAVAILABLE]: 503,
 		[AuthErrorCode.UNAUTHORIZED]: 401,
 		[AuthErrorCode.FORBIDDEN]: 403,
 		[AuthErrorCode.INSUFFICIENT_PERMISSIONS]: 403,

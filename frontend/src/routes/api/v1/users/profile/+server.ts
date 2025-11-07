@@ -7,11 +7,19 @@ import type { Cookies } from '@sveltejs/kit';
 interface UserProfile {
 	id: string;
 	email: string;
-	full_name?: string;
+	username: string;
+	display_name?: string;
 	tenant_id: string;
-	role: string;
-	avatar_url?: string;
+	roles: string[];
+	permissions: string[];
+	created_at: string;
+	updated_at: string;
+	// Extended profile fields from backend spec
+	full_name?: string;
 	phone?: string;
+	avatar_url?: string;
+	role?: string;
+	email_verified?: boolean;
 	bio?: string;
 	title?: string;
 	department?: string;
@@ -33,21 +41,31 @@ interface UserProfile {
 	show_phone?: boolean;
 	completeness_score?: number;
 	verified?: boolean;
-	verification_badge?: string;
+	verification_badge?: string | null;
 	custom_fields?: Record<string, any>;
-	created_at: string;
-	updated_at: string;
 }
 
 // Mock user profile data - in production this would come from database
 const mockUserProfile: UserProfile = {
 	id: 'user-123',
 	email: 'user@example.com',
-	full_name: 'John Doe',
+	username: 'johndoe',
+	display_name: 'John Doe',
 	tenant_id: 'tenant-456',
-	role: 'user',
+	roles: ['user'],
+	permissions: [
+		'read:products',
+		'write:products',
+		'read:orders'
+	],
+	created_at: '2025-01-01T00:00:00Z',
+	updated_at: '2025-01-01T00:00:00Z',
+	// Extended profile fields
+	full_name: 'John Doe',
 	avatar_url: 'https://example.com/avatar.jpg',
 	phone: '+1234567890',
+	role: 'user',
+	email_verified: true,
 	bio: 'Software engineer passionate about building great products',
 	title: 'Senior Developer',
 	department: 'Engineering',
@@ -78,10 +96,8 @@ const mockUserProfile: UserProfile = {
 	show_phone: false,
 	completeness_score: 85,
 	verified: false,
-	verification_badge: undefined,
-	custom_fields: {},
-	created_at: '2025-01-01T00:00:00Z',
-	updated_at: '2025-01-01T00:00:00Z'
+	verification_badge: null,
+	custom_fields: {}
 };
 
 // GET /api/v1/users/profile - Get current user profile (matches backend API spec)
@@ -105,9 +121,13 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			...mockUserProfile,
 			id: userInfo.userId,
 			email: userInfo.email,
-			full_name: userInfo.name,
-			tenant_id: userInfo.tenantId || 'default-tenant',
-			// Keep other mock data for now
+			username: userInfo.email.split('@')[0], // Generate username from email
+			display_name: userInfo.name ?? mockUserProfile.display_name,
+			full_name: userInfo.name ?? mockUserProfile.full_name,
+			tenant_id: userInfo.tenantId || mockUserProfile.tenant_id,
+			roles: userInfo.groups?.length ? userInfo.groups : mockUserProfile.roles,
+			// Keep permissions from mock data for now
+			permissions: mockUserProfile.permissions
 		};
 
 		return json(profile);
@@ -147,7 +167,7 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 
 		// Validate update data (basic validation)
 		const allowedFields = [
-			'full_name', 'phone', 'bio', 'title', 'department', 'location',
+			'username', 'display_name', 'full_name', 'phone', 'bio', 'title', 'department', 'location',
 			'website_url', 'social_links', 'language', 'timezone', 'date_format', 'time_format',
 			'notification_preferences', 'profile_visibility', 'show_email', 'show_phone', 'custom_fields'
 		];
@@ -166,6 +186,12 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 			...filteredData,
 			id: userInfo.userId,
 			email: userInfo.email,
+			username: filteredData.username ?? userInfo.email.split('@')[0],
+			display_name: filteredData.display_name ?? userInfo.name ?? mockUserProfile.display_name,
+			full_name: filteredData.full_name ?? userInfo.name ?? mockUserProfile.full_name,
+			tenant_id: userInfo.tenantId || mockUserProfile.tenant_id,
+			roles: userInfo.groups?.length ? userInfo.groups : mockUserProfile.roles,
+			permissions: mockUserProfile.permissions,
 			updated_at: new Date().toISOString()
 		};
 

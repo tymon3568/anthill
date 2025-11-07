@@ -80,7 +80,10 @@ export const authApi = {
 		// This will redirect to Kanidm OAuth2 authorize endpoint
 		// The actual implementation is in the server endpoint
 		window.location.href = '/api/v1/auth/oauth/authorize';
-		throw new Error('Redirecting to OAuth2 provider');
+		// Return a promise that never resolves since navigation is in progress
+		return new Promise<never>(() => {
+			// Intentionally left unresolved; navigation is in progress.
+		});
 	},
 
 	async handleOAuth2Callback(code: string, state: string): Promise<ApiResponse<OAuth2Tokens>> {
@@ -119,6 +122,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<UserProfile>('/users/profile');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.PROFILE_FETCH_FAILED, 'Failed to fetch user profile');
 		}
 	},
@@ -127,6 +134,10 @@ export const authApi = {
 		try {
 			return await apiClient.put<UserProfile>('/users/profile', userData);
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.PROFILE_UPDATE_FAILED, 'Failed to update user profile');
 		}
 	},
@@ -165,6 +176,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<UserPreferences>('/users/preferences');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.PREFERENCES_FETCH_FAILED, 'Failed to fetch user preferences');
 		}
 	},
@@ -173,6 +188,10 @@ export const authApi = {
 		try {
 			return await apiClient.put<UserPreferences>('/users/preferences', preferences);
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.PREFERENCES_UPDATE_FAILED, 'Failed to update user preferences');
 		}
 	},
@@ -182,6 +201,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<{ allowed: boolean }>(`/users/permissions/check?resource=${resource}&action=${action}`);
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.PERMISSION_CHECK_FAILED, 'Failed to check user permissions');
 		}
 	},
@@ -190,6 +213,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<{ roles: string[]; permissions: string[] }>('/users/permissions');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.PERMISSION_CHECK_FAILED, 'Failed to fetch user permissions');
 		}
 	},
@@ -198,6 +225,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<{ roles: string[]; groups: string[] }>('/users/roles');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.ROLES_FETCH_FAILED, 'Failed to fetch user roles');
 		}
 	},
@@ -207,6 +238,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<{ valid: boolean; user?: UserProfile }>('/users/session/validate');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.SESSION_VALIDATION_FAILED, 'Failed to validate session');
 		}
 	},
@@ -215,6 +250,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<{ user: UserProfile; expires_at: string }>('/users/session');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.SESSION_VALIDATION_FAILED, 'Failed to get session info');
 		}
 	},
@@ -227,6 +266,10 @@ export const authApi = {
 		try {
 			return await apiClient.delete<void>('/users/sessions');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.SESSION_TERMINATION_FAILED, 'Failed to end all sessions');
 		}
 	},
@@ -235,6 +278,10 @@ export const authApi = {
 		try {
 			return await apiClient.get<{ sessions: Array<{ id: string; created_at: string; last_activity: string; user_agent?: string }> }>('/users/sessions');
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.SESSION_VALIDATION_FAILED, 'Failed to get active sessions');
 		}
 	},
@@ -243,6 +290,10 @@ export const authApi = {
 		try {
 			return await apiClient.delete<void>(`/users/sessions/${sessionId}`);
 		} catch (error) {
+			// Re-throw existing AuthError instances to preserve error codes
+			if (error instanceof AuthError) {
+				throw error;
+			}
 			throw createAuthError(AuthErrorCode.SESSION_TERMINATION_FAILED, 'Failed to terminate session');
 		}
 	}
