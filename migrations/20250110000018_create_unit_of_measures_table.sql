@@ -18,15 +18,13 @@ CREATE TABLE unit_of_measures (
 
     -- Unit of measure details
     name VARCHAR(255) NOT NULL,  -- Display name (e.g., "Piece", "Kilogram", "Liter")
-    uom_type VARCHAR(50) NOT NULL DEFAULT 'reference'
-        CHECK (uom_type IN ('reference', 'smaller', 'bigger')),
+    uom_type VARCHAR(50) NOT NULL DEFAULT 'reference',
         -- reference: base unit (e.g., "Piece")
         -- smaller: subunit (e.g., "Box" contains multiple "Piece")
         -- bigger: larger unit (e.g., "Pallet" contains multiple "Box")
 
     -- Unit classification
-    category VARCHAR(50) NOT NULL DEFAULT 'count'
-        CHECK (category IN ('count', 'weight', 'volume', 'length', 'area', 'time')),
+    category VARCHAR(50) NOT NULL DEFAULT 'count',
         -- count: discrete items (pieces, boxes)
         -- weight: mass-based (kg, gram, pound)
         -- volume: liquid/solid volume (liter, cubic meter)
@@ -35,8 +33,7 @@ CREATE TABLE unit_of_measures (
         -- time: time-based (hour, day)
 
     -- Precision for decimal calculations
-    rounding_precision INTEGER NOT NULL DEFAULT 2
-        CHECK (rounding_precision >= 0 AND rounding_precision <= 6),
+    rounding_precision INTEGER NOT NULL DEFAULT 2,
 
     -- Unit lifecycle
     is_active BOOLEAN NOT NULL DEFAULT true,
@@ -49,8 +46,12 @@ CREATE TABLE unit_of_measures (
     -- Constraints
     CONSTRAINT unit_of_measures_name_unique_per_tenant
         UNIQUE (tenant_id, name) DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT unit_of_measures_positive_precision
-        CHECK (rounding_precision >= 0)
+    CONSTRAINT unit_of_measures_uom_type_check
+        CHECK (uom_type IN ('reference', 'smaller', 'bigger')),
+    CONSTRAINT unit_of_measures_category_check
+        CHECK (category IN ('count', 'weight', 'volume', 'length', 'area', 'time')),
+    CONSTRAINT unit_of_measures_rounding_precision_check
+        CHECK (rounding_precision >= 0 AND rounding_precision <= 6)
 );
 
 -- ==================================
