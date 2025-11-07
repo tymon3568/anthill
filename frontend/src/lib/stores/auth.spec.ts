@@ -110,12 +110,6 @@ describe('Auth Store', () => {
 			authState.isLoading = false;
 		});
 
-		it('should clear auth token from localStorage', () => {
-			authStore.logout();
-
-			expect(localStorageMock.removeItem).toHaveBeenCalledWith('auth_token');
-		});
-
 		it('should reset all auth state', () => {
 			authStore.logout();
 

@@ -44,7 +44,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			throw error(401, JSON.stringify(createAuthError(AuthErrorCode.INVALID_TOKEN)));
 		}
 
-		// In production, fetch user profile from database using userInfo.sub
+		// In production, fetch user profile from database using userInfo.userId
 		// For now, return mock data with user info from token
 		const profile: UserProfile = {
 			...mockUserProfile,
@@ -63,6 +63,11 @@ export const GET: RequestHandler = async ({ cookies }) => {
 
 	} catch (err) {
 		console.error('Get profile error:', err);
+
+		// If it's already a SvelteKit error, re-throw it to preserve status code
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 
 		const authError = err instanceof Error && 'code' in err
 			? err as any
@@ -91,7 +96,7 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 
 		// Validate update data (basic validation)
 		const allowedFields = ['display_name', 'username'];
-		const filteredData: Partial<UserProfile> = {};
+		const filteredData: Record<string, any> = {};
 
 		for (const field of allowedFields) {
 			if (updateData[field] !== undefined) {
@@ -104,7 +109,7 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 		const updatedProfile: UserProfile = {
 			...mockUserProfile,
 			...filteredData,
-			id: userInfo.sub,
+			id: userInfo.userId,
 			email: userInfo.email,
 			updated_at: new Date().toISOString()
 		};
@@ -116,6 +121,11 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 
 	} catch (err) {
 		console.error('Update profile error:', err);
+
+		// If it's already a SvelteKit error, re-throw it to preserve status code
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 
 		const authError = err instanceof Error && 'code' in err
 			? err as any

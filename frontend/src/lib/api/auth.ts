@@ -86,7 +86,8 @@ export const authApi = {
 	async handleOAuth2Callback(code: string, state: string): Promise<ApiResponse<OAuth2Tokens>> {
 		// This is handled by the server endpoint, but we can provide a client method
 		// for programmatic access if needed
-		return apiClient.get<OAuth2Tokens>(`/auth/oauth/callback?code=${code}&state=${state}`);
+		const params = new URLSearchParams({ code, state });
+		return apiClient.get<OAuth2Tokens>(`/auth/oauth/callback?${params.toString()}`);
 	},
 
 	async refreshToken(): Promise<ApiResponse<OAuth2Tokens>> {

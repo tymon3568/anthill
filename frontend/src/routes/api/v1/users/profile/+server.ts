@@ -115,6 +115,11 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	} catch (err) {
 		console.error('Get profile error:', err);
 
+		// If it's already a SvelteKit error, re-throw it to preserve status code
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
+
 		const authError = err instanceof Error && 'code' in err
 			? err as any
 			: createAuthError(AuthErrorCode.PROFILE_FETCH_FAILED);
@@ -168,6 +173,11 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 
 	} catch (err) {
 		console.error('Update profile error:', err);
+
+		// If it's already a SvelteKit error, re-throw it to preserve status code
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
+		}
 
 		const authError = err instanceof Error && 'code' in err
 			? err as any
