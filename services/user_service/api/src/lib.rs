@@ -4,6 +4,7 @@ pub mod extractors;
 pub mod handlers;
 pub mod oauth_handlers;
 pub mod openapi;
+pub mod permission_handlers;
 pub mod profile_handlers;
 
 // Re-export commonly used types for tests

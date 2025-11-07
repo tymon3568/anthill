@@ -10,7 +10,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
-use user_service_api::{admin_handlers, handlers, profile_handlers, AppState, ProfileAppState};
+use user_service_api::{
+    admin_handlers, handlers, permission_handlers, profile_handlers, AppState, ProfileAppState,
+};
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserProfileRepository,
     PgUserRepository, ProfileServiceImpl,
@@ -208,6 +210,11 @@ async fn main() {
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
         .route("/api/v1/users/{user_id}", get(handlers::get_user))
+        // Permission checking routes
+        .route("/api/v1/users/permissions/check", get(permission_handlers::check_permission::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/permissions", get(permission_handlers::get_user_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/roles", get(permission_handlers::get_user_roles::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/tenant/validate", get(permission_handlers::validate_tenant_access::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
