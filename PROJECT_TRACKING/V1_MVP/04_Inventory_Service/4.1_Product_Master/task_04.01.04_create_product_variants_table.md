@@ -36,21 +36,30 @@ Create the `product_variants` table to support products that have variations, su
 
 ## AI Agent Log:
 ---
-*   2025-10-29 12:00: Task claimed by Claude
-    - Verified dependencies: task_04.01.01_create_products_table.md (Done) ✓
-    - Starting work on sub-task 1: Create SQL migration file
+* 2025-10-29 12:00: Task claimed by Claude
+  - Verified dependencies: task_04.01.01_create_products_table.md (Done) ✓
+  - Starting work on sub-task 1: Create SQL migration file
 
-*   2025-10-29 12:05: Completed all sub-tasks by Claude
-    - Created migration file: 20250110000020_create_product_variants_table.sql
-    - Defined all required columns: variant_id, parent_product_id, tenant_id, variant_attributes, sku, barcode, price_difference
-    - Added foreign key constraints to products and tenants tables
-    - Added unique constraint for sku per tenant
-    - Added comprehensive indexes and constraints
-    - Files: migrations/20250110000020_create_product_variants_table.sql
-    - Status: Migration file created successfully ✓
+* 2025-10-29 12:05: Completed all sub-tasks by Claude
+  - Created migration file: 20250110000020_create_product_variants_table.sql
+  - Defined all required columns: variant_id, parent_product_id, tenant_id, variant_attributes, sku, barcode, price_difference
+  - Added foreign key constraints to products and tenants tables
+  - Added unique constraint for sku per tenant
+  - Added comprehensive indexes and constraints
+  - Files: migrations/20250110000020_create_product_variants_table.sql
+  - Status: Migration file created successfully ✓
 
-*   2025-10-29 12:10: All acceptance criteria met by Claude
-    - Migration syntax validated via cargo check (sqlx compile-time validation)
-    - All sub-tasks completed successfully
-    - Ready for review and testing
-    - Status: NeedsReview
+* 2025-10-29 12:10: All acceptance criteria met by Claude
+  - Migration syntax validated via cargo check (sqlx compile-time validation)
+  - All sub-tasks completed successfully
+  - Ready for review and testing
+  - Status: NeedsReview
+
+* 2025-10-29 12:15: Addressed review feedback by Claude
+  - Fixed type inconsistency: Changed price_difference from DECIMAL(20,6) to BIGINT to match products table convention (cents/xu)
+  - Updated comment for price_difference to reflect BIGINT type
+  - Improved index design: Changed idx_product_variants_tenant_active to (tenant_id, is_active) for better query performance
+  - Added unique constraint on (tenant_id, parent_product_id, variant_attributes) to prevent duplicate variants
+  - Fixed markdown indentation in AI Agent Log to comply with MD007 rule
+  - Files modified: migrations/20250110000020_create_product_variants_table.sql, task_04.01.04_create_product_variants_table.md
+  - Status: Review feedback addressed, ready for final review

@@ -26,8 +26,8 @@ CREATE TABLE product_variants (
     sku TEXT NOT NULL,
     barcode TEXT,  -- Optional barcode
 
-    -- Pricing (difference from parent product price)
-    price_difference DECIMAL(20,6) NOT NULL DEFAULT 0.0,
+    -- Pricing (difference from parent product price in cents/xu)
+    price_difference BIGINT NOT NULL DEFAULT 0,
 
     -- Variant lifecycle
     is_active BOOLEAN NOT NULL DEFAULT true,
@@ -40,6 +40,8 @@ CREATE TABLE product_variants (
     -- Constraints
     CONSTRAINT product_variants_unique_sku_per_tenant
         UNIQUE (tenant_id, sku),
+    CONSTRAINT product_variants_unique_variant_per_product
+        UNIQUE (tenant_id, parent_product_id, variant_attributes),
     CONSTRAINT product_variants_positive_price_difference
         CHECK (price_difference >= 0),
     CONSTRAINT product_variants_valid_attributes
@@ -62,8 +64,8 @@ CREATE INDEX idx_product_variants_tenant_sku
 
 -- Query optimization indexes
 CREATE INDEX idx_product_variants_tenant_active
-    ON product_variants(tenant_id, variant_id)
-    WHERE deleted_at IS NULL AND is_active = true;
+    ON product_variants(tenant_id, is_active)
+    WHERE deleted_at IS NULL;
 
 -- ==================================
 -- TRIGGERS
@@ -92,7 +94,7 @@ COMMENT ON COLUMN product_variants.parent_product_id IS 'Reference to parent pro
 COMMENT ON COLUMN product_variants.variant_attributes IS 'JSONB object with variant attributes (e.g., color, size)';
 COMMENT ON COLUMN product_variants.sku IS 'Stock Keeping Unit - unique per tenant';
 COMMENT ON COLUMN product_variants.barcode IS 'Optional barcode for scanning';
-COMMENT ON COLUMN product_variants.price_difference IS 'Price adjustment from parent product (always >= 0)';
+COMMENT ON COLUMN product_variants.price_difference IS 'Price adjustment from parent product in smallest currency unit (cents/xu, always >= 0)';
 COMMENT ON COLUMN product_variants.is_active IS 'Whether this variant is available for sale';
 
 -- ==================================
