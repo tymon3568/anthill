@@ -14,6 +14,7 @@ on:
       - "frontend/playwright.config.ts"
       - ".github/workflows/test-coverage.yml"
   pull_request:
+    branches: [main]
     paths:
       - "services/**/*.rs"
       - "services/**/Cargo.toml"
@@ -23,6 +24,11 @@ on:
       - "frontend/package.json"
       - "frontend/vite.config.ts"
       - "frontend/playwright.config.ts"
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -80,11 +86,11 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ./lcov.info
           flags: unittests
           name: rust-coverage
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
 
       - name: Upload coverage report artifact
@@ -143,12 +149,11 @@ jobs:
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ./lcov-user.info
           flags: user-service
           name: user-service-coverage
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   coverage-inventory-service:
     name: Coverage - Inventory Service
@@ -180,10 +185,11 @@ jobs:
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ./lcov-inventory.info
           flags: inventory-service
           name: inventory-service-coverage
+          fail_ci_if_error: false
 
   coverage-frontend:
     name: Coverage - Frontend
@@ -220,15 +226,22 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ./frontend/coverage/lcov.info
           flags: frontend
           name: frontend-coverage
+          fail_ci_if_error: false
 
   # Summary job
   coverage-summary:
     name: Coverage Summary
-    needs: [coverage, coverage-user-service, coverage-inventory-service, coverage-frontend]
+    needs:
+      [
+        coverage,
+        coverage-user-service,
+        coverage-inventory-service,
+        coverage-frontend,
+      ]
     runs-on: ubuntu-latest
     if: always()
 
