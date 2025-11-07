@@ -50,6 +50,7 @@ Create the `uom_conversions` table to manage conversion factors between differen
     - Files: migrations/20250110000019_create_uom_conversions_table.sql
     - Status: Migration file created successfully ✓
 
+
 *   2025-10-29 11:10: Completed sub-tasks 2-3 by Claude
     - All specified columns defined with proper data types and constraints
     - Foreign key constraints added for tenant_id, product_id, from_uom_id, to_uom_id
