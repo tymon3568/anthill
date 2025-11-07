@@ -15,14 +15,14 @@ CREATE TABLE uom_conversions (
     conversion_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
 
     -- Multi-tenancy: All queries must filter by tenant_id
-    tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
+    tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
 
     -- Product-specific conversion
-    product_id UUID NOT NULL REFERENCES products(product_id),
+    product_id UUID NOT NULL REFERENCES products(product_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
 
     -- Unit conversion relationship
-    from_uom_id UUID NOT NULL REFERENCES unit_of_measures(uom_id),
-    to_uom_id UUID NOT NULL REFERENCES unit_of_measures(uom_id),
+    from_uom_id UUID NOT NULL REFERENCES unit_of_measures(uom_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+    to_uom_id UUID NOT NULL REFERENCES unit_of_measures(uom_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
 
     -- Conversion factor (e.g., 1 Box = 12 Pieces → factor = 12)
     conversion_factor DECIMAL(20,6) NOT NULL
@@ -40,9 +40,7 @@ CREATE TABLE uom_conversions (
     CONSTRAINT uom_conversions_different_uoms
         CHECK (from_uom_id != to_uom_id),
     CONSTRAINT uom_conversions_unique_per_product_uom_pair
-        UNIQUE (tenant_id, product_id, from_uom_id, to_uom_id) DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT uom_conversions_positive_factor
-        CHECK (conversion_factor > 0)
+        UNIQUE (tenant_id, product_id, from_uom_id, to_uom_id) DEFERRABLE INITIALLY DEFERRED
 );
 
 -- ==================================
