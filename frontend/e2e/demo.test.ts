@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-test('home page has expected h1', async ({ page }) => {
+test('home page redirects appropriately', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.locator('h1')).toBeVisible();
+
+	// Home page should redirect to login (since no auth in E2E)
+	await page.waitForURL('/login');
+	expect(page.url()).toContain('/login');
 });

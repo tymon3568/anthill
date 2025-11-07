@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { authState } from '$lib/stores/auth.svelte';
 	import { inventoryState, inventoryStore } from '$lib/stores/inventory.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
@@ -7,6 +9,11 @@
 	// Load initial data
 	import { onMount } from 'svelte';
 	import { inventoryApi } from '$lib/api/inventory';
+
+	// Client-side auth check
+	$: if (!authState.isLoading && !authState.isAuthenticated) {
+		goto('/login');
+	}
 
 	onMount(async () => {
 		inventoryStore.setLoading(true);

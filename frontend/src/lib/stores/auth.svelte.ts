@@ -54,11 +54,15 @@ export const authStore = {
 
 		authStore.setLoading(true);
 		try {
-			// Token validation happens server-side in hooks.server.ts
-			// Client gets user info from server-side locals
-			// This initialization is not needed for httpOnly cookie flow
+			// For httpOnly cookie flow, we can't read tokens client-side
+			// The authentication status is determined by server responses
+			// For now, assume not authenticated until proven otherwise
+			authStore.setUser(null);
+			authStore.setTenant(null);
 		} catch (error) {
 			console.error('Auth initialization error:', error);
+			authStore.setUser(null);
+			authStore.setTenant(null);
 		} finally {
 			authStore.setLoading(false);
 		}
