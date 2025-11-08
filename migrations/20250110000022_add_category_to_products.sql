@@ -22,6 +22,50 @@ CREATE INDEX idx_products_category_active
     WHERE deleted_at IS NULL AND category_id IS NOT NULL;
 
 -- ==================================
+-- PRODUCT COUNT UPDATE FUNCTION
+-- ==================================
+
+-- Function to maintain category product counts
+CREATE OR REPLACE FUNCTION update_category_product_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update direct product count for the category
+    UPDATE product_categories
+    SET product_count = (
+        SELECT COUNT(*)
+        FROM products
+        WHERE category_id = product_categories.category_id
+          AND tenant_id = product_categories.tenant_id
+          AND deleted_at IS NULL
+    )
+    WHERE category_id = COALESCE(NEW.category_id, OLD.category_id)
+      AND tenant_id = COALESCE(NEW.tenant_id, OLD.tenant_id);
+
+    -- Update total counts for all ancestor categories
+    UPDATE product_categories pc
+    SET total_product_count = (
+        SELECT COUNT(*)
+        FROM products p
+        JOIN product_categories child ON p.category_id = child.category_id
+        WHERE (child.path = pc.path OR child.path LIKE pc.path || '/%')
+          AND child.tenant_id = pc.tenant_id
+          AND p.tenant_id = pc.tenant_id
+          AND p.deleted_at IS NULL
+    )
+    WHERE pc.tenant_id = COALESCE(NEW.tenant_id, OLD.tenant_id)
+      AND (
+        pc.path = ANY(
+            SELECT DISTINCT substring(path from '^([^/]+(/[^/]+)*)')
+            FROM product_categories
+            WHERE category_id = COALESCE(NEW.category_id, OLD.category_id)
+        )
+      );
+
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+-- ==================================
 -- ENABLE PRODUCT COUNT TRIGGER
 -- ==================================
 
@@ -148,7 +192,7 @@ BEGIN
     INNER JOIN product_categories pc ON p.category_id = pc.category_id
     WHERE p.tenant_id = p_tenant_id
       AND pc.tenant_id = p_tenant_id
-      AND pc.path LIKE v_path || '%'
+      AND (pc.path = v_path OR pc.path LIKE v_path || '/%')
       AND p.deleted_at IS NULL
       AND pc.deleted_at IS NULL
     ORDER BY pc.path, p.name;

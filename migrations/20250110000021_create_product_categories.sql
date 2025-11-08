@@ -135,7 +135,16 @@ RETURNS TRIGGER AS $$
 DECLARE
     parent_path TEXT;
     parent_level INTEGER;
+    old_path TEXT;
+    old_level INTEGER;
+    level_diff INTEGER;
 BEGIN
+    -- Track old values for UPDATE operations
+    IF TG_OP = 'UPDATE' THEN
+        old_path := OLD.path;
+        old_level := OLD.level;
+    END IF;
+
     -- Root category (no parent)
     IF NEW.parent_category_id IS NULL THEN
         NEW.path := NEW.category_id::TEXT;
@@ -157,6 +166,16 @@ BEGIN
         NEW.level := parent_level + 1;
     END IF;
 
+    -- Cascade update all descendants if path changed
+    IF TG_OP = 'UPDATE' AND old_path IS NOT NULL AND old_path <> NEW.path THEN
+        level_diff := NEW.level - old_level;
+        UPDATE product_categories
+        SET path = NEW.path || substr(path, length(old_path) + 1),
+            level = level + level_diff
+        WHERE tenant_id = NEW.tenant_id
+          AND path LIKE old_path || '/%';
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -166,52 +185,8 @@ CREATE TRIGGER trigger_update_product_category_path
     FOR EACH ROW
     EXECUTE FUNCTION update_product_category_path();
 
--- Trigger to update product counts
-CREATE OR REPLACE FUNCTION update_category_product_count()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Update direct product count for the category
-    UPDATE product_categories
-    SET product_count = (
-        SELECT COUNT(*)
-        FROM products
-        WHERE category_id = product_categories.category_id
-          AND tenant_id = product_categories.tenant_id
-          AND deleted_at IS NULL
-    )
-    WHERE category_id = COALESCE(NEW.category_id, OLD.category_id)
-      AND tenant_id = COALESCE(NEW.tenant_id, OLD.tenant_id);
-
-    -- Update total counts for all ancestor categories
-    UPDATE product_categories pc
-    SET total_product_count = (
-        SELECT COUNT(*)
-        FROM products p
-        JOIN product_categories child ON p.category_id = child.category_id
-        WHERE child.path LIKE pc.path || '%'
-          AND child.tenant_id = pc.tenant_id
-          AND p.tenant_id = pc.tenant_id
-          AND p.deleted_at IS NULL
-    )
-    WHERE pc.tenant_id = COALESCE(NEW.tenant_id, OLD.tenant_id)
-      AND (
-        pc.path = ANY(
-            SELECT DISTINCT substring(path from '^([^/]+(/[^/]+)*)')
-            FROM product_categories
-            WHERE category_id = COALESCE(NEW.category_id, OLD.category_id)
-        )
-      );
-
-    RETURN COALESCE(NEW, OLD);
-END;
-$$ LANGUAGE plpgsql;
-
--- Note: This trigger will be created after products table is updated with category_id
--- CREATE TRIGGER trigger_update_category_product_count
---     AFTER INSERT OR UPDATE OR DELETE ON products
---     FOR EACH ROW
---     WHEN (NEW.category_id IS DISTINCT FROM OLD.category_id)
---     EXECUTE FUNCTION update_category_product_count();
+-- Note: update_category_product_count function and trigger will be created
+-- in the next migration after products.category_id column is added
 
 -- ==================================
 -- HELPER FUNCTIONS
@@ -276,7 +251,7 @@ BEGIN
     SELECT c.category_id, c.name, c.level, c.path
     FROM product_categories c
     WHERE c.tenant_id = p_tenant_id
-      AND c.path LIKE v_path || '%'
+      AND (c.path = v_path OR c.path LIKE v_path || '/%')
       AND c.category_id != p_category_id
       AND c.deleted_at IS NULL
     ORDER BY c.path;
