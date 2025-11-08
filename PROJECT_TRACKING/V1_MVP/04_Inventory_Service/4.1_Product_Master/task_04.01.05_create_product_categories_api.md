@@ -8,7 +8,7 @@
 **Status:** InProgress_By_Claude
 **Assignee:** Claude
 **Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21 14:45
+**Last Updated:** 2025-01-21 15:30
 
 ## Detailed Description:
 Create comprehensive API for managing product categories and hierarchical organization system for efficient product management and reporting.
@@ -73,3 +73,41 @@ Create comprehensive API for managing product categories and hierarchical organi
     - Added display attributes (icon, color, image_url, display_order)
     - Committed with message: "feat(inventory): create product categories schema with materialized path [TaskID: 04.01.05]"
     - Status: Ready to test migrations ✓
+
+*   2025-01-21 15:30: Created inventory_service_core crate by Claude
+    - Created services/inventory_service_new/core/ following 3-crate pattern
+    - Implemented Category domain entity (domains/category.rs)
+    - Added CategoryNode for hierarchical tree representation
+    - Implemented business logic methods: is_root(), is_ancestor_of(), is_descendant_of()
+    - Created comprehensive DTOs (dto/category.rs):
+      * CategoryCreateRequest, CategoryUpdateRequest
+      * CategoryResponse, CategoryListResponse, CategoryTreeResponse
+      * CategoryStatsResponse, BulkOperationResponse
+      * PaginationInfo helper
+    - Defined CategoryRepository trait (repositories/category.rs):
+      * CRUD operations (create, find_by_id, update, delete)
+      * Tree operations (get_ancestors, get_descendants, get_tree)
+      * Query operations (list, search, get_children)
+      * Statistics (get_stats, update_product_counts)
+      * Bulk operations (move_products, bulk_activate/deactivate/delete)
+    - Defined CategoryService trait (services/category.rs):
+      * Business logic operations with validation rules
+      * Category CRUD with business rules enforcement
+      * Tree navigation and breadcrumb support
+      * Statistics and analytics
+      * Bulk operations with validation
+    - Added validation with validator crate
+    - Added OpenAPI support with utoipa (optional feature)
+    - Included unit tests for domain logic
+    - Zero infrastructure dependencies (pure business logic)
+    - Committed and pushed to remote branch
+    - Status: Core domain layer complete ✓
+
+*   2025-01-21 16:00: Corrected directory structure by Claude
+    - ERROR: Created services/inventory_service_new/ instead of using existing services/inventory_service/
+    - FIXED: Moved core crate to services/inventory_service/core/
+    - Created services/inventory_service/api/ and services/inventory_service/infra/ crates
+    - Updated workspace Cargo.toml to include inventory service crates
+    - Removed incorrect services/inventory_service_new/ directory
+    - Now properly following 3-crate pattern within existing inventory_service directory
+    - Status: Directory structure corrected ✓

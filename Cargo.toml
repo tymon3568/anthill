@@ -4,6 +4,9 @@ members = [
   "services/user_service/api",
   "services/user_service/core",
   "services/user_service/infra",
+  "services/inventory_service/api",
+  "services/inventory_service/core",
+  "services/inventory_service/infra",
   # Shared libraries
   "shared/error",
   "shared/jwt",
@@ -63,6 +66,9 @@ tracing-subscriber = {version = "0.3", features = ["env-filter", "json"]}
 # User service crates (internal)
 user_service_core = {path = "services/user_service/core"}
 user_service_infra = {path = "services/user_service/infra"}
+# Inventory service crates (internal)
+inventory_service_core = {path = "services/inventory_service/core"}
+inventory_service_infra = {path = "services/inventory_service/infra"}
 # OpenAPI documentation
 utoipa = {version = "5", features = ["axum_extras", "uuid", "chrono"]}
 utoipa-swagger-ui = {version = "9", features = ["axum"]}
