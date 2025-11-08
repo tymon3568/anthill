@@ -433,16 +433,55 @@ impl CategoryRepository for CategoryRepositoryImpl {
         };
 
         // Build tree recursively
-        let mut tree = Vec::new();
+        fn build_node<'a>(
+            repo: &'a CategoryRepositoryImpl,
+            tenant_id: uuid::Uuid,
+            category: Category,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<CategoryNode>> + Send + 'a>>
+        {
+            Box::pin(async move {
+                let children = repo.get_children(tenant_id, category.category_id).await?;
+                let mut child_nodes = Vec::with_capacity(children.len());
+                for child in children {
+                    child_nodes.push(build_node(repo, tenant_id, child).await?);
+                }
+                Ok(CategoryNode {
+                    category,
+                    children: child_nodes,
+                })
+            })
+        }
+
+        let mut tree = Vec::with_capacity(root_categories.len());
         for category in root_categories {
-            let node = CategoryNode {
-                category,
-                children: Vec::new(), // Will be populated recursively
-            };
-            tree.push(node);
+            tree.push(build_node(self, tenant_id, category).await?);
         }
 
         Ok(tree)
+    }
+
+    async fn get_top_categories(&self, tenant_id: uuid::Uuid, limit: i32) -> Result<Vec<Category>> {
+        let categories = sqlx::query_as!(
+            Category,
+            r#"
+            SELECT
+                category_id, tenant_id, parent_category_id, name, description, code,
+                path, level, display_order, icon, color, image_url, is_active, is_visible,
+                slug, meta_title, meta_description, meta_keywords,
+                product_count, total_product_count,
+                created_at, updated_at, deleted_at
+            FROM product_categories
+            WHERE tenant_id = $1 AND deleted_at IS NULL AND parent_category_id IS NULL
+            ORDER BY total_product_count DESC, display_order ASC
+            LIMIT $2
+            "#,
+            tenant_id,
+            limit as i64
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(categories)
     }
 
     async fn exists(&self, tenant_id: uuid::Uuid, category_id: uuid::Uuid) -> Result<bool> {

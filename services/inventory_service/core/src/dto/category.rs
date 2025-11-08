@@ -354,6 +354,7 @@ pub struct PaginationInfo {
 
 impl PaginationInfo {
     pub fn new(page: i32, page_size: i32, total_items: i64) -> Self {
+        assert!(page_size > 0, "page_size must be greater than 0");
         let total_pages = ((total_items as f64) / (page_size as f64)).ceil() as i32;
         Self {
             page,

@@ -8,7 +8,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
-    routing::{delete, get, post, put},
+    routing::{get, post},
     Router,
 };
 use serde::Deserialize;
@@ -50,17 +50,19 @@ impl KanidmClientProvider for AppState {
 /// Create the category routes with state
 pub fn create_category_routes(state: AppState) -> Router {
     Router::new()
-        .route("/", post(create_category))
-        .route("/", get(list_categories))
+        .route("/", get(list_categories).post(create_category))
         .route("/tree", get(get_category_tree))
         .route("/search", get(search_categories))
         .route("/top", get(get_top_categories))
         .route("/bulk/activate", post(bulk_activate_categories))
         .route("/bulk/deactivate", post(bulk_deactivate_categories))
         .route("/bulk/delete", post(bulk_delete_categories))
-        .route("/{category_id}", get(get_category))
-        .route("/{category_id}", put(update_category))
-        .route("/{category_id}", delete(delete_category))
+        .route(
+            "/{category_id}",
+            get(get_category)
+                .put(update_category)
+                .delete(delete_category),
+        )
         .route("/{category_id}/children", get(get_children))
         .route("/{category_id}/breadcrumbs", get(get_breadcrumbs))
         .route("/{category_id}/stats", get(get_category_stats))

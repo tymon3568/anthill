@@ -268,11 +268,15 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
 
     async fn get_category_tree(
         &self,
-        _tenant_id: Uuid,
-        _parent_id: Option<Uuid>,
+        tenant_id: Uuid,
+        parent_id: Option<Uuid>,
         _max_depth: Option<i32>,
     ) -> Result<Vec<CategoryTreeResponse>> {
-        todo!()
+        let tree_nodes = self.repository.get_tree(tenant_id, parent_id).await?;
+        Ok(tree_nodes
+            .into_iter()
+            .map(CategoryTreeResponse::from)
+            .collect())
     }
 
     async fn get_children(&self, tenant_id: Uuid, parent_id: Uuid) -> Result<Vec<Category>> {
@@ -303,49 +307,116 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         self.repository.get_stats(tenant_id, category_id).await
     }
 
-    async fn get_top_categories(&self, _tenant_id: Uuid, _limit: i32) -> Result<Vec<Category>> {
-        todo!()
+    async fn get_top_categories(&self, tenant_id: Uuid, limit: i32) -> Result<Vec<Category>> {
+        self.repository.get_top_categories(tenant_id, limit).await
     }
 
     async fn move_products_to_category(
         &self,
-        _tenant_id: Uuid,
-        _request: MoveToCategoryRequest,
+        tenant_id: Uuid,
+        request: MoveToCategoryRequest,
     ) -> Result<BulkOperationResponse> {
-        todo!()
+        // Validate request
+        request
+            .validate()
+            .map_err(|e| AppError::ValidationError(format!("Invalid request: {:?}", e)))?;
+
+        // Call repository method
+        let count = self
+            .repository
+            .move_products_to_category(tenant_id, request.product_ids, request.category_id)
+            .await?;
+
+        Ok(BulkOperationResponse {
+            success: true,
+            affected_count: count,
+            message: format!("Moved {} products to category", count),
+        })
     }
 
     async fn bulk_activate_categories(
         &self,
-        _tenant_id: Uuid,
-        _category_ids: Vec<Uuid>,
+        tenant_id: Uuid,
+        category_ids: Vec<Uuid>,
     ) -> Result<BulkOperationResponse> {
-        todo!()
+        if category_ids.is_empty() {
+            return Ok(BulkOperationResponse {
+                success: true,
+                affected_count: 0,
+                message: "No categories to activate".to_string(),
+            });
+        }
+
+        let count = self
+            .repository
+            .bulk_activate(tenant_id, category_ids)
+            .await?;
+
+        Ok(BulkOperationResponse {
+            success: true,
+            affected_count: count,
+            message: format!("Activated {} categories", count),
+        })
     }
 
     async fn bulk_deactivate_categories(
         &self,
-        _tenant_id: Uuid,
-        _category_ids: Vec<Uuid>,
+        tenant_id: Uuid,
+        category_ids: Vec<Uuid>,
     ) -> Result<BulkOperationResponse> {
-        todo!()
+        if category_ids.is_empty() {
+            return Ok(BulkOperationResponse {
+                success: true,
+                affected_count: 0,
+                message: "No categories to deactivate".to_string(),
+            });
+        }
+
+        let count = self
+            .repository
+            .bulk_deactivate(tenant_id, category_ids)
+            .await?;
+
+        Ok(BulkOperationResponse {
+            success: true,
+            affected_count: count,
+            message: format!("Deactivated {} categories", count),
+        })
     }
 
     async fn bulk_delete_categories(
         &self,
-        _tenant_id: Uuid,
-        _category_ids: Vec<Uuid>,
+        tenant_id: Uuid,
+        category_ids: Vec<Uuid>,
     ) -> Result<BulkOperationResponse> {
-        todo!()
+        if category_ids.is_empty() {
+            return Ok(BulkOperationResponse {
+                success: true,
+                affected_count: 0,
+                message: "No categories to delete".to_string(),
+            });
+        }
+
+        let count = self.repository.bulk_delete(tenant_id, category_ids).await?;
+
+        Ok(BulkOperationResponse {
+            success: true,
+            affected_count: count,
+            message: format!("Deleted {} categories", count),
+        })
     }
 
     async fn search_categories(
         &self,
-        _tenant_id: Uuid,
-        _search_term: &str,
-        _limit: i32,
+        tenant_id: Uuid,
+        search_term: &str,
+        limit: i32,
     ) -> Result<Vec<Category>> {
-        todo!()
+        if search_term.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+
+        self.repository.search(tenant_id, search_term, limit).await
     }
 
     async fn can_delete_category(&self, tenant_id: Uuid, category_id: Uuid) -> Result<bool> {

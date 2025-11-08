@@ -16,6 +16,16 @@ use inventory_service_infra::services::category::CategoryServiceImpl;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
+    let is_dev = std::env::var("APP_ENV")
+        .or_else(|_| std::env::var("RUST_ENV"))
+        .map(|e| e != "production")
+        .unwrap_or(true);
+
+    if !is_dev {
+        // Fail fast in production if skip_jwt_verification would be true
+        panic!("JWT verification cannot be disabled in production");
+    }
+
     let kanidm_config = KanidmConfig {
         kanidm_url: config
             .kanidm_url
@@ -34,7 +44,7 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
             .clone()
             .unwrap_or_else(|| "http://localhost:8001/oauth/callback".to_string()),
         scopes: vec!["openid".to_string()],
-        skip_jwt_verification: true, // DEV/TEST MODE ONLY - should be false in production
+        skip_jwt_verification: is_dev,
         allowed_issuers: vec![config
             .kanidm_url
             .clone()

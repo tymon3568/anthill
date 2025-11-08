@@ -3,6 +3,7 @@
 //! Represents a product category in the hierarchical category system.
 
 use chrono::{DateTime, Utc};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

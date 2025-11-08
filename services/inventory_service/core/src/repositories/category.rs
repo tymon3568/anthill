@@ -156,6 +156,16 @@ pub trait CategoryRepository: Send + Sync {
     async fn get_tree(&self, tenant_id: Uuid, parent_id: Option<Uuid>)
         -> Result<Vec<CategoryNode>>;
 
+    /// Get top categories by product count
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `limit` - Maximum number of categories to return
+    ///
+    /// # Returns
+    /// List of top categories ordered by total product count
+    async fn get_top_categories(&self, tenant_id: Uuid, limit: i32) -> Result<Vec<Category>>;
+
     /// Check if category exists
     ///
     /// # Arguments
