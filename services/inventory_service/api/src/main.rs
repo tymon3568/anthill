@@ -5,7 +5,6 @@
 
 use std::net::SocketAddr;
 
-use axum::Router;
 use inventory_service_api::create_router;
 use shared_config::Config;
 use shared_db::init_pool;
@@ -24,13 +23,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     // Load configuration
-    let config = Config::from_env();
+    let config = Config::from_env()?;
 
     // Initialize database connection pool
-    let pool = init_pool(&config.database_url).await?;
+    let pool = init_pool(&config.database_url, 10).await?;
 
     // Create the application router
-    let app = create_router(pool);
+    let app = create_router(pool, &config).await;
 
     // Start the server
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

@@ -32,6 +32,9 @@ config = "0.14"
 criterion = {version = "0.5", features = ["html_reports"]}
 dotenvy = "0.15"
 fake = {version = "2.9", features = ["derive", "uuid", "chrono"]}
+# Inventory service crates (internal)
+inventory_service_core = {path = "services/inventory_service/core"}
+inventory_service_infra = {path = "services/inventory_service/infra"}
 # Auth & security
 jsonwebtoken = "9.2"
 lazy_static = "1.4"
@@ -66,9 +69,6 @@ tracing-subscriber = {version = "0.3", features = ["env-filter", "json"]}
 # User service crates (internal)
 user_service_core = {path = "services/user_service/core"}
 user_service_infra = {path = "services/user_service/infra"}
-# Inventory service crates (internal)
-inventory_service_core = {path = "services/inventory_service/core"}
-inventory_service_infra = {path = "services/inventory_service/infra"}
 # OpenAPI documentation
 utoipa = {version = "5", features = ["axum_extras", "uuid", "chrono"]}
 utoipa-swagger-ui = {version = "9", features = ["axum"]}

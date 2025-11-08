@@ -6,7 +6,7 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domains::category::{Category, CategoryBreadcrumb, CategoryNode};
+use crate::domains::category::{Category, CategoryBreadcrumb};
 use crate::dto::category::{
     BulkOperationResponse, CategoryCreateRequest, CategoryListQuery, CategoryListResponse,
     CategoryStatsResponse, CategoryTreeResponse, CategoryUpdateRequest, MoveToCategoryRequest,

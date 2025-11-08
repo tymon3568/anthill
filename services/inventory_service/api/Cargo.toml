@@ -1,64 +1,49 @@
-[package]
-name = "inventory_service_api"
-authors.workspace = true
-edition.workspace = true
-version.workspace = true
-
 [[bin]]
 name = "inventory-service"
 path = "src/main.rs"
 
 [dependencies]
 # Async traits
-async-trait = { workspace = true }
-
+async-trait = {workspace = true}
 # Axum & web
-axum = { workspace = true }
-chrono = { workspace = true }
-
-# Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-
-# Shared crates
-shared-auth = { workspace = true }
-shared_config = { workspace = true }
-shared_db = { workspace = true }
-shared_error = { workspace = true }
-shared_kanidm_client = { workspace = true }
-
-# SQLx - database
-sqlx = { workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"] }
-
-# Async runtime
-tokio = { workspace = true }
-tower = { workspace = true }
-tower-http = { workspace = true }
-
-# Logging
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-
-# OpenAPI documentation
-utoipa = { workspace = true }
-utoipa-swagger-ui = { workspace = true }
-
+axum = {workspace = true}
+chrono = {workspace = true}
 # Internal crates
-inventory_service_core = { workspace = true, features = ["openapi"] }
-inventory_service_infra = { workspace = true }
-
+inventory_service_core = {workspace = true, features = ["openapi"]}
+inventory_service_infra = {workspace = true}
+# Serialization
+serde = {workspace = true}
+serde_json = {workspace = true}
+serde_yaml = {workspace = true}
+# Shared crates
+shared-auth = {workspace = true}
+shared_config = {workspace = true}
+shared_db = {workspace = true}
+shared_error = {workspace = true}
+shared_kanidm_client = {workspace = true}
+# SQLx - database
+sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
+# Async runtime
+tokio = {workspace = true}
+tower = {workspace = true}
+tower-http = {workspace = true}
+# Logging
+tracing = {workspace = true}
+tracing-subscriber = {workspace = true}
+# OpenAPI documentation
+utoipa = {workspace = true}
+utoipa-swagger-ui = {workspace = true}
 # Other
-uuid = { workspace = true }
-validator = { workspace = true }
+uuid = {workspace = true}
+validator = {workspace = true}
 
 [dev-dependencies]
 # Test dependencies
-fake = { workspace = true }
-mockall = { workspace = true }
-proptest = { workspace = true }
+fake = {workspace = true}
+mockall = {workspace = true}
+proptest = {workspace = true}
 tokio-test = "0.4"
-wiremock = { workspace = true }
+wiremock = {workspace = true}
 
 [features]
 default = []
@@ -68,3 +53,9 @@ export-spec = []
 [lib]
 name = "inventory_service_api"
 path = "src/lib.rs"
+
+[package]
+name = "inventory_service_api"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true

@@ -11,10 +11,10 @@
 //! `models/`: API-specific models and conversions
 
 pub mod handlers;
-pub mod routes;
 pub mod middleware;
 pub mod models;
+pub mod routes;
 
 // Re-export main components for convenience
-pub use routes::create_router;
 pub use handlers::category::CategoryHandler;
+pub use routes::create_router;

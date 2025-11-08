@@ -6,3 +6,4 @@ pub mod category;
 
 // Re-export handlers for convenience
 pub use category::CategoryHandler;
+pub use category::CategoryHandlerState;

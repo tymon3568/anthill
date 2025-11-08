@@ -10,6 +10,9 @@
 //! - `repositories/`: Repository trait definitions (no implementations)
 //! - `services/`: Service trait definitions (no implementations)
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod domains;
 pub mod dto;
 pub mod repositories;

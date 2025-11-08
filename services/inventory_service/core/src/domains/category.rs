@@ -5,7 +5,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use validator::Validate;
 
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
@@ -124,8 +123,11 @@ impl Category {
     /// Validate color format (hex color code)
     pub fn is_valid_color(&self) -> bool {
         if let Some(ref color) = self.color {
-            let hex_regex = regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap();
-            hex_regex.is_match(color)
+            lazy_static! {
+                static ref COLOR_REGEX: regex::Regex =
+                    regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap();
+            }
+            COLOR_REGEX.is_match(color)
         } else {
             true
         }
