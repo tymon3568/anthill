@@ -2,13 +2,13 @@
 //!
 //! This module defines the API routes and creates the main router.
 
-use axum::Router;
+use axum::{http::HeaderValue, Router};
 use shared_auth::enforcer::create_enforcer;
 use shared_config::Config;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use sqlx::PgPool;
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 
 use crate::handlers::category::{create_category_routes, AppState};
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
@@ -47,6 +47,18 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
 
 /// Create the main application router
 pub async fn create_router(pool: PgPool, config: &Config) -> Router {
+    // Validate CORS configuration for production
+    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
+    let rust_env = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string());
+    let is_production = app_env == "production" || rust_env == "production";
+
+    if is_production && config.get_cors_origins().is_empty() {
+        panic!(
+            "CORS_ORIGINS must be configured in production environment. \
+             Set CORS_ORIGINS=https://your-domain.com,https://admin.your-domain.com"
+        );
+    }
+
     // Initialize Casbin enforcer
     let model_paths = [
         "shared/auth/model.conf",             // From workspace root
@@ -79,8 +91,22 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Create category routes with state
     let category_routes = create_category_routes(state);
 
-    // Add CORS - TODO: Make configurable instead of permissive
-    let cors = CorsLayer::permissive();
+    // Add CORS configuration
+    let cors = CorsLayer::new()
+        .allow_origin({
+            let origins = config.get_cors_origins();
+            if origins.is_empty() {
+                AllowOrigin::any()
+            } else {
+                let header_values: Vec<HeaderValue> = origins
+                    .into_iter()
+                    .filter_map(|origin| HeaderValue::from_str(&origin).ok())
+                    .collect();
+                AllowOrigin::list(header_values)
+            }
+        })
+        .allow_methods(Any)
+        .allow_headers(Any);
 
     Router::new()
         .nest("/api/v1/inventory", category_routes)

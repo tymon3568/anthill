@@ -30,6 +30,9 @@ pub struct Config {
     #[serde(default = "default_port")]
     pub port: u16,
 
+    /// CORS allowed origins (comma-separated list, optional)
+    pub cors_origins: Option<String>,
+
     /// Kanidm server URL (optional - for OAuth2/OIDC integration)
     pub kanidm_url: Option<String>,
 
@@ -90,5 +93,18 @@ impl Config {
         let deserialized = config.try_deserialize::<Config>()?;
 
         Ok(deserialized)
+    }
+
+    /// Get CORS allowed origins as a vector
+    /// If cors_origins is None or empty, returns empty vec (accept all origins)
+    pub fn get_cors_origins(&self) -> Vec<String> {
+        self.cors_origins
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|origin| origin.trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }

@@ -16,5 +16,4 @@ pub mod models;
 pub mod routes;
 
 // Re-export main components for convenience
-pub use handlers::category::CategoryHandler;
 pub use routes::create_router;

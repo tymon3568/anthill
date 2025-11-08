@@ -7,10 +7,14 @@ inventory_service_core = {workspace = true}
 # Shared crates
 shared_db = {workspace = true}
 shared_error = {workspace = true}
+# Slug generation
+slug = "0.1"
 # Database
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
 # Other
 uuid = {workspace = true}
+# Validation
+validator = {workspace = true}
 
 [dev-dependencies]
 # Test dependencies

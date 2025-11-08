@@ -73,11 +73,6 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trigger_update_category_product_count
     AFTER INSERT OR UPDATE OF category_id OR DELETE ON products
     FOR EACH ROW
-    WHEN (
-        (TG_OP = 'DELETE') OR
-        (TG_OP = 'INSERT' AND NEW.category_id IS NOT NULL) OR
-        (TG_OP = 'UPDATE' AND NEW.category_id IS DISTINCT FROM OLD.category_id)
-    )
     EXECUTE FUNCTION update_category_product_count();
 
 -- ==================================

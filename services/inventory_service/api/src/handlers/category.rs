@@ -12,8 +12,6 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
-use sqlx::PgPool;
-use utoipa::ToSchema;
 use uuid::Uuid;
 
 use inventory_service_core::dto::category::{
@@ -22,10 +20,7 @@ use inventory_service_core::dto::category::{
     MoveToCategoryRequest,
 };
 use inventory_service_core::services::category::CategoryService;
-use inventory_service_core::Result;
 
-use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-use inventory_service_infra::services::category::CategoryServiceImpl;
 use shared_auth::enforcer::SharedEnforcer;
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, KanidmClientProvider, RequireAdmin};
 use shared_error::AppError;

@@ -3,11 +3,13 @@ use async_trait::async_trait;
 use chrono::Utc;
 use slug;
 use uuid::Uuid;
+use validator::Validate;
 
 use inventory_service_core::domains::category::{Category, CategoryBreadcrumb};
 use inventory_service_core::dto::category::{
     BulkOperationResponse, CategoryCreateRequest, CategoryListQuery, CategoryListResponse,
-    CategoryStatsResponse, CategoryTreeResponse, CategoryUpdateRequest, MoveToCategoryRequest,
+    CategoryResponse, CategoryStatsResponse, CategoryTreeResponse, CategoryUpdateRequest,
+    MoveToCategoryRequest,
 };
 use inventory_service_core::repositories::category::CategoryRepository;
 use inventory_service_core::services::category::CategoryService;
@@ -142,51 +144,47 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
 
         // Validate parent category exists if provided
         if let Some(parent_id) = request.parent_category_id {
-            if parent_id != existing_category.parent_category_id {
-                if !self.repository.exists(tenant_id, parent_id).await? {
-                    return Err(AppError::NotFound(format!(
-                        "Parent category {} not found",
-                        parent_id
-                    )));
-                }
+            if Some(parent_id) != existing_category.parent_category_id
+                && !self.repository.exists(tenant_id, parent_id).await?
+            {
+                return Err(AppError::NotFound(format!("Parent category {} not found", parent_id)));
             }
         }
 
         // Validate parent relationship (no cycles)
         if let Some(parent_id) = request.parent_category_id {
-            if parent_id != existing_category.parent_category_id {
-                if !self
+            if Some(parent_id) != existing_category.parent_category_id
+                && !self
                     .validate_parent(tenant_id, Some(category_id), parent_id)
                     .await?
-                {
-                    return Err(AppError::ValidationError(
-                        "Invalid parent category relationship".to_string(),
-                    ));
-                }
+            {
+                return Err(AppError::ValidationError(
+                    "Invalid parent category relationship".to_string(),
+                ));
             }
         }
 
         // Update fields
-        if let Some(name) = request.name {
-            existing_category.name = name;
+        if let Some(ref name) = request.name {
+            existing_category.name = name.clone();
         }
         if let Some(description) = request.description {
-            existing_category.description = description;
+            existing_category.description = Some(description);
         }
         if let Some(code) = request.code {
-            existing_category.code = code;
+            existing_category.code = Some(code);
         }
         if let Some(display_order) = request.display_order {
             existing_category.display_order = display_order;
         }
         if let Some(icon) = request.icon {
-            existing_category.icon = icon;
+            existing_category.icon = Some(icon);
         }
         if let Some(color) = request.color {
-            existing_category.color = color;
+            existing_category.color = Some(color);
         }
         if let Some(image_url) = request.image_url {
-            existing_category.image_url = image_url;
+            existing_category.image_url = Some(image_url);
         }
         if let Some(is_active) = request.is_active {
             existing_category.is_active = is_active;
