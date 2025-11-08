@@ -126,3 +126,9 @@ Create comprehensive API for managing product categories and hierarchical organi
     - Services now use PORT environment variable for flexible port assignment
     - Status: Port configuration corrected ✓
 
+*   2025-01-21 16:25: Corrected inventory service port to 8001 by Claude
+    - CONFIRMED: According to nginx configuration, inventory service should run on port 8001
+    - UPDATED: README.md to show PORT=8001 for inventory service
+    - This aligns with nginx routing: /api/v1/products/* and /api/v1/inventory/* → inventory-service:8001
+    - Status: Port assignment corrected to match production nginx config ✓
+
