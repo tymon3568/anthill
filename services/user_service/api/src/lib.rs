@@ -4,6 +4,7 @@ pub mod extractors;
 pub mod handlers;
 pub mod oauth_handlers;
 pub mod openapi;
+pub mod permission_handlers;
 pub mod profile_handlers;
 
 // Re-export commonly used types for tests
@@ -44,7 +45,7 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
         redirect_uri: config
             .kanidm_redirect_url
             .clone()
-            .unwrap_or_else(|| "http://localhost:3000/oauth/callback".to_string()),
+            .unwrap_or_else(|| "http://localhost:8000/oauth/callback".to_string()),
         scopes: vec!["openid".to_string()],
         skip_jwt_verification: true, // DEV/TEST MODE ONLY - should be false in production
         allowed_issuers: vec![config

@@ -21,7 +21,7 @@ Set environment variables:
 export KANIDM_URL=http://localhost:8300
 export KANIDM_OAUTH2_CLIENT_ID=anthill
 export KANIDM_OAUTH2_CLIENT_SECRET=your_client_secret
-export OAUTH2_REDIRECT_URI=http://localhost:3000/oauth/callback
+export OAUTH2_REDIRECT_URI=http://localhost:8000/oauth/callback
 export OAUTH2_SCOPES=openid,profile,email,groups
 ```
 
@@ -34,7 +34,7 @@ let config = KanidmConfig {
     kanidm_url: "http://localhost:8300".to_string(),
     client_id: "anthill".to_string(),
     client_secret: "secret".to_string(),
-    redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+    redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
     scopes: vec!["openid".to_string(), "profile".to_string()],
     skip_jwt_verification: false, // NEVER true in production!
     allowed_issuers: vec!["http://localhost:8300".to_string()],

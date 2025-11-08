@@ -185,35 +185,35 @@
           → [View folder](./V1_MVP/07_Payment_Service/7.4_Testing/)
           → Progress: 0/3 tasks completed
 
-### [⏳] Phase 8: Frontend (SvelteKit) - `Todo 0%`
+### [⏳] Phase 8: Frontend (SvelteKit) - `Todo 16%`
     - [✅] 8.1 Project Setup - `Done 100%`
           → [View folder](./V1_MVP/08_Frontend/8.1_Project_Setup/)
           → Progress: 1/1 tasks completed (Updated: 2025-11-05)
 
-    - [🔄] 8.2 Authentication UI (OAuth2) - `In Progress 50%`
+    - [🔄] 8.2 Authentication UI (OAuth2) - `In Progress 75%`
           → [View folder](./V1_MVP/08_Frontend/8.2_Authentication_UI/)
-          → Backend auth integration completed, needs testing and docs
-          → Progress: 1/2 tasks completed (Updated: 2025-11-06)
+          → Backend auth integration completed, auth API client pending
+          → Progress: 3/4 tasks completed (Updated: 2025-11-06)
 
     - [⏳] 8.3 Dashboard - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.3_Dashboard/)
-          → Progress: 0/3 tasks completed
+          → Progress: 0/4 tasks completed
 
     - [⏳] 8.4 Product Management UI - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.4_Product_Management_UI/)
-          → Progress: 0/3 tasks completed
+          → Progress: 0/4 tasks completed
 
     - [⏳] 8.5 Order Management UI - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.5_Order_Management_UI/)
-          → Progress: 0/3 tasks completed
+          → Progress: 0/4 tasks completed
 
     - [⏳] 8.6 Integration UI - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.6_Integration_UI/)
-          → Progress: 0/3 tasks completed
+          → Progress: 0/4 tasks completed
 
     - [⏳] 8.7 Settings - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.7_Settings/)
-          → Progress: 0/3 tasks completed
+          → Progress: 0/4 tasks completed
 
 ### [⏳] Phase 9: Analytics (Cube) - `Todo 0%`
     - [⏳] 9.1 Cube Setup - `Todo`
@@ -295,7 +295,7 @@
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
-- **Phase 8** (Frontend): 🔄 ~15% - Project setup complete, auth integration in progress
+- **Phase 8** (Frontend): 🔄 ~16% - Project setup complete, auth integration in progress
 - **Phase 9** (Analytics): ⏳ 0% - Not started
 - **Phase 10** (Deployment): ⏳ 0% - Not started
 - **Phase 11** (Monitoring): ⏳ 0% - Not started
@@ -338,8 +338,8 @@ export REDIS_URL="redis://localhost:6379"
 cargo run --bin user-service
 
 # 4. Access API
-curl http://localhost:3000/health
-open http://localhost:3000/docs  # Swagger UI
+curl http://localhost:8000/health
+open http://localhost:8000/docs  # Swagger UI
 ```
 
 ### Task Management Workflow
@@ -355,10 +355,12 @@ open http://localhost:3000/docs  # Swagger UI
 - `V1_MVP/03_User_Service/3.2_Casbin_Authorization/3.2.1.1_add_dependencies.md`
 - `V1_MVP/03_User_Service/3.2_Casbin_Authorization/3.2.2.1_create_model_file.md`
 - `V1_MVP/03_User_Service/3.3_User_Management/3.3.1.1_tenant_isolation_test.md`
+- `V1_MVP/08_Frontend/8.2_Authentication_UI/task_08.02.04_api_infrastructure_core_setup.md`
 
 **🟡 P1 - Important for Production**:
 - `V1_MVP/03_User_Service/3.1_Authentication/3.1.4_tenant_resolution.md`
 - `V1_MVP/03_User_Service/3.1_Authentication/3.1.5_password_migration.md`
+- `V1_MVP/08_Frontend/8.2_Authentication_UI/task_08.02.03_auth_api_client_integration.md`
 
 ## 📚 Key Documentation
 
@@ -409,14 +411,12 @@ open http://localhost:3000/docs  # Swagger UI
 **Last Updated**: 2025-11-06
 **Project Status**: In Progress (Phase 3 Kanidm Integration)
 
-**Recent Changes (2025-10-29)**:
-- ✅ **Inventory Optimization**: Completed Phase 4 structure optimization based on Odoo/ERPNext analysis
-- ✅ **Quality Management**: Moved QC from 4.6 to dedicated 4.8 module with 3 comprehensive tasks
-- ✅ **Advanced Warehouse**: Created 4.10 module with putaway rules, advanced picking, and removal strategies
-- ✅ **Task Consolidation**: Merged redundant Stock Operations modules (4.3+4.4) into unified workflow
-- ✅ **MVP Scope**: Removed mobile PWA from Phase 4, simplified multi-echelon features
-- ✅ **New Tasks Created**: Added 6 new tasks across Quality Management and Advanced Warehouse modules
-- ✅ **Backend Auth Integration**: Completed task_08.02.02_integrate_backend_auth.md (12/16 sub-tasks done)
+**Recent Changes (2025-11-06)**:
+- ✅ **Dashboard API Integration**: Added task_08.03.04_dashboard_data_api_integration.md to Dashboard module
+- ✅ **Settings API Integration**: Added task_08.07.04_settings_api_integration.md to Settings module
+- ✅ **Task Count Updates**: Updated Dashboard and Settings modules from 3 to 4 tasks each (25 total Phase 8 tasks)
+- ✅ **Progress Update**: Updated Phase 8 progress to ~16% (4/25 tasks completed)
+- ✅ **Backend Auth Integration**: Completed task_08.02.02_integrate_backend_auth.md (16/16 sub-tasks done)
 - ✅ **Task File Updates**: Synchronized checkboxes and progress tracking per folder-tasks workflow
 - ✅ **Progress Update**: Updated Phase 8 progress from 0% to ~15% (1/2 auth tasks completed)
 - ✅ **Frontend Setup**: Completed SvelteKit project foundation (task_08.01.01_setup_sveltekit_project.md)
@@ -426,6 +426,11 @@ open http://localhost:3000/docs  # Swagger UI
 - ✅ **User Management**: 2/5 tasks completed (40% complete)
 - ✅ **Task Tracking**: Fixed missing Assignee fields in completed tasks
 - ✅ **Documentation**: Updated folder-tasks workflow from Context7
+- ✅ **API Client Architecture**: Refactored API client tasks - distributed to respective UI modules
+- ✅ **API Infrastructure Core**: Added task_08.02.04_api_infrastructure_core_setup.md to Authentication UI
+- ✅ **Inventory API Integration**: Added task_08.04.04_inventory_service_api_client_integration.md to Product Management UI
+- ✅ **Order API Integration**: Added task_08.05.04_order_service_api_client_integration.md to Order Management UI
+- ✅ **Integration API Integration**: Added task_08.06.04_integration_service_api_client_integration.md to Integration UI
 - 🔄 Migrating from custom JWT authentication to Kanidm (OAuth2/OIDC)
 - 📚 Updated all documentation (ARCHITECTURE.md, README.md, etc.)
 - 📋 See `docs/KANIDM_MIGRATION_PLAN.md` for detailed migration plan

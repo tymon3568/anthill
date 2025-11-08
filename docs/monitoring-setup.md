@@ -690,7 +690,7 @@ else
 fi
 
 # Grafana
-if curl -f http://localhost:3000/api/health; then
+if curl -f http://localhost:8000/api/health; then
     echo "✅ Grafana is ready"
 else
     echo "❌ Grafana is not ready"

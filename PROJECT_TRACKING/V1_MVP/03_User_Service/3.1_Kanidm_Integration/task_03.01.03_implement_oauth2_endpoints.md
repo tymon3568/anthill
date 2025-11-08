@@ -211,18 +211,18 @@ cargo run --bin user-service
 
 # 2. Test OAuth2 flow
 # Step 1: Get authorization URL
-curl http://localhost:3000/api/v1/auth/oauth/authorize
+curl http://localhost:8000/api/v1/auth/oauth/authorize
 
 # Step 2: Open URL in browser, login to Kanidm
 # Step 3: Get redirected to callback with code
 
 # Step 4: Exchange code for token
-curl -X POST http://localhost:3000/api/v1/auth/oauth/callback \
+curl -X POST http://localhost:8000/api/v1/auth/oauth/callback \
   -H "Content-Type: application/json" \
   -d '{"code":"xyz","state":"abc"}'
 
 # Step 5: Test token refresh
-curl -X POST http://localhost:3000/api/v1/auth/oauth/refresh \
+curl -X POST http://localhost:8000/api/v1/auth/oauth/refresh \
   -H "Content-Type: application/json" \
   -d '{"refresh_token":"..."}'
 

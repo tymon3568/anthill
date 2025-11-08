@@ -250,20 +250,20 @@ impl CachedKanidmValidator {
 
 ```bash
 # 1. Get valid Kanidm token
-TOKEN=$(curl -X POST http://localhost:3000/api/v1/auth/oauth/callback \
+TOKEN=$(curl -X POST http://localhost:8000/api/v1/auth/oauth/callback \
   -H "Content-Type: application/json" \
   -d '{"code":"...","state":"..."}' | jq -r '.access_token')
 
 # 2. Test AuthUser extractor
-curl http://localhost:3000/api/v1/users \
+curl http://localhost:8000/api/v1/users \
   -H "Authorization: Bearer $TOKEN"
 
 # 3. Test RequireAdmin extractor
-curl http://localhost:3000/api/v1/admin/users \
+curl http://localhost:8000/api/v1/admin/users \
   -H "Authorization: Bearer $TOKEN"
 
 # 4. Test with invalid token
-curl http://localhost:3000/api/v1/users \
+curl http://localhost:8000/api/v1/users \
   -H "Authorization: Bearer invalid_token"
 # Should return 401
 

@@ -21,7 +21,12 @@ pub struct Config {
     #[serde(default = "default_host")]
     pub host: String,
 
-    /// Server port
+    /// Server port (override per service via PORT environment variable)
+    /// Standard ports:
+    /// - User Service: 8000
+    /// - Inventory Service: 8001
+    /// - Order Service: 8002
+    /// - Integration Service: 8003
     #[serde(default = "default_port")]
     pub port: u16,
 

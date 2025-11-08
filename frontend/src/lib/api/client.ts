@@ -1,7 +1,7 @@
 import type { ApiResponse } from '$lib/types';
-
+import { env } from '$env/dynamic/public';
 // Base API configuration
-const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = env.PUBLIC_API_BASE_URL;
 
 // Generic API client
 class ApiClient {

@@ -1,6 +1,21 @@
 import { onMount } from 'svelte';
 import { authState, authStore } from '$lib/stores/auth.svelte';
 import { authApi } from '$lib/api/auth';
+import type { User } from '$lib/types';
+import type { UserProfile } from '$lib/api/auth';
+
+// Convert UserProfile to User type
+function mapUserProfileToUser(profile: UserProfile): User {
+	return {
+		id: profile.id,
+		email: profile.email,
+		name: profile.display_name || profile.username || profile.email,
+		role: (profile.role as 'admin' | 'manager' | 'user') || 'user',
+		tenantId: profile.tenant_id,
+		createdAt: profile.created_at,
+		updatedAt: profile.updated_at
+	};
+}
 
 // Custom hook for auth initialization
 export function useAuth() {
@@ -14,7 +29,7 @@ export function useAuth() {
 			authApi.getProfile()
 				.then((result) => {
 					if (result.success && result.data) {
-						authStore.setUser(result.data);
+						authStore.setUser(mapUserProfileToUser(result.data));
 					} else {
 						// Token invalid, clear it
 						localStorage.removeItem('auth_token');

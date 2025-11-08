@@ -8,9 +8,12 @@ use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
-use user_service_api::{admin_handlers, handlers, profile_handlers, AppState, ProfileAppState};
+use user_service_api::{
+    admin_handlers, handlers, permission_handlers, profile_handlers, AppState, ProfileAppState,
+};
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserProfileRepository,
     PgUserRepository, ProfileServiceImpl,
@@ -105,7 +108,7 @@ async fn main() {
                 kanidm_url: "http://localhost:8300".to_string(),
                 client_id: "dev".to_string(),
                 client_secret: "dev".to_string(),
-                redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+                redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
                 scopes: vec!["openid".to_string()],
                 skip_jwt_verification: true, // DEV MODE ONLY
                 allowed_issuers: vec!["http://localhost:8300".to_string()],
@@ -208,6 +211,11 @@ async fn main() {
     let protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users))
         .route("/api/v1/users/{user_id}", get(handlers::get_user))
+        // Permission checking routes
+        .route("/api/v1/users/permissions/check", get(permission_handlers::check_permission::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/permissions", get(permission_handlers::get_user_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/roles", get(permission_handlers::get_user_roles::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/tenant/validate", get(permission_handlers::validate_tenant_access::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
@@ -286,6 +294,17 @@ async fn main() {
         .merge(api_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
         .with_state(combined_state)
+        // CORS configuration
+        .layer(CorsLayer::new()
+            .allow_origin(if let Some(frontend_url) = &config.frontend_url {
+                frontend_url.parse::<axum::http::HeaderValue>()
+                    .map_or(Any, |origin| origin.into())
+            } else {
+                Any // Allow all origins if no frontend_url configured
+            })
+            .allow_methods(Any)
+            .allow_headers(Any)
+        )
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(
             header::STRICT_TRANSPORT_SECURITY,

@@ -58,10 +58,10 @@ for i in {1..30}; do
 done
 
 # Create OAuth2 client for testing
-kanidm system oauth2 create anthill_test "Anthill Test Client" http://localhost:3000
+kanidm system oauth2 create anthill_test "Anthill Test Client" http://localhost:8000
 
 # Configure redirect URLs
-kanidm system oauth2 add-redirect-url anthill_test http://localhost:3000/oauth2/callback
+kanidm system oauth2 add-redirect-url anthill_test http://localhost:8000/oauth2/callback
 kanidm system oauth2 add-redirect-url anthill_test http://localhost:5173/oauth2/callback
 
 # Enable PKCE (required for modern OAuth2)
@@ -141,7 +141,7 @@ export JWT_REFRESH_EXPIRATION=604800
 export KANIDM_URL="https://localhost:8300"
 export KANIDM_CLIENT_ID="anthill_test"
 export KANIDM_CLIENT_SECRET="<secret-from-step-2>"
-export KANIDM_REDIRECT_URL="http://localhost:3000/oauth/callback"
+export KANIDM_REDIRECT_URL="http://localhost:8000/oauth/callback"
 
 # Run user service
 cargo run --bin user-service
@@ -150,7 +150,7 @@ cargo run --bin user-service
 ### 2. Test Authorize Endpoint
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/auth/oauth/authorize \
+curl -X POST http://localhost:8000/api/v1/auth/oauth/authorize \
   -H "Content-Type: application/json" \
   -d '{"state": "random-state-123"}' | jq
 
@@ -170,7 +170,7 @@ curl -X POST http://localhost:3000/api/v1/auth/oauth/authorize \
 2. Open in browser (accept SSL warning for localhost)
 3. Login with testuser credentials
 4. Approve OAuth2 consent
-5. Browser redirects to: `http://localhost:3000/oauth/callback?code=<auth-code>&state=random-state-123`
+5. Browser redirects to: `http://localhost:8000/oauth/callback?code=<auth-code>&state=random-state-123`
 6. Extract the `code` parameter from URL
 
 ### 4. Test Callback Endpoint
@@ -181,7 +181,7 @@ AUTH_CODE="<code-from-browser-redirect>"
 CODE_VERIFIER="<verifier-from-authorize-response>"
 STATE="random-state-123"
 
-curl -X POST http://localhost:3000/api/v1/auth/oauth/callback \
+curl -X POST http://localhost:8000/api/v1/auth/oauth/callback \
   -H "Content-Type: application/json" \
   -d "{
     \"code\": \"$AUTH_CODE\",
@@ -227,7 +227,7 @@ psql $DATABASE_URL -c "SELECT user_id, email, kanidm_user_id, kanidm_synced_at, 
 ```bash
 REFRESH_TOKEN="<refresh-token-from-callback>"
 
-curl -X POST http://localhost:3000/api/v1/auth/oauth/refresh \
+curl -X POST http://localhost:8000/api/v1/auth/oauth/refresh \
   -H "Content-Type: application/json" \
   -d "{\"refresh_token\": \"$REFRESH_TOKEN\"}" | jq
 

@@ -16,7 +16,10 @@
 		"validate-svelte": "echo '✅ Remember to use Svelte 5 runes! Check .svelte-instructions.md'",
 		"test:unit": "vitest",
 		"test": "bun run test:unit -- --run && bun run test:e2e",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"install": "bun install",
+		"add": "bun add",
+		"remove": "bun remove"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.0",

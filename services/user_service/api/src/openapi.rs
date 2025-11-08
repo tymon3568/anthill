@@ -92,7 +92,7 @@ use utoipa::OpenApi;
         ),
     ),
     servers(
-        (url = "http://localhost:3000", description = "Local development server"),
+        (url = "http://localhost:8000", description = "Local development server"),
     ),
 )]
 pub struct ApiDoc;

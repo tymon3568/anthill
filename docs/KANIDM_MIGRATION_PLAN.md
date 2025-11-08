@@ -503,7 +503,7 @@ kanidm system oauth2 create anthill "Anthill Inventory Management" https://app.e
 # Configure redirect URLs (multiple supported)
 kanidm system oauth2 add-redirect-url anthill https://app.example.com/oauth2/callback
 kanidm system oauth2 add-redirect-url anthill http://localhost:5173/oauth2/callback
-kanidm system oauth2 add-redirect-url anthill http://localhost:3000/oauth2/callback
+kanidm system oauth2 add-redirect-url anthill http://localhost:8000/oauth2/callback
 
 # Enable PKCE (required for SPAs, recommended for security)
 kanidm system oauth2 enable-pkce anthill

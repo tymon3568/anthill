@@ -23,6 +23,9 @@
 	// Get success message from URL params
 	let successMessage = $state(page.url.searchParams.get('message'));
 
+	// Get error message from URL params (for OAuth errors)
+	let errorMessage = $state(page.url.searchParams.get('error_description') || page.url.searchParams.get('error'));
+
 	// Form validation using Valibot
 	let isFormValid = $derived.by(() => {
 		try {
@@ -105,6 +108,16 @@
 						aria-live="polite"
 					>
 						{successMessage}
+					</div>
+				{/if}
+
+				{#if errorMessage}
+					<div
+						class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3 mb-4"
+						role="alert"
+						aria-live="polite"
+					>
+						{errorMessage}
 					</div>
 				{/if}
 

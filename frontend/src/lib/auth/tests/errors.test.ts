@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock SvelteKit redirect
-const mockRedirect = vi.fn();
+// Mock SvelteKit redirect before importing
 vi.mock('@sveltejs/kit', () => ({
-	redirect: mockRedirect
+	redirect: vi.fn()
 }));
 
+// Import after mocking
 import { AuthError, AuthErrorCode, createAuthError, handleAuthError } from '../errors';
+import { redirect } from '@sveltejs/kit';
+
+// Get the mocked redirect function
+const mockRedirect = vi.mocked(redirect);
 
 describe('AuthError Class', () => {
 	it('should create AuthError with correct properties', () => {
@@ -57,7 +61,7 @@ describe('handleAuthError', () => {
 		expect(() => {
 			handleAuthError(authError, '/login');
 		}).toThrow();
-			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=invalid_token&message=Invalid%20or%20malformed%20token');
+			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=invalid_token&message=Invalid+or+malformed+token');
 	});
 
 	it('should handle generic Error instances', () => {
@@ -66,14 +70,14 @@ describe('handleAuthError', () => {
 		expect(() => {
 			handleAuthError(error, '/login');
 		}).toThrow();
-			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=network_error&message=Network%20error%20occurred');
+			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=network_error&message=Network+error+occurred');
 	});
 
 	it('should handle unknown errors', () => {
 		expect(() => {
 			handleAuthError('string error', '/login');
 		}).toThrow();
-			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=unknown_error&message=An%20unexpected%20error%20occurred');
+			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=unknown_error&message=An+unexpected+error+occurred');
 	});
 
 	it('should use default redirect path', () => {
