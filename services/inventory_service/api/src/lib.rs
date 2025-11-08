@@ -6,9 +6,9 @@
 //! ## Architecture
 //!
 //! - `handlers/`: Axum HTTP handlers
-//! `routes/`: Route definitions and middleware
-//! `middleware/`: Custom middleware
-//! `models/`: API-specific models and conversions
+//! - `routes/`: Route definitions and middleware
+//! - `middleware/`: Custom middleware
+//! - `models/`: API-specific models and conversions
 
 pub mod handlers;
 pub mod middleware;

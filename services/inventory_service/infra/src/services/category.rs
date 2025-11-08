@@ -270,9 +270,15 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         &self,
         tenant_id: Uuid,
         parent_id: Option<Uuid>,
-        _max_depth: Option<i32>,
+        max_depth: Option<i32>,
     ) -> Result<Vec<CategoryTreeResponse>> {
-        let tree_nodes = self.repository.get_tree(tenant_id, parent_id).await?;
+        let mut tree_nodes = self.repository.get_tree(tenant_id, parent_id).await?;
+
+        // Apply max_depth filter if specified
+        if let Some(depth) = max_depth {
+            tree_nodes.retain(|node| node.category.level <= depth);
+        }
+
         Ok(tree_nodes
             .into_iter()
             .map(CategoryTreeResponse::from)

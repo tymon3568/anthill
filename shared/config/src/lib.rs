@@ -48,6 +48,9 @@ pub struct Config {
     /// Casbin model configuration file path
     #[serde(default = "default_casbin_model_path")]
     pub casbin_model_path: String,
+
+    /// Maximum database connections (optional, default: 10)
+    pub max_connections: Option<u32>,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -83,7 +86,8 @@ impl Config {
             .set_default("jwt_refresh_expiration", 604800)?
             .set_default("host", "0.0.0.0")?
             .set_default("port", 3000)?
-            .set_default("casbin_model_path", "shared/auth/model.conf")?;
+            .set_default("casbin_model_path", "shared/auth/model.conf")?
+            .set_default("max_connections", 10)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());

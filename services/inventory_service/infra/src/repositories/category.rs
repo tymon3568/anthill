@@ -1,6 +1,7 @@
 // TODO: Implement category repository
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::postgres::PgRow;
+use sqlx::{PgPool, Row};
 
 use inventory_service_core::domains::category::{Category, CategoryNode};
 use inventory_service_core::dto::category::CategoryListQuery;
@@ -211,31 +212,6 @@ impl CategoryRepository for CategoryRepositoryImpl {
     ) -> Result<(Vec<Category>, i64)> {
         let offset = (query.page - 1) * query.page_size;
 
-        // Build WHERE conditions
-        let mut conditions = vec!["pc.tenant_id = $1".to_string()];
-
-        if let Some(_parent_id) = query.parent_id {
-            conditions.push("pc.parent_category_id = $2".to_string());
-        }
-
-        if let Some(_level) = query.level {
-            conditions.push("pc.level = $3".to_string());
-        }
-
-        if let Some(_is_active) = query.is_active {
-            conditions.push("pc.is_active = $4".to_string());
-        }
-
-        if let Some(_is_visible) = query.is_visible {
-            conditions.push("pc.is_visible = $5".to_string());
-        }
-
-        if let Some(ref _search) = query.search {
-            conditions.push("(pc.name ILIKE $6 OR pc.description ILIKE $6)".to_string());
-        }
-
-        let _where_clause = conditions.join(" AND ");
-
         // Build ORDER BY
         let order_field = match query.sort_by {
             inventory_service_core::dto::category::CategorySortField::DisplayOrder => {
@@ -255,64 +231,164 @@ impl CategoryRepository for CategoryRepositoryImpl {
             inventory_service_core::dto::category::SortDirection::Desc => "DESC",
         };
 
-        let _order_clause = format!("{} {}", order_field, order_dir);
+        let order_clause = format!("{} {}", order_field, order_dir);
 
-        // For now, implement a simpler version without dynamic SQL
-        // TODO: Optimize with proper dynamic query building
-        let _search_pattern = query.search.as_ref().map(|s| format!("%{}%", s));
+        // Count query with search support
+        let count_sql = if query.search.is_some() {
+            "SELECT COUNT(*) as count FROM product_categories pc
+             WHERE pc.tenant_id = $1
+               AND pc.deleted_at IS NULL
+               AND (pc.parent_category_id = $2 OR $2 IS NULL)
+               AND (pc.level = $3 OR $3 IS NULL)
+               AND (pc.is_active = $4 OR $4 IS NULL)
+               AND (pc.is_visible = $5 OR $5 IS NULL)
+               AND (pc.name ILIKE $6 OR pc.description ILIKE $6)"
+        } else {
+            "SELECT COUNT(*) as count FROM product_categories pc
+             WHERE pc.tenant_id = $1
+               AND pc.deleted_at IS NULL
+               AND (pc.parent_category_id = $2 OR $2 IS NULL)
+               AND (pc.level = $3 OR $3 IS NULL)
+               AND (pc.is_active = $4 OR $4 IS NULL)
+               AND (pc.is_visible = $5 OR $5 IS NULL)"
+        };
 
-        // Count query - simplified version
-        let count_row = sqlx::query!(
-            r#"
-            SELECT COUNT(*) as count FROM product_categories pc
-            WHERE pc.tenant_id = $1
-              AND pc.deleted_at IS NULL
-              AND (pc.parent_category_id = $2 OR $2 IS NULL)
-              AND (pc.level = $3 OR $3 IS NULL)
-              AND (pc.is_active = $4 OR $4 IS NULL)
-              AND (pc.is_visible = $5 OR $5 IS NULL)
-            "#,
-            tenant_id,
-            query.parent_id,
-            query.level,
-            query.is_active,
-            query.is_visible
-        )
-        .fetch_one(&self.pool)
-        .await?;
+        let mut count_query = sqlx::query(count_sql)
+            .bind(tenant_id)
+            .bind(query.parent_id)
+            .bind(query.level)
+            .bind(query.is_active)
+            .bind(query.is_visible);
 
-        // Data query - simplified version
-        let categories = sqlx::query_as!(
-            Category,
-            r#"
-            SELECT
-                pc.category_id, pc.tenant_id, pc.parent_category_id, pc.name, pc.description, pc.code,
-                pc.path, pc.level, pc.display_order, pc.icon, pc.color, pc.image_url, pc.is_active, pc.is_visible,
-                pc.slug, pc.meta_title, pc.meta_description, pc.meta_keywords,
-                pc.product_count, pc.total_product_count,
-                pc.created_at, pc.updated_at, pc.deleted_at
-            FROM product_categories pc
-            WHERE pc.tenant_id = $1
-              AND pc.deleted_at IS NULL
-              AND (pc.parent_category_id = $2 OR $2 IS NULL)
-              AND (pc.level = $3 OR $3 IS NULL)
-              AND (pc.is_active = $4 OR $4 IS NULL)
-              AND (pc.is_visible = $5 OR $5 IS NULL)
-            ORDER BY pc.display_order ASC, pc.name ASC
-            LIMIT $6 OFFSET $7
-            "#,
-            tenant_id,
-            query.parent_id,
-            query.level,
-            query.is_active,
-            query.is_visible,
-            query.page_size as i64,
-            offset as i64
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        if let Some(ref search) = query.search {
+            count_query = count_query.bind(search);
+        }
 
-        Ok((categories, count_row.count.unwrap_or(0)))
+        let count_row = count_query.fetch_one(&self.pool).await?;
+        let count: i64 = count_row.get("count");
+
+        // Data query with search and dynamic sort support
+        let sql = if query.search.is_some() {
+            format!(
+                r#"
+                SELECT
+                    pc.category_id, pc.tenant_id, pc.parent_category_id, pc.name, pc.description, pc.code,
+                    pc.path, pc.level, pc.display_order, pc.icon, pc.color, pc.image_url, pc.is_active, pc.is_visible,
+                    pc.slug, pc.meta_title, pc.meta_description, pc.meta_keywords,
+                    pc.product_count, pc.total_product_count,
+                    pc.created_at, pc.updated_at, pc.deleted_at
+                FROM product_categories pc
+                WHERE pc.tenant_id = $1
+                  AND pc.deleted_at IS NULL
+                  AND (pc.parent_category_id = $2 OR $2 IS NULL)
+                  AND (pc.level = $3 OR $3 IS NULL)
+                  AND (pc.is_active = $4 OR $4 IS NULL)
+                  AND (pc.is_visible = $5 OR $5 IS NULL)
+                  AND (pc.name ILIKE $6 OR pc.description ILIKE $6)
+                ORDER BY {}
+                LIMIT $7 OFFSET $8
+                "#,
+                order_clause
+            )
+        } else {
+            format!(
+                r#"
+                SELECT
+                    pc.category_id, pc.tenant_id, pc.parent_category_id, pc.name, pc.description, pc.code,
+                    pc.path, pc.level, pc.display_order, pc.icon, pc.color, pc.image_url, pc.is_active, pc.is_visible,
+                    pc.slug, pc.meta_title, pc.meta_description, pc.meta_keywords,
+                    pc.product_count, pc.total_product_count,
+                    pc.created_at, pc.updated_at, pc.deleted_at
+                FROM product_categories pc
+                WHERE pc.tenant_id = $1
+                  AND pc.deleted_at IS NULL
+                  AND (pc.parent_category_id = $2 OR $2 IS NULL)
+                  AND (pc.level = $3 OR $3 IS NULL)
+                  AND (pc.is_active = $4 OR $4 IS NULL)
+                  AND (pc.is_visible = $5 OR $5 IS NULL)
+                ORDER BY {}
+                LIMIT $6 OFFSET $7
+                "#,
+                order_clause
+            )
+        };
+
+        let categories = if let Some(ref search) = query.search {
+            sqlx::query(&sql)
+                .bind(tenant_id)
+                .bind(query.parent_id)
+                .bind(query.level)
+                .bind(query.is_active)
+                .bind(query.is_visible)
+                .bind(search)
+                .bind(query.page_size as i64)
+                .bind(offset as i64)
+                .map(|row: PgRow| Category {
+                    category_id: row.get("category_id"),
+                    tenant_id: row.get("tenant_id"),
+                    parent_category_id: row.get("parent_category_id"),
+                    name: row.get("name"),
+                    description: row.get("description"),
+                    code: row.get("code"),
+                    path: row.get("path"),
+                    level: row.get("level"),
+                    display_order: row.get("display_order"),
+                    icon: row.get("icon"),
+                    color: row.get("color"),
+                    image_url: row.get("image_url"),
+                    is_active: row.get("is_active"),
+                    is_visible: row.get("is_visible"),
+                    slug: row.get("slug"),
+                    meta_title: row.get("meta_title"),
+                    meta_description: row.get("meta_description"),
+                    meta_keywords: row.get("meta_keywords"),
+                    product_count: row.get("product_count"),
+                    total_product_count: row.get("total_product_count"),
+                    created_at: row.get("created_at"),
+                    updated_at: row.get("updated_at"),
+                    deleted_at: row.get("deleted_at"),
+                })
+                .fetch_all(&self.pool)
+                .await?
+        } else {
+            sqlx::query(&sql)
+                .bind(tenant_id)
+                .bind(query.parent_id)
+                .bind(query.level)
+                .bind(query.is_active)
+                .bind(query.is_visible)
+                .bind(query.page_size as i64)
+                .bind(offset as i64)
+                .map(|row: PgRow| Category {
+                    category_id: row.get("category_id"),
+                    tenant_id: row.get("tenant_id"),
+                    parent_category_id: row.get("parent_category_id"),
+                    name: row.get("name"),
+                    description: row.get("description"),
+                    code: row.get("code"),
+                    path: row.get("path"),
+                    level: row.get("level"),
+                    display_order: row.get("display_order"),
+                    icon: row.get("icon"),
+                    color: row.get("color"),
+                    image_url: row.get("image_url"),
+                    is_active: row.get("is_active"),
+                    is_visible: row.get("is_visible"),
+                    slug: row.get("slug"),
+                    meta_title: row.get("meta_title"),
+                    meta_description: row.get("meta_description"),
+                    meta_keywords: row.get("meta_keywords"),
+                    product_count: row.get("product_count"),
+                    total_product_count: row.get("total_product_count"),
+                    created_at: row.get("created_at"),
+                    updated_at: row.get("updated_at"),
+                    deleted_at: row.get("deleted_at"),
+                })
+                .fetch_all(&self.pool)
+                .await?
+        };
+
+        Ok((categories, count))
     }
 
     async fn get_root_categories(&self, tenant_id: uuid::Uuid) -> Result<Vec<Category>> {

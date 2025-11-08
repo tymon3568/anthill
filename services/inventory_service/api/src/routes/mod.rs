@@ -8,7 +8,7 @@ use shared_config::Config;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use sqlx::PgPool;
 use std::sync::Arc;
-use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::handlers::category::{create_category_routes, AppState};
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
@@ -20,11 +20,6 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
         .or_else(|_| std::env::var("RUST_ENV"))
         .map(|e| e != "production")
         .unwrap_or(true);
-
-    if !is_dev {
-        // Fail fast in production if skip_jwt_verification would be true
-        panic!("JWT verification cannot be disabled in production");
-    }
 
     let kanidm_config = KanidmConfig {
         kanidm_url: config
@@ -115,8 +110,16 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
                 AllowOrigin::list(header_values)
             }
         })
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+        ])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ]);
 
     Router::new()
         .nest("/api/v1/inventory", category_routes)

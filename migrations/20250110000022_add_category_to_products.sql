@@ -28,38 +28,48 @@ CREATE INDEX idx_products_category_active
 -- Function to maintain category product counts
 CREATE OR REPLACE FUNCTION update_category_product_count()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_category_id UUID := COALESCE(NEW.category_id, OLD.category_id);
+    v_tenant_id UUID := COALESCE(NEW.tenant_id, OLD.tenant_id);
 BEGIN
-    -- Update direct product count for the category
-    UPDATE product_categories
-    SET product_count = (
-        SELECT COUNT(*)
-        FROM products
-        WHERE category_id = product_categories.category_id
-          AND tenant_id = product_categories.tenant_id
-          AND deleted_at IS NULL
-    )
-    WHERE category_id = COALESCE(NEW.category_id, OLD.category_id)
-      AND tenant_id = COALESCE(NEW.tenant_id, OLD.tenant_id);
+    IF v_category_id IS NULL OR v_tenant_id IS NULL THEN
+        RETURN COALESCE(NEW, OLD);
+    END IF;
 
-    -- Update total counts for all ancestor categories
-    UPDATE product_categories pc
-    SET total_product_count = (
-        SELECT COUNT(*)
-        FROM products p
-        JOIN product_categories child ON p.category_id = child.category_id
-        WHERE (child.path = pc.path OR child.path LIKE pc.path || '/%')
-          AND child.tenant_id = pc.tenant_id
-          AND p.tenant_id = pc.tenant_id
-          AND p.deleted_at IS NULL
-    )
-    WHERE pc.tenant_id = COALESCE(NEW.tenant_id, OLD.tenant_id)
-      AND (
-        pc.path = ANY(
-            SELECT DISTINCT substring(path from '^([^/]+(/[^/]+)*)')
-            FROM product_categories
-            WHERE category_id = COALESCE(NEW.category_id, OLD.category_id)
-        )
-      );
+    EXECUTE
+        'UPDATE product_categories
+         SET product_count = (
+             SELECT COUNT(*)
+             FROM products
+             WHERE category_id = $1
+               AND tenant_id = $2
+               AND deleted_at IS NULL
+         )
+         WHERE category_id = $1
+           AND tenant_id = $2'
+        USING v_category_id, v_tenant_id;
+
+    EXECUTE
+        'UPDATE product_categories pc
+         SET total_product_count = (
+             SELECT COUNT(*)
+             FROM products p
+             JOIN product_categories child
+               ON child.category_id = p.category_id
+              AND child.tenant_id = pc.tenant_id
+             WHERE child.path LIKE pc.path || ''%''
+               AND p.tenant_id = pc.tenant_id
+               AND p.deleted_at IS NULL
+         )
+         WHERE pc.tenant_id = $1
+           AND EXISTS (
+               SELECT 1
+               FROM product_categories target
+               WHERE target.category_id = $2
+                 AND target.tenant_id = $1
+                 AND target.path LIKE pc.path || ''%''
+           )'
+        USING v_tenant_id, v_category_id;
 
     RETURN COALESCE(NEW, OLD);
 END;
