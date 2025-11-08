@@ -117,3 +117,12 @@ Create comprehensive API for managing product categories and hierarchical organi
     - Inventory service now properly structured with 3-crate pattern
     - Ready to continue with API implementation
     - Status: Directory structure fully corrected and committed ✓
+
+*   2025-01-21 16:20: Fixed port configuration issue by Claude
+    - ERROR: Inventory service was using hardcoded port 3001
+    - FIXED: Changed to use config.port from shared_config (configurable via PORT env var)
+    - REMOVED: Old services/inventory_service/src/ directory (replaced by api crate)
+    - UPDATED: README.md to show proper port configuration examples
+    - Services now use PORT environment variable for flexible port assignment
+    - Status: Port configuration corrected ✓
+
