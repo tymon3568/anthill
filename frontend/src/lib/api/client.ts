@@ -4,7 +4,6 @@ import { tokenManager } from '$lib/auth/token-manager';
 import { authApi } from './auth';
 // Base API configuration
 const API_BASE_URL = PUBLIC_API_BASE_URL;
-const DEFAULT_TIMEOUT = 5000; // 5 seconds
 
 // Track if we're currently refreshing to avoid duplicate refresh calls
 let isRefreshing = false;
@@ -29,17 +28,8 @@ class ApiClient {
 		this.baseURL = baseURL;
 	}
 
-	/**
-	 * Create an AbortSignal that times out after specified milliseconds
-	 */
-	private createTimeoutSignal(timeoutMs: number): AbortSignal {
-		const controller = new AbortController();
-		setTimeout(() => controller.abort(), timeoutMs);
-		return controller.signal;
-	}
-
 	private async refreshAccessToken(): Promise<string | null> {
-		const refreshToken = tokenManager.getRefreshToken();
+		const refreshToken = await tokenManager.getRefreshToken();
 		if (!refreshToken) return null;
 
 		try {
@@ -58,24 +48,22 @@ class ApiClient {
 		return null;
 	}
 
-	private async request<T>(
-		endpoint: string,
-		options: RequestInit & { timeout?: number } = {}
-	): Promise<ApiResponse<T>> {
+	private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
 		const url = `${this.baseURL}${endpoint}`;
-		const timeout = options.timeout ?? DEFAULT_TIMEOUT;
-
-		// Extract custom timeout option and prepare fetch config
-		const { timeout: _, ...fetchOptions } = options;
 
 		const config: RequestInit = {
 			headers: {
 				'Content-Type': 'application/json',
-				...fetchOptions.headers
+				...options.headers
 			},
-			signal: this.createTimeoutSignal(timeout),
-			...fetchOptions
+			...options
 		};
+
+		// Create AbortController for timeout
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+		config.signal = controller.signal;
 
 		// Check if token needs refresh before request
 		if (tokenManager.isAccessTokenExpiringSoon() && !isRefreshing) {
@@ -99,6 +87,9 @@ class ApiClient {
 		try {
 			const response = await fetch(url, config);
 
+			// Clear timeout on successful response
+			clearTimeout(timeoutId);
+
 			// Handle 401 Unauthorized - token expired
 			if (response.status === 401 && !isRefreshing) {
 				isRefreshing = true;
@@ -111,8 +102,6 @@ class ApiClient {
 						...config.headers,
 						Authorization: `Bearer ${newToken}`
 					};
-					// Create new timeout signal for retry
-					config.signal = this.createTimeoutSignal(timeout);
 					onTokenRefreshed(newToken);
 					return this.request<T>(endpoint, options);
 				} else {
@@ -129,15 +118,6 @@ class ApiClient {
 
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({ message: 'Network error' }));
-
-				// Map HTTP status codes to user-friendly messages
-				if (response.status === 500) {
-					return {
-						success: false,
-						error: 'Service temporarily unavailable. Please try again later.'
-					};
-				}
-
 				return {
 					success: false,
 					error: errorData.message || `HTTP ${response.status}`
@@ -163,11 +143,14 @@ class ApiClient {
 				data
 			};
 		} catch (error) {
+			// Clear timeout on error
+			clearTimeout(timeoutId);
+
 			// Handle timeout specifically
 			if (error instanceof Error && error.name === 'AbortError') {
 				return {
 					success: false,
-					error: 'Request timeout. Please check your connection and try again.'
+					error: 'Request timeout - please try again'
 				};
 			}
 

@@ -42,16 +42,31 @@ export const authStore = {
 		syncState();
 	},
 
-	initialize: () => {
-		// Client-side initialization is now handled by useAuth hook
-		// This method is kept for backward compatibility but does nothing
-		// The loading state will be managed by useAuth's onMount
+	initialize: async () => {
+		// Client-side initialization
+		if (browser) {
+			// Make this awaitable so callers can avoid racing with storage init
+			await authStore.initializeFromStorage();
+		}
 	},
 
 	initializeFromStorage: async () => {
-		// This method is deprecated - initialization is now handled by useAuth hook
-		// Kept for backward compatibility only
-		return;
+		if (!browser) return;
+
+		authStore.setLoading(true);
+		try {
+			// Token restoration is handled by useAuth hook with tokenManager
+			// This just ensures loading state is managed
+			authStore.setUser(null);
+			authStore.setTenant(null);
+		} catch (error) {
+			console.error('Auth initialization error:', error);
+			authStore.setUser(null);
+			authStore.setTenant(null);
+		} finally {
+			// Don't set loading to false here - let useAuth hook handle it
+			// authStore.setLoading(false);
+		}
 	},
 
 	logout: () => {

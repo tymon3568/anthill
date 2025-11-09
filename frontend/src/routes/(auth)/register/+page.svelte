@@ -94,6 +94,89 @@
 		}
 	}
 
+	// Handle form submission with validation and rate limiting
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
+
+		// Clear previous debounce
+		if (submitTimeout) {
+			clearTimeout(submitTimeout);
+		}
+
+		// Debounce submission (300ms)
+		submitTimeout = setTimeout(async () => {
+			// Check rate limit before validation
+			if (!rateLimiter.isAllowed(RATE_LIMIT_KEY)) {
+				checkRateLimitStatus();
+				error = `Too many registration attempts. Please try again in ${formatBlockedTime(blockedTimeRemaining)}.`;
+				return;
+			}
+
+			// Validate form using Valibot
+			const result = validateRegister({
+				full_name: fullName,
+				email,
+				password,
+				confirmPassword,
+				tenant_name: tenantName || undefined
+			});
+
+			if (!result.success) {
+				fieldErrors = result.errors;
+				error = '';
+				return;
+			}
+
+			// Clear field errors on successful validation
+			fieldErrors = {};
+			isLoading = true;
+			error = '';
+
+			try {
+				// Call register with proper field names
+				await registerAction({
+					name: result.data.full_name,
+					email: result.data.email,
+					password: result.data.password,
+					confirmPassword: result.data.confirmPassword,
+					tenantName: result.data.tenant_name
+				});
+
+				// Redirect to login with success message
+				goto('/login?message=Registration successful. Please sign in.');
+			} catch (err) {
+				// Map errors according to production standards
+				let errorMsg = 'Registration failed';
+
+				if (err instanceof Error) {
+					const message = err.message.toLowerCase();
+
+					// 409 Conflict - email already exists
+					if (message.includes('409') || message.includes('already exists') || message.includes('conflict')) {
+						errorMsg = 'An account with this email already exists.';
+					}
+					// 500 Server Error
+					else if (message.includes('500') || message.includes('server') || message.includes('unavailable')) {
+						errorMsg = 'Service temporarily unavailable. Please try again later.';
+					}
+					// Timeout
+					else if (message.includes('timeout')) {
+						errorMsg = 'Request timeout. Please check your connection and try again.';
+					}
+					// Other errors
+					else {
+						errorMsg = err.message;
+					}
+				}
+
+				error = errorMsg;
+				checkRateLimitStatus();
+			} finally {
+				isLoading = false;
+			}
+		}, SUBMIT_DEBOUNCE_MS);
+	}
+</script>
 </script>
 
 <svelte:head>
@@ -116,46 +199,24 @@
 			</CardHeader>
 
 			<CardContent>
-				<!-- Rate limit warning -->
-				{#if isRateLimited}
-					<div
-						class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3 mb-4"
-						role="alert"
-						aria-live="assertive"
-					>
-						<strong>Too many registration attempts.</strong>
-						<br />
-						Please wait {formatBlockedTime(blockedTimeRemaining)} before trying again.
-					</div>
-				{:else if remainingAttempts < 3 && remainingAttempts > 0}
-					<div
-						class="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-3 mb-4"
-						role="alert"
-						aria-live="polite"
-					>
-						{remainingAttempts} {remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining before temporary lockout.
-					</div>
-				{/if}
-
-				<form class="space-y-4" onsubmit={handleSubmit}>
-					<div bind:this={fullNameInputEl}>
-						<Label for="fullName">Full Name</Label>
+				<form class="space-y-4">
+					<div>
+						<Label for="name">Full Name</Label>
 						<Input
-							id="fullName"
-							name="fullName"
+							id="name"
+							name="name"
 							type="text"
 							placeholder="Enter your full name"
-							bind:value={fullName}
+							bind:value={name}
 							required
 							autocomplete="name"
-							disabled={isLoading || isRateLimited}
-							aria-describedby={fieldErrors.full_name ? "name-error" : undefined}
-							aria-invalid={fieldErrors.full_name ? "true" : "false"}
-							aria-label="Full name"
+							disabled={isLoading}
+							aria-describedby={validationErrors.name ? "name-error" : undefined}
+							onblur={() => touched.name = true}
 						/>
-						{#if fieldErrors.full_name}
-							<p id="name-error" class="text-sm text-red-600 mt-1" role="alert" aria-live="polite">
-								{fieldErrors.full_name}
+						{#if touched.name && validationErrors.name}
+							<p id="name-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.name}
 							</p>
 						{/if}
 					</div>
@@ -170,14 +231,13 @@
 							bind:value={email}
 							required
 							autocomplete="email"
-							disabled={isLoading || isRateLimited}
-							aria-describedby={fieldErrors.email ? "email-error" : undefined}
-							aria-invalid={fieldErrors.email ? "true" : "false"}
-							aria-label="Email address"
+							disabled={isLoading}
+							aria-describedby={validationErrors.email ? "email-error" : undefined}
+							onblur={() => touched.email = true}
 						/>
-						{#if fieldErrors.email}
-							<p id="email-error" class="text-sm text-red-600 mt-1" role="alert" aria-live="polite">
-								{fieldErrors.email}
+						{#if touched.email && validationErrors.email}
+							<p id="email-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.email}
 							</p>
 						{/if}
 					</div>
@@ -191,11 +251,10 @@
 							placeholder="Enter your company name (optional)"
 							bind:value={tenantName}
 							autocomplete="organization"
-							disabled={isLoading || isRateLimited}
-							aria-describedby="tenant-help"
-							aria-label="Company or organization name"
+							disabled={isLoading}
+							onblur={() => touched.tenantName = true}
 						/>
-						<p id="tenant-help" class="text-xs text-gray-500 mt-1">
+						<p class="text-xs text-gray-500 mt-1">
 							Leave empty to join an existing organization
 						</p>
 					</div>
@@ -210,30 +269,25 @@
 							bind:value={password}
 							required
 							autocomplete="new-password"
-							disabled={isLoading || isRateLimited}
-							aria-describedby={fieldErrors.password ? "password-error" : "password-help"}
-							aria-invalid={fieldErrors.password ? "true" : "false"}
-							aria-label="Password"
+							disabled={isLoading}
+							aria-describedby={validationErrors.password ? "password-error" : undefined}
+							onblur={() => touched.password = true}
 						/>
-						{#if fieldErrors.password}
-							<p id="password-error" class="text-sm text-red-600 mt-1" role="alert" aria-live="polite">
-								{fieldErrors.password}
+						{#if touched.password && validationErrors.password}
+							<p id="password-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.password}
 							</p>
-						{:else if password}
-							<div id="password-help" class="mt-2">
+						{/if}
+						{#if password}
+							<div class="mt-2">
 								<div class="flex items-center space-x-2">
 									<div class="flex-1 bg-gray-200 rounded-full h-2">
 										<div
 											class="h-2 rounded-full transition-all duration-300"
-											style="width: {(passwordStrength.score / 5) * 100}%; background-color: {passwordStrength.color}"
-											role="progressbar"
-											aria-valuenow={passwordStrength.score}
-											aria-valuemin={0}
-											aria-valuemax={5}
-											aria-label="Password strength"
+											style="width: {(passwordStrength.score / 5) * 100}%; background-color: {passwordStrengthColor}"
 										></div>
 									</div>
-									<span class="text-xs text-gray-600">{passwordStrength.label}</span>
+									<span class="text-xs text-gray-600">{passwordStrengthText}</span>
 								</div>
 							</div>
 						{/if}
@@ -249,14 +303,13 @@
 							bind:value={confirmPassword}
 							required
 							autocomplete="new-password"
-							disabled={isLoading || isRateLimited}
-							aria-describedby={fieldErrors.confirmPassword ? "confirm-error" : undefined}
-							aria-invalid={fieldErrors.confirmPassword ? "true" : "false"}
-							aria-label="Confirm password"
+							disabled={isLoading}
+							aria-describedby={validationErrors.confirmPassword ? "confirm-error" : undefined}
+							onblur={() => touched.confirmPassword = true}
 						/>
-						{#if fieldErrors.confirmPassword}
-							<p id="confirm-error" class="text-sm text-red-600 mt-1" role="alert" aria-live="polite">
-								{fieldErrors.confirmPassword}
+						{#if touched.confirmPassword && validationErrors.confirmPassword}
+							<p id="confirm-error" class="text-sm text-red-600 mt-1" role="alert">
+								{validationErrors.confirmPassword}
 							</p>
 						{/if}
 					</div>
@@ -265,21 +318,21 @@
 						<div
 							class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3"
 							role="alert"
-							aria-live="assertive"
+							aria-live="polite"
 						>
 							{error}
 						</div>
 					{/if}
 
 					<Button
-						type="submit"
+						type="button"
 						class="w-full"
-						disabled={isLoading || isRateLimited}
-						aria-busy={isLoading}
+						disabled={isLoading}
+						onclick={handleSubmit}
 					>
 						{#if isLoading}
-							<span class="flex items-center justify-center gap-2">
-								<LoadingSpinner size="sm" class="border-white border-t-transparent" />
+							<span class="flex items-center space-x-2">
+								<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
 								<span>Creating account...</span>
 							</span>
 						{:else}
@@ -294,7 +347,7 @@
 						<a
 							href="/login"
 							class="text-primary hover:text-primary/80 underline font-medium"
-							tabindex={isLoading || isRateLimited ? -1 : 0}
+							tabindex={isLoading ? -1 : 0}
 						>
 							Sign in
 						</a>

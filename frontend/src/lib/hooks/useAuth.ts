@@ -28,26 +28,16 @@ function mapUserProfileToUser(profile: UserProfile): User {
 	};
 }
 
-// Flag to track if auth has been initialized
-let isInitialized = false;
-
 // Custom hook for auth initialization
 export function useAuth() {
 	onMount(async () => {
-		// Only initialize once per app session
-		if (isInitialized) {
-			return;
-		}
-
-		isInitialized = true;
-
-		// Set loading state at the start
-		authStore.setLoading(true);
-
-		// Try to restore session from sessionStorage
 		try {
-			if (tokenManager.hasValidSession()) {
-				const storedUser = tokenManager.getUserData();
+			// Initialize auth state (await to avoid racing with storage init)
+			await authStore.initialize();
+
+			// Try to restore session from sessionStorage
+			if (await tokenManager.hasValidSession()) {
+				const storedUser = await tokenManager.getUserData();
 
 				if (storedUser) {
 					try {
@@ -57,23 +47,15 @@ export function useAuth() {
 						console.error('Failed to parse stored user data:', error);
 						// Clear invalid data
 						tokenManager.clearAll();
-						authStore.setUser(null);
 					}
-				} else {
-					// No user data found, clear tokens
-					tokenManager.clearAll();
-					authStore.setUser(null);
 				}
-			} else {
-				// No valid session, ensure user is cleared
-				authStore.setUser(null);
 			}
 		} catch (error) {
-			console.error('Session restoration failed:', error);
+			console.error('Failed to initialize auth:', error);
+			// Clear any corrupted data
 			tokenManager.clearAll();
-			authStore.setUser(null);
 		} finally {
-			// Always set loading to false after session check completes
+			// Always set loading to false, even if initialization fails
 			authStore.setLoading(false);
 		}
 	});
@@ -90,7 +72,7 @@ export function useAuth() {
 				if (result.success && result.data) {
 					// Store tokens securely using tokenManager
 					tokenManager.setAccessToken(result.data.access_token, result.data.expires_in);
-					tokenManager.setRefreshToken(result.data.refresh_token);
+					await tokenManager.setRefreshToken(result.data.refresh_token);
 
 					// Map backend UserInfo to frontend User type
 					const user: User = {
@@ -104,7 +86,7 @@ export function useAuth() {
 					};
 
 					// Store user data for session persistence
-					tokenManager.setUserData(JSON.stringify(user));
+					await tokenManager.setUserData(JSON.stringify(user));
 
 					authStore.setUser(user);
 
@@ -143,7 +125,7 @@ export function useAuth() {
 		},
 		logout: async () => {
 			// Call backend to revoke refresh token
-			const refreshToken = tokenManager.getRefreshToken();
+			const refreshToken = await tokenManager.getRefreshToken();
 			if (refreshToken) {
 				try {
 					// Backend expects { refresh_token: string }
