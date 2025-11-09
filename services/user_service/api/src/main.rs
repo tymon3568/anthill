@@ -326,6 +326,14 @@ async fn main() {
                 cors = cors.allow_origin(AllowOrigin::any());
                 // Note: allow_credentials(false) is implicit when using wildcard origins
             } else {
+                // Validate that wildcard is not in configured origins
+                if origins.iter().any(|o| o == "*") {
+                    panic!(
+                        "CORS configuration error: wildcard origin '*' cannot be used with credentials. \
+                         Either remove '*' and specify exact origins, or leave CORS_ORIGINS empty for development."
+                    );
+                }
+
                 let header_values: Result<Vec<HeaderValue>, _> = origins
                     .into_iter()
                     .map(|origin| {
