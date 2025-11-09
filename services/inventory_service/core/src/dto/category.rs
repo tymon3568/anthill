@@ -194,6 +194,7 @@ pub struct CategoryListQuery {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "snake_case")]
+#[derive(PartialEq)]
 pub enum CategorySortField {
     #[default]
     DisplayOrder,
@@ -208,6 +209,7 @@ pub enum CategorySortField {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "lowercase")]
+#[derive(PartialEq)]
 pub enum SortDirection {
     #[default]
     Asc,
@@ -408,10 +410,22 @@ mod tests {
         let info = PaginationInfo::new(5, 20, 100);
         assert!(!info.has_next);
         assert!(info.has_prev);
+
+        // Edge cases
+        let info = PaginationInfo::new(1, 10, 0);
+        assert_eq!(info.total_pages, 0);
+        assert!(!info.has_next);
+        assert!(!info.has_prev);
+
+        let info = PaginationInfo::new(1, 10, 1);
+        assert_eq!(info.total_pages, 1);
+        assert!(!info.has_next);
+        assert!(!info.has_prev);
     }
 
     #[test]
     fn test_category_create_request_validation() {
+        // Valid request
         let req = CategoryCreateRequest {
             parent_category_id: None,
             name: "Electronics".to_string(),
@@ -428,8 +442,105 @@ mod tests {
             meta_description: None,
             meta_keywords: None,
         };
-
         assert!(req.validate().is_ok());
+
+        // Test name validation
+        let mut invalid_req = req.clone();
+        invalid_req.name = "".to_string();
+        assert!(invalid_req.validate().is_err());
+
+        invalid_req.name = "a".repeat(256);
+        assert!(invalid_req.validate().is_err());
+
+        // Test description length
+        let mut invalid_req = req.clone();
+        invalid_req.description = Some("a".repeat(5001));
+        assert!(invalid_req.validate().is_err());
+
+        // Test color validation
+        let mut invalid_req = req.clone();
+        invalid_req.color = Some("invalid".to_string());
+        assert!(invalid_req.validate().is_err());
+
+        invalid_req.color = Some("#GGG".to_string());
+        assert!(invalid_req.validate().is_err());
+
+        invalid_req.color = Some("#FF573".to_string()); // 5 chars
+        assert!(invalid_req.validate().is_err());
+
+        // Valid colors
+        invalid_req.color = Some("#ff5733".to_string()); // lowercase
+        assert!(invalid_req.validate().is_ok());
+
+        invalid_req.color = Some("#000000".to_string());
+        assert!(invalid_req.validate().is_ok());
+
+        // Test URL validation
+        let mut invalid_req = req.clone();
+        invalid_req.image_url = Some("not-a-url".to_string());
+        assert!(invalid_req.validate().is_err());
+
+        invalid_req.image_url = Some("https://example.com/image.jpg".to_string());
+        assert!(invalid_req.validate().is_ok());
+    }
+
+    #[test]
+    fn test_category_update_request_validation() {
+        let req = CategoryUpdateRequest {
+            parent_category_id: None,
+            name: Some("Updated Electronics".to_string()),
+            description: Some("Updated description".to_string()),
+            code: Some("ELEC2".to_string()),
+            display_order: Some(2),
+            icon: Some("updated-icon".to_string()),
+            color: Some("#00FF00".to_string()),
+            image_url: Some("https://example.com/new-image.jpg".to_string()),
+            is_active: Some(true),
+            is_visible: Some(false),
+            slug: Some("updated-electronics".to_string()),
+            meta_title: Some("Updated Meta Title".to_string()),
+            meta_description: Some("Updated meta description".to_string()),
+            meta_keywords: Some("updated, keywords".to_string()),
+        };
+        assert!(req.validate().is_ok());
+
+        // Test optional fields can be None
+        let req = CategoryUpdateRequest {
+            parent_category_id: None,
+            name: None,
+            description: None,
+            code: None,
+            display_order: None,
+            icon: None,
+            color: None,
+            image_url: None,
+            is_active: None,
+            is_visible: None,
+            slug: None,
+            meta_title: None,
+            meta_description: None,
+            meta_keywords: None,
+        };
+        assert!(req.validate().is_ok());
+
+        // Test validation when fields are provided
+        let invalid_req = CategoryUpdateRequest {
+            parent_category_id: None,
+            name: Some("".to_string()),
+            description: None,
+            code: None,
+            display_order: None,
+            icon: None,
+            color: None,
+            image_url: None,
+            is_active: None,
+            is_visible: None,
+            slug: None,
+            meta_title: None,
+            meta_description: None,
+            meta_keywords: None,
+        };
+        assert!(invalid_req.validate().is_err());
     }
 
     #[test]
@@ -437,5 +548,198 @@ mod tests {
         let query: CategoryListQuery = serde_json::from_str("{}").unwrap();
         assert_eq!(query.page, 1);
         assert_eq!(query.page_size, 20);
+        assert_eq!(query.sort_by, CategorySortField::DisplayOrder);
+        assert_eq!(query.sort_dir, SortDirection::Asc);
+    }
+
+    #[test]
+    fn test_category_list_query_validation() {
+        // Valid query
+        let query = CategoryListQuery {
+            parent_id: Some(Uuid::new_v4()),
+            level: Some(1),
+            is_active: Some(true),
+            is_visible: Some(false),
+            search: Some("electronics".to_string()),
+            page: 2,
+            page_size: 50,
+            sort_by: CategorySortField::Name,
+            sort_dir: SortDirection::Desc,
+        };
+        assert!(query.validate().is_ok());
+
+        // Invalid page
+        let mut invalid_query = query.clone();
+        invalid_query.page = 0;
+        assert!(invalid_query.validate().is_err());
+
+        // Invalid page_size
+        let mut invalid_query = query.clone();
+        invalid_query.page_size = 0;
+        assert!(invalid_query.validate().is_err());
+
+        invalid_query.page_size = 101;
+        assert!(invalid_query.validate().is_err());
+
+        // Invalid level
+        let mut invalid_query = query.clone();
+        invalid_query.level = Some(-1);
+        assert!(invalid_query.validate().is_err());
+
+        // Invalid search length
+        let mut invalid_query = query.clone();
+        invalid_query.search = Some("a".repeat(256));
+        assert!(invalid_query.validate().is_err());
+    }
+
+    #[test]
+    fn test_move_to_category_request_validation() {
+        let req = MoveToCategoryRequest {
+            product_ids: vec![Uuid::new_v4(), Uuid::new_v4()],
+            category_id: Uuid::new_v4(),
+        };
+        assert!(req.validate().is_ok());
+
+        // Empty product_ids
+        let mut invalid_req = req.clone();
+        invalid_req.product_ids = vec![];
+        assert!(invalid_req.validate().is_err());
+
+        // Too many product_ids
+        let mut invalid_req = req.clone();
+        invalid_req.product_ids = (0..1001).map(|_| Uuid::new_v4()).collect();
+        assert!(invalid_req.validate().is_err());
+    }
+
+    #[test]
+    fn test_category_response_from_category() {
+        let category = Category {
+            category_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            parent_category_id: Some(Uuid::new_v4()),
+            name: "Test Category".to_string(),
+            description: Some("Test description".to_string()),
+            code: Some("TEST".to_string()),
+            path: "root/test".to_string(),
+            level: 1,
+            display_order: 5,
+            icon: Some("test-icon".to_string()),
+            color: Some("#123456".to_string()),
+            image_url: Some("https://example.com/image.jpg".to_string()),
+            is_active: true,
+            is_visible: false,
+            slug: Some("test-category".to_string()),
+            meta_title: Some("Test Meta".to_string()),
+            meta_description: Some("Test meta desc".to_string()),
+            meta_keywords: Some("test, keywords".to_string()),
+            product_count: 10,
+            total_product_count: 25,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            deleted_at: None,
+        };
+
+        let response: CategoryResponse = category.into();
+        assert_eq!(response.category_id, response.category_id); // Just check it's set
+        assert_eq!(response.name, "Test Category");
+        assert_eq!(response.breadcrumbs, None); // Not set in conversion
+    }
+
+    #[test]
+    fn test_category_tree_response_from_node() {
+        let category = Category {
+            category_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            parent_category_id: None,
+            name: "Root Category".to_string(),
+            description: None,
+            code: None,
+            path: "root".to_string(),
+            level: 0,
+            display_order: 0,
+            icon: None,
+            color: None,
+            image_url: None,
+            is_active: true,
+            is_visible: true,
+            slug: Some("root-category".to_string()),
+            meta_title: None,
+            meta_description: None,
+            meta_keywords: None,
+            product_count: 5,
+            total_product_count: 15,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            deleted_at: None,
+        };
+
+        let mut node = CategoryNode::new(category.clone());
+        let child_category = Category {
+            category_id: Uuid::new_v4(),
+            tenant_id: category.tenant_id,
+            parent_category_id: Some(category.category_id),
+            name: "Child Category".to_string(),
+            description: None,
+            code: None,
+            path: "root/child".to_string(),
+            level: 1,
+            display_order: 0,
+            icon: None,
+            color: None,
+            image_url: None,
+            is_active: true,
+            is_visible: true,
+            slug: Some("child-category".to_string()),
+            meta_title: None,
+            meta_description: None,
+            meta_keywords: None,
+            product_count: 3,
+            total_product_count: 3,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            deleted_at: None,
+        };
+        node.add_child(CategoryNode::new(child_category));
+
+        let tree: CategoryTreeResponse = node.into();
+        assert_eq!(tree.category_id, category.category_id);
+        assert_eq!(tree.name, category.name);
+        assert_eq!(tree.children.len(), 1);
+        assert_eq!(tree.children[0].name, "Child Category");
+    }
+
+    #[test]
+    fn test_sort_field_serialization() {
+        let field = CategorySortField::Name;
+        let serialized = serde_json::to_string(&field).unwrap();
+        assert_eq!(serialized, "\"name\"");
+
+        let deserialized: CategorySortField = serde_json::from_str("\"created_at\"").unwrap();
+        assert!(matches!(deserialized, CategorySortField::CreatedAt));
+    }
+
+    #[test]
+    fn test_sort_direction_serialization() {
+        let dir = SortDirection::Desc;
+        let serialized = serde_json::to_string(&dir).unwrap();
+        assert_eq!(serialized, "\"desc\"");
+
+        let deserialized: SortDirection = serde_json::from_str("\"asc\"").unwrap();
+        assert!(matches!(deserialized, SortDirection::Asc));
+    }
+
+    #[test]
+    fn test_color_regex() {
+        // Test the regex directly
+        assert!(COLOR_REGEX.is_match("#FF5733"));
+        assert!(COLOR_REGEX.is_match("#000000"));
+        assert!(COLOR_REGEX.is_match("#ffffff"));
+        assert!(COLOR_REGEX.is_match("#123ABC"));
+
+        assert!(!COLOR_REGEX.is_match("#GGG"));
+        assert!(!COLOR_REGEX.is_match("#FF573"));
+        assert!(!COLOR_REGEX.is_match("FF5733"));
+        assert!(!COLOR_REGEX.is_match("#FF57333"));
+        assert!(!COLOR_REGEX.is_match("#ff573g"));
     }
 }

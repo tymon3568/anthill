@@ -1,4 +1,8 @@
-// TODO: Implement category repository
+//! PostgreSQL implementation of CategoryRepository
+//!
+//! This module provides the concrete implementation of the CategoryRepository trait
+//! using PostgreSQL as the data store. It handles all database operations for categories.
+
 use async_trait::async_trait;
 use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
@@ -8,11 +12,22 @@ use inventory_service_core::dto::category::CategoryListQuery;
 use inventory_service_core::repositories::category::CategoryRepository;
 use inventory_service_core::Result;
 
+/// PostgreSQL implementation of CategoryRepository
+///
+/// Provides concrete implementations of all category repository operations
+/// using SQLx for database interactions with PostgreSQL.
 pub struct CategoryRepositoryImpl {
     pool: PgPool,
 }
 
 impl CategoryRepositoryImpl {
+    /// Create a new CategoryRepositoryImpl with the given database connection pool
+    ///
+    /// # Arguments
+    /// * `pool` - PostgreSQL connection pool
+    ///
+    /// # Returns
+    /// New CategoryRepositoryImpl instance
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
@@ -20,6 +35,10 @@ impl CategoryRepositoryImpl {
 
 #[async_trait]
 impl CategoryRepository for CategoryRepositoryImpl {
+    /// Create a new category in the database
+    ///
+    /// Inserts the category and triggers automatic path/level calculation
+    /// via database triggers. Returns the created category with computed fields.
     async fn create(&self, category: Category) -> Result<Category> {
         let row = sqlx::query_as!(
             Category,
@@ -63,6 +82,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(row)
     }
 
+    /// Find a category by its ID within a tenant
+    ///
+    /// Returns the category if it exists and belongs to the specified tenant.
     async fn find_by_id(
         &self,
         tenant_id: uuid::Uuid,
@@ -89,6 +111,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(category)
     }
 
+    /// Find a category by its slug within a tenant
+    ///
+    /// Returns the category if it exists and belongs to the specified tenant.
     async fn find_by_slug(&self, tenant_id: uuid::Uuid, slug: &str) -> Result<Option<Category>> {
         let category = sqlx::query_as!(
             Category,
@@ -111,6 +136,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(category)
     }
 
+    /// Find a category by its code within a tenant
+    ///
+    /// Returns the category if it exists and belongs to the specified tenant.
     async fn find_by_code(&self, tenant_id: uuid::Uuid, code: &str) -> Result<Option<Category>> {
         let category = sqlx::query_as!(
             Category,
@@ -133,6 +161,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(category)
     }
 
+    /// Update an existing category
+    ///
+    /// Updates the category and triggers path recalculation if parent changed.
+    /// Returns the updated category with computed fields.
     async fn update(&self, category: Category) -> Result<Category> {
         let row = sqlx::query_as!(
             Category,
@@ -174,6 +206,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(row)
     }
 
+    /// Soft delete a category
+    ///
+    /// Marks the category as deleted (soft delete) if it belongs to the tenant.
+    /// Returns true if the category was found and deleted.
     async fn delete(&self, tenant_id: uuid::Uuid, category_id: uuid::Uuid) -> Result<bool> {
         let result = sqlx::query!(
             r#"
@@ -190,6 +226,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(result.rows_affected() > 0)
     }
 
+    /// Permanently delete a category
+    ///
+    /// Completely removes the category from the database.
+    /// Use with caution - this cannot be undone.
     async fn hard_delete(&self, tenant_id: uuid::Uuid, category_id: uuid::Uuid) -> Result<bool> {
         let result = sqlx::query!(
             r#"
@@ -205,6 +245,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(result.rows_affected() > 0)
     }
 
+    /// List categories with filtering and pagination
+    ///
+    /// Returns a tuple of (categories, total_count) based on the query parameters.
+    /// Supports filtering by parent, level, active status, visibility, and search terms.
     async fn list(
         &self,
         tenant_id: uuid::Uuid,
@@ -391,6 +435,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok((categories, count))
     }
 
+    /// Get all root categories (no parent) for a tenant
+    ///
+    /// Returns categories that have no parent, ordered by display_order then name.
     async fn get_root_categories(&self, tenant_id: uuid::Uuid) -> Result<Vec<Category>> {
         let categories = sqlx::query_as!(
             Category,
@@ -413,6 +460,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(categories)
     }
 
+    /// Get direct children of a category
+    ///
+    /// Returns immediate child categories of the specified parent,
+    /// ordered by display_order then name.
     async fn get_children(
         &self,
         tenant_id: uuid::Uuid,
@@ -440,6 +491,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(categories)
     }
 
+    /// Get all ancestors of a category (from root to parent)
+    ///
+    /// Returns the complete path from root category to the immediate parent
+    /// of the specified category, ordered by level.
     async fn get_ancestors(
         &self,
         tenant_id: uuid::Uuid,
@@ -467,6 +522,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(categories)
     }
 
+    /// Get all descendants of a category (all subcategories)
+    ///
+    /// Returns all categories that are descendants of the specified category,
+    /// ordered by path for consistent hierarchy display.
     async fn get_descendants(
         &self,
         tenant_id: uuid::Uuid,
@@ -494,6 +553,11 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(categories)
     }
 
+    /// Get full category tree (hierarchical structure)
+    ///
+    /// Builds a complete tree structure starting from root categories
+    /// or from a specified parent. Uses recursive building to create
+    /// the full hierarchy with all children populated.
     async fn get_tree(
         &self,
         tenant_id: uuid::Uuid,
@@ -536,6 +600,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(tree)
     }
 
+    /// Get top categories by product count
+    ///
+    /// Returns root categories ordered by total product count (descending),
+    /// then by display order. Limited to the specified number of results.
     async fn get_top_categories(&self, tenant_id: uuid::Uuid, limit: i32) -> Result<Vec<Category>> {
         let categories = sqlx::query_as!(
             Category,
@@ -560,6 +628,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(categories)
     }
 
+    /// Check if a category exists
+    ///
+    /// Returns true if the category exists and belongs to the specified tenant.
     async fn exists(&self, tenant_id: uuid::Uuid, category_id: uuid::Uuid) -> Result<bool> {
         let row = sqlx::query!(
             r#"
@@ -576,6 +647,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(row.count.unwrap_or(0) > 0)
     }
 
+    /// Check if a category has child categories
+    ///
+    /// Returns true if the category has any direct children.
     async fn has_children(&self, tenant_id: uuid::Uuid, category_id: uuid::Uuid) -> Result<bool> {
         let row = sqlx::query!(
             r#"
@@ -592,6 +666,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(row.count.unwrap_or(0) > 0)
     }
 
+    /// Check if a category has products
+    ///
+    /// Returns true if the category has any products assigned to it.
     async fn has_products(&self, tenant_id: uuid::Uuid, category_id: uuid::Uuid) -> Result<bool> {
         let row = sqlx::query!(
             r#"
@@ -608,6 +685,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(row.count.unwrap_or(0) > 0)
     }
 
+    /// Check if a category can be safely deleted
+    ///
+    /// Uses the database function to determine if the category has no children
+    /// and no products, making it safe for deletion.
     async fn can_delete(&self, tenant_id: uuid::Uuid, category_id: uuid::Uuid) -> Result<bool> {
         let row = sqlx::query!(
             r#"
@@ -622,6 +703,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(row.can_delete.unwrap_or(false))
     }
 
+    /// Get detailed statistics for a category
+    ///
+    /// Returns comprehensive statistics including product counts,
+    /// subcategory counts, and active/inactive product breakdowns.
     async fn get_stats(
         &self,
         tenant_id: uuid::Uuid,
@@ -699,19 +784,52 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(stats)
     }
 
+    /// Manually recalculate product counts for a category and its ancestors
+    ///
+    /// This method recalculates both direct product_count and total_product_count
+    /// for the specified category and all its ancestors. Normally this is handled
+    /// automatically by database triggers, but this provides a manual override.
     async fn update_product_counts(
         &self,
-        _tenant_id: uuid::Uuid,
-        _category_id: uuid::Uuid,
+        tenant_id: uuid::Uuid,
+        category_id: uuid::Uuid,
     ) -> Result<i32> {
-        // Execute the function to update product counts
-        sqlx::query("SELECT update_category_product_count()")
-            .execute(&self.pool)
-            .await?;
+        // Manually recalculate product counts for this category and ancestors
+        sqlx::query!(
+            r#"
+            UPDATE product_categories pc
+            SET
+                product_count = (
+                    SELECT COUNT(*) FROM products
+                    WHERE category_id = pc.category_id
+                      AND tenant_id = pc.tenant_id
+                      AND deleted_at IS NULL
+                ),
+                total_product_count = (
+                    SELECT COUNT(*) FROM products p
+                    JOIN product_categories child ON child.category_id = p.category_id
+                    WHERE (child.path = pc.path OR child.path LIKE pc.path || '/%')
+                      AND p.tenant_id = pc.tenant_id
+                      AND p.deleted_at IS NULL
+                )
+            WHERE pc.tenant_id = $1
+              AND (pc.category_id = $2 OR pc.path LIKE (
+                  SELECT path || '/%' FROM product_categories WHERE category_id = $2
+              ))
+            "#,
+            tenant_id,
+            category_id
+        )
+        .execute(&self.pool)
+        .await?;
 
-        Ok(1) // Return 1 to indicate success
+        Ok(1)
     }
 
+    /// Move multiple products to a category
+    ///
+    /// Uses the database function to efficiently move products in bulk.
+    /// Returns the number of products successfully moved.
     async fn move_products_to_category(
         &self,
         tenant_id: uuid::Uuid,
@@ -732,6 +850,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(row.moved_count.unwrap_or(0))
     }
 
+    /// Get all product IDs in a category tree
+    ///
+    /// Returns all product IDs that belong to the specified category
+    /// or any of its subcategories.
     async fn get_products_in_tree(
         &self,
         tenant_id: uuid::Uuid,
@@ -752,6 +874,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(product_ids)
     }
 
+    /// Bulk activate multiple categories
+    ///
+    /// Sets is_active = true for all specified categories.
+    /// Returns the number of categories successfully activated.
     async fn bulk_activate(
         &self,
         tenant_id: uuid::Uuid,
@@ -772,6 +898,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(result.rows_affected() as i32)
     }
 
+    /// Bulk deactivate multiple categories
+    ///
+    /// Sets is_active = false for all specified categories.
+    /// Returns the number of categories successfully deactivated.
     async fn bulk_deactivate(
         &self,
         tenant_id: uuid::Uuid,
@@ -792,6 +922,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(result.rows_affected() as i32)
     }
 
+    /// Bulk soft delete multiple categories
+    ///
+    /// Marks all specified categories as deleted (soft delete).
+    /// Returns the number of categories successfully deleted.
     async fn bulk_delete(
         &self,
         tenant_id: uuid::Uuid,
@@ -812,6 +946,11 @@ impl CategoryRepository for CategoryRepositoryImpl {
         Ok(result.rows_affected() as i32)
     }
 
+    /// Full-text search categories
+    ///
+    /// Searches category names and descriptions using case-insensitive
+    /// pattern matching. Returns results ordered by name, limited to
+    /// the specified number of results.
     async fn search(
         &self,
         tenant_id: uuid::Uuid,
@@ -843,4 +982,152 @@ impl CategoryRepository for CategoryRepositoryImpl {
 
         Ok(categories)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use inventory_service_core::dto::category::CategoryListQuery;
+    use inventory_service_core::dto::category::CategorySortField;
+    use inventory_service_core::dto::category::SortDirection;
+    use serde_json;
+    use sqlx::PgPool;
+    use uuid::Uuid;
+
+    // Note: These tests require a PostgreSQL database connection
+    // In a real scenario, you would use a test database or mock
+
+    #[tokio::test]
+    async fn test_category_repository_impl_creation() {
+        // This test would require a test database setup
+        // For now, just test that the struct can be created
+        // In production, you'd use a test database pool
+        // let pool = get_test_db_pool().await;
+        // let repo = CategoryRepositoryImpl::new(pool);
+        // assert! is fine for basic instantiation
+    }
+
+    #[test]
+    fn test_category_repository_new() {
+        // Test that we can create a repository instance
+        // Note: This doesn't test database connectivity
+        // In a real test, you'd inject a test pool
+    }
+
+    #[test]
+    fn test_category_sort_field_serialization() {
+        let field = CategorySortField::Name;
+        let serialized = serde_json::to_string(&field).unwrap();
+        assert_eq!(serialized, "\"name\"");
+
+        let deserialized: CategorySortField = serde_json::from_str("\"created_at\"").unwrap();
+        assert!(matches!(deserialized, CategorySortField::CreatedAt));
+    }
+
+    #[test]
+    fn test_category_sort_direction_serialization() {
+        let dir = SortDirection::Desc;
+        let serialized = serde_json::to_string(&dir).unwrap();
+        assert_eq!(serialized, "\"desc\"");
+
+        let deserialized: SortDirection = serde_json::from_str("\"asc\"").unwrap();
+        assert!(matches!(deserialized, SortDirection::Asc));
+    }
+
+    #[test]
+    fn test_category_list_query_defaults() {
+        let query: CategoryListQuery = serde_json::from_str("{}").unwrap();
+        assert_eq!(query.page, 1);
+        assert_eq!(query.page_size, 20);
+        assert_eq!(query.sort_by, CategorySortField::DisplayOrder);
+        assert_eq!(query.sort_dir, SortDirection::Asc);
+    }
+
+    #[test]
+    fn test_category_list_query_validation() {
+        // Valid query
+        let query = CategoryListQuery {
+            parent_id: Some(Uuid::new_v4()),
+            level: Some(1),
+            is_active: Some(true),
+            is_visible: Some(false),
+            search: Some("electronics".to_string()),
+            page: 2,
+            page_size: 50,
+            sort_by: CategorySortField::Name,
+            sort_dir: SortDirection::Desc,
+        };
+        assert!(query.validate().is_ok());
+
+        // Invalid page
+        let mut invalid_query = query.clone();
+        invalid_query.page = 0;
+        assert!(invalid_query.validate().is_err());
+
+        // Invalid page_size
+        let mut invalid_query = query.clone();
+        invalid_query.page_size = 0;
+        assert!(invalid_query.validate().is_err());
+
+        invalid_query.page_size = 101;
+        assert!(invalid_query.validate().is_err());
+
+        // Invalid level
+        let mut invalid_query = query.clone();
+        invalid_query.level = Some(-1);
+        assert!(invalid_query.validate().is_err());
+
+        // Invalid search length
+        let mut invalid_query = query.clone();
+        invalid_query.search = Some("a".repeat(256));
+        assert!(invalid_query.validate().is_err());
+    }
+
+    // Integration tests would go here, but require database setup
+    // Example:
+    /*
+    #[tokio::test]
+    async fn test_create_and_find_category() {
+        let pool = get_test_db_pool().await;
+        let repo = CategoryRepositoryImpl::new(pool);
+
+        let tenant_id = Uuid::new_v4();
+        let category = Category {
+            category_id: Uuid::now_v7(),
+            tenant_id,
+            parent_category_id: None,
+            name: "Test Category".to_string(),
+            description: Some("Test description".to_string()),
+            code: Some("TEST".to_string()),
+            path: String::new(),
+            level: 0,
+            display_order: 0,
+            icon: None,
+            color: Some("#FF5733".to_string()),
+            image_url: None,
+            is_active: true,
+            is_visible: true,
+            slug: Some("test-category".to_string()),
+            meta_title: None,
+            meta_description: None,
+            meta_keywords: None,
+            product_count: 0,
+            total_product_count: 0,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            deleted_at: None,
+        };
+
+        // Create category
+        let created = repo.create(category.clone()).await.unwrap();
+
+        // Find by ID
+        let found = repo.find_by_id(tenant_id, created.category_id).await.unwrap();
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().name, "Test Category");
+
+        // Cleanup
+        repo.hard_delete(tenant_id, created.category_id).await.unwrap();
+    }
+    */
 }

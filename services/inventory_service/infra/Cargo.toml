@@ -21,6 +21,8 @@ validator = {workspace = true}
 fake = {workspace = true}
 mockall = {workspace = true}
 proptest = {workspace = true}
+serde_json = {workspace = true}
+tokio = {workspace = true}
 tokio-test = "0.4"
 
 [lib]

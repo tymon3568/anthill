@@ -4,5 +4,8 @@
 
 pub mod category;
 
+#[cfg(test)]
+mod category_tests;
+
 // Re-export services for convenience
 pub use category::CategoryServiceImpl;

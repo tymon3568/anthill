@@ -206,6 +206,7 @@ impl CategoryNode {
 /// Category breadcrumb item
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[derive(PartialEq)]
 pub struct CategoryBreadcrumb {
     pub category_id: Uuid,
     pub name: String,
@@ -302,6 +303,37 @@ mod tests {
         assert!(root.is_ancestor_of(&grandchild));
         assert!(child.is_ancestor_of(&grandchild));
         assert!(!child.is_ancestor_of(&root));
+        assert!(!root.is_ancestor_of(&root)); // Not ancestor of itself
+    }
+
+    #[test]
+    fn test_is_descendant_of() {
+        let root = create_test_category(
+            "00000000-0000-0000-0000-000000000001",
+            None,
+            "00000000-0000-0000-0000-000000000001",
+            0,
+        );
+
+        let child = create_test_category(
+            "00000000-0000-0000-0000-000000000002",
+            Some("00000000-0000-0000-0000-000000000001"),
+            "00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002",
+            1,
+        );
+
+        let grandchild = create_test_category(
+            "00000000-0000-0000-0000-000000000003",
+            Some("00000000-0000-0000-0000-000000000002"),
+            "00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/00000000-0000-0000-0000-000000000003",
+            2,
+        );
+
+        assert!(child.is_descendant_of(&root));
+        assert!(grandchild.is_descendant_of(&root));
+        assert!(grandchild.is_descendant_of(&child));
+        assert!(!root.is_descendant_of(&child));
+        assert!(!root.is_descendant_of(&root)); // Not descendant of itself
     }
 
     #[test]
@@ -313,21 +345,45 @@ mod tests {
             0,
         );
 
+        // Valid colors
         category.color = Some("#FF5733".to_string());
         assert!(category.is_valid_color());
 
         category.color = Some("#ff5733".to_string());
         assert!(category.is_valid_color());
 
+        category.color = Some("#000000".to_string());
+        assert!(category.is_valid_color());
+
+        category.color = Some("#FFFFFF".to_string());
+        assert!(category.is_valid_color());
+
+        // Invalid colors
         category.color = Some("FF5733".to_string());
         assert!(!category.is_valid_color());
 
+        category.color = Some("#GGG".to_string());
+        assert!(!category.is_valid_color());
+
+        category.color = Some("#FF573".to_string()); // Too short
+        assert!(!category.is_valid_color());
+
+        category.color = Some("#FF57333".to_string()); // Too long
+        assert!(!category.is_valid_color());
+
+        category.color = Some("#ff573g".to_string()); // Invalid char
+        assert!(!category.is_valid_color());
+
+        category.color = Some("invalid".to_string());
+        assert!(!category.is_valid_color());
+
+        // None is valid (no color set)
         category.color = None;
         assert!(category.is_valid_color());
     }
 
     #[test]
-    fn test_category_node_count_descendants() {
+    fn test_category_node_operations() {
         let root = create_test_category(
             "00000000-0000-0000-0000-000000000001",
             None,
@@ -349,10 +405,102 @@ mod tests {
             1,
         );
 
+        let grandchild = create_test_category(
+            "00000000-0000-0000-0000-000000000004",
+            Some("00000000-0000-0000-0000-000000000002"),
+            "00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/00000000-0000-0000-0000-000000000004",
+            2,
+        );
+
         let mut root_node = CategoryNode::new(root);
-        root_node.add_child(CategoryNode::new(child1));
+        let mut child1_node = CategoryNode::new(child1);
+        child1_node.add_child(CategoryNode::new(grandchild));
+        root_node.add_child(child1_node);
         root_node.add_child(CategoryNode::new(child2));
 
-        assert_eq!(root_node.count_descendants(), 2);
+        // Test count_descendants
+        assert_eq!(root_node.count_descendants(), 3);
+
+        // Test that children have correct counts
+        assert_eq!(root_node.children[0].count_descendants(), 1); // child1 has 1 grandchild
+        assert_eq!(root_node.children[1].count_descendants(), 0); // child2 has no children
+
+        // Test node creation
+        let node = CategoryNode::new(create_test_category(
+            "00000000-0000-0000-0000-000000000005",
+            None,
+            "00000000-0000-0000-0000-000000000005",
+            0,
+        ));
+        assert!(node.children.is_empty());
+        assert_eq!(node.count_descendants(), 0);
+    }
+
+    #[test]
+    fn test_category_breadcrumb() {
+        let breadcrumb = CategoryBreadcrumb {
+            category_id: Uuid::new_v4(),
+            name: "Electronics".to_string(),
+            slug: Some("electronics".to_string()),
+            level: 0,
+        };
+
+        assert_eq!(breadcrumb.name, "Electronics");
+        assert_eq!(breadcrumb.level, 0);
+    }
+
+    #[test]
+    fn test_category_creation_with_various_fields() {
+        let now = Utc::now();
+        let category = Category {
+            category_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            parent_category_id: Some(Uuid::new_v4()),
+            name: "Test Category".to_string(),
+            description: Some("A test category".to_string()),
+            code: Some("TEST".to_string()),
+            path: "root/test".to_string(),
+            level: 1,
+            display_order: 5,
+            icon: Some("test-icon".to_string()),
+            color: Some("#123456".to_string()),
+            image_url: Some("https://example.com/image.jpg".to_string()),
+            is_active: true,
+            is_visible: false,
+            slug: Some("test-category".to_string()),
+            meta_title: Some("Test Meta Title".to_string()),
+            meta_description: Some("Test meta description".to_string()),
+            meta_keywords: Some("test, category, keywords".to_string()),
+            product_count: 10,
+            total_product_count: 25,
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
+        };
+
+        assert_eq!(category.name, "Test Category");
+        assert_eq!(category.level, 1);
+        assert_eq!(category.product_count, 10);
+        assert_eq!(category.total_product_count, 25);
+        assert!(category.is_active);
+        assert!(!category.is_visible);
+        assert!(category.deleted_at.is_none());
+    }
+
+    #[test]
+    fn test_category_with_soft_delete() {
+        let mut category = create_test_category(
+            "00000000-0000-0000-0000-000000000001",
+            None,
+            "00000000-0000-0000-0000-000000000001",
+            0,
+        );
+
+        // Initially not deleted
+        assert!(category.deleted_at.is_none());
+
+        // Mark as deleted
+        category.deleted_at = Some(Utc::now());
+        assert!(category.deleted_at.is_some());
     }
 }

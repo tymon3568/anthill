@@ -1,4 +1,5 @@
 use axum::extract::{DefaultBodyLimit, FromRef};
+use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::{
     http::{header, HeaderValue},
@@ -8,7 +9,7 @@ use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use user_service_api::{
@@ -313,15 +314,31 @@ async fn main() {
                 if origins.is_empty() {
                     AllowOrigin::any()
                 } else {
-                    let header_values: Vec<HeaderValue> = origins
+                    let header_values: Result<Vec<HeaderValue>, _> = origins
                         .into_iter()
-                        .filter_map(|origin| HeaderValue::from_str(&origin).ok())
+                        .map(|origin| {
+                            HeaderValue::from_str(&origin).map_err(|e| {
+                                format!("Invalid CORS origin '{}': {}", origin, e)
+                            })
+                        })
                         .collect();
-                    AllowOrigin::list(header_values)
+
+                    match header_values {
+                        Ok(values) => AllowOrigin::list(values),
+                        Err(e) => panic!("CORS configuration error: {}", e),
+                    }
                 }
             })
-            .allow_methods(Any)
-            .allow_headers(Any)
+            .allow_methods([
+                Method::GET,
+                Method::POST,
+                Method::PUT,
+                Method::DELETE,
+            ])
+            .allow_headers([
+                header::CONTENT_TYPE,
+                header::AUTHORIZATION,
+            ])
         )
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(

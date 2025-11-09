@@ -21,6 +21,21 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
         .map(|e| e != "production")
         .unwrap_or(true);
 
+    // In production, require full Kanidm configuration
+    if !is_dev {
+        if config.kanidm_url.is_none()
+            || config.kanidm_client_id.is_none()
+            || config.kanidm_client_secret.is_none()
+            || config.kanidm_redirect_url.is_none()
+        {
+            panic!(
+                "Kanidm configuration is required in production environment. \
+                 Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
+                 and KANIDM_REDIRECT_URL environment variables."
+            );
+        }
+    }
+
     let kanidm_config = KanidmConfig {
         kanidm_url: config
             .kanidm_url
@@ -47,7 +62,9 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
         expected_audience: config.kanidm_client_id.clone(),
     };
 
-    KanidmClient::new(kanidm_config).expect("Failed to create Kanidm client")
+    KanidmClient::new(kanidm_config).expect(
+        "Failed to create Kanidm client. Check kanidm_url, client_id, client_secret, and redirect_uri configuration."
+    )
 }
 
 /// Create the main application router
@@ -74,8 +91,18 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let model_path = model_paths
         .iter()
         .find(|p| std::path::Path::new(p).exists())
-        .copied()
-        .unwrap_or("shared/auth/model.conf");
+        .copied();
+
+    let model_path = match model_path {
+        Some(path) => path,
+        None => {
+            panic!(
+                "Casbin model file not found. Tried paths: {:?}. \
+                 Ensure shared/auth/model.conf exists in the workspace.",
+                model_paths
+            );
+        },
+    };
 
     let enforcer = create_enforcer(&config.database_url, Some(model_path))
         .await
@@ -103,11 +130,18 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             if origins.is_empty() {
                 AllowOrigin::any()
             } else {
-                let header_values: Vec<HeaderValue> = origins
+                let header_values: Result<Vec<HeaderValue>, _> = origins
                     .into_iter()
-                    .filter_map(|origin| HeaderValue::from_str(&origin).ok())
+                    .map(|origin| {
+                        HeaderValue::from_str(&origin)
+                            .map_err(|e| format!("Invalid CORS origin '{}': {}", origin, e))
+                    })
                     .collect();
-                AllowOrigin::list(header_values)
+
+                match header_values {
+                    Ok(values) => AllowOrigin::list(values),
+                    Err(e) => panic!("CORS configuration error: {}", e),
+                }
             }
         })
         .allow_methods([

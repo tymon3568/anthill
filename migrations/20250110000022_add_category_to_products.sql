@@ -57,7 +57,7 @@ BEGIN
              JOIN product_categories child
                ON child.category_id = p.category_id
               AND child.tenant_id = pc.tenant_id
-             WHERE child.path LIKE pc.path || ''%''
+             WHERE (child.path = pc.path OR child.path LIKE pc.path || ''/%'')
                AND p.tenant_id = pc.tenant_id
                AND p.deleted_at IS NULL
          )
@@ -67,7 +67,7 @@ BEGIN
                FROM product_categories target
                WHERE target.category_id = $2
                  AND target.tenant_id = $1
-                 AND target.path LIKE pc.path || ''%''
+                 AND (target.path = pc.path OR target.path LIKE pc.path || ''/%'')
            )'
         USING v_tenant_id, v_category_id;
 
