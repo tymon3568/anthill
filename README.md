@@ -152,7 +152,7 @@ cargo run --bin user-service
 PORT=8001 cargo run --bin inventory-service
 
 # Or run multiple services with different ports:
-PORT=8000 cargo run --bin user-service &
+PORT=3000 cargo run --bin user-service &
 PORT=8001 cargo run --bin inventory-service &
 PORT=8002 cargo run --bin order-service &
 

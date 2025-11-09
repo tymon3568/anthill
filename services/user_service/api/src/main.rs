@@ -339,6 +339,7 @@ async fn main() {
                 header::CONTENT_TYPE,
                 header::AUTHORIZATION,
             ])
+            .allow_credentials(true)
         )
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(

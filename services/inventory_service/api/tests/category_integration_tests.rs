@@ -5,13 +5,13 @@ use axum::{
 };
 use inventory_service_api::create_app;
 use inventory_service_core::dto::category::*;
-use serde_json::json;
+use serde_json::{self, json};
 use shared_config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower::ServiceExt;
-use uuid::Uuid;
+use uuid::{self, Uuid};
 
 /// Test database manager for inventory service
 pub struct InventoryTestDatabase {
@@ -140,7 +140,8 @@ impl TestApp {
             database_url: std::env::var("DATABASE_URL").unwrap_or_else(|_| {
                 "postgres://anthill:anthill@localhost:5432/anthill_test".to_string()
             }),
-            jwt_secret: "test-secret-key-at-least-32-characters-long".to_string(),
+            jwt_secret: std::env::var("JWT_SECRET")
+                .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string()),
             jwt_expiration: 900,
             jwt_refresh_expiration: 604800,
             host: "0.0.0.0".to_string(),

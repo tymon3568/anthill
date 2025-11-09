@@ -29,30 +29,37 @@ CREATE INDEX idx_products_category_active
 CREATE OR REPLACE FUNCTION update_category_product_count()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_category_id UUID := COALESCE(NEW.category_id, OLD.category_id);
+    v_new_category_id UUID := NEW.category_id;
+    v_old_category_id UUID := OLD.category_id;
     v_tenant_id UUID := COALESCE(NEW.tenant_id, OLD.tenant_id);
+    v_category_id UUID;
 BEGIN
-    IF v_category_id IS NULL OR v_tenant_id IS NULL THEN
+    IF (v_new_category_id IS NULL AND v_old_category_id IS NULL) OR v_tenant_id IS NULL THEN
         RETURN COALESCE(NEW, OLD);
     END IF;
 
-    EXECUTE
-        'UPDATE product_categories
-         SET product_count = (
-             SELECT COUNT(*)
-             FROM products
+    FOR v_category_id IN
+        SELECT DISTINCT cat_id
+        FROM (VALUES (v_new_category_id), (v_old_category_id)) AS cats(cat_id)
+        WHERE cat_id IS NOT NULL
+    LOOP
+        EXECUTE
+            'UPDATE product_categories
+             SET product_count = (
+                 SELECT COUNT(*)
+                 FROM products
+                 WHERE category_id = $1
+                   AND tenant_id = $2
+                   AND deleted_at IS NULL
+             )
              WHERE category_id = $1
-               AND tenant_id = $2
-               AND deleted_at IS NULL
-         )
-         WHERE category_id = $1
-           AND tenant_id = $2'
-        USING v_category_id, v_tenant_id;
+               AND tenant_id = $2'
+            USING v_category_id, v_tenant_id;
 
-    EXECUTE
-        'UPDATE product_categories pc
-         SET total_product_count = (
-             SELECT COUNT(*)
+        EXECUTE
+            'UPDATE product_categories pc
+             SET total_product_count = (
+                 SELECT COUNT(*)
              FROM products p
              JOIN product_categories child
                ON child.category_id = p.category_id
@@ -67,9 +74,10 @@ BEGIN
                FROM product_categories target
                WHERE target.category_id = $2
                  AND target.tenant_id = $1
-                 AND (target.path = pc.path OR target.path LIKE pc.path || ''/%'')
+                 AND (target.path = pc.path OR pc.path LIKE target.path || ''/%'')
            )'
-        USING v_tenant_id, v_category_id;
+            USING v_tenant_id, v_category_id;
+    END LOOP;
 
     RETURN COALESCE(NEW, OLD);
 END;

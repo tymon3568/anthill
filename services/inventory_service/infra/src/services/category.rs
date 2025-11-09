@@ -289,6 +289,11 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         tenant_id: Uuid,
         query: CategoryListQuery,
     ) -> Result<CategoryListResponse> {
+        // Validate incoming query before using it
+        query
+            .validate()
+            .map_err(|e| AppError::ValidationError(format!("Invalid list query: {:?}", e)))?;
+
         // Get categories from repository
         let (categories, total_count) = self.repository.list(tenant_id, &query).await?;
 

@@ -1,4 +1,4 @@
- **So sánh với Odoo & ERPNext**
+ ## So sánh với Odoo & ERPNext
 
 | Tính năng | Anthill hiện tại | Odoo | ERPNext | Đánh giá |
 |-----------|------------------|------|---------|----------|

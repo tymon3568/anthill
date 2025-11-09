@@ -277,8 +277,16 @@ impl CategoryRepository for CategoryRepositoryImpl {
 
         let order_clause = format!("{} {}", order_field, order_dir);
 
+        let search_pattern = query
+            .search
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| format!("%{}%", s));
+        let has_search = search_pattern.is_some();
+
         // Count query with search support
-        let count_sql = if query.search.is_some() {
+        let count_sql = if has_search {
             "SELECT COUNT(*) as count FROM product_categories pc
              WHERE pc.tenant_id = $1
                AND pc.deleted_at IS NULL
@@ -304,7 +312,7 @@ impl CategoryRepository for CategoryRepositoryImpl {
             .bind(query.is_active)
             .bind(query.is_visible);
 
-        if let Some(ref search) = query.search {
+        if let Some(ref search) = search_pattern {
             count_query = count_query.bind(search);
         }
 
@@ -312,7 +320,7 @@ impl CategoryRepository for CategoryRepositoryImpl {
         let count: i64 = count_row.get("count");
 
         // Data query with search and dynamic sort support
-        let sql = if query.search.is_some() {
+        let sql = if has_search {
             format!(
                 r#"
                 SELECT
@@ -357,7 +365,7 @@ impl CategoryRepository for CategoryRepositoryImpl {
             )
         };
 
-        let categories = if let Some(ref search) = query.search {
+        let categories = if let Some(ref search) = search_pattern {
             sqlx::query(&sql)
                 .bind(tenant_id)
                 .bind(query.parent_id)
