@@ -385,9 +385,10 @@ fn default_page_size() -> i32 {
     20
 }
 
-lazy_static::lazy_static! {
-    static ref COLOR_REGEX: regex::Regex = regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap();
-}
+use std::sync::LazyLock;
+
+static COLOR_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
 
 #[cfg(test)]
 mod tests {

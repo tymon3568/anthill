@@ -3,8 +3,8 @@
 //! Represents a product category in the hierarchical category system.
 
 use chrono::{DateTime, Utc};
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use uuid::Uuid;
 
 #[cfg(feature = "openapi")]
@@ -123,11 +123,12 @@ impl Category {
 
     /// Validate color format (hex color code)
     pub fn is_valid_color(&self) -> bool {
+        use std::sync::LazyLock;
+
+        static COLOR_REGEX: LazyLock<regex::Regex> =
+            LazyLock::new(|| regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
+
         if let Some(ref color) = self.color {
-            lazy_static! {
-                static ref COLOR_REGEX: regex::Regex =
-                    regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap();
-            }
             COLOR_REGEX.is_match(color)
         } else {
             true
