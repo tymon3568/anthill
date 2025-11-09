@@ -4,6 +4,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+
 use uuid::Uuid;
 
 #[cfg(feature = "openapi")]
@@ -122,8 +123,8 @@ impl Category {
 
     /// Validate color format (hex color code)
     pub fn is_valid_color(&self) -> bool {
-        static COLOR_REGEX: LazyLock<regex::Regex> =
-            LazyLock::new(|| regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
+        static COLOR_REGEX: std::sync::LazyLock<regex::Regex> =
+            std::sync::LazyLock::new(|| regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
 
         if let Some(ref color) = self.color {
             COLOR_REGEX.is_match(color)
