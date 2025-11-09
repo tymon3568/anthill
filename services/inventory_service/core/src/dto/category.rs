@@ -385,10 +385,8 @@ fn default_page_size() -> i32 {
     20
 }
 
-use std::sync::LazyLock;
-
-static COLOR_REGEX: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
+static COLOR_REGEX: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
 
 #[cfg(test)]
 mod tests {
