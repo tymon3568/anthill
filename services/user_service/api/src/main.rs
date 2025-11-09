@@ -308,39 +308,45 @@ async fn main() {
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
         .with_state(combined_state)
         // CORS configuration
-        .layer(CorsLayer::new()
-            .allow_origin({
-                let origins = config.get_cors_origins();
-                if origins.is_empty() {
-                    AllowOrigin::any()
-                } else {
-                    let header_values: Result<Vec<HeaderValue>, _> = origins
-                        .into_iter()
-                        .map(|origin| {
-                            HeaderValue::from_str(&origin).map_err(|e| {
-                                format!("Invalid CORS origin '{}': {}", origin, e)
-                            })
-                        })
-                        .collect();
+        .layer({
+            let origins = config.get_cors_origins();
+            let mut cors = CorsLayer::new()
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::PUT,
+                    Method::DELETE,
+                ])
+                .allow_headers([
+                    header::CONTENT_TYPE,
+                    header::AUTHORIZATION,
+                ]);
 
-                    match header_values {
-                        Ok(values) => AllowOrigin::list(values),
-                        Err(e) => panic!("CORS configuration error: {}", e),
+            if origins.is_empty() {
+                cors = cors.allow_origin(AllowOrigin::any());
+                // Note: allow_credentials(false) is implicit when using wildcard origins
+            } else {
+                let header_values: Result<Vec<HeaderValue>, _> = origins
+                    .into_iter()
+                    .map(|origin| {
+                        HeaderValue::from_str(&origin).map_err(|e| {
+                            format!("Invalid CORS origin '{}': {}", origin, e)
+                        })
+                    })
+                    .collect();
+
+                match header_values {
+                    Ok(values) => {
+                        cors = cors.allow_origin(AllowOrigin::list(values));
+                        // Only allow credentials when specific origins are configured
+                        cors = cors.allow_credentials(true);
                     }
+                    Err(e) => panic!("CORS configuration error: {}", e),
                 }
-            })
-            .allow_methods([
-                Method::GET,
-                Method::POST,
-                Method::PUT,
-                Method::DELETE,
-            ])
-            .allow_headers([
-                header::CONTENT_TYPE,
-                header::AUTHORIZATION,
-            ])
-            .allow_credentials(true)
-        )
+            }
+
+            cors
+        })
         // Security headers
         .layer(SetResponseHeaderLayer::if_not_present(
             header::STRICT_TRANSPORT_SECURITY,
