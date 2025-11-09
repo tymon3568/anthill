@@ -324,7 +324,7 @@ async fn main() {
 
             if origins.is_empty() {
                 cors = cors.allow_origin(AllowOrigin::any());
-                // Note: allow_credentials(false) is implicit when using wildcard origins
+                cors = cors.allow_credentials(false); // Explicitly disable credentials for wildcard origins
             } else {
                 // Validate that wildcard is not in configured origins
                 if origins.iter().any(|o| o == "*") {
