@@ -30,6 +30,9 @@ pub struct Config {
     #[serde(default = "default_port")]
     pub port: u16,
 
+    /// CORS allowed origins (comma-separated list, optional)
+    pub cors_origins: Option<String>,
+
     /// Kanidm server URL (optional - for OAuth2/OIDC integration)
     pub kanidm_url: Option<String>,
 
@@ -45,6 +48,9 @@ pub struct Config {
     /// Casbin model configuration file path
     #[serde(default = "default_casbin_model_path")]
     pub casbin_model_path: String,
+
+    /// Maximum database connections (optional, default: 10)
+    pub max_connections: Option<u32>,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -80,7 +86,8 @@ impl Config {
             .set_default("jwt_refresh_expiration", 604800)?
             .set_default("host", "0.0.0.0")?
             .set_default("port", 3000)?
-            .set_default("casbin_model_path", "shared/auth/model.conf")?;
+            .set_default("casbin_model_path", "shared/auth/model.conf")?
+            .set_default("max_connections", 10)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());
@@ -90,5 +97,18 @@ impl Config {
         let deserialized = config.try_deserialize::<Config>()?;
 
         Ok(deserialized)
+    }
+
+    /// Get CORS allowed origins as a vector
+    /// If cors_origins is None or empty, returns empty vec (accept all origins)
+    pub fn get_cors_origins(&self) -> Vec<String> {
+        self.cors_origins
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .map(|origin| origin.trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }

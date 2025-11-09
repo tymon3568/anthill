@@ -1,0 +1,16 @@
+//! Inventory Service Infrastructure
+//!
+//! This crate contains the infrastructure implementations for the inventory service.
+//! It provides concrete implementations of repositories and services.
+//!
+//! ## Architecture
+//!
+//! - `repositories/`: PostgreSQL repository implementations
+//! - `services/`: Service implementations with business logic
+
+pub mod repositories;
+pub mod services;
+
+// Re-export main implementations for convenience
+pub use repositories::category::CategoryRepositoryImpl;
+pub use services::category::CategoryServiceImpl;

@@ -4,6 +4,9 @@ members = [
   "services/user_service/api",
   "services/user_service/core",
   "services/user_service/infra",
+  "services/inventory_service/api",
+  "services/inventory_service/core",
+  "services/inventory_service/infra",
   # Shared libraries
   "shared/error",
   "shared/jwt",
@@ -29,6 +32,9 @@ config = "0.14"
 criterion = {version = "0.5", features = ["html_reports"]}
 dotenvy = "0.15"
 fake = {version = "2.9", features = ["derive", "uuid", "chrono"]}
+# Inventory service crates (internal)
+inventory_service_core = {path = "services/inventory_service/core"}
+inventory_service_infra = {path = "services/inventory_service/infra"}
 # Auth & security
 jsonwebtoken = "9.2"
 lazy_static = "1.4"

@@ -145,11 +145,21 @@ cd ..
 # Build all services
 cargo build --workspace
 
-# Run user-service (port 8000)
+# Run user-service (default port 3000, configurable via PORT env var)
 cargo run --bin user-service
 
-# In another terminal, run inventory-service (port 8001)
-cargo run --bin inventory-service
+# In another terminal, run inventory-service (port 8001 as per nginx config)
+PORT=8001 cargo run --bin inventory-service
+
+# Or run multiple services with different ports (in separate terminals):
+# Terminal 1:
+PORT=3000 cargo run --bin user-service
+
+# Terminal 2:
+PORT=8001 cargo run --bin inventory-service
+
+# Terminal 3:
+PORT=8002 cargo run --bin order-service
 
 # And continue with other services...
 ```
@@ -285,7 +295,7 @@ See details in `migrations/`. Main tables:
 
 Each service exposes OpenAPI spec at `/api/docs` endpoint.
 
-Example: `http://localhost:8000/api/docs` for user-service.
+Example: `http://localhost:3000/api/docs` for user-service.
 
 ## 📦 Deployment (CapRover)
 

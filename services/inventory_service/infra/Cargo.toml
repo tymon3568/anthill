@@ -1,0 +1,36 @@
+[dependencies]
+# Async traits
+async-trait = {workspace = true}
+chrono = {workspace = true}
+# Internal crates
+inventory_service_core = {workspace = true}
+# Shared crates
+shared_db = {workspace = true}
+shared_error = {workspace = true}
+# Slug generation
+slug = "0.1"
+# Database
+sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
+# Other
+uuid = {workspace = true}
+# Validation
+validator = {workspace = true}
+
+[dev-dependencies]
+# Test dependencies
+fake = {workspace = true}
+mockall = {workspace = true}
+proptest = {workspace = true}
+serde_json = {workspace = true}
+tokio = {workspace = true}
+tokio-test = "0.4"
+
+[lib]
+name = "inventory_service_infra"
+path = "src/lib.rs"
+
+[package]
+name = "inventory_service_infra"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true

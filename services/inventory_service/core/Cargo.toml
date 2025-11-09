@@ -1,0 +1,30 @@
+[dependencies]
+# Async traits
+async-trait = {workspace = true}
+chrono = {workspace = true}
+regex = {workspace = true}
+# Serialization
+serde = {workspace = true}
+serde_json = {workspace = true}
+# Error handling
+shared_error = {workspace = true}
+# OpenAPI documentation (optional feature)
+utoipa = {workspace = true, optional = true}
+# UUID
+uuid = {workspace = true}
+# Validation
+validator = {workspace = true}
+
+[features]
+default = []
+openapi = ["utoipa"]
+
+[lib]
+name = "inventory_service_core"
+path = "src/lib.rs"
+
+[package]
+name = "inventory_service_core"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
