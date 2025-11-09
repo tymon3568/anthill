@@ -10,6 +10,7 @@
  */
 
 import { browser } from '$app/environment';
+import { encryptToken, decryptToken } from './token-encryption';
 
 // In-memory token storage (most secure)
 let accessToken: string | null = null;
@@ -56,12 +57,13 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Set refresh token in sessionStorage (survives page refresh)
+	 * Set refresh token in sessionStorage (temporarily unencrypted for debugging)
 	 */
-	setRefreshToken(token: string): void {
+	async setRefreshToken(token: string): Promise<void> {
 		if (!browser) return;
 
 		try {
+			// Temporarily disable encryption for debugging
 			sessionStorage.setItem('refresh_token', token);
 		} catch (error) {
 			console.error('Failed to store refresh token:', error);
@@ -69,12 +71,13 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Get refresh token from sessionStorage
+	 * Get refresh token from sessionStorage (temporarily unencrypted for debugging)
 	 */
-	getRefreshToken(): string | null {
+	async getRefreshToken(): Promise<string | null> {
 		if (!browser) return null;
 
 		try {
+			// Temporarily disable encryption for debugging
 			return sessionStorage.getItem('refresh_token');
 		} catch (error) {
 			console.error('Failed to get refresh token:', error);
@@ -83,12 +86,13 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Store user data in sessionStorage (for session persistence)
+	 * Store user data in sessionStorage (temporarily unencrypted for debugging)
 	 */
-	setUserData(userData: string): void {
+	async setUserData(userData: string): Promise<void> {
 		if (!browser) return;
 
 		try {
+			// Temporarily disable encryption for debugging
 			sessionStorage.setItem('user_data', userData);
 		} catch (error) {
 			console.error('Failed to store user data:', error);
@@ -96,12 +100,13 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Get user data from sessionStorage
+	 * Get user data from sessionStorage (temporarily unencrypted for debugging)
 	 */
-	getUserData(): string | null {
+	async getUserData(): Promise<string | null> {
 		if (!browser) return null;
 
 		try {
+			// Temporarily disable encryption for debugging
 			return sessionStorage.getItem('user_data');
 		} catch (error) {
 			console.error('Failed to get user data:', error);
@@ -131,10 +136,15 @@ export const tokenManager = {
 	/**
 	 * Check if user has valid session (has refresh token)
 	 */
-	hasValidSession(): boolean {
+	async hasValidSession(): Promise<boolean> {
 		if (!browser) return false;
 
-		return this.getRefreshToken() !== null;
+		try {
+			const token = await this.getRefreshToken();
+			return token !== null;
+		} catch {
+			return false;
+		}
 	},
 
 	/**

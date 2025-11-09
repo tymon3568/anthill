@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { authState } from '$lib/stores/auth.svelte';
-	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 
 	// Show loading while checking auth
 	$effect(() => {
@@ -23,7 +22,7 @@
 {#if authState.isLoading}
 	<div class="min-h-screen flex items-center justify-center bg-gray-50">
 		<div class="text-center">
-			<LoadingSpinner size="lg" class="mx-auto mb-4" />
+			<div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
 			<p class="text-gray-600">Loading...</p>
 		</div>
 	</div>

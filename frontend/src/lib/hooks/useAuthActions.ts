@@ -84,7 +84,7 @@ export async function registerAction(userData: {
  */
 export async function logoutAction() {
 	// Call backend to revoke refresh token
-	const refreshToken = tokenManager.getRefreshToken();
+	const refreshToken = await tokenManager.getRefreshToken();
 	if (refreshToken) {
 		try {
 			await authApi.logoutLegacy();

@@ -20,7 +20,7 @@
 	// Logout function
 	const logout = async () => {
 		// Call backend to revoke refresh token
-		const refreshToken = tokenManager.getRefreshToken();
+		const refreshToken = await tokenManager.getRefreshToken();
 		if (refreshToken) {
 			try {
 				await authApi.logoutLegacy();
@@ -47,7 +47,7 @@
 
 {#if isLoading}
 	<div class="flex min-h-screen items-center justify-center">
-		<LoadingSpinner size="lg" />
+		<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
 	</div>
 {:else if isAuthenticated}
 	<div class="min-h-screen bg-background">
