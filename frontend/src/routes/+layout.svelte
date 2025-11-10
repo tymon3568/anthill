@@ -1,16 +1,12 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import AuthLoading from '$lib/components/AuthLoading.svelte';
-	import { authStore } from '$lib/stores/auth.svelte';
-	import { onMount } from 'svelte';
+	import { useAuth } from '$lib/hooks/useAuth';
 
 	let { children } = $props();
 
-	// Initialize auth store on app start
-	onMount(() => {
-		authStore.initialize();
-	});
+	// Initialize auth state for entire app
+	useAuth();
 </script>
 
 <svelte:head>
