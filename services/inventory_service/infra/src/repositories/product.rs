@@ -143,9 +143,9 @@ impl ProductRepository for ProductRepositoryImpl {
 
         // Add in-stock filter
         if request.in_stock_only.unwrap_or(false) {
-            // Since inventory_levels table doesn't exist yet, use track_inventory logic:
-            // - If track_inventory = false: always in stock
-            // - If track_inventory = true: currently consider out of stock (until inventory table is implemented)
+            // Workaround until inventory_levels table is implemented:
+            // Only return products with track_inventory=false (considered "always in stock").
+            // Products with track_inventory=true require actual stock data and are excluded.
             query_builder.push(" AND p.track_inventory = false");
         }
 
@@ -216,7 +216,8 @@ impl ProductRepository for ProductRepositoryImpl {
                     category_name: row.get("category_name"),
                     category_path: None, // TODO: implement path
                     track_inventory: row.get("track_inventory"),
-                    in_stock: Some(!row.get::<bool, _>("track_inventory")), // If not tracking inventory, consider in stock
+                    // Temporary: if not tracking inventory, assume always in stock
+                    in_stock: Some(!row.get::<bool, _>("track_inventory")),
                     is_active: row.get("is_active"),
                     is_sellable: row.get("is_sellable"),
                     highlights,
@@ -270,6 +271,11 @@ impl ProductRepository for ProductRepositoryImpl {
         }
         if request.sellable_only.unwrap_or(true) {
             count_builder.push(" AND p.is_sellable = true");
+        }
+
+        // Add in-stock filter (must match main query logic)
+        if request.in_stock_only.unwrap_or(false) {
+            count_builder.push(" AND p.track_inventory = false");
         }
 
         let total_count: i64 = count_builder
@@ -370,26 +376,39 @@ impl ProductRepository for ProductRepositoryImpl {
         .fetch_all(&self.pool)
         .await?;
 
-        // Combine and limit
-        let mut suggestions: Vec<SearchSuggestion> = vec![];
+        // Combine and deduplicate suggestions
+        let mut suggestions_map: std::collections::HashMap<String, SearchSuggestion> =
+            std::collections::HashMap::new();
 
         for row in product_suggestions {
-            suggestions.push(SearchSuggestion {
-                text: row.text,
-                product_count: row.count as u32,
-                suggestion_type: SuggestionType::ProductName,
-            });
+            let text = row.text;
+            let count = row.count as u32;
+            suggestions_map
+                .entry(text.clone())
+                .or_insert(SearchSuggestion {
+                    text,
+                    product_count: count,
+                    suggestion_type: SuggestionType::ProductName,
+                });
         }
 
         for row in sku_suggestions {
-            suggestions.push(SearchSuggestion {
-                text: row.text,
-                product_count: row.count as u32,
-                suggestion_type: SuggestionType::Sku,
-            });
+            let text = row.text;
+            let count = row.count as u32;
+            suggestions_map
+                .entry(text.clone())
+                .and_modify(|s| {
+                    // If already exists, keep ProductName type but add counts
+                    s.product_count = s.product_count.max(count);
+                })
+                .or_insert(SearchSuggestion {
+                    text,
+                    product_count: count,
+                    suggestion_type: SuggestionType::Sku,
+                });
         }
 
-        // Sort by count desc, then limit
+        let mut suggestions: Vec<SearchSuggestion> = suggestions_map.into_values().collect();
         suggestions.sort_by(|a, b| b.product_count.cmp(&a.product_count));
         suggestions.truncate(limit as usize);
 
