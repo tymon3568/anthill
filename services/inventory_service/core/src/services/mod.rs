@@ -4,6 +4,8 @@
 //! No implementations here - pure interfaces.
 
 pub mod category;
+pub mod product;
 
 // Re-export main types for convenience
 pub use category::CategoryService;
+pub use product::ProductService;

@@ -14,7 +14,7 @@
 Implement comprehensive product search and filtering capabilities with full-text search, category filtering, and advanced search options for efficient product discovery.
 
 ## Specific Sub-tasks:
-- [ ] 1. Set up full-text search index on products table
+- [x] 1. Set up full-text search index on products table
 - [ ] 2. Implement `GET /api/v1/inventory/products/search` endpoint
 - [ ] 3. Add category-based filtering with hierarchy support
 - [ ] 4. Implement price range and availability filtering
@@ -57,3 +57,8 @@ Implement comprehensive product search and filtering capabilities with full-text
     - Verified dependency task_04.01.05_create_product_categories_api.md: Status Done ✓
     - Updated Status to InProgress_By_Claude
     - Beginning work on implementing advanced product search API
+
+*   2025-01-29 11:00: Completed sub-task 1 by Claude
+    - Full-text search index already exists on products table (idx_products_search)
+    - Verified GIN index using to_tsvector on name and description
+    - Ready for search implementation
