@@ -151,9 +151,9 @@
 					</div>
 				{/if}
 
-				<form class="space-y-4" onkeydown={(e) => {
-					if (e.key === 'Enter' && !isLoading && !isSubmitting) {
-						e.preventDefault();
+				<form class="space-y-4" onsubmit={(e) => {
+					e.preventDefault();
+					if (!isLoading && !isSubmitting) {
 						debouncedSubmit();
 					}
 				}}>
@@ -210,10 +210,9 @@
 					{/if}
 
 					<Button
-						type="button"
+						type="submit"
 						class="w-full"
 						disabled={isLoading || isSubmitting}
-						onclick={debouncedSubmit}
 					>
 						{#if isLoading}
 							<span class="flex items-center space-x-2">

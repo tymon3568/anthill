@@ -128,8 +128,9 @@ export const authApi = {
 		return apiClient.post<AuthResponse>('/auth/refresh', { refresh_token: refreshToken });
 	},
 
-	async logoutLegacy(): Promise<ApiResponse<void>> {
-		return apiClient.post('/auth/logout');
+	async logoutLegacy(refreshToken?: { refresh_token: string }): Promise<ApiResponse<void>> {
+		const data = refreshToken ? refreshToken : {};
+		return apiClient.post('/auth/logout', data);
 	},
 
 	// User Profile Management (matches backend API spec)

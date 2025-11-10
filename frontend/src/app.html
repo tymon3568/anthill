@@ -6,11 +6,11 @@
 		<!-- Content Security Policy for XSS protection -->
 		<meta http-equiv="Content-Security-Policy" content="
 			default-src 'self';
-			script-src 'self' 'unsafe-inline' 'unsafe-eval';
+			script-src 'self' 'nonce-%sveltekit.nonce%';
 			style-src 'self' 'unsafe-inline';
 			img-src 'self' data: https:;
 			font-src 'self' data:;
-			connect-src 'self' https: http://localhost:8000 http://127.0.0.1:8000 ws://localhost:5173 ws://localhost:5174 wss:;
+			connect-src 'self' https: wss:;
 			object-src 'none';
 			base-uri 'self';
 			form-action 'self';

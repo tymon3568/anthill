@@ -57,28 +57,29 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Set refresh token in sessionStorage (temporarily unencrypted for debugging)
+	 * Set refresh token in sessionStorage (encrypted)
 	 */
 	async setRefreshToken(token: string): Promise<void> {
 		if (!browser) return;
 
 		try {
-			// Temporarily disable encryption for debugging
-			sessionStorage.setItem('refresh_token', token);
+			const encrypted = await encryptToken(token);
+			sessionStorage.setItem('refresh_token', encrypted);
 		} catch (error) {
 			console.error('Failed to store refresh token:', error);
 		}
 	},
 
 	/**
-	 * Get refresh token from sessionStorage (temporarily unencrypted for debugging)
+	 * Get refresh token from sessionStorage (encrypted)
 	 */
 	async getRefreshToken(): Promise<string | null> {
 		if (!browser) return null;
 
 		try {
-			// Temporarily disable encryption for debugging
-			return sessionStorage.getItem('refresh_token');
+			const encrypted = sessionStorage.getItem('refresh_token');
+			if (!encrypted) return null;
+			return await decryptToken(encrypted);
 		} catch (error) {
 			console.error('Failed to get refresh token:', error);
 			return null;
@@ -86,28 +87,29 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Store user data in sessionStorage (temporarily unencrypted for debugging)
+	 * Store user data in sessionStorage (encrypted)
 	 */
 	async setUserData(userData: string): Promise<void> {
 		if (!browser) return;
 
 		try {
-			// Temporarily disable encryption for debugging
-			sessionStorage.setItem('user_data', userData);
+			const encrypted = await encryptToken(userData);
+			sessionStorage.setItem('user_data', encrypted);
 		} catch (error) {
 			console.error('Failed to store user data:', error);
 		}
 	},
 
 	/**
-	 * Get user data from sessionStorage (temporarily unencrypted for debugging)
+	 * Get user data from sessionStorage (encrypted)
 	 */
 	async getUserData(): Promise<string | null> {
 		if (!browser) return null;
 
 		try {
-			// Temporarily disable encryption for debugging
-			return sessionStorage.getItem('user_data');
+			const encrypted = sessionStorage.getItem('user_data');
+			if (!encrypted) return null;
+			return await decryptToken(encrypted);
 		} catch (error) {
 			console.error('Failed to get user data:', error);
 			return null;

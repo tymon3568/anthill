@@ -1,7 +1,6 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { ApiResponse } from '$lib/types';
 import { tokenManager } from '$lib/auth/token-manager';
-import { authApi } from './auth';
 // Base API configuration
 const API_BASE_URL = PUBLIC_API_BASE_URL;
 
@@ -33,7 +32,20 @@ class ApiClient {
 		if (!refreshToken) return null;
 
 		try {
-			const result = await authApi.refreshTokenLegacy(refreshToken);
+			// Direct API call to avoid circular dependency
+			const response = await fetch(`${this.baseURL}/auth/refresh`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ refresh_token: refreshToken })
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
+			const result = await response.json();
 			if (result.success && result.data) {
 				const expiresIn = result.data.expires_in || 900; // Default 15 minutes
 				tokenManager.setAccessToken(result.data.access_token, expiresIn);

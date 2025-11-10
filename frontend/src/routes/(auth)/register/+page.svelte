@@ -19,7 +19,7 @@
 	let isLoading = $state(false);
 	let error = $state('');
 	let fieldErrors = $state<Partial<Record<keyof RegisterInput, string>>>({});
-	let fullNameInputEl: HTMLElement | undefined = $state();
+	let touched = $state<Partial<Record<keyof RegisterInput, boolean>>>({});
 
 	// Rate limiting state
 	const RATE_LIMIT_KEY = 'register';
@@ -53,14 +53,12 @@
 		};
 	});
 
+	// Computed values for template
+	let passwordStrengthText = $derived(passwordStrength.label);
+	let passwordStrengthColor = $derived(passwordStrength.color);
+
 	// Check rate limit status on mount
 	onMount(() => {
-		// Auto-focus first input
-		if (fullNameInputEl) {
-			const input = fullNameInputEl.querySelector('input');
-			input?.focus();
-		}
-
 		checkRateLimitStatus();
 
 		// Update blocked time countdown every second
@@ -122,7 +120,7 @@
 			});
 
 			if (!result.success) {
-				fieldErrors = result.errors;
+				fieldErrors = result.errors || {};
 				error = '';
 				return;
 			}
@@ -134,13 +132,15 @@
 
 			try {
 				// Call register with proper field names
-				await registerAction({
-					name: result.data.full_name,
-					email: result.data.email,
-					password: result.data.password,
-					confirmPassword: result.data.confirmPassword,
-					tenantName: result.data.tenant_name
-				});
+				if (result.data) {
+					await registerAction({
+						name: result.data.full_name,
+						email: result.data.email,
+						password: result.data.password,
+						confirmPassword: result.data.confirmPassword,
+						tenantName: result.data.tenant_name
+					});
+				}
 
 				// Redirect to login with success message
 				goto('/login?message=Registration successful. Please sign in.');
@@ -177,7 +177,6 @@
 		}, SUBMIT_DEBOUNCE_MS);
 	}
 </script>
-</script>
 
 <svelte:head>
 	<title>Sign Up - Anthill</title>
@@ -207,16 +206,17 @@
 							name="name"
 							type="text"
 							placeholder="Enter your full name"
-							bind:value={name}
+							bind:value={fullName}
 							required
 							autocomplete="name"
 							disabled={isLoading}
-							aria-describedby={validationErrors.name ? "name-error" : undefined}
-							onblur={() => touched.name = true}
+							aria-describedby={fieldErrors.full_name ? "name-error" : undefined}
+							onblur={() => touched.full_name = true}
+							autofocus
 						/>
-						{#if touched.name && validationErrors.name}
+						{#if touched.full_name && fieldErrors.full_name}
 							<p id="name-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.name}
+								{fieldErrors.full_name}
 							</p>
 						{/if}
 					</div>
@@ -232,12 +232,12 @@
 							required
 							autocomplete="email"
 							disabled={isLoading}
-							aria-describedby={validationErrors.email ? "email-error" : undefined}
+							aria-describedby={fieldErrors.email ? "email-error" : undefined}
 							onblur={() => touched.email = true}
 						/>
-						{#if touched.email && validationErrors.email}
+						{#if touched.email && fieldErrors.email}
 							<p id="email-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.email}
+								{fieldErrors.email}
 							</p>
 						{/if}
 					</div>
@@ -252,7 +252,7 @@
 							bind:value={tenantName}
 							autocomplete="organization"
 							disabled={isLoading}
-							onblur={() => touched.tenantName = true}
+							onblur={() => touched.tenant_name = true}
 						/>
 						<p class="text-xs text-gray-500 mt-1">
 							Leave empty to join an existing organization
@@ -270,12 +270,12 @@
 							required
 							autocomplete="new-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors.password ? "password-error" : undefined}
+							aria-describedby={fieldErrors.password ? "password-error" : undefined}
 							onblur={() => touched.password = true}
 						/>
-						{#if touched.password && validationErrors.password}
+						{#if touched.password && fieldErrors.password}
 							<p id="password-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.password}
+								{fieldErrors.password}
 							</p>
 						{/if}
 						{#if password}
@@ -304,12 +304,12 @@
 							required
 							autocomplete="new-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors.confirmPassword ? "confirm-error" : undefined}
+							aria-describedby={fieldErrors.confirmPassword ? "confirm-error" : undefined}
 							onblur={() => touched.confirmPassword = true}
 						/>
-						{#if touched.confirmPassword && validationErrors.confirmPassword}
+						{#if touched.confirmPassword && fieldErrors.confirmPassword}
 							<p id="confirm-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.confirmPassword}
+								{fieldErrors.confirmPassword}
 							</p>
 						{/if}
 					</div>

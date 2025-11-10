@@ -19,7 +19,7 @@ export function generateDeviceFingerprint(): string {
 }
 
 // Derive encryption key from device fingerprint
-export async function deriveKeyFromFingerprint(fingerprint: string): Promise<CryptoKey> {
+export async function deriveKeyFromFingerprint(fingerprint: string, salt: Uint8Array): Promise<CryptoKey> {
 	const encoder = new TextEncoder();
 	const keyMaterial = await crypto.subtle.importKey(
 		'raw',
@@ -32,7 +32,7 @@ export async function deriveKeyFromFingerprint(fingerprint: string): Promise<Cry
 	return crypto.subtle.deriveKey(
 		{
 			name: 'PBKDF2',
-			salt: encoder.encode('anthill-salt'),
+			salt: salt as BufferSource,
 			iterations: 100000,
 			hash: 'SHA-256'
 		},
@@ -84,10 +84,18 @@ export async function decryptData(encryptedData: string, key: CryptoKey): Promis
 
 // Get or create encryption key for current device
 let encryptionKey: CryptoKey | null = null;
+let deviceSalt: Uint8Array | null = null;
+
 export async function getEncryptionKey(): Promise<CryptoKey> {
 	if (!encryptionKey) {
 		const fingerprint = generateDeviceFingerprint();
-		encryptionKey = await deriveKeyFromFingerprint(fingerprint);
+
+		// Generate random salt per session if not exists
+		if (!deviceSalt) {
+			deviceSalt = crypto.getRandomValues(new Uint8Array(32)); // 256-bit salt
+		}
+
+		encryptionKey = await deriveKeyFromFingerprint(fingerprint, deviceSalt);
 	}
 	return encryptionKey;
 }

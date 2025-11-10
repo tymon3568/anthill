@@ -16,7 +16,7 @@ export async function loginAction(email: string, password: string) {
 		if (result.success && result.data) {
 			// Store tokens securely using tokenManager
 			tokenManager.setAccessToken(result.data.access_token, result.data.expires_in);
-			tokenManager.setRefreshToken(result.data.refresh_token);
+			await tokenManager.setRefreshToken(result.data.refresh_token);
 
 			// Map backend UserInfo to frontend User type
 			const user: User = {
@@ -30,7 +30,7 @@ export async function loginAction(email: string, password: string) {
 			};
 
 			// Store user data for session persistence
-			tokenManager.setUserData(JSON.stringify(user));
+			await tokenManager.setUserData(JSON.stringify(user));
 
 			authStore.setUser(user);
 

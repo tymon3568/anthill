@@ -129,7 +129,7 @@ export function useAuth() {
 			if (refreshToken) {
 				try {
 					// Backend expects { refresh_token: string }
-					await authApi.logoutLegacy();
+					await authApi.logoutLegacy({ refresh_token: refreshToken });
 				} catch (error) {
 					console.error('Logout API call failed:', error);
 					// Continue with client-side logout even if API fails
