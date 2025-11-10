@@ -11,8 +11,11 @@ use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::handlers::category::{create_category_routes, AppState};
+use crate::handlers::search::create_search_routes;
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
+use inventory_service_infra::services::product::ProductServiceImpl;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -108,20 +111,25 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .await
         .expect("Failed to initialize Casbin enforcer");
 
-    // Initialize repository and service
+    // Initialize repositories and services
     let category_repo = CategoryRepositoryImpl::new(pool.clone());
     let category_service = CategoryServiceImpl::new(category_repo);
+
+    let product_repo = ProductRepositoryImpl::new(pool.clone());
+    let product_service = ProductServiceImpl::new(Arc::new(product_repo));
 
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
+        product_service: Arc::new(product_service),
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
     };
 
-    // Create category routes with state
-    let category_routes = create_category_routes(state);
+    // Create routes with state
+    let category_routes = create_category_routes(state.clone());
+    let search_routes = create_search_routes(state.product_service.clone());
 
     // Add CORS configuration
     let cors = CorsLayer::new()
@@ -150,12 +158,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             axum::http::Method::PUT,
             axum::http::Method::DELETE,
         ])
-        .allow_headers([
-            axum::http::header::CONTENT_TYPE,
-            axum::http::header::AUTHORIZATION,
-        ]);
+        .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::AUTHORIZATION]);
 
     Router::new()
         .nest("/api/v1/inventory", category_routes)
+        .nest("/api/v1/inventory/products", search_routes)
         .layer(cors)
 }

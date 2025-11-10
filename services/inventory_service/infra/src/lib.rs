@@ -13,4 +13,6 @@ pub mod services;
 
 // Re-export main implementations for convenience
 pub use repositories::category::CategoryRepositoryImpl;
+pub use repositories::product::ProductRepositoryImpl;
 pub use services::category::CategoryServiceImpl;
+pub use services::product::ProductServiceImpl;

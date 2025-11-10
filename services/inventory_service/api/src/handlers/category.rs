@@ -20,6 +20,7 @@ use inventory_service_core::dto::category::{
     MoveToCategoryRequest,
 };
 use inventory_service_core::services::category::CategoryService;
+use inventory_service_core::services::product::ProductService;
 
 use shared_auth::enforcer::SharedEnforcer;
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, KanidmClientProvider, RequireAdmin};
@@ -30,6 +31,7 @@ use shared_kanidm_client::KanidmClient;
 #[derive(Clone)]
 pub struct AppState {
     pub category_service: Arc<dyn CategoryService>,
+    pub product_service: Arc<dyn ProductService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,
