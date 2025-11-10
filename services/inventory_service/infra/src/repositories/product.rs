@@ -3,12 +3,13 @@
 //! PostgreSQL implementation of the ProductRepository trait.
 
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::search_dto::{
-    ProductSearchRequest, ProductSearchResponse, SearchSuggestionsRequest,
-    SearchSuggestionsResponse,
+    AppliedFilters, PaginationInfo, ProductSearchRequest, ProductSearchResponse,
+    ProductSearchResult, ProductSortBy, SearchFacets, SearchMeta, SearchSuggestion,
+    SearchSuggestionsRequest, SearchSuggestionsResponse, SortOrder, SuggestionType,
 };
 use inventory_service_core::domains::inventory::product::Product;
 use inventory_service_core::repositories::product::ProductRepository;
@@ -34,29 +35,337 @@ impl ProductRepository for ProductRepositoryImpl {
 
     async fn search_products(
         &self,
-        _tenant_id: Uuid,
-        _request: ProductSearchRequest,
+        tenant_id: Uuid,
+        request: ProductSearchRequest,
     ) -> Result<ProductSearchResponse> {
-        // TODO: Implement advanced product search with full-text search
-        // - Use PostgreSQL full-text search on name and description
-        // - Apply category hierarchy filtering
-        // - Implement price range filtering
-        // - Add product type and status filters
-        // - Support multiple sorting options
-        // - Return paginated results with facets
-        todo!("Implement advanced product search")
+        use inventory_service_core::domains::inventory::dto::search_dto::{
+            PaginationInfo, ProductSearchResult, SearchFacets, SearchMeta,
+        };
+
+        let start_time = std::time::Instant::now();
+
+        // Build query using QueryBuilder for safety
+        let mut query_builder = QueryBuilder::new(
+            r#"
+            SELECT
+                p.product_id,
+                p.sku,
+                p.name,
+                p.description,
+                p.product_type,
+                p.category_id,
+                c.name as category_name,
+                p.sale_price,
+                p.cost_price,
+                p.currency_code,
+                p.is_active,
+                p.is_sellable,
+                p.created_at,
+                p.updated_at
+            FROM products p
+            LEFT JOIN product_categories c ON p.category_id = c.category_id AND c.tenant_id = p.tenant_id
+            WHERE p.tenant_id =
+            "#,
+        );
+        query_builder.push_bind(tenant_id);
+        query_builder.push(" AND p.deleted_at IS NULL");
+
+        // Add full-text search if query provided
+        if let Some(q) = &request.query {
+            query_builder.push(" AND to_tsvector('english', p.name || ' ' || COALESCE(p.description, '')) @@ plainto_tsquery('english', ");
+            query_builder.push_bind(q.as_str());
+            query_builder.push(")");
+        }
+
+        // Add category filtering
+        if let Some(category_ids) = &request.category_ids {
+            if !category_ids.is_empty() {
+                query_builder.push(" AND p.category_id = ANY(");
+                query_builder.push_bind(category_ids.as_slice());
+                query_builder.push(")");
+            }
+        }
+
+        // Add price filtering
+        if let Some(min_price) = request.price_min {
+            query_builder.push(" AND p.sale_price >= ");
+            query_builder.push_bind(min_price);
+        }
+        if let Some(max_price) = request.price_max {
+            query_builder.push(" AND p.sale_price <= ");
+            query_builder.push_bind(max_price);
+        }
+
+        // Add product type filtering
+        if let Some(types) = &request.product_types {
+            if !types.is_empty() {
+                query_builder.push(" AND p.product_type = ANY(");
+                query_builder.push_bind(types.as_slice());
+                query_builder.push(")");
+            }
+        }
+
+        // Add status filters
+        if request.active_only.unwrap_or(true) {
+            query_builder.push(" AND p.is_active = true");
+        }
+        if request.sellable_only.unwrap_or(true) {
+            query_builder.push(" AND p.is_sellable = true");
+        }
+
+        // Add sorting
+        let sort_by = request
+            .sort_by
+            .as_ref()
+            .unwrap_or(&ProductSortBy::Relevance);
+        let sort_order = request.sort_order.as_ref().unwrap_or(&SortOrder::Desc);
+
+        let order_clause = match sort_by {
+            ProductSortBy::Relevance => {
+                if request.query.is_some() {
+                    "ts_rank(to_tsvector('english', p.name || ' ' || COALESCE(p.description, '')), plainto_tsquery('english', "
+                } else {
+                    "p.created_at"
+                }
+            },
+            ProductSortBy::Name => "p.name",
+            ProductSortBy::Price => "p.sale_price",
+            ProductSortBy::Popularity => "p.created_at", // TODO: implement popularity
+            ProductSortBy::CreatedAt => "p.created_at",
+            ProductSortBy::UpdatedAt => "p.updated_at",
+        };
+
+        query_builder.push(" ORDER BY ");
+        if matches!(sort_by, ProductSortBy::Relevance) && request.query.is_some() {
+            query_builder.push(order_clause);
+            if let Some(q) = &request.query {
+                query_builder.push_bind(q.as_str());
+            }
+            query_builder.push("))");
+        } else {
+            query_builder.push(order_clause);
+        }
+
+        let order_direction = match sort_order {
+            SortOrder::Asc => " ASC",
+            SortOrder::Desc => " DESC",
+        };
+        query_builder.push(order_direction);
+
+        // Add pagination
+        let page = request.page.unwrap_or(1).max(1);
+        let limit = request.limit.unwrap_or(20).min(100);
+        let offset = (page - 1) * limit;
+
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit as i64);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset as i64);
+
+        // Execute query
+        let rows = query_builder.build().fetch_all(&self.pool).await?;
+
+        // Convert rows to results
+        let products: Vec<ProductSearchResult> = rows
+            .into_iter()
+            .map(|row| {
+                let highlights = if let Some(q) = &request.query {
+                    vec![format!("...{}...", q)] // TODO: proper highlighting
+                } else {
+                    vec![]
+                };
+
+                ProductSearchResult {
+                    product_id: row.get("product_id"),
+                    sku: row.get("sku"),
+                    name: row.get("name"),
+                    description: row.get("description"),
+                    sale_price: row.get("sale_price"),
+                    cost_price: row.get("cost_price"),
+                    currency_code: row.get("currency_code"),
+                    product_type: row.get("product_type"),
+                    category_id: row.get("category_id"),
+                    category_name: row.get("category_name"),
+                    category_path: None,   // TODO: implement path
+                    track_inventory: true, // TODO: from schema
+                    in_stock: None,        // TODO: check inventory
+                    is_active: row.get("is_active"),
+                    is_sellable: row.get("is_sellable"),
+                    highlights,
+                    relevance_score: 1.0, // TODO: calculate
+                    created_at: row.get("created_at"),
+                    updated_at: row.get("updated_at"),
+                }
+            })
+            .collect();
+
+        // Get total count
+        let mut count_builder =
+            QueryBuilder::new("SELECT COUNT(*) as count FROM products p WHERE p.tenant_id = ");
+        count_builder.push_bind(tenant_id);
+        count_builder.push(" AND p.deleted_at IS NULL");
+
+        // Apply same filters for count
+        if let Some(q) = &request.query {
+            count_builder.push(" AND to_tsvector('english', p.name || ' ' || COALESCE(p.description, '')) @@ plainto_tsquery('english', ");
+            count_builder.push_bind(q.as_str());
+            count_builder.push(")");
+        }
+
+        if let Some(category_ids) = &request.category_ids {
+            if !category_ids.is_empty() {
+                count_builder.push(" AND p.category_id = ANY(");
+                count_builder.push_bind(category_ids.as_slice());
+                count_builder.push(")");
+            }
+        }
+
+        if let Some(min_price) = request.price_min {
+            count_builder.push(" AND p.sale_price >= ");
+            count_builder.push_bind(min_price);
+        }
+        if let Some(max_price) = request.price_max {
+            count_builder.push(" AND p.sale_price <= ");
+            count_builder.push_bind(max_price);
+        }
+
+        if let Some(types) = &request.product_types {
+            if !types.is_empty() {
+                count_builder.push(" AND p.product_type = ANY(");
+                count_builder.push_bind(types.as_slice());
+                count_builder.push(")");
+            }
+        }
+
+        if request.active_only.unwrap_or(true) {
+            count_builder.push(" AND p.is_active = true");
+        }
+        if request.sellable_only.unwrap_or(true) {
+            count_builder.push(" AND p.is_sellable = true");
+        }
+
+        let total_count: i64 = count_builder
+            .build_query_scalar()
+            .fetch_one(&self.pool)
+            .await?;
+
+        // Build pagination info
+        let total_pages = ((total_count as u32 + limit - 1) / limit).max(1);
+        let pagination = PaginationInfo {
+            page,
+            limit,
+            total_count: total_count as u64,
+            total_pages,
+            has_next: page < total_pages,
+            has_prev: page > 1,
+        };
+
+        // TODO: Implement facets
+        let facets = SearchFacets {
+            categories: vec![],
+            price_ranges: vec![],
+            product_types: vec![],
+        };
+
+        let execution_time = start_time.elapsed().as_millis() as u64;
+
+        let meta = SearchMeta {
+            query: request.query.clone(),
+            execution_time_ms: execution_time,
+            total_found: total_count as u64,
+            applied_filters: AppliedFilters {
+                category_ids: request.category_ids,
+                price_min: request.price_min,
+                price_max: request.price_max,
+                in_stock_only: request.in_stock_only,
+                product_types: request.product_types,
+                active_only: request.active_only,
+                sellable_only: request.sellable_only,
+            },
+        };
+
+        Ok(ProductSearchResponse {
+            products,
+            pagination,
+            facets,
+            meta,
+        })
     }
 
     async fn get_search_suggestions(
         &self,
-        _tenant_id: Uuid,
-        _request: SearchSuggestionsRequest,
+        tenant_id: Uuid,
+        request: SearchSuggestionsRequest,
     ) -> Result<SearchSuggestionsResponse> {
-        // TODO: Implement search suggestions/autocomplete
-        // - Search across product names, SKUs, and categories
-        // - Return suggestions with counts
-        // - Limit results appropriately
-        todo!("Implement search suggestions")
+        use inventory_service_core::domains::inventory::dto::search_dto::{
+            SearchSuggestion, SuggestionType,
+        };
+
+        let limit = request.limit.unwrap_or(10).min(20) as i64;
+        let search_pattern = format!("%{}%", request.query);
+
+        // Search for product names
+        let product_suggestions = sqlx::query!(
+            r#"
+            SELECT name as text, COUNT(*) as count
+            FROM products
+            WHERE tenant_id = $1
+              AND deleted_at IS NULL
+              AND name ILIKE $2
+            GROUP BY name
+            ORDER BY count DESC, name
+            LIMIT $3
+            "#,
+            tenant_id,
+            search_pattern,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Search for SKUs
+        let sku_suggestions = sqlx::query!(
+            r#"
+            SELECT sku as text, COUNT(*) as count
+            FROM products
+            WHERE tenant_id = $1
+              AND deleted_at IS NULL
+              AND sku ILIKE $2
+            GROUP BY sku
+            ORDER BY count DESC, sku
+            LIMIT $3
+            "#,
+            tenant_id,
+            search_pattern,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Combine and limit
+        let mut suggestions: Vec<SearchSuggestion> = vec![];
+
+        for row in product_suggestions {
+            suggestions.push(SearchSuggestion {
+                text: row.text,
+                product_count: row.count as u32,
+                suggestion_type: SuggestionType::ProductName,
+            });
+        }
+
+        for row in sku_suggestions {
+            suggestions.push(SearchSuggestion {
+                text: row.text,
+                product_count: row.count as u32,
+                suggestion_type: SuggestionType::Sku,
+            });
+        }
+
+        // Sort by count desc, then limit
+        suggestions.sort_by(|a, b| b.product_count.cmp(&a.product_count));
+        suggestions.truncate(limit as usize);
+
+        Ok(SearchSuggestionsResponse { suggestions })
     }
 
     // ========================================================================
