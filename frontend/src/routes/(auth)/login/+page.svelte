@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { tick } from 'svelte';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -65,20 +66,14 @@
 
 		try {
 			await login(email, password);
-			// Redirect will be handled by auth store
+			// Redirect to dashboard after successful login
+			goto('/dashboard');
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Login failed';
 		} finally {
 			isLoading = false;
 		}
 	}
-
-	// Redirect if already authenticated
-	$effect(() => {
-		if (isAuthenticated) {
-			goto('/dashboard');
-		}
-	});
 </script>
 
 <svelte:head>

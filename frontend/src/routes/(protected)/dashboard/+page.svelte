@@ -91,7 +91,7 @@
 				<p class="py-8 text-center text-muted-foreground">No products found</p>
 			{:else}
 				<div class="space-y-4">
-					{#each inventoryState.products?.slice(0, 5) || [] as product (product.id)}
+													{#each products as product (product.id)}
 						<div class="flex items-center justify-between rounded-lg border p-4">
 							<div>
 								<h3 class="font-medium">{product.name}</h3>

@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { authState } from '$lib/stores/auth.svelte';
 
-	// Redirect based on auth state
+	// Show loading while checking auth
 	$effect(() => {
 		if (!authState.isLoading) {
 			if (authState.isAuthenticated) {
