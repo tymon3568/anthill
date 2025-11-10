@@ -2,10 +2,21 @@ import { apiClient } from './client';
 import type { ApiResponse, User, LoginForm } from '$lib/types';
 import { AuthError, AuthErrorCode, createAuthError } from '$lib/auth/errors';
 
+// Backend UserInfo from login/register response
+export interface BackendUserInfo {
+	id: string;
+	email: string;
+	full_name?: string;
+	tenant_id: string;
+	role: string;
+	created_at: string;
+}
+
 export interface AuthResponse {
-	user: User;
+	user: BackendUserInfo;
 	access_token: string;
 	refresh_token: string;
+	token_type: string;
 	expires_in: number;
 }
 
@@ -107,10 +118,14 @@ export const authApi = {
 		return apiClient.post<AuthResponse>('/auth/login', credentials as unknown as Record<string, unknown>);
 	},
 
+	async register(userData: { full_name: string; email: string; password: string; tenant_name?: string }): Promise<ApiResponse<AuthResponse>> {
+		return apiClient.post<AuthResponse>('/auth/register', userData as unknown as Record<string, unknown>);
+	},
+
 	async refreshTokenLegacy(
 		refreshToken: string
-	): Promise<ApiResponse<{ access_token: string; expires_in: number }>> {
-		return apiClient.post('/auth/refresh', { refresh_token: refreshToken });
+	): Promise<ApiResponse<AuthResponse>> {
+		return apiClient.post<AuthResponse>('/auth/refresh', { refresh_token: refreshToken });
 	},
 
 	async logoutLegacy(): Promise<ApiResponse<void>> {
