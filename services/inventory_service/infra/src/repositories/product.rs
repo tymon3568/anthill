@@ -63,6 +63,33 @@ impl ProductRepository for ProductRepositoryImpl {
                 p.is_sellable,
                 p.created_at,
                 p.updated_at
+            "#,
+        );
+
+        // Add relevance_score if there's a search query
+        if let Some(q) = &request.query {
+            query_builder.push(
+                r#",
+                ts_rank(
+                    to_tsvector('english', p.name || ' ' || COALESCE(p.description, '')),
+                    plainto_tsquery('english', "#,
+            );
+            query_builder.push_bind(q.as_str());
+            query_builder.push(
+                r#")
+                ) AS relevance_score
+            "#,
+            );
+        } else {
+            query_builder.push(
+                r#",
+                NULL AS relevance_score
+            "#,
+            );
+        }
+
+        query_builder.push(
+            r#"
             FROM products p
             LEFT JOIN product_categories c ON p.category_id = c.category_id AND c.tenant_id = p.tenant_id
             WHERE p.tenant_id =
@@ -114,11 +141,12 @@ impl ProductRepository for ProductRepositoryImpl {
             query_builder.push(" AND p.is_sellable = true");
         }
 
-        // Add in-stock filter (TODO: implement when inventory table exists)
+        // Add in-stock filter
         if request.in_stock_only.unwrap_or(false) {
-            // TODO: Join with inventory table and check available quantity > 0
-            // For now, skip this filter as inventory tracking is not implemented
-            // query_builder.push(" AND EXISTS (SELECT 1 FROM inventory i WHERE i.product_id = p.product_id AND i.available_quantity > 0)");
+            // Since inventory_levels table doesn't exist yet, use track_inventory logic:
+            // - If track_inventory = false: always in stock
+            // - If track_inventory = true: currently consider out of stock (until inventory table is implemented)
+            query_builder.push(" AND p.track_inventory = false");
         }
 
         // Add sorting
@@ -131,7 +159,7 @@ impl ProductRepository for ProductRepositoryImpl {
         let order_clause = match sort_by {
             ProductSortBy::Relevance => {
                 if request.query.is_some() {
-                    "ts_rank(to_tsvector('english', p.name || ' ' || COALESCE(p.description, '')), plainto_tsquery('english', "
+                    "relevance_score"
                 } else {
                     "p.created_at"
                 }
@@ -144,15 +172,7 @@ impl ProductRepository for ProductRepositoryImpl {
         };
 
         query_builder.push(" ORDER BY ");
-        if matches!(sort_by, ProductSortBy::Relevance) && request.query.is_some() {
-            query_builder.push(order_clause);
-            if let Some(q) = &request.query {
-                query_builder.push_bind(q.as_str());
-            }
-            query_builder.push("))");
-        } else {
-            query_builder.push(order_clause);
-        }
+        query_builder.push(order_clause);
 
         let order_direction = match sort_order {
             SortOrder::Asc => " ASC",
@@ -196,11 +216,11 @@ impl ProductRepository for ProductRepositoryImpl {
                     category_name: row.get("category_name"),
                     category_path: None, // TODO: implement path
                     track_inventory: row.get("track_inventory"),
-                    in_stock: None, // TODO: check inventory
+                    in_stock: Some(!row.get::<bool, _>("track_inventory")), // If not tracking inventory, consider in stock
                     is_active: row.get("is_active"),
                     is_sellable: row.get("is_sellable"),
                     highlights,
-                    relevance_score: 1.0, // TODO: calculate
+                    relevance_score: row.try_get::<f32, _>("relevance_score").unwrap_or(0.0),
                     created_at: row.get("created_at"),
                     updated_at: row.get("updated_at"),
                 }
