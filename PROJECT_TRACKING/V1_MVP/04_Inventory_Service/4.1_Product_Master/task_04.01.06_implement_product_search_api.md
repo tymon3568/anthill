@@ -81,3 +81,12 @@ Implement comprehensive product search and filtering capabilities with full-text
   - Added execution time tracking and applied filters metadata
   - Full-text search operational with GIN index performance
   - Ready for testing and remaining features (analytics, caching, highlighting)
+
+* 2025-01-29 14:00: Fixed critical search issues by Claude
+  - Implemented proper relevance score calculation using ts_rank() instead of hard-coded 1.0
+  - Added relevance_score field to SELECT query with proper binding for search queries
+  - Updated ORDER BY to use calculated relevance_score instead of recalculating ts_rank
+  - Implemented in_stock field logic based on track_inventory (not tracking = always in stock)
+  - Added in_stock_only filter to WHERE clause using track_inventory = false logic
+  - Note: in_stock filter uses simplified logic since inventory_levels table not yet implemented
+  - Will enhance when inventory tracking schema is added in future tasks
