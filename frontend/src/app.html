@@ -3,6 +3,29 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<!-- Security Headers -->
+		<!-- Content Security Policy: Restrict resource loading to prevent XSS -->
+		<meta
+			http-equiv="Content-Security-Policy"
+			content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:8000; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+		/>
+
+		<!-- Prevent MIME type sniffing -->
+		<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+
+		<!-- Prevent clickjacking attacks -->
+		<meta http-equiv="X-Frame-Options" content="DENY" />
+
+		<!-- Control referrer information -->
+		<meta name="referrer" content="strict-origin-when-cross-origin" />
+
+		<!-- Permissions Policy: Restrict browser features -->
+		<meta
+			http-equiv="Permissions-Policy"
+			content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()"
+		/>
+
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

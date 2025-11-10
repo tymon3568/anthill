@@ -3,12 +3,39 @@
      - Always consult MCP documentation before changes
      - See .svelte-instructions.md for guidelines -->
 <script lang="ts">
-	import { useAuth } from '$lib/hooks/useAuth';
 	import { goto } from '$app/navigation';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+	import { authState } from '$lib/stores/auth.svelte';
+	import { authApi } from '$lib/api/auth';
+	import { tokenManager } from '$lib/auth/token-manager';
+	import { authStore } from '$lib/stores/auth.svelte';
 
 	let { children } = $props();
 
-	const { user, isAuthenticated, isLoading, logout } = useAuth();
+	// Access auth state directly (don't call useAuth() again - already initialized in root layout)
+	const user = $derived(authState.user);
+	const isAuthenticated = $derived(authState.isAuthenticated);
+	const isLoading = $derived(authState.isLoading);
+
+	// Logout function
+	const logout = async () => {
+		// Call backend to revoke refresh token
+		const refreshToken = tokenManager.getRefreshToken();
+		if (refreshToken) {
+			try {
+				await authApi.logoutLegacy();
+			} catch (error) {
+				console.error('Logout API call failed:', error);
+			}
+		}
+
+		// Clear all tokens and user data
+		tokenManager.clearAll();
+		authStore.logout();
+
+		// Redirect to login
+		goto('/login');
+	};
 
 	// Redirect to login if not authenticated
 	$effect(() => {
@@ -20,7 +47,7 @@
 
 {#if isLoading}
 	<div class="flex min-h-screen items-center justify-center">
-		<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+		<LoadingSpinner size="lg" />
 	</div>
 {:else if isAuthenticated}
 	<div class="min-h-screen bg-background">
