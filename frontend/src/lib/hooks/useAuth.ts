@@ -75,12 +75,20 @@ export function useAuth() {
 		register: async (userData: { name: string; email: string; password: string; confirmPassword: string }) => {
 			authStore.setLoading(true);
 			try {
-				// For now, just simulate registration success
-				// In real app, this would call authApi.register()
-				await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-				return { success: true };
-			} catch {
-				return { success: false, error: 'Registration failed' };
+				const result = await authApi.register({
+					name: userData.name,
+					email: userData.email,
+					password: userData.password
+				});
+				if (result.success && result.data) {
+					// Registration successful, but don't auto-login
+					// User should login manually after registration
+					return { success: true };
+				} else {
+					return { success: false, error: result.error };
+				}
+			} catch (err) {
+				return { success: false, error: err instanceof Error ? err.message : 'Registration failed' };
 			} finally {
 				authStore.setLoading(false);
 			}

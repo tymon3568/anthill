@@ -137,11 +137,13 @@ test.describe('Authentication E2E Tests', () => {
 		await page.waitForURL('**/register');
 
 		// Fill invalid name (too short)
-		await page.locator('input[placeholder*="name" i]').fill('J');
+		await page.getByLabel('Full Name').fill('J');
 
-		// Focus and blur name field to trigger validation
-		await page.locator('input[placeholder*="name" i]').focus();
-		await page.locator('input[placeholder*="name" i]').blur();
+		// Try to submit the form to trigger validation
+		await page.getByRole('button', { name: 'Create Account' }).click();
+
+		// Wait a bit for validation to trigger
+		await page.waitForTimeout(500);
 
 		// Check for name validation error
 		await expect(page.locator('text=/at least.*characters/i')).toBeVisible();
@@ -155,11 +157,14 @@ test.describe('Authentication E2E Tests', () => {
 		await page.waitForURL('**/register');
 
 		// Fill name with numbers
-		await page.locator('input[placeholder*="name" i]').fill('John123');
+		await page.getByLabel('Full Name').fill('John123');
 
 		// Focus and blur name field to trigger validation
-		await page.locator('input[placeholder*="name" i]').focus();
-		await page.locator('input[placeholder*="name" i]').blur();
+		await page.getByLabel('Full Name').focus();
+		await page.getByLabel('Full Name').blur();
+
+		// Wait a bit for validation to trigger
+		await page.waitForTimeout(500);
 
 		// Check for name validation error
 		await expect(page.locator('text=/letters and spaces/i')).toBeVisible();
