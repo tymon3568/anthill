@@ -251,7 +251,7 @@ pub struct SearchSuggestionsRequest {
 impl Default for SearchSuggestionsRequest {
     fn default() -> Self {
         Self {
-            query: "".to_string(),
+            query: " ".to_string(),
             limit: Some(10),
         }
     }
@@ -285,12 +285,14 @@ pub enum SuggestionType {
     Sku,
 }
 
+/// Valid product type values
+pub const VALID_PRODUCT_TYPES: &[&str] = &["goods", "service", "consumable"];
+
 /// Validation functions
 fn validate_product_types(product_types: &[String]) -> Result<(), validator::ValidationError> {
     for pt in product_types {
-        match pt.as_str() {
-            "goods" | "service" | "consumable" => continue,
-            _ => return Err(validator::ValidationError::new("invalid_product_type")),
+        if !VALID_PRODUCT_TYPES.contains(&pt.as_str()) {
+            return Err(validator::ValidationError::new("invalid_product_type"));
         }
     }
     Ok(())

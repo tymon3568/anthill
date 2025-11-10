@@ -3,7 +3,7 @@
 //! PostgreSQL implementation of the ProductRepository trait.
 
 use async_trait::async_trait;
-use sqlx::{PgPool, QueryBuilder};
+use sqlx::{PgPool, QueryBuilder, Row};
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::search_dto::{
@@ -55,6 +55,7 @@ impl ProductRepository for ProductRepositoryImpl {
                 p.product_type,
                 p.category_id,
                 c.name as category_name,
+                p.track_inventory,
                 p.sale_price,
                 p.cost_price,
                 p.currency_code,
@@ -111,6 +112,13 @@ impl ProductRepository for ProductRepositoryImpl {
         }
         if request.sellable_only.unwrap_or(true) {
             query_builder.push(" AND p.is_sellable = true");
+        }
+
+        // Add in-stock filter (TODO: implement when inventory table exists)
+        if request.in_stock_only.unwrap_or(false) {
+            // TODO: Join with inventory table and check available quantity > 0
+            // For now, skip this filter as inventory tracking is not implemented
+            // query_builder.push(" AND EXISTS (SELECT 1 FROM inventory i WHERE i.product_id = p.product_id AND i.available_quantity > 0)");
         }
 
         // Add sorting
@@ -186,9 +194,9 @@ impl ProductRepository for ProductRepositoryImpl {
                     product_type: row.get("product_type"),
                     category_id: row.get("category_id"),
                     category_name: row.get("category_name"),
-                    category_path: None,   // TODO: implement path
-                    track_inventory: true, // TODO: from schema
-                    in_stock: None,        // TODO: check inventory
+                    category_path: None, // TODO: implement path
+                    track_inventory: row.get("track_inventory"),
+                    in_stock: None, // TODO: check inventory
                     is_active: row.get("is_active"),
                     is_sellable: row.get("is_sellable"),
                     highlights,

@@ -4,7 +4,12 @@
 
 use std::sync::Arc;
 
-use axum::{extract::Query, response::Json, routing::get, Router};
+use axum::{
+    extract::{Query, State},
+    response::Json,
+    routing::get,
+    Router,
+};
 
 use inventory_service_core::domains::inventory::dto::search_dto::{
     ProductSearchRequest, ProductSearchResponse, SearchSuggestionsRequest,
@@ -62,7 +67,7 @@ pub async fn search_products(
     Query(params): Query<ProductSearchQuery>,
 ) -> Result<Json<ProductSearchResponse>, AppError> {
     // Convert query parameters to search request
-    let request = params.into_search_request();
+    let request = params.into_search_request()?;
 
     // Perform search
     let response = product_service
@@ -116,6 +121,7 @@ pub async fn search_suggestions(
 
 /// Query parameters for product search endpoint
 #[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProductSearchQuery {
     pub query: Option<String>,
     pub category_ids: Option<String>, // Comma-separated UUIDs
@@ -133,17 +139,28 @@ pub struct ProductSearchQuery {
 
 impl ProductSearchQuery {
     /// Convert query parameters to ProductSearchRequest
-    fn into_search_request(self) -> ProductSearchRequest {
+    fn into_search_request(self) -> Result<ProductSearchRequest, shared_error::AppError> {
         use inventory_service_core::domains::inventory::dto::search_dto::{
             ProductSortBy, SortOrder,
         };
 
         // Parse category IDs
-        let category_ids = self.category_ids.as_ref().and_then(|ids| {
-            ids.split(',')
-                .map(|id| id.trim().parse::<uuid::Uuid>().ok())
-                .collect::<Option<Vec<_>>>()
-        });
+        let category_ids = if let Some(ids) = &self.category_ids {
+            let parsed: Result<Vec<uuid::Uuid>, _> = ids
+                .split(',')
+                .map(|id| id.trim().parse::<uuid::Uuid>())
+                .collect();
+            match parsed {
+                Ok(ids) => Some(ids),
+                Err(_) => {
+                    return Err(shared_error::AppError::ValidationError(
+                        "Invalid category ID format".to_string(),
+                    ))
+                },
+            }
+        } else {
+            None
+        };
 
         // Parse product types
         let product_types = self.product_types.as_ref().map(|types| {
@@ -168,7 +185,7 @@ impl ProductSearchQuery {
             _ => Some(SortOrder::Desc),
         });
 
-        ProductSearchRequest {
+        let request = ProductSearchRequest {
             query: self.query,
             category_ids,
             price_min: self.price_min,
@@ -181,7 +198,18 @@ impl ProductSearchQuery {
             sort_order,
             page: self.page,
             limit: self.limit,
+        };
+
+        // Validate price range
+        if let (Some(min), Some(max)) = (request.price_min, request.price_max) {
+            if min > max {
+                return Err(shared_error::AppError::ValidationError(
+                    "price_min cannot be greater than price_max".to_string(),
+                ));
+            }
         }
+
+        Ok(request)
     }
 }
 
