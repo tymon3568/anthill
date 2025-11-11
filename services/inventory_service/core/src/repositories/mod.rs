@@ -5,7 +5,9 @@
 
 pub mod category;
 pub mod product;
+pub mod warehouse;
 
 // Re-export main types for convenience
 pub use category::CategoryRepository;
 pub use product::ProductRepository;
+pub use warehouse::WarehouseRepository;
