@@ -119,7 +119,7 @@ Create comprehensive warehouse management system with hierarchical structure sup
 - Files: handlers/warehouses.rs, repositories/warehouse.rs, routes/mod.rs, DTOs
 - Status: Core warehouse, zone, and location CRUD APIs operational ✓
 
-*   2025-11-12 12:00: Completed remaining fixes by Claude
+* 2025-11-12 12:00: Completed remaining fixes by Claude
 - Added missing utoipa::ToSchema derives to CreateWarehouseRequest, CreateWarehouseZoneRequest, CreateWarehouseLocationRequest DTOs
 - Cleaned up unused imports: removed serde_json::json from warehouses.rs, unused variables prefixed with underscore
 - Fixed RequirePermission extractor by removing incorrect SharedEnforcer FromRequestParts bound
@@ -130,7 +130,7 @@ Create comprehensive warehouse management system with hierarchical structure sup
 - Files: DTOs, handlers, routes, shared/auth extractors and middleware
 - Status: All fixes completed, ready for review and testing ✓
 
-*   2025-11-12 14:00: All PR #46 issues resolved by Claude
+* 2025-11-12 14:00: All PR #46 issues resolved by Claude
 - Fixed missing From<Warehouse> implementation in warehouse_dto.rs
 - Updated migration to use gen_random_uuid() instead of uuid_generate_v7()
 - Added tenant-aware FK constraints for warehouse_zones and warehouse_locations
@@ -144,11 +144,11 @@ Create comprehensive warehouse management system with hierarchical structure sup
 - Files: migrations, DTOs, handlers, repository, services, task tracking
 - Status: All issues resolved, warehouse hierarchy API complete and ready for production ✓
 
-*   2025-11-13 10:00: Completed remaining PR review fixes by Claude
-  - Fixed markdown indentation issues in task log (removed 3-space bullet prefixes)
-  - Verified build_tree_nodes method is correctly implemented as associated function
-  - Modified CI configuration to handle sqlx compilation failures:
-    - Added SQLX_OFFLINE=true to build-check job to skip offline verification
-    - Added cargo sqlx prepare to integration-tests job for metadata generation
-  - All PR review comments from Coderabbitai have been resolved
-  - Status: All remaining issues fixed, ready for final review and merge ✓
+* 2025-11-13 10:00: Completed remaining PR review fixes by Claude
+- Fixed markdown indentation issues in task log (removed 3-space bullet prefixes)
+- Verified build_tree_nodes method is correctly implemented as associated function
+- Modified CI configuration to handle sqlx compilation failures:
+  - Added SQLX_OFFLINE=true to build-check job to skip offline verification
+  - Added cargo sqlx prepare to integration-tests job for metadata generation
+- All PR review comments from Coderabbitai have been resolved
+- Status: All remaining issues fixed, ready for final review and merge ✓
