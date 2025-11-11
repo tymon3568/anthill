@@ -481,38 +481,6 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         self.repository.exists(tenant_id, parent_id).await
     }
 
-    /// Helper method for bulk operations
-    ///
-    /// Handles common bulk operation logic including empty input handling
-    /// and response formatting.
-    async fn execute_bulk_operation<F, Fut>(
-        &self,
-        tenant_id: Uuid,
-        category_ids: Vec<Uuid>,
-        operation: F,
-        action_name: &str,
-    ) -> Result<BulkOperationResponse>
-    where
-        F: FnOnce(Vec<Uuid>) -> Fut,
-        Fut: std::future::Future<Output = Result<i32>>,
-    {
-        if category_ids.is_empty() {
-            return Ok(BulkOperationResponse {
-                success: true,
-                affected_count: 0,
-                message: format!("No categories to {}", action_name),
-            });
-        }
-
-        let count = operation(category_ids).await?;
-
-        Ok(BulkOperationResponse {
-            success: true,
-            affected_count: count,
-            message: format!("{} {}", action_name, count),
-        })
-    }
-
     /// Bulk activate categories
     ///
     /// Sets multiple categories to active status.
@@ -522,13 +490,24 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         tenant_id: Uuid,
         category_ids: Vec<Uuid>,
     ) -> Result<BulkOperationResponse> {
-        self.execute_bulk_operation(
-            tenant_id,
-            category_ids,
-            |ids| self.repository.bulk_activate(tenant_id, ids),
-            "Activated",
-        )
-        .await
+        if category_ids.is_empty() {
+            return Ok(BulkOperationResponse {
+                success: true,
+                affected_count: 0,
+                message: "No categories to activate".to_string(),
+            });
+        }
+
+        let count = self
+            .repository
+            .bulk_activate(tenant_id, category_ids)
+            .await?;
+
+        Ok(BulkOperationResponse {
+            success: true,
+            affected_count: count,
+            message: format!("Activated {} categories", count),
+        })
     }
 
     async fn bulk_deactivate_categories(
@@ -536,13 +515,24 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         tenant_id: Uuid,
         category_ids: Vec<Uuid>,
     ) -> Result<BulkOperationResponse> {
-        self.execute_bulk_operation(
-            tenant_id,
-            category_ids,
-            |ids| self.repository.bulk_deactivate(tenant_id, ids),
-            "Deactivated",
-        )
-        .await
+        if category_ids.is_empty() {
+            return Ok(BulkOperationResponse {
+                success: true,
+                affected_count: 0,
+                message: "No categories to deactivate".to_string(),
+            });
+        }
+
+        let count = self
+            .repository
+            .bulk_deactivate(tenant_id, category_ids)
+            .await?;
+
+        Ok(BulkOperationResponse {
+            success: true,
+            affected_count: count,
+            message: format!("Deactivated {} categories", count),
+        })
     }
 
     async fn bulk_delete_categories(
@@ -550,13 +540,21 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         tenant_id: Uuid,
         category_ids: Vec<Uuid>,
     ) -> Result<BulkOperationResponse> {
-        self.execute_bulk_operation(
-            tenant_id,
-            category_ids,
-            |ids| self.repository.bulk_delete(tenant_id, ids),
-            "Deleted",
-        )
-        .await
+        if category_ids.is_empty() {
+            return Ok(BulkOperationResponse {
+                success: true,
+                affected_count: 0,
+                message: "No categories to delete".to_string(),
+            });
+        }
+
+        let count = self.repository.bulk_delete(tenant_id, category_ids).await?;
+
+        Ok(BulkOperationResponse {
+            success: true,
+            affected_count: count,
+            message: format!("Deleted {} categories", count),
+        })
     }
 }
 

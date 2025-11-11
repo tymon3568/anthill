@@ -4,6 +4,8 @@ async-trait = {workspace = true}
 chrono = {workspace = true}
 # Internal crates
 inventory_service_core = {workspace = true}
+# JSON serialization
+serde_json = {workspace = true}
 # Shared crates
 shared_db = {workspace = true}
 shared_error = {workspace = true}
@@ -21,7 +23,6 @@ validator = {workspace = true}
 fake = {workspace = true}
 mockall = {workspace = true}
 proptest = {workspace = true}
-serde_json = {workspace = true}
 tokio = {workspace = true}
 tokio-test = "0.4"
 

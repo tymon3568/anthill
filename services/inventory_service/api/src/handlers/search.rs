@@ -2,8 +2,6 @@
 //!
 //! This module contains the Axum handlers for product search endpoints.
 
-use std::sync::Arc;
-
 use axum::{
     extract::{Query, State},
     response::Json,
@@ -15,17 +13,17 @@ use inventory_service_core::domains::inventory::dto::search_dto::{
     ProductSearchRequest, ProductSearchResponse, SearchSuggestionsRequest,
     SearchSuggestionsResponse,
 };
-use inventory_service_core::services::product::ProductService;
 
+use crate::handlers::category::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Create the search routes
-pub fn create_search_routes(product_service: Arc<dyn ProductService>) -> Router {
+pub fn create_search_routes(state: AppState) -> Router {
     Router::new()
         .route("/search", get(search_products))
         .route("/suggestions", get(search_suggestions))
-        .with_state(product_service)
+        .with_state(state)
 }
 
 /// GET /api/v1/inventory/products/search - Advanced product search
@@ -63,14 +61,15 @@ pub fn create_search_routes(product_service: Arc<dyn ProductService>) -> Router 
 /// ```
 pub async fn search_products(
     auth_user: AuthUser,
-    State(product_service): State<Arc<dyn ProductService>>,
+    State(state): State<AppState>,
     Query(params): Query<ProductSearchQuery>,
 ) -> Result<Json<ProductSearchResponse>, AppError> {
     // Convert query parameters to search request
     let request = params.into_search_request()?;
 
     // Perform search
-    let response = product_service
+    let response = state
+        .product_service
         .search_products(auth_user.tenant_id, request)
         .await?;
 
@@ -102,7 +101,7 @@ pub async fn search_products(
 /// ```
 pub async fn search_suggestions(
     auth_user: AuthUser,
-    State(product_service): State<Arc<dyn ProductService>>,
+    State(state): State<AppState>,
     Query(params): Query<SearchSuggestionsQuery>,
 ) -> Result<Json<SearchSuggestionsResponse>, AppError> {
     // Convert query parameters to suggestions request
@@ -112,7 +111,8 @@ pub async fn search_suggestions(
     };
 
     // Get suggestions
-    let response = product_service
+    let response = state
+        .product_service
         .get_search_suggestions(auth_user.tenant_id, request)
         .await?;
 

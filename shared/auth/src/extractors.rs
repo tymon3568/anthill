@@ -366,7 +366,6 @@ impl RequirePermission {
 impl<S> FromRequestParts<S> for RequirePermission
 where
     S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
-    SharedEnforcer: FromRequestParts<S>,
 {
     type Rejection = StatusCode;
 
