@@ -9,8 +9,8 @@
 -- Root level of warehouse hierarchy with unlimited depth support
 
 CREATE TABLE warehouses (
-    -- Primary key using UUID v7 (timestamp-based)
-    warehouse_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    -- Primary key using UUID v4 (standard random UUID)
+    warehouse_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Multi-tenancy: All queries must filter by tenant_id
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
@@ -25,7 +25,7 @@ CREATE TABLE warehouses (
         CHECK (warehouse_type IN ('main', 'transit', 'quarantine', 'distribution', 'retail', 'satellite')),
 
     -- Hierarchy support (unlimited depth)
-    parent_warehouse_id UUID REFERENCES warehouses(warehouse_id),
+    parent_warehouse_id UUID,
 
     -- Location and contact information
     address JSONB,  -- {street, city, state, postal_code, country, latitude, longitude}
@@ -45,12 +45,14 @@ CREATE TABLE warehouses (
     -- Constraints
     CONSTRAINT warehouses_code_unique_per_tenant
         UNIQUE (tenant_id, warehouse_code) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT warehouses_tenant_warehouse_unique
+        UNIQUE (tenant_id, warehouse_id),
     CONSTRAINT warehouses_no_self_reference
         CHECK (warehouse_id != parent_warehouse_id),
-    CONSTRAINT warehouses_no_circular_reference
-        EXCLUDE (tenant_id WITH =, warehouse_id WITH <>)
-        WHERE (parent_warehouse_id IS NOT NULL)
-        -- Note: This prevents circular references but may need refinement
+    CONSTRAINT warehouses_tenant_parent_fk
+        FOREIGN KEY (tenant_id, parent_warehouse_id)
+        REFERENCES warehouses (tenant_id, warehouse_id)
+        DEFERRABLE INITIALLY DEFERRED
 );
 
 -- ==================================
@@ -59,8 +61,8 @@ CREATE TABLE warehouses (
 -- Zones within warehouses for organizational purposes
 
 CREATE TABLE warehouse_zones (
-    -- Primary key using UUID v7 (timestamp-based)
-    zone_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    -- Primary key using UUID v4 (standard random UUID)
+    zone_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Multi-tenancy: All queries must filter by tenant_id
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
@@ -93,7 +95,9 @@ CREATE TABLE warehouse_zones (
 
     -- Constraints
     CONSTRAINT warehouse_zones_code_unique_per_warehouse
-        UNIQUE (warehouse_id, zone_code) DEFERRABLE INITIALLY DEFERRED
+        UNIQUE (warehouse_id, zone_code) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT warehouse_zones_warehouse_zone_unique
+        UNIQUE (warehouse_id, zone_id)
 );
 
 -- ==================================
@@ -102,8 +106,8 @@ CREATE TABLE warehouse_zones (
 -- Individual storage locations within warehouse zones
 
 CREATE TABLE warehouse_locations (
-    -- Primary key using UUID v7 (timestamp-based)
-    location_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    -- Primary key using UUID v4 (standard random UUID)
+    location_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     -- Multi-tenancy: All queries must filter by tenant_id
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
@@ -142,8 +146,10 @@ CREATE TABLE warehouse_locations (
     -- Constraints
     CONSTRAINT warehouse_locations_code_unique_per_warehouse
         UNIQUE (warehouse_id, location_code) DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT warehouse_locations_zone_consistency
-        CHECK ((zone_id IS NULL) OR (zone_id IS NOT NULL AND warehouse_id = (SELECT warehouse_id FROM warehouse_zones WHERE zone_id = warehouse_locations.zone_id)))
+    CONSTRAINT warehouse_locations_zone_fk
+        FOREIGN KEY (warehouse_id, zone_id)
+        REFERENCES warehouse_zones (warehouse_id, zone_id)
+        DEFERRABLE INITIALLY DEFERRED
 );
 
 -- ==================================

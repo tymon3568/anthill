@@ -42,14 +42,15 @@ pub async fn create_warehouse<R: WarehouseRepository>(
     // Validate request
     request.validate()?;
 
-    // Validate hierarchy if parent is specified
+    // Validate parent warehouse exists if specified
     if let Some(parent_id) = request.parent_warehouse_id {
-        let is_valid = state
+        let parent_exists = state
             .warehouse_repository
-            .validate_hierarchy(user.tenant_id, Uuid::new_v4(), Some(parent_id))
-            .await?;
-        if !is_valid {
-            return Err(AppError::ValidationError("Invalid warehouse hierarchy".to_string()));
+            .find_by_id(user.tenant_id, parent_id)
+            .await?
+            .is_some();
+        if !parent_exists {
+            return Err(AppError::ValidationError("Parent warehouse does not exist".to_string()));
         }
     }
 

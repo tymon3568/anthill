@@ -136,6 +136,26 @@ pub struct WarehouseResponse {
     pub updated_at: DateTime<Utc>,
 }
 
+impl From<crate::domains::inventory::warehouse::Warehouse> for WarehouseResponse {
+    fn from(warehouse: crate::domains::inventory::warehouse::Warehouse) -> Self {
+        Self {
+            warehouse_id: warehouse.warehouse_id,
+            tenant_id: warehouse.tenant_id,
+            warehouse_code: warehouse.warehouse_code,
+            warehouse_name: warehouse.warehouse_name,
+            description: warehouse.description,
+            warehouse_type: warehouse.warehouse_type,
+            parent_warehouse_id: warehouse.parent_warehouse_id,
+            address: warehouse.address,
+            contact_info: warehouse.contact_info,
+            capacity_info: warehouse.capacity_info,
+            is_active: warehouse.is_active,
+            created_at: warehouse.created_at,
+            updated_at: warehouse.updated_at,
+        }
+    }
+}
+
 /// Warehouse zone response DTO
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -278,5 +298,48 @@ fn validate_location_type_req(location_type: &str) -> Result<(), validator::Vali
     match location_type {
         "bin" | "shelf" | "pallet" | "floor" | "rack" | "container" | "bulk" => Ok(()),
         _ => Err(validator::ValidationError::new("invalid_location_type")),
+    }
+}
+
+impl From<crate::domains::inventory::warehouse_zone::WarehouseZone> for WarehouseZoneResponse {
+    fn from(zone: crate::domains::inventory::warehouse_zone::WarehouseZone) -> Self {
+        Self {
+            zone_id: zone.zone_id,
+            tenant_id: zone.tenant_id,
+            warehouse_id: zone.warehouse_id,
+            zone_code: zone.zone_code,
+            zone_name: zone.zone_name,
+            description: zone.description,
+            zone_type: zone.zone_type,
+            zone_attributes: zone.zone_attributes,
+            capacity_info: zone.capacity_info,
+            is_active: zone.is_active,
+            created_at: zone.created_at,
+            updated_at: zone.updated_at,
+        }
+    }
+}
+
+impl From<crate::domains::inventory::warehouse_location::WarehouseLocation>
+    for WarehouseLocationResponse
+{
+    fn from(location: crate::domains::inventory::warehouse_location::WarehouseLocation) -> Self {
+        Self {
+            location_id: location.location_id,
+            tenant_id: location.tenant_id,
+            warehouse_id: location.warehouse_id,
+            zone_id: location.zone_id,
+            location_code: location.location_code,
+            location_name: location.location_name,
+            description: location.description,
+            location_type: location.location_type,
+            coordinates: location.coordinates,
+            dimensions: location.dimensions,
+            capacity_info: location.capacity_info,
+            location_attributes: location.location_attributes,
+            is_active: location.is_active,
+            created_at: location.created_at,
+            updated_at: location.updated_at,
+        }
     }
 }

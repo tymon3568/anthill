@@ -127,26 +127,55 @@ impl WarehouseRepository for WarehouseRepositoryImpl {
     }
 
     async fn get_warehouse_tree(&self, tenant_id: Uuid) -> Result<WarehouseTreeResponse> {
-        // This is a complex query that would require recursive CTEs
-        // For now, return a basic structure - will be implemented fully later
         let warehouses = self.find_all(tenant_id).await?;
+        let zones = self.get_all_zones(tenant_id).await?;
+        let locations = self.get_all_locations(tenant_id).await?;
 
-        // TODO: Implement proper tree building with zones and locations
-        let roots = warehouses
-            .into_iter()
-            .filter(|w| w.parent_warehouse_id.is_none())
-            .map(|w| WarehouseTreeNode {
-                warehouse: w.into(),
-                children: vec![],
-                zones: vec![],
-            })
-            .collect();
+        // Group zones by warehouse_id
+        let mut zones_by_warehouse: std::collections::HashMap<Uuid, Vec<_>> =
+            std::collections::HashMap::new();
+        for zone in zones {
+            zones_by_warehouse
+                .entry(zone.warehouse_id)
+                .or_insert_with(Vec::new)
+                .push(zone);
+        }
+
+        // Group locations by zone_id
+        let mut locations_by_zone: std::collections::HashMap<Uuid, Vec<_>> =
+            std::collections::HashMap::new();
+        for location in locations {
+            if let Some(zone_id) = location.zone_id {
+                locations_by_zone
+                    .entry(zone_id)
+                    .or_insert_with(Vec::new)
+                    .push(location);
+            }
+        }
+
+        // Group warehouses by parent_id
+        let mut warehouses_by_parent: std::collections::HashMap<Option<Uuid>, Vec<_>> =
+            std::collections::HashMap::new();
+        for warehouse in warehouses.clone() {
+            warehouses_by_parent
+                .entry(warehouse.parent_warehouse_id)
+                .or_insert_with(Vec::new)
+                .push(warehouse);
+        }
+
+        // Build tree recursively starting from roots
+        let roots = self.build_tree_nodes(
+            warehouses_by_parent.get(&None).unwrap_or(&vec![]).clone(),
+            &warehouses_by_parent,
+            &zones_by_warehouse,
+            &locations_by_zone,
+        );
 
         Ok(WarehouseTreeResponse {
             roots,
-            total_warehouses: 0, // TODO: implement counts
-            total_zones: 0,
-            total_locations: 0,
+            total_warehouses: warehouses.len(),
+            total_zones: zones.len(),
+            total_locations: locations.len(),
         })
     }
 
@@ -241,9 +270,194 @@ impl WarehouseRepository for WarehouseRepositoryImpl {
     }
 
     async fn get_ancestors(&self, tenant_id: Uuid, warehouse_id: Uuid) -> Result<Vec<Warehouse>> {
-        // TODO: Implement recursive query to get ancestors
-        // For now, return empty vec
-        Ok(vec![])
+        let ancestors = sqlx::query_as!(
+            Warehouse,
+            r#"
+            WITH RECURSIVE ancestor_chain AS (
+                -- Base case: start with the given warehouse
+                SELECT
+                    warehouse_id, tenant_id, warehouse_code, warehouse_name, description,
+                    warehouse_type, parent_warehouse_id, address, contact_info, capacity_info,
+                    is_active, created_at, updated_at, deleted_at,
+                    0 as depth
+                FROM warehouses
+                WHERE tenant_id = $1 AND warehouse_id = $2 AND deleted_at IS NULL
+
+                UNION ALL
+
+                -- Recursive case: get parent
+                SELECT
+                    w.warehouse_id, w.tenant_id, w.warehouse_code, w.warehouse_name, w.description,
+                    w.warehouse_type, w.parent_warehouse_id, w.address, w.contact_info, w.capacity_info,
+                    w.is_active, w.created_at, w.updated_at, w.deleted_at,
+                    ac.depth + 1
+                FROM warehouses w
+                INNER JOIN ancestor_chain ac ON w.warehouse_id = ac.parent_warehouse_id
+                WHERE w.tenant_id = $1 AND w.deleted_at IS NULL
+            )
+            SELECT
+                warehouse_id, tenant_id, warehouse_code, warehouse_name, description,
+                warehouse_type, parent_warehouse_id, address, contact_info, capacity_info,
+                is_active, created_at, updated_at, deleted_at
+            FROM ancestor_chain
+            WHERE depth > 0  -- Exclude the original warehouse, only return ancestors
+            ORDER BY depth DESC  -- Root first, then immediate parent
+            "#,
+            tenant_id,
+            warehouse_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(ancestors)
+    }
+
+    async fn get_descendants(&self, tenant_id: Uuid, warehouse_id: Uuid) -> Result<Vec<Warehouse>> {
+        let descendants = sqlx::query_as!(
+            Warehouse,
+            r#"
+            WITH RECURSIVE descendant_chain AS (
+                -- Base case: start with the given warehouse
+                SELECT
+                    warehouse_id, tenant_id, warehouse_code, warehouse_name, description,
+                    warehouse_type, parent_warehouse_id, address, contact_info, capacity_info,
+                    is_active, created_at, updated_at, deleted_at,
+                    0 as depth
+                FROM warehouses
+                WHERE tenant_id = $1 AND warehouse_id = $2 AND deleted_at IS NULL
+
+                UNION ALL
+
+                -- Recursive case: get children
+                SELECT
+                    w.warehouse_id, w.tenant_id, w.warehouse_code, w.warehouse_name, w.description,
+                    w.warehouse_type, w.parent_warehouse_id, w.address, w.contact_info, w.capacity_info,
+                    w.is_active, w.created_at, w.updated_at, w.deleted_at,
+                    dc.depth + 1
+                FROM warehouses w
+                INNER JOIN descendant_chain dc ON w.parent_warehouse_id = dc.warehouse_id
+                WHERE w.tenant_id = $1 AND w.deleted_at IS NULL
+            )
+            SELECT
+                warehouse_id, tenant_id, warehouse_code, warehouse_name, description,
+                warehouse_type, parent_warehouse_id, address, contact_info, capacity_info,
+                is_active, created_at, updated_at, deleted_at
+            FROM descendant_chain
+            WHERE depth > 0  -- Exclude the original warehouse, only return descendants
+            "#,
+            tenant_id,
+            warehouse_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(descendants)
+    }
+
+    fn build_tree_nodes(
+        &self,
+        warehouses: Vec<Warehouse>,
+        warehouses_by_parent: &std::collections::HashMap<Option<Uuid>, Vec<Warehouse>>,
+        zones_by_warehouse: &std::collections::HashMap<
+            Uuid,
+            Vec<crate::domains::inventory::warehouse_zone::WarehouseZone>,
+        >,
+        locations_by_zone: &std::collections::HashMap<
+            Uuid,
+            Vec<crate::domains::inventory::warehouse_location::WarehouseLocation>,
+        >,
+    ) -> Vec<WarehouseTreeNode> {
+        warehouses
+            .into_iter()
+            .map(|warehouse| {
+                // Get child warehouses
+                let children = self.build_tree_nodes(
+                    warehouses_by_parent
+                        .get(&Some(warehouse.warehouse_id))
+                        .unwrap_or(&vec![])
+                        .clone(),
+                    warehouses_by_parent,
+                    zones_by_warehouse,
+                    locations_by_zone,
+                );
+
+                // Get zones for this warehouse
+                let zones = zones_by_warehouse
+                    .get(&warehouse.warehouse_id)
+                    .unwrap_or(&vec![])
+                    .iter()
+                    .map(|zone| {
+                        // Get locations for this zone
+                        let locations = locations_by_zone
+                            .get(&zone.zone_id)
+                            .unwrap_or(&vec![])
+                            .iter()
+                            .map(|loc| loc.clone().into())
+                            .collect();
+
+                        WarehouseZoneWithLocations {
+                            zone: zone.clone().into(),
+                            locations,
+                        }
+                    })
+                    .collect();
+
+                WarehouseTreeNode {
+                    warehouse: warehouse.into(),
+                    children,
+                    zones,
+                }
+            })
+            .collect()
+    }
+
+    async fn get_all_zones(
+        &self,
+        tenant_id: Uuid,
+    ) -> Result<Vec<crate::domains::inventory::warehouse_zone::WarehouseZone>> {
+        use crate::domains::inventory::warehouse_zone::WarehouseZone;
+
+        let zones = sqlx::query_as!(
+            WarehouseZone,
+            r#"
+            SELECT
+                zone_id, tenant_id, warehouse_id, zone_code, zone_name, description,
+                zone_type, zone_attributes, capacity_info, is_active, created_at, updated_at, deleted_at
+            FROM warehouse_zones
+            WHERE tenant_id = $1 AND deleted_at IS NULL
+            ORDER BY warehouse_id, zone_name
+            "#,
+            tenant_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(zones)
+    }
+
+    async fn get_all_locations(
+        &self,
+        tenant_id: Uuid,
+    ) -> Result<Vec<crate::domains::inventory::warehouse_location::WarehouseLocation>> {
+        use crate::domains::inventory::warehouse_location::WarehouseLocation;
+
+        let locations = sqlx::query_as!(
+            WarehouseLocation,
+            r#"
+            SELECT
+                location_id, tenant_id, warehouse_id, zone_id, location_code, location_name, description,
+                location_type, coordinates, dimensions, capacity_info, location_attributes,
+                is_active, created_at, updated_at, deleted_at
+            FROM warehouse_locations
+            WHERE tenant_id = $1 AND deleted_at IS NULL
+            ORDER BY warehouse_id, location_code
+            "#,
+            tenant_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(locations)
     }
 
     async fn validate_hierarchy(
@@ -252,16 +466,27 @@ impl WarehouseRepository for WarehouseRepositoryImpl {
         warehouse_id: Uuid,
         parent_warehouse_id: Option<Uuid>,
     ) -> Result<bool> {
-        // TODO: Implement cycle detection
-        // For now, basic validation
         if let Some(parent_id) = parent_warehouse_id {
+            // Check for self-reference
             if parent_id == warehouse_id {
                 return Ok(false);
             }
+
             // Check if parent exists and is active
             let parent = self.find_by_id(tenant_id, parent_id).await?;
-            Ok(parent.is_some())
+            if parent.is_none() {
+                return Ok(false);
+            }
+
+            // Check for cycles: ensure the proposed parent is not a descendant of current warehouse
+            let descendants = self.get_descendants(tenant_id, warehouse_id).await?;
+            let would_create_cycle = descendants
+                .iter()
+                .any(|desc| desc.warehouse_id == parent_id);
+
+            Ok(!would_create_cycle)
         } else {
+            // No parent specified (making it a root warehouse) is always valid
             Ok(true)
         }
     }
