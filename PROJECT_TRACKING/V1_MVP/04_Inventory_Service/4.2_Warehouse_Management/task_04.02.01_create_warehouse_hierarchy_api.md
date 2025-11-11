@@ -17,8 +17,8 @@ Create comprehensive warehouse management system with hierarchical structure sup
 - [x] 1. Create `warehouses` database table with hierarchy support
 - [x] 2. Create `warehouse_zones` table for internal organization
 - [x] 3. Create `warehouse_locations` table for storage positions
-- [ ] 4. Implement `POST /api/v1/inventory/warehouses` - Create warehouse
-- [ ] 5. Implement `GET /api/v1/inventory/warehouses/tree` - Get warehouse hierarchy
+- [x] 4. Implement `POST /api/v1/inventory/warehouses` - Create warehouse
+- [x] 5. Implement `GET /api/v1/inventory/warehouses/tree` - Get warehouse hierarchy
 - [ ] 6. Implement `POST /api/v1/inventory/warehouses/{id}/zones` - Create zones
 - [ ] 7. Implement `POST /api/v1/inventory/warehouses/{id}/locations` - Create locations
 - [ ] 8. Add warehouse capacity and utilization tracking
@@ -73,3 +73,21 @@ Create comprehensive warehouse management system with hierarchical structure sup
     - All tables include proper multi-tenant constraints and indexes
     - Hierarchical relationships established between warehouses, zones, and locations
     - Status: All database tables ready for warehouse hierarchy management ✓
+
+*   2025-11-11 08:40: Completed domain entities and repository layer by Claude
+    - Created Warehouse, WarehouseZone, and WarehouseLocation domain entities
+    - Implemented comprehensive DTOs for API requests/responses
+    - Added WarehouseRepository trait with CRUD and hierarchy operations
+    - Created PostgreSQL implementation of warehouse repository
+    - Added warehouse API handlers with OpenAPI documentation
+    - Updated module exports across all layers
+    - Files: services/inventory_service/core/src/domains/inventory/warehouse*.rs
+    - Status: Domain layer and repository layer completed ✓
+
+*   2025-11-11 08:45: Completed sub-tasks 4 and 5 by Claude
+    - Implemented POST /api/v1/inventory/warehouses - Create warehouse API
+    - Implemented GET /api/v1/inventory/warehouses/tree - Get warehouse hierarchy API
+    - Added comprehensive validation and error handling
+    - Included OpenAPI documentation for all endpoints
+    - Files: services/inventory_service/api/src/handlers/warehouses.rs
+    - Status: Core warehouse CRUD APIs operational ✓
