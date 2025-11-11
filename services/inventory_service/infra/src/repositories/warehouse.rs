@@ -282,17 +282,17 @@ impl WarehouseRepository for WarehouseRepositoryImpl {
             r#"
             WITH RECURSIVE ancestor_chain AS (
                 -- Base case: start with the given warehouse
-                SELECT warehouse_id, 0 as depth
+                SELECT warehouse_id, parent_warehouse_id, 0 AS depth
                 FROM warehouses
                 WHERE tenant_id = $1 AND warehouse_id = $2 AND deleted_at IS NULL
 
                 UNION ALL
 
-                -- Recursive case: get parent
-                SELECT w.warehouse_id, ac.depth + 1
+                -- Recursive case: step up to the parent
+                SELECT w.warehouse_id, w.parent_warehouse_id, ac.depth + 1
                 FROM warehouses w
-                INNER JOIN ancestor_chain ac ON w.warehouse_id = ac.warehouse_id
-                WHERE w.tenant_id = $1 AND w.deleted_at IS NULL AND w.parent_warehouse_id IS NOT NULL
+                INNER JOIN ancestor_chain ac ON w.warehouse_id = ac.parent_warehouse_id
+                WHERE w.tenant_id = $1 AND w.deleted_at IS NULL
             )
             SELECT warehouse_id
             FROM ancestor_chain

@@ -97,7 +97,11 @@ CREATE TABLE warehouse_zones (
     CONSTRAINT warehouse_zones_code_unique_per_warehouse
         UNIQUE (warehouse_id, zone_code) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT warehouse_zones_warehouse_zone_unique
-        UNIQUE (warehouse_id, zone_id)
+        UNIQUE (warehouse_id, zone_id),
+    CONSTRAINT warehouse_zones_tenant_warehouse_fk
+        FOREIGN KEY (tenant_id, warehouse_id)
+        REFERENCES warehouses (tenant_id, warehouse_id)
+        DEFERRABLE INITIALLY DEFERRED
 );
 
 -- ==================================
@@ -146,6 +150,10 @@ CREATE TABLE warehouse_locations (
     -- Constraints
     CONSTRAINT warehouse_locations_code_unique_per_warehouse
         UNIQUE (warehouse_id, location_code) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT warehouse_locations_tenant_warehouse_fk
+        FOREIGN KEY (tenant_id, warehouse_id)
+        REFERENCES warehouses (tenant_id, warehouse_id)
+        DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT warehouse_locations_zone_fk
         FOREIGN KEY (warehouse_id, zone_id)
         REFERENCES warehouse_zones (warehouse_id, zone_id)

@@ -494,7 +494,7 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
             return Ok(BulkOperationResponse {
                 success: true,
                 affected_count: 0,
-                message: "No categories to Activated".to_string(),
+                message: "No categories to activate".to_string(),
             });
         }
 
@@ -506,7 +506,7 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         Ok(BulkOperationResponse {
             success: true,
             affected_count: count,
-            message: format!("Activated {}", count),
+            message: format!("Activated {} categories", count),
         })
     }
 
@@ -519,7 +519,7 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
             return Ok(BulkOperationResponse {
                 success: true,
                 affected_count: 0,
-                message: "No categories to Deactivated".to_string(),
+                message: "No categories to deactivate".to_string(),
             });
         }
 
@@ -531,7 +531,7 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         Ok(BulkOperationResponse {
             success: true,
             affected_count: count,
-            message: format!("Deactivated {}", count),
+            message: format!("Deactivated {} categories", count),
         })
     }
 
@@ -544,7 +544,7 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
             return Ok(BulkOperationResponse {
                 success: true,
                 affected_count: 0,
-                message: "No categories to Deleted".to_string(),
+                message: "No categories to delete".to_string(),
             });
         }
 
@@ -553,7 +553,7 @@ impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
         Ok(BulkOperationResponse {
             success: true,
             affected_count: count,
-            message: format!("Deleted {}", count),
+            message: format!("Deleted {} categories", count),
         })
     }
 }
