@@ -1,0 +1,169 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE product_categories\n            SET\n                parent_category_id = $3, name = $4, description = $5, code = $6,\n                display_order = $7, icon = $8, color = $9, image_url = $10,\n                is_active = $11, is_visible = $12, slug = $13, meta_title = $14,\n                meta_description = $15, meta_keywords = $16, updated_at = NOW()\n            WHERE tenant_id = $1 AND category_id = $2 AND deleted_at IS NULL\n            RETURNING\n                category_id, tenant_id, parent_category_id, name, description, code,\n                path, level, display_order, icon, color, image_url, is_active, is_visible,\n                slug, meta_title, meta_description, meta_keywords,\n                product_count, total_product_count,\n                created_at, updated_at, deleted_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "parent_category_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "level",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "display_order",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "icon",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "color",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "image_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
+        "name": "is_visible",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 14,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "meta_title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 16,
+        "name": "meta_description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 17,
+        "name": "meta_keywords",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 18,
+        "name": "product_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 19,
+        "name": "total_product_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 20,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 21,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 22,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Bool",
+        "Bool",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "014d394109a19201faaa92085a1823ba22109b59c1bd31a31a22de651945d336"
+}

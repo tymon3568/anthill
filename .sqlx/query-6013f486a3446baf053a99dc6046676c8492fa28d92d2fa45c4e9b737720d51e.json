@@ -1,0 +1,155 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                c.category_id, c.tenant_id, c.parent_category_id, c.name, c.description, c.code,\n                c.path, c.level, c.display_order, c.icon, c.color, c.image_url, c.is_active, c.is_visible,\n                c.slug, c.meta_title, c.meta_description, c.meta_keywords,\n                c.product_count, c.total_product_count,\n                c.created_at, c.updated_at, c.deleted_at\n            FROM get_category_ancestors($2, $1) a\n            JOIN product_categories c ON c.category_id = a.category_id\n            ORDER BY c.level ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "parent_category_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "path",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "level",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "display_order",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "icon",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "color",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 11,
+        "name": "image_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
+        "name": "is_visible",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 14,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "meta_title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 16,
+        "name": "meta_description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 17,
+        "name": "meta_keywords",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 18,
+        "name": "product_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 19,
+        "name": "total_product_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 20,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 21,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 22,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "6013f486a3446baf053a99dc6046676c8492fa28d92d2fa45c4e9b737720d51e"
+}

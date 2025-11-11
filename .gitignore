@@ -6,7 +6,7 @@
 Cargo.lock
 
 # SQLx
-.sqlx/
+# .sqlx/
 
 # IDEs
 .vscode/

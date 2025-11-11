@@ -2,21 +2,21 @@ name: CI Testing Pipeline
 
 on:
   push:
-    branches: [master, main, develop, 'feature/**']
+    branches: [master, main, develop, "feature/**"]
     paths:
-      - 'services/**/*.rs'
-      - 'services/**/Cargo.toml'
-      - 'shared/**/*.rs'
-      - 'shared/**/Cargo.toml'
-      - 'migrations/**/*.sql'
-      - '.github/workflows/ci-testing.yml'
+      - "services/**/*.rs"
+      - "services/**/Cargo.toml"
+      - "shared/**/*.rs"
+      - "shared/**/Cargo.toml"
+      - "migrations/**/*.sql"
+      - ".github/workflows/ci-testing.yml"
   pull_request:
     paths:
-      - 'services/**/*.rs'
-      - 'services/**/Cargo.toml'
-      - 'shared/**/*.rs'
-      - 'shared/**/Cargo.toml'
-      - 'migrations/**/*.sql'
+      - "services/**/*.rs"
+      - "services/**/Cargo.toml"
+      - "shared/**/*.rs"
+      - "shared/**/Cargo.toml"
+      - "migrations/**/*.sql"
 
 env:
   CARGO_TERM_COLOR: always
@@ -163,7 +163,10 @@ jobs:
         run: |
           # Run migrations
           sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
-          
+
+          # Generate sqlx metadata for offline compilation
+          cargo sqlx prepare --database-url "${{ env.DATABASE_URL }}"
+
           # Verify database setup
           psql "${{ env.DATABASE_URL }}" -c "\dt" || true
           psql "${{ env.DATABASE_URL }}" -c "SELECT version();"
@@ -246,10 +249,10 @@ jobs:
         run: |
           # SQL injection tests
           cargo test --package user_service_api sql_injection -- --ignored --nocapture
-          
+
           # Tenant isolation tests
           cargo test --package user_service_api tenant_isolation -- --ignored --nocapture
-          
+
           # Auth/JWT security tests
           cargo test --package user_service_api security -- --ignored --nocapture
         env:
@@ -365,7 +368,7 @@ jobs:
         run: |
           COVERAGE=$(cargo llvm-cov report --summary-only | grep -oP '\d+\.\d+(?=%)' | head -1)
           echo "Current coverage: ${COVERAGE}%"
-          
+
           if (( $(echo "$COVERAGE < 70.0" | bc -l) )); then
             echo "⚠️  Warning: Coverage is below 70% (current: ${COVERAGE}%)"
             echo "::warning::Coverage is ${COVERAGE}%, target is 80%"
@@ -395,35 +398,35 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           # Unit tests
           if [ "${{ needs.unit-tests.result }}" == "success" ]; then
             echo "- ✅ **Unit Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ❌ **Unit Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Integration tests
           if [ "${{ needs.integration-tests.result }}" == "success" ]; then
             echo "- ✅ **Integration Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ❌ **Integration Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Security tests
           if [ "${{ needs.security-tests.result }}" == "success" ]; then
             echo "- ✅ **Security Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ❌ **Security Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           # Coverage
           if [ "${{ needs.coverage.result }}" == "success" ]; then
             echo "- ✅ **Coverage Report**: GENERATED" >> $GITHUB_STEP_SUMMARY
           else
             echo "- ❌ **Coverage Report**: FAILED" >> $GITHUB_STEP_SUMMARY
           fi
-          
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📊 Coverage" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -445,7 +448,7 @@ jobs:
             const integrationTests = '${{ needs.integration-tests.result }}' === 'success' ? '✅' : '❌';
             const securityTests = '${{ needs.security-tests.result }}' === 'success' ? '✅' : '❌';
             const coverage = '${{ needs.coverage.result }}' === 'success' ? '✅' : '❌';
-            
+
             const body = `## 🧪 Test Pipeline Results
 
             | Test Suite | Status |
@@ -461,7 +464,7 @@ jobs:
             ### 📦 Test Artifacts
             - Coverage HTML Report
             - Unit Test Results
-            - Integration Test Results  
+            - Integration Test Results
             - Security Test Results
 
             *All artifacts are available in the workflow run.*`;
@@ -477,7 +480,7 @@ jobs:
   build-check:
     name: Build Check
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, integration-tests]
 
     strategy:
       matrix:
@@ -515,6 +518,8 @@ jobs:
           cd services/${{ matrix.service }}
           cargo check --all-features
           cargo build --release
+        env:
+          SQLX_OFFLINE: true
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
