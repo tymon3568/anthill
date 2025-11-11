@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::BaseEntity;
+
 /// Warehouse location domain entity representing storage positions within warehouses
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +57,59 @@ fn validate_location_type(location_type: &str) -> Result<(), validator::Validati
     }
 }
 
+impl BaseEntity for WarehouseLocation {
+    fn id(&self) -> Uuid {
+        self.location_id
+    }
+
+    fn tenant_id(&self) -> Uuid {
+        self.tenant_id
+    }
+
+    fn code(&self) -> &str {
+        &self.location_code
+    }
+
+    fn name(&self) -> &str {
+        self.location_name.as_deref().unwrap_or(&self.location_code)
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    fn is_active(&self) -> bool {
+        self.is_active
+    }
+
+    fn is_deleted(&self) -> bool {
+        self.deleted_at.is_some()
+    }
+
+    fn created_at(&self) -> DateTime<Utc> {
+        self.created_at
+    }
+
+    fn updated_at(&self) -> DateTime<Utc> {
+        self.updated_at
+    }
+
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
+
+    /// Mark as deleted (soft delete)
+    fn mark_deleted(&mut self) {
+        self.deleted_at = Some(Utc::now());
+        self.updated_at = Utc::now();
+    }
+
+    /// Update timestamps
+    fn touch(&mut self) {
+        self.updated_at = Utc::now();
+    }
+}
+
 impl WarehouseLocation {
     /// Create a new warehouse location
     pub fn new(
@@ -81,36 +136,6 @@ impl WarehouseLocation {
             updated_at: Utc::now(),
             deleted_at: None,
         }
-    }
-
-    /// Check if location is deleted
-    pub fn is_deleted(&self) -> bool {
-        self.deleted_at.is_some()
-    }
-
-    /// Check if location is active
-    pub fn is_active(&self) -> bool {
-        self.is_active && !self.is_deleted()
-    }
-
-    /// Get display name (code + name or just code)
-    pub fn display_name(&self) -> String {
-        if let Some(name) = &self.location_name {
-            format!("{} ({})", name, self.location_code)
-        } else {
-            self.location_code.clone()
-        }
-    }
-
-    /// Mark as deleted (soft delete)
-    pub fn mark_deleted(&mut self) {
-        self.deleted_at = Some(Utc::now());
-        self.updated_at = Utc::now();
-    }
-
-    /// Update timestamps
-    pub fn touch(&mut self) {
-        self.updated_at = Utc::now();
     }
 
     /// Get location type display name

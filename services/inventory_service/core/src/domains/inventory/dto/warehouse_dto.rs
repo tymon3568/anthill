@@ -5,6 +5,7 @@ use validator::Validate;
 
 /// Request DTO for creating a new warehouse
 #[derive(Debug, Clone, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWarehouseRequest {
     /// Warehouse code (unique per tenant)
@@ -38,6 +39,7 @@ pub struct CreateWarehouseRequest {
 
 /// Request DTO for creating a warehouse zone
 #[derive(Debug, Clone, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWarehouseZoneRequest {
     /// Zone code (unique per warehouse)
@@ -65,6 +67,7 @@ pub struct CreateWarehouseZoneRequest {
 
 /// Request DTO for creating a warehouse location
 #[derive(Debug, Clone, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWarehouseLocationRequest {
     /// Zone ID (optional - location can exist without zone)

@@ -234,7 +234,7 @@ CREATE TRIGGER update_warehouse_locations_updated_at
 -- ==================================
 
 COMMENT ON TABLE warehouses IS 'Warehouse hierarchy root table with unlimited depth support';
-COMMENT ON COLUMN warehouses.warehouse_id IS 'UUID v7 primary key (timestamp-based)';
+COMMENT ON COLUMN warehouses.warehouse_id IS 'UUID v4 primary key (random)';
 COMMENT ON COLUMN warehouses.tenant_id IS 'Multi-tenant isolation field';
 COMMENT ON COLUMN warehouses.warehouse_code IS 'Unique warehouse code per tenant';
 COMMENT ON COLUMN warehouses.warehouse_type IS 'Warehouse classification: main/transit/quarantine/distribution/retail/satellite';
@@ -244,7 +244,7 @@ COMMENT ON COLUMN warehouses.contact_info IS 'Contact information JSON: {phone, 
 COMMENT ON COLUMN warehouses.capacity_info IS 'Capacity information JSON: {max_volume_m3, max_weight_kg, max_pallets}';
 
 COMMENT ON TABLE warehouse_zones IS 'Warehouse zones for internal organization within warehouses';
-COMMENT ON COLUMN warehouse_zones.zone_id IS 'UUID v7 primary key (timestamp-based)';
+COMMENT ON COLUMN warehouse_zones.zone_id IS 'UUID v4 primary key (random)';
 COMMENT ON COLUMN warehouse_zones.tenant_id IS 'Multi-tenant isolation field';
 COMMENT ON COLUMN warehouse_zones.warehouse_id IS 'Reference to parent warehouse';
 COMMENT ON COLUMN warehouse_zones.zone_code IS 'Unique zone code per warehouse';
@@ -253,7 +253,7 @@ COMMENT ON COLUMN warehouse_zones.zone_attributes IS 'Zone attributes JSON: {tem
 COMMENT ON COLUMN warehouse_zones.capacity_info IS 'Zone capacity JSON: {max_volume_m3, max_weight_kg, max_locations}';
 
 COMMENT ON TABLE warehouse_locations IS 'Individual storage locations within warehouse zones';
-COMMENT ON COLUMN warehouse_locations.location_id IS 'UUID v7 primary key (timestamp-based)';
+COMMENT ON COLUMN warehouse_locations.location_id IS 'UUID v4 primary key (random)';
 COMMENT ON COLUMN warehouse_locations.tenant_id IS 'Multi-tenant isolation field';
 COMMENT ON COLUMN warehouse_locations.warehouse_id IS 'Reference to parent warehouse';
 COMMENT ON COLUMN warehouse_locations.zone_id IS 'Optional reference to warehouse zone';

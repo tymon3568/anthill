@@ -7,9 +7,8 @@ use sqlx::{PgPool, QueryBuilder, Row};
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::search_dto::{
-    AppliedFilters, PaginationInfo, ProductSearchRequest, ProductSearchResponse,
-    ProductSearchResult, ProductSortBy, SearchFacets, SearchMeta, SearchSuggestion,
-    SearchSuggestionsRequest, SearchSuggestionsResponse, SortOrder, SuggestionType,
+    AppliedFilters, ProductSearchRequest, ProductSearchResponse, ProductSortBy,
+    SearchSuggestionsRequest, SearchSuggestionsResponse, SortOrder,
 };
 use inventory_service_core::domains::inventory::product::Product;
 use inventory_service_core::repositories::product::ProductRepository;
@@ -382,7 +381,7 @@ impl ProductRepository for ProductRepositoryImpl {
 
         for row in product_suggestions {
             let text = row.text;
-            let count = row.count as u32;
+            let count = row.count.unwrap_or(0) as u32;
             suggestions_map
                 .entry(text.clone())
                 .or_insert(SearchSuggestion {
@@ -394,7 +393,7 @@ impl ProductRepository for ProductRepositoryImpl {
 
         for row in sku_suggestions {
             let text = row.text;
-            let count = row.count as u32;
+            let count = row.count.unwrap_or(0) as u32;
             suggestions_map
                 .entry(text.clone())
                 .and_modify(|s| {

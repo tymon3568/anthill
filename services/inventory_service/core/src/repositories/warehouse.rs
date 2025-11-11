@@ -6,9 +6,12 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::domains::inventory::dto::warehouse_dto::{
-    CreateWarehouseRequest, WarehouseTreeResponse,
+    CreateWarehouseLocationRequest, CreateWarehouseRequest, CreateWarehouseZoneRequest,
+    WarehouseTreeResponse,
 };
 use crate::domains::inventory::warehouse::Warehouse;
+use crate::domains::inventory::warehouse_location::WarehouseLocation;
+use crate::domains::inventory::warehouse_zone::WarehouseZone;
 use crate::Result;
 
 /// Repository trait for warehouse data access
@@ -126,6 +129,66 @@ pub trait WarehouseRepository: Send + Sync {
     /// # Returns
     /// List of ancestor warehouses (ordered from root to parent)
     async fn get_ancestors(&self, tenant_id: Uuid, warehouse_id: Uuid) -> Result<Vec<Warehouse>>;
+
+    /// Get all descendants of a warehouse
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `warehouse_id` - Warehouse ID
+    ///
+    /// # Returns
+    /// List of descendant warehouses
+    async fn get_descendants(&self, tenant_id: Uuid, warehouse_id: Uuid) -> Result<Vec<Warehouse>>;
+
+    /// Get all zones for a tenant
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    ///
+    /// # Returns
+    /// List of warehouse zones
+    async fn get_all_zones(&self, tenant_id: Uuid) -> Result<Vec<WarehouseZone>>;
+
+    /// Get all locations for a tenant
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    ///
+    /// # Returns
+    /// List of warehouse locations
+    async fn get_all_locations(&self, tenant_id: Uuid) -> Result<Vec<WarehouseLocation>>;
+
+    /// Create a new zone in a warehouse
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `warehouse_id` - Warehouse ID
+    /// * `request` - Zone creation data
+    ///
+    /// # Returns
+    /// Created zone
+    async fn create_zone(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        request: CreateWarehouseZoneRequest,
+    ) -> Result<WarehouseZone>;
+
+    /// Create a new location in a warehouse
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `warehouse_id` - Warehouse ID
+    /// * `request` - Location creation data
+    ///
+    /// # Returns
+    /// Created location
+    async fn create_location(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        request: CreateWarehouseLocationRequest,
+    ) -> Result<WarehouseLocation>;
 
     /// Check if warehouse hierarchy is valid (no cycles)
     ///

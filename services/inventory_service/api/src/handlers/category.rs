@@ -19,6 +19,7 @@ use inventory_service_core::dto::category::{
     CategoryResponse, CategoryStatsResponse, CategoryTreeResponse, CategoryUpdateRequest,
     MoveToCategoryRequest,
 };
+use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::product::ProductService;
 
@@ -32,6 +33,7 @@ use shared_kanidm_client::KanidmClient;
 pub struct AppState {
     pub category_service: Arc<dyn CategoryService>,
     pub product_service: Arc<dyn ProductService>,
+    pub warehouse_repository: Arc<dyn WarehouseRepository>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,

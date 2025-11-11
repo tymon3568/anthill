@@ -40,9 +40,12 @@ pub struct AuthzState {
 /// ```
 pub async fn casbin_middleware(
     State(state): State<AuthzState>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {
+    // Add SharedEnforcer to request extensions for RequirePermission extractor
+    request.extensions_mut().insert(state.enforcer.clone());
+
     // Extract Authorization header
     let auth_header = request
         .headers()

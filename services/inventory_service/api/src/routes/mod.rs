@@ -3,7 +3,10 @@
 //! This module defines the API routes and creates the main router.
 
 use axum::{http::HeaderValue, Router};
-use shared_auth::enforcer::create_enforcer;
+use shared_auth::{
+    enforcer::create_enforcer,
+    middleware::{casbin_middleware, AuthzState},
+};
 use shared_config::Config;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use sqlx::PgPool;
@@ -12,8 +15,10 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::handlers::category::{create_category_routes, AppState};
 use crate::handlers::search::create_search_routes;
+use crate::handlers::warehouses::create_warehouse_routes;
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
 
@@ -118,18 +123,28 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let product_repo = ProductRepositoryImpl::new(pool.clone());
     let product_service = ProductServiceImpl::new(Arc::new(product_repo));
 
+    let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
+
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
         product_service: Arc::new(product_service),
+        warehouse_repository: Arc::new(warehouse_repo),
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
     };
 
+    // Create AuthzState for middleware
+    let authz_state = AuthzState {
+        enforcer: state.enforcer.clone(),
+        jwt_secret: state.jwt_secret.clone(),
+    };
+
     // Create routes with state
     let category_routes = create_category_routes(state.clone());
-    let search_routes = create_search_routes(state.product_service.clone());
+    let search_routes = create_search_routes(state.clone());
+    let warehouse_routes = create_warehouse_routes(state.clone());
 
     // Add CORS configuration
     let cors = CorsLayer::new()
@@ -158,10 +173,15 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             axum::http::Method::PUT,
             axum::http::Method::DELETE,
         ])
-        .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::AUTHORIZATION]);
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ]);
 
     Router::new()
         .nest("/api/v1/inventory", category_routes)
         .nest("/api/v1/inventory/products", search_routes)
+        .nest("/api/v1/inventory/warehouses", warehouse_routes)
+        .layer(axum::middleware::from_fn_with_state(authz_state, casbin_middleware))
         .layer(cors)
 }

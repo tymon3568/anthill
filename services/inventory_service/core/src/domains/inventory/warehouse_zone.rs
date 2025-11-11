@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::BaseEntity;
+
 /// Warehouse zone domain entity representing zones within warehouses
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -53,6 +55,59 @@ fn validate_zone_type(zone_type: &str) -> Result<(), validator::ValidationError>
     }
 }
 
+impl BaseEntity for WarehouseZone {
+    fn id(&self) -> Uuid {
+        self.zone_id
+    }
+
+    fn tenant_id(&self) -> Uuid {
+        self.tenant_id
+    }
+
+    fn code(&self) -> &str {
+        &self.zone_code
+    }
+
+    fn name(&self) -> &str {
+        &self.zone_name
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    fn is_active(&self) -> bool {
+        self.is_active
+    }
+
+    fn is_deleted(&self) -> bool {
+        self.deleted_at.is_some()
+    }
+
+    fn created_at(&self) -> DateTime<Utc> {
+        self.created_at
+    }
+
+    fn updated_at(&self) -> DateTime<Utc> {
+        self.updated_at
+    }
+
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
+
+    /// Mark as deleted (soft delete)
+    fn mark_deleted(&mut self) {
+        self.deleted_at = Some(Utc::now());
+        self.updated_at = Utc::now();
+    }
+
+    /// Update timestamps
+    fn touch(&mut self) {
+        self.updated_at = Utc::now();
+    }
+}
+
 impl WarehouseZone {
     /// Create a new warehouse zone
     pub fn new(
@@ -77,32 +132,6 @@ impl WarehouseZone {
             updated_at: Utc::now(),
             deleted_at: None,
         }
-    }
-
-    /// Check if zone is deleted
-    pub fn is_deleted(&self) -> bool {
-        self.deleted_at.is_some()
-    }
-
-    /// Check if zone is active
-    pub fn is_active(&self) -> bool {
-        self.is_active && !self.is_deleted()
-    }
-
-    /// Get display name (code + name)
-    pub fn display_name(&self) -> String {
-        format!("{} ({})", self.zone_name, self.zone_code)
-    }
-
-    /// Mark as deleted (soft delete)
-    pub fn mark_deleted(&mut self) {
-        self.deleted_at = Some(Utc::now());
-        self.updated_at = Utc::now();
-    }
-
-    /// Update timestamps
-    pub fn touch(&mut self) {
-        self.updated_at = Utc::now();
     }
 
     /// Get zone type display name

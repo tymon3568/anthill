@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::BaseEntity;
 /// Warehouse domain entity representing a warehouse in the hierarchy
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -53,6 +54,59 @@ fn validate_warehouse_type(warehouse_type: &str) -> Result<(), validator::Valida
     }
 }
 
+impl BaseEntity for Warehouse {
+    fn id(&self) -> Uuid {
+        self.warehouse_id
+    }
+
+    fn tenant_id(&self) -> Uuid {
+        self.tenant_id
+    }
+
+    fn code(&self) -> &str {
+        &self.warehouse_code
+    }
+
+    fn name(&self) -> &str {
+        &self.warehouse_name
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    fn is_active(&self) -> bool {
+        self.is_active
+    }
+
+    fn is_deleted(&self) -> bool {
+        self.deleted_at.is_some()
+    }
+
+    fn created_at(&self) -> DateTime<Utc> {
+        self.created_at
+    }
+
+    fn updated_at(&self) -> DateTime<Utc> {
+        self.updated_at
+    }
+
+    fn deleted_at(&self) -> Option<DateTime<Utc>> {
+        self.deleted_at
+    }
+
+    /// Mark as deleted (soft delete)
+    fn mark_deleted(&mut self) {
+        self.deleted_at = Some(Utc::now());
+        self.updated_at = Utc::now();
+    }
+
+    /// Update timestamps
+    fn touch(&mut self) {
+        self.updated_at = Utc::now();
+    }
+}
+
 impl Warehouse {
     /// Create a new warehouse
     pub fn new(
@@ -77,32 +131,6 @@ impl Warehouse {
             updated_at: Utc::now(),
             deleted_at: None,
         }
-    }
-
-    /// Check if warehouse is deleted
-    pub fn is_deleted(&self) -> bool {
-        self.deleted_at.is_some()
-    }
-
-    /// Check if warehouse is active
-    pub fn is_active(&self) -> bool {
-        self.is_active && !self.is_deleted()
-    }
-
-    /// Get display name (code + name)
-    pub fn display_name(&self) -> String {
-        format!("{} ({})", self.warehouse_name, self.warehouse_code)
-    }
-
-    /// Mark as deleted (soft delete)
-    pub fn mark_deleted(&mut self) {
-        self.deleted_at = Some(Utc::now());
-        self.updated_at = Utc::now();
-    }
-
-    /// Update timestamps
-    pub fn touch(&mut self) {
-        self.updated_at = Utc::now();
     }
 
     /// Check if this is a root warehouse (no parent)
