@@ -6,6 +6,7 @@ const API_BASE_URL = PUBLIC_API_BASE_URL;
 
 // Track if we're currently refreshing to avoid duplicate refresh calls
 let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
 let refreshSubscribers: Array<(token: string) => void> = [];
 
 // Subscribe to token refresh completion
@@ -28,6 +29,22 @@ class ApiClient {
 	}
 
 	private async refreshAccessToken(): Promise<string | null> {
+		// If refresh is already in progress, return the existing promise
+		if (refreshPromise) {
+			return refreshPromise;
+		}
+
+		// Start new refresh
+		refreshPromise = this.performTokenRefresh();
+		try {
+			return await refreshPromise;
+		} finally {
+			// Clean up after refresh completes
+			refreshPromise = null;
+		}
+	}
+
+	private async performTokenRefresh(): Promise<string | null> {
 		const refreshToken = await tokenManager.getRefreshToken();
 		if (!refreshToken) return null;
 
@@ -78,10 +95,8 @@ class ApiClient {
 		config.signal = controller.signal;
 
 		// Check if token needs refresh before request
-		if (tokenManager.isAccessTokenExpiringSoon() && !isRefreshing) {
-			isRefreshing = true;
+		if (tokenManager.isAccessTokenExpiringSoon()) {
 			const newToken = await this.refreshAccessToken();
-			isRefreshing = false;
 			if (newToken) {
 				onTokenRefreshed(newToken);
 			}
@@ -104,42 +119,26 @@ class ApiClient {
 
 			// Handle 401 Unauthorized - token expired
 			if (response.status === 401) {
-				if (isRefreshing) {
-					// Refresh is already in progress, wait for it
-					return new Promise<ApiResponse<T>>((resolve) => {
-						subscribeTokenRefresh((token: string) => {
-							// Retry original request with new token
-							config.headers = {
-								...config.headers,
-								Authorization: `Bearer ${token}`
-							};
-							resolve(this.request<T>(endpoint, options));
-						});
-					});
-				} else {
-					// Start refresh process
-					isRefreshing = true;
-					const newToken = await this.refreshAccessToken();
-					isRefreshing = false;
+				// Try to refresh token once
+				const newToken = await this.refreshAccessToken();
 
-					if (newToken) {
-						// Retry original request with new token
-						config.headers = {
-							...config.headers,
-							Authorization: `Bearer ${newToken}`
-						};
-						onTokenRefreshed(newToken);
-						return this.request<T>(endpoint, options);
-					} else {
-						// Refresh failed, redirect to login
-						if (typeof window !== 'undefined') {
-							window.location.href = '/login?error=session_expired';
-						}
-						return {
-							success: false,
-							error: 'Session expired'
-						};
+				if (newToken) {
+					// Retry original request with new token
+					config.headers = {
+						...config.headers,
+						Authorization: `Bearer ${newToken}`
+					};
+					onTokenRefreshed(newToken);
+					return this.request<T>(endpoint, options);
+				} else {
+					// Refresh failed, redirect to login
+					if (typeof window !== 'undefined') {
+						window.location.href = '/login?error=session_expired';
 					}
+					return {
+						success: false,
+						error: 'Session expired'
+					};
 				}
 			}
 

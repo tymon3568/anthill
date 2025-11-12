@@ -87,7 +87,7 @@ export async function logoutAction() {
 	const refreshToken = await tokenManager.getRefreshToken();
 	if (refreshToken) {
 		try {
-			await authApi.logoutLegacy();
+			await authApi.logoutLegacy({ refresh_token: refreshToken });
 		} catch (error) {
 			console.error('Logout API call failed:', error);
 			// Continue with client-side logout even if API fails
