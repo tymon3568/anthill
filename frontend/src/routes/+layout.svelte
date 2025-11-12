@@ -1,21 +1,21 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import AuthLoading from '$lib/components/AuthLoading.svelte';
-	import { authStore } from '$lib/stores/auth.svelte';
-	import { onMount } from 'svelte';
+	import { useAuth } from '$lib/hooks/useAuth';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 
 	let { children } = $props();
 
-	// Initialize auth store on app start
-	onMount(() => {
-		authStore.initialize();
-	});
+	// Initialize auth state for entire app
+	const { isLoading } = useAuth();
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<AuthLoading />
-{@render children()}
+{#if isLoading}
+	<LoadingSpinner />
+{:else}
+	{@render children()}
+{/if}

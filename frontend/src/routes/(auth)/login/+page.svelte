@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -17,8 +19,30 @@
 	let submitted = $state(false);
 	let touched = $state({ email: false, password: false });
 
+	// Debounce state
+	let debounceTimer = $state<NodeJS.Timeout | null>(null);
+	let isSubmitting = $state(false);
+
+	// Debounce function
+	function debounce<T extends (...args: any[]) => any>(func: T, delay: number): T {
+		return ((...args: Parameters<T>) => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(() => func(...args), delay);
+		}) as T;
+	}
+
 	// Auth hook
 	const { login, isAuthenticated } = useAuth();
+
+	// Focus email input on mount
+	onMount(() => {
+		tick().then(() => {
+			const emailInput = document.getElementById('email') as HTMLInputElement;
+			if (emailInput) {
+				emailInput.focus();
+			}
+		});
+	});
 
 	// Get success message from URL params
 	let successMessage = $state(page.url.searchParams.get('message'));
@@ -50,9 +74,21 @@
 			});
 		}
 		return errors;
-	});	// Handle form submission
-	async function handleSubmit(event: Event) {
-		event.preventDefault();
+	});	// Debounced submit handler
+	const debouncedSubmit = debounce(async () => {
+		if (isSubmitting) return;
+		isSubmitting = true;
+
+		try {
+			await handleSubmit();
+		} finally {
+			isSubmitting = false;
+		}
+	}, 300);
+
+	// Handle form submission
+	async function handleSubmit(event?: Event) {
+		if (event) event.preventDefault();
 
 		// Mark all fields as touched and enable error display
 		touched = { email: true, password: true };
@@ -65,20 +101,14 @@
 
 		try {
 			await login(email, password);
-			// Redirect will be handled by auth store
+			// Redirect to dashboard after successful login
+			goto('/dashboard');
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Login failed';
 		} finally {
 			isLoading = false;
 		}
 	}
-
-	// Redirect if already authenticated
-	$effect(() => {
-		if (isAuthenticated) {
-			goto('/dashboard');
-		}
-	});
 </script>
 
 <svelte:head>
@@ -121,7 +151,12 @@
 					</div>
 				{/if}
 
-				<form class="space-y-4">
+				<form class="space-y-4" onsubmit={(e) => {
+					e.preventDefault();
+					if (!isLoading && !isSubmitting) {
+						debouncedSubmit();
+					}
+				}}>
 					<div>
 						<Label for="email">Email</Label>
 						<Input
@@ -175,10 +210,9 @@
 					{/if}
 
 					<Button
-						type="button"
+						type="submit"
 						class="w-full"
-						disabled={isLoading}
-						onclick={handleSubmit}
+						disabled={isLoading || isSubmitting}
 					>
 						{#if isLoading}
 							<span class="flex items-center space-x-2">

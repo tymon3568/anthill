@@ -1,50 +1,50 @@
 <script lang="ts">
-	import { inventoryState, inventoryStore } from '$lib/stores/inventory.svelte';
+	import { authState } from '$lib/stores/auth.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import type { Product } from '$lib/types';
-
-	// Load initial data
-	import { onMount } from 'svelte';
-	import { inventoryApi } from '$lib/api/inventory';
-
-	onMount(async () => {
-		inventoryStore.setLoading(true);
-		try {
-			const [productsResult, categoriesResult] = await Promise.all([
-				inventoryApi.getProducts(1, 100),
-				inventoryApi.getCategories()
-			]);
-
-			if (productsResult.success && productsResult.data) {
-				inventoryStore.setProducts(productsResult.data.data);
-			}
-
-			if (categoriesResult.success && categoriesResult.data) {
-				inventoryStore.setCategories(categoriesResult.data);
-			}
-		} catch {
-			inventoryStore.setError('Failed to load inventory data');
-		} finally {
-			inventoryStore.setLoading(false);
-		}
-	});
 </script>
+
+<svelte:head>
+	<title>Dashboard - Anthill</title>
+</svelte:head>
 
 <div class="space-y-6">
 	<div>
 		<h1 class="text-3xl font-bold">Dashboard</h1>
-		<p class="text-muted-foreground">Overview of your inventory management system</p>
+		<p class="text-muted-foreground">Welcome back, {authState.user?.name || 'User'}!</p>
 	</div>
 
-	<!-- Stats Cards -->
+	<!-- Welcome Card -->
+	<Card>
+		<CardHeader>
+			<CardTitle>Welcome to Anthill Inventory Management</CardTitle>
+		</CardHeader>
+		<CardContent>
+			<div class="space-y-4">
+				<p class="text-muted-foreground">
+					Your inventory management system is ready to use.
+				</p>
+				{#if authState.user}
+					<div class="space-y-2">
+						<p><strong>Email:</strong> {authState.user.email}</p>
+						<p><strong>Role:</strong> <Badge>{authState.user.role}</Badge></p>
+						{#if authState.tenant}
+							<p><strong>Organization:</strong> {authState.tenant.name}</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		</CardContent>
+	</Card>
+
+	<!-- Stats Cards - Placeholder -->
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 		<Card>
 			<CardHeader>
 				<CardTitle>Total Products</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div class="text-3xl font-bold">{inventoryState.products?.length || 0}</div>
+				<div class="text-3xl font-bold">0</div>
 				<p class="text-sm text-muted-foreground">Active products in inventory</p>
 			</CardContent>
 		</Card>
@@ -54,59 +54,29 @@
 				<CardTitle>Low Stock Alerts</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div class="text-3xl font-bold text-destructive">
-					{inventoryState.products?.filter((p: Product) => p.stock <= p.minStock).length || 0}
-				</div>
+				<div class="text-3xl font-bold text-destructive">0</div>
 				<p class="text-sm text-muted-foreground">Products below minimum stock</p>
 			</CardContent>
 		</Card>
 
 		<Card>
 			<CardHeader>
-				<CardTitle>Total Value</CardTitle>
+				<CardTitle>Categories</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<div class="text-3xl font-bold">
-					${(inventoryState.products?.reduce(
-						(sum: number, p: Product) => sum + p.price * p.stock,
-						0
-					) || 0) / 100}
-				</div>
-				<p class="text-sm text-muted-foreground">Current inventory value</p>
+				<div class="text-3xl font-bold">0</div>
+				<p class="text-sm text-muted-foreground">Product categories</p>
 			</CardContent>
 		</Card>
 	</div>
 
-	<!-- Recent Products -->
+	<!-- Coming Soon Notice -->
 	<Card>
-		<CardHeader>
-			<CardTitle>Recent Products</CardTitle>
-		</CardHeader>
-		<CardContent>
-			{#if inventoryState.isLoading}
-				<div class="flex items-center justify-center py-8">
-					<div class="h-6 w-6 animate-spin rounded-full border-b-2 border-primary"></div>
-				</div>
-			{:else if (inventoryState.products?.length || 0) === 0}
-				<p class="py-8 text-center text-muted-foreground">No products found</p>
-			{:else}
-				<div class="space-y-4">
-					{#each inventoryState.products?.slice(0, 5) || [] as product (product.id)}
-						<div class="flex items-center justify-between rounded-lg border p-4">
-							<div>
-								<h3 class="font-medium">{product.name}</h3>
-								<p class="text-sm text-muted-foreground">SKU: {product.sku}</p>
-							</div>
-							<div class="flex items-center gap-2">
-								<Badge variant={product.stock <= product.minStock ? 'destructive' : 'secondary'}>
-									{product.stock} in stock
-								</Badge>
-								<span class="font-medium">${(product.price / 100).toFixed(2)}</span>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
+		<CardContent class="pt-6">
+			<div class="text-center text-muted-foreground">
+				<p class="text-lg font-semibold mb-2">Inventory Features Coming Soon</p>
+				<p>Product management, stock tracking, and reporting features will be available once the backend services are ready.</p>
+			</div>
 		</CardContent>
 	</Card>
 </div>

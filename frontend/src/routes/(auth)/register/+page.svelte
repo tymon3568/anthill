@@ -1,98 +1,185 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { useAuth } from '$lib/hooks/useAuth';
-	import type { RegisterForm } from '$lib/types';
-	import { registerSchema, validatePasswordConfirmation, calculatePasswordStrength } from '$lib/auth/validation';
-	import { parse, safeParse } from 'valibot';
+	import { registerAction } from '$lib/hooks/useAuthActions';
+	import { validateRegister, type RegisterInput } from '$lib/validation/auth-validation';
+	import { rateLimiter, formatBlockedTime } from '$lib/utils/rate-limiter';
+	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 
 	// Form state using Svelte 5 runes
+	let fullName = $state('');
 	let email = $state('');
 	let password = $state('');
 	let confirmPassword = $state('');
-	let name = $state('');
+	let tenantName = $state('');
 	let isLoading = $state(false);
 	let error = $state('');
-	let submitted = $state(false);
-	let touched = $state({ name: false, email: false, password: false, confirmPassword: false });
+	let fieldErrors = $state<Partial<Record<keyof RegisterInput, string>>>({});
+	let touched = $state<Partial<Record<keyof RegisterInput, boolean>>>({});
 
-	// Auth hook
-	const { register, isAuthenticated } = useAuth();
+	// Rate limiting state
+	const RATE_LIMIT_KEY = 'register';
+	let isRateLimited = $state(false);
+	let blockedTimeRemaining = $state(0);
+	let remainingAttempts = $state(5);
+	let rateLimitInterval: ReturnType<typeof setInterval> | undefined;
 
-	// Password strength calculation using Valibot helper
-	let passwordStrength = $derived.by(() => calculatePasswordStrength(password));
+	// Debounce timer for form submission
+	let submitTimeout: ReturnType<typeof setTimeout> | undefined;
+	const SUBMIT_DEBOUNCE_MS = 300;
 
-	let passwordStrengthText = $derived(passwordStrength.strength);
-	let passwordStrengthColor = $derived(passwordStrength.color);
+	// Password strength indicator
+	let passwordStrength = $derived.by(() => {
+		if (!password) return { score: 0, label: '', color: '' };
 
-	// Form validation using Valibot
-	let isFormValid = $derived.by(() => {
-		try {
-			parse(registerSchema, { name, email, password, confirmPassword });
-			const passwordsMatch = validatePasswordConfirmation(password, confirmPassword);
-			const strength = passwordStrength;
-			return passwordsMatch && strength.score >= 3;
-		} catch {
-			return false;
-		}
+		let score = 0;
+		if (password.length >= 8) score++;
+		if (password.length >= 12) score++;
+		if (/[A-Z]/.test(password)) score++;
+		if (/[a-z]/.test(password)) score++;
+		if (/[0-9]/.test(password)) score++;
+
+		const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+		const colors = ['', '#ef4444', '#f59e0b', '#eab308', '#22c55e', '#16a34a'];
+
+		return {
+			score,
+			label: labels[score] || '',
+			color: colors[score] || ''
+		};
 	});
 
-	// Get validation errors - only show after form submission attempt
-	let validationErrors = $derived.by(() => {
-		const result = safeParse(registerSchema, { name, email, password, confirmPassword });
-		const errors: Record<string, string> = {};
+	// Computed values for template
+	let passwordStrengthText = $derived(passwordStrength.label);
+	let passwordStrengthColor = $derived(passwordStrength.color);
 
-		if (!result.success) {
-			result.issues.forEach((issue: any) => {
-				const field = issue.path?.[0]?.key as string;
-				if (field && !errors[field]) { // Only take the first error per field
-					errors[field] = issue.message;
+	// Check rate limit status on mount
+	onMount(() => {
+		checkRateLimitStatus();
+
+		// Update blocked time countdown every second
+		rateLimitInterval = setInterval(() => {
+			if (isRateLimited) {
+				const remaining = rateLimiter.getBlockedTimeRemaining(RATE_LIMIT_KEY);
+				if (remaining === 0) {
+					isRateLimited = false;
+					remainingAttempts = rateLimiter.getRemainingAttempts(RATE_LIMIT_KEY);
+				} else {
+					blockedTimeRemaining = remaining;
 				}
-			});
-		}
+			}
+		}, 1000);
 
-		// Check password confirmation
-		if (!validatePasswordConfirmation(password, confirmPassword)) {
-			errors.confirmPassword = 'Passwords do not match';
-		}
+		return () => {
+			if (rateLimitInterval) clearInterval(rateLimitInterval);
+			if (submitTimeout) clearTimeout(submitTimeout);
+		};
+	});
 
-		return errors;
-	});				// Handle form submission
-	async function handleSubmit(event: Event) {
-		event.preventDefault();
-
-		// Mark all fields as touched and enable error display
-		touched = { name: true, email: true, password: true, confirmPassword: true };
-		submitted = true;
-
-		if (!isFormValid) return;
-
-		isLoading = true;
-		error = '';
-
-		try {
-			await register({ name, email, password, confirmPassword });
-			// Redirect to login with success message
-			goto('/login?message=Registration successful, please login');
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Registration failed';
-		} finally {
-			isLoading = false;
+	function checkRateLimitStatus() {
+		const blocked = rateLimiter.getBlockedTimeRemaining(RATE_LIMIT_KEY);
+		if (blocked > 0) {
+			isRateLimited = true;
+			blockedTimeRemaining = blocked;
+			remainingAttempts = 0;
+		} else {
+			isRateLimited = false;
+			remainingAttempts = rateLimiter.getRemainingAttempts(RATE_LIMIT_KEY);
 		}
 	}
 
-	// Redirect if already authenticated
-	$effect(() => {
-		if (isAuthenticated) {
-			goto('/dashboard');
-		}
-	});
-</script>
+	// Handle form submission with validation and rate limiting
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
 
-<svelte:head>
+		// Clear previous debounce
+		if (submitTimeout) {
+			clearTimeout(submitTimeout);
+		}
+
+		// Debounce submission (300ms)
+		submitTimeout = setTimeout(async () => {
+			// Check rate limit before validation
+			if (!rateLimiter.isAllowed(RATE_LIMIT_KEY)) {
+				checkRateLimitStatus();
+				error = `Too many registration attempts. Please try again in ${formatBlockedTime(blockedTimeRemaining)}.`;
+				return;
+			}
+
+			// Validate form using Valibot
+			const result = validateRegister({
+				full_name: fullName,
+				email,
+				password,
+				confirmPassword,
+				tenant_name: tenantName || undefined
+			});
+
+			if (!result.success) {
+				fieldErrors = result.errors || {};
+				error = '';
+				return;
+			}
+
+			// Clear field errors on successful validation
+			fieldErrors = {};
+			isLoading = true;
+			error = '';
+
+			// Record the attempt for rate limiting
+			rateLimiter.recordAttempt(RATE_LIMIT_KEY);
+
+			try {
+				// Call register with proper field names
+				if (result.data) {
+					await registerAction({
+						name: fullName,
+						email: result.data.email,
+						password: result.data.password,
+						confirmPassword: result.data.confirmPassword,
+						tenantName: result.data.tenant_name
+					});
+				}
+
+				// Redirect to login with success message
+				goto('/login?message=Registration successful. Please sign in.');
+			} catch (err) {
+				// Map errors according to production standards
+				let errorMsg = 'Registration failed';
+
+				if (err instanceof Error) {
+					const message = err.message.toLowerCase();
+
+					// 409 Conflict - email already exists
+					if (message.includes('409') || message.includes('already exists') || message.includes('conflict')) {
+						errorMsg = 'An account with this email already exists.';
+					}
+					// 500 Server Error
+					else if (message.includes('500') || message.includes('server') || message.includes('unavailable')) {
+						errorMsg = 'Service temporarily unavailable. Please try again later.';
+					}
+					// Timeout
+					else if (message.includes('timeout')) {
+						errorMsg = 'Request timeout. Please check your connection and try again.';
+					}
+					// Other errors
+					else {
+						errorMsg = err.message;
+					}
+				}
+
+				error = errorMsg;
+				checkRateLimitStatus();
+			} finally {
+				isLoading = false;
+			}
+		}, SUBMIT_DEBOUNCE_MS);
+	}
+</script>
 	<title>Sign Up - Anthill</title>
 </svelte:head>
 
@@ -120,16 +207,17 @@
 							name="name"
 							type="text"
 							placeholder="Enter your full name"
-							bind:value={name}
+							bind:value={fullName}
 							required
 							autocomplete="name"
 							disabled={isLoading}
-							aria-describedby={validationErrors.name ? "name-error" : undefined}
-							onblur={() => touched.name = true}
+							aria-describedby={fieldErrors.full_name ? "name-error" : undefined}
+							onblur={() => touched.full_name = true}
+							autofocus
 						/>
-						{#if touched.name && validationErrors.name}
+						{#if touched.full_name && fieldErrors.full_name}
 							<p id="name-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.name}
+								{fieldErrors.full_name}
 							</p>
 						{/if}
 					</div>
@@ -145,14 +233,31 @@
 							required
 							autocomplete="email"
 							disabled={isLoading}
-							aria-describedby={validationErrors.email ? "email-error" : undefined}
+							aria-describedby={fieldErrors.email ? "email-error" : undefined}
 							onblur={() => touched.email = true}
 						/>
-						{#if touched.email && validationErrors.email}
+						{#if touched.email && fieldErrors.email}
 							<p id="email-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.email}
+								{fieldErrors.email}
 							</p>
 						{/if}
+					</div>
+
+					<div>
+						<Label for="tenantName">Company/Organization Name</Label>
+						<Input
+							id="tenantName"
+							name="tenantName"
+							type="text"
+							placeholder="Enter your company name (optional)"
+							bind:value={tenantName}
+							autocomplete="organization"
+							disabled={isLoading}
+							onblur={() => touched.tenant_name = true}
+						/>
+						<p class="text-xs text-gray-500 mt-1">
+							Leave empty to join an existing organization
+						</p>
 					</div>
 
 					<div>
@@ -166,12 +271,12 @@
 							required
 							autocomplete="new-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors.password ? "password-error" : undefined}
+							aria-describedby={fieldErrors.password ? "password-error" : undefined}
 							onblur={() => touched.password = true}
 						/>
-						{#if touched.password && validationErrors.password}
+						{#if touched.password && fieldErrors.password}
 							<p id="password-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.password}
+								{fieldErrors.password}
 							</p>
 						{/if}
 						{#if password}
@@ -200,12 +305,12 @@
 							required
 							autocomplete="new-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors.confirmPassword ? "confirm-error" : undefined}
+							aria-describedby={fieldErrors.confirmPassword ? "confirm-error" : undefined}
 							onblur={() => touched.confirmPassword = true}
 						/>
-						{#if touched.confirmPassword && validationErrors.confirmPassword}
+						{#if touched.confirmPassword && fieldErrors.confirmPassword}
 							<p id="confirm-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.confirmPassword}
+								{fieldErrors.confirmPassword}
 							</p>
 						{/if}
 					</div>

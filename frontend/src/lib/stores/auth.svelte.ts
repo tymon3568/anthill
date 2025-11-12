@@ -42,10 +42,11 @@ export const authStore = {
 		syncState();
 	},
 
-	initialize: () => {
+	initialize: async () => {
 		// Client-side initialization
 		if (browser) {
-			authStore.initializeFromStorage();
+			// Make this awaitable so callers can avoid racing with storage init
+			await authStore.initializeFromStorage();
 		}
 	},
 
@@ -54,9 +55,8 @@ export const authStore = {
 
 		authStore.setLoading(true);
 		try {
-			// For httpOnly cookie flow, we can't read tokens client-side
-			// The authentication status is determined by server responses
-			// For now, assume not authenticated until proven otherwise
+			// Token restoration is handled by useAuth hook with tokenManager
+			// This just ensures loading state is managed
 			authStore.setUser(null);
 			authStore.setTenant(null);
 		} catch (error) {
@@ -64,7 +64,8 @@ export const authStore = {
 			authStore.setUser(null);
 			authStore.setTenant(null);
 		} finally {
-			authStore.setLoading(false);
+			// Don't set loading to false here - let useAuth hook handle it
+			// authStore.setLoading(false);
 		}
 	},
 

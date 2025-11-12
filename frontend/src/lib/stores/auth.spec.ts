@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { authState, authStore } from './auth.svelte';
 import type { User, Tenant } from '$lib/types';
+import { AuthLogic } from '$lib/auth/auth-logic';
 
-// Mock localStorage
+// Mock localStorage for logout tests
 const localStorageMock = {
 	getItem: vi.fn(),
 	setItem: vi.fn(),
@@ -13,14 +13,11 @@ Object.defineProperty(global, 'localStorage', {
 	value: localStorageMock,
 });
 
-describe('Auth Store', () => {
-	beforeEach(() => {
-		// Reset auth state before each test
-		authState.user = null;
-		authState.tenant = null;
-		authState.isAuthenticated = false;
-		authState.isLoading = true;
+describe('Auth Store (AuthLogic)', () => {
+	let authLogic: AuthLogic;
 
+	beforeEach(() => {
+		authLogic = new AuthLogic();
 		// Reset localStorage mocks
 		vi.clearAllMocks();
 	});
@@ -37,17 +34,19 @@ describe('Auth Store', () => {
 				updatedAt: '2025-01-01T00:00:00Z'
 			};
 
-			authStore.setUser(user);
+			authLogic.setUser(user);
 
-			expect(authState.user).toEqual(user);
-			expect(authState.isAuthenticated).toBe(true);
+			const state = authLogic.getState();
+			expect(state.user).toEqual(user);
+			expect(state.isAuthenticated).toBe(true);
 		});
 
 		it('should set user to null and isAuthenticated to false', () => {
-			authStore.setUser(null);
+			authLogic.setUser(null);
 
-			expect(authState.user).toBeNull();
-			expect(authState.isAuthenticated).toBe(false);
+			const state = authLogic.getState();
+			expect(state.user).toBeNull();
+			expect(state.isAuthenticated).toBe(false);
 		});
 	});
 
@@ -61,36 +60,40 @@ describe('Auth Store', () => {
 				updatedAt: '2025-01-01T00:00:00Z'
 			};
 
-			authStore.setTenant(tenant);
+			authLogic.setTenant(tenant);
 
-			expect(authState.tenant).toEqual(tenant);
+			const state = authLogic.getState();
+			expect(state.tenant).toEqual(tenant);
 		});
 
 		it('should set tenant to null', () => {
-			authStore.setTenant(null);
+			authLogic.setTenant(null);
 
-			expect(authState.tenant).toBeNull();
+			const state = authLogic.getState();
+			expect(state.tenant).toBeNull();
 		});
 	});
 
 	describe('setLoading', () => {
 		it('should set loading state to true', () => {
-			authStore.setLoading(true);
+			authLogic.setLoading(true);
 
-			expect(authState.isLoading).toBe(true);
+			const state = authLogic.getState();
+			expect(state.isLoading).toBe(true);
 		});
 
 		it('should set loading state to false', () => {
-			authStore.setLoading(false);
+			authLogic.setLoading(false);
 
-			expect(authState.isLoading).toBe(false);
+			const state = authLogic.getState();
+			expect(state.isLoading).toBe(false);
 		});
 	});
 
 	describe('logout', () => {
 		beforeEach(() => {
 			// Set up initial state
-			authState.user = {
+			const user: User = {
 				id: '1',
 				email: 'user@example.com',
 				name: 'John Doe',
@@ -99,45 +102,148 @@ describe('Auth Store', () => {
 				createdAt: '2025-01-01T00:00:00Z',
 				updatedAt: '2025-01-01T00:00:00Z'
 			};
-			authState.tenant = {
+			const tenant: Tenant = {
 				id: 'tenant-1',
 				name: 'Test Tenant',
 				domain: 'test.com',
 				createdAt: '2025-01-01T00:00:00Z',
 				updatedAt: '2025-01-01T00:00:00Z'
 			};
-			authState.isAuthenticated = true;
-			authState.isLoading = false;
+			authLogic.setUser(user);
+			authLogic.setTenant(tenant);
+			authLogic.setLoading(false);
 		});
 
 		it('should reset all auth state', () => {
-			authStore.logout();
+			authLogic.logout();
 
-			expect(authState.user).toBeNull();
-			expect(authState.tenant).toBeNull();
-			expect(authState.isAuthenticated).toBe(false);
-			expect(authState.isLoading).toBe(false);
+			const state = authLogic.getState();
+			expect(state.user).toBeNull();
+			expect(state.tenant).toBeNull();
+			expect(state.isAuthenticated).toBe(false);
+			expect(state.isLoading).toBe(false);
 		});
 	});
 
-	describe('initialize', () => {
-		it('should not throw error', () => {
-			expect(() => authStore.initialize()).not.toThrow();
+	describe('hasPermission', () => {
+		it('should return false for unauthenticated users', () => {
+			authLogic.setUser(null);
+
+			expect(authLogic.hasPermission('users', 'read')).toBe(false);
+			expect(authLogic.hasPermission('users', 'write')).toBe(false);
 		});
 
-		it('should be callable', () => {
-			authStore.initialize();
-			// Initialize is currently a no-op, just ensuring it doesn't break
-			expect(authState.isLoading).toBe(true); // Initial state
+		it('should allow read access for all authenticated users', () => {
+			const user: User = {
+				id: '1',
+				email: 'user@example.com',
+				name: 'John Doe',
+				role: 'user',
+				tenantId: 'tenant-1',
+				createdAt: '2025-01-01T00:00:00Z',
+				updatedAt: '2025-01-01T00:00:00Z'
+			};
+			authLogic.setUser(user);
+
+			expect(authLogic.hasPermission('users', 'read')).toBe(true);
+		});
+
+		it('should allow write access for admin and manager roles', () => {
+			const adminUser: User = {
+				id: '1',
+				email: 'admin@example.com',
+				name: 'Admin User',
+				role: 'admin',
+				tenantId: 'tenant-1',
+				createdAt: '2025-01-01T00:00:00Z',
+				updatedAt: '2025-01-01T00:00:00Z'
+			};
+			const managerUser: User = {
+				id: '2',
+				email: 'manager@example.com',
+				name: 'Manager User',
+				role: 'manager',
+				tenantId: 'tenant-1',
+				createdAt: '2025-01-01T00:00:00Z',
+				updatedAt: '2025-01-01T00:00:00Z'
+			};
+			const regularUser: User = {
+				id: '3',
+				email: 'user@example.com',
+				name: 'Regular User',
+				role: 'user',
+				tenantId: 'tenant-1',
+				createdAt: '2025-01-01T00:00:00Z',
+				updatedAt: '2025-01-01T00:00:00Z'
+			};
+
+			authLogic.setUser(adminUser);
+			expect(authLogic.hasPermission('users', 'write')).toBe(true);
+
+			authLogic.setUser(managerUser);
+			expect(authLogic.hasPermission('users', 'write')).toBe(true);
+
+			authLogic.setUser(regularUser);
+			expect(authLogic.hasPermission('users', 'write')).toBe(false);
+		});
+
+		it('should only allow admin actions for admin role', () => {
+			const adminUser: User = {
+				id: '1',
+				email: 'admin@example.com',
+				name: 'Admin User',
+				role: 'admin',
+				tenantId: 'tenant-1',
+				createdAt: '2025-01-01T00:00:00Z',
+				updatedAt: '2025-01-01T00:00:00Z'
+			};
+			const managerUser: User = {
+				id: '2',
+				email: 'manager@example.com',
+				name: 'Manager User',
+				role: 'manager',
+				tenantId: 'tenant-1',
+				createdAt: '2025-01-01T00:00:00Z',
+				updatedAt: '2025-01-01T00:00:00Z'
+			};
+
+			authLogic.setUser(adminUser);
+			expect(authLogic.hasPermission('users', 'admin')).toBe(true);
+			expect(authLogic.hasPermission('users', 'delete')).toBe(true);
+
+			authLogic.setUser(managerUser);
+			expect(authLogic.hasPermission('users', 'admin')).toBe(false);
+			expect(authLogic.hasPermission('users', 'delete')).toBe(false);
+		});
+	});
+
+	describe('getTenantId', () => {
+		it('should return tenant ID when tenant is set', () => {
+			const tenant: Tenant = {
+				id: 'tenant-1',
+				name: 'Test Tenant',
+				domain: 'test.com',
+				createdAt: '2025-01-01T00:00:00Z',
+				updatedAt: '2025-01-01T00:00:00Z'
+			};
+
+			authLogic.setTenant(tenant);
+			expect(authLogic.getTenantId()).toBe('tenant-1');
+		});
+
+		it('should return null when no tenant is set', () => {
+			authLogic.setTenant(null);
+			expect(authLogic.getTenantId()).toBeNull();
 		});
 	});
 
 	describe('initial state', () => {
 		it('should have correct initial values', () => {
-			expect(authState.user).toBeNull();
-			expect(authState.tenant).toBeNull();
-			expect(authState.isAuthenticated).toBe(false);
-			expect(authState.isLoading).toBe(true);
+			const state = authLogic.getState();
+			expect(state.user).toBeNull();
+			expect(state.tenant).toBeNull();
+			expect(state.isAuthenticated).toBe(false);
+			expect(state.isLoading).toBe(true);
 		});
 	});
 });
