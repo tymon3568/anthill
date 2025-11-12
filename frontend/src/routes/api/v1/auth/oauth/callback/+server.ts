@@ -77,8 +77,28 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 			});
 		}
 
-		// Redirect to dashboard or original destination
-		const redirectTo = url.searchParams.get('redirect') || '/dashboard';
+		// Validate and sanitize redirect parameter (prevent open redirect)
+		const redirectParam = url.searchParams.get('redirect');
+		let redirectTo = '/dashboard'; // Default safe redirect
+
+		if (redirectParam) {
+			// Only allow internal paths (must start with / but not //)
+			if (redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+				// Additional check: ensure it's not a protocol-relative URL
+				try {
+					const testUrl = new URL(redirectParam, 'http://localhost');
+					if (testUrl.protocol === 'http:' || testUrl.protocol === 'https:') {
+						redirectTo = redirectParam;
+					}
+				} catch {
+					// Invalid URL, use default
+					console.warn('Invalid redirect parameter, using default');
+				}
+			} else {
+				console.warn('Rejected unsafe redirect parameter:', redirectParam);
+			}
+		}
+
 		throw redirect(302, redirectTo);
 	} catch (err) {
 		console.error('OAuth2 callback error:', err);

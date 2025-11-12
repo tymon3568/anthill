@@ -69,10 +69,17 @@ export function handleAuthError(authError: AuthError | Error | string, redirectT
 
 	if (redirectTo) {
 		// Add error details as query parameters
+		// URLSearchParams automatically encodes, don't double-encode
 		const url = new URL(redirectTo, 'http://localhost'); // Use dummy base for URL construction
 		url.searchParams.set('error', errorToHandle.code.toLowerCase());
-		url.searchParams.set('message', encodeURIComponent(errorToHandle.message));
-		throw redirect(302, `${redirectTo}${url.search}`);
+		url.searchParams.set('message', errorToHandle.message); // URLSearchParams handles encoding
+
+		// Construct final redirect path (only use pathname + search, not full URL)
+		const redirectPath = redirectTo.startsWith('http')
+			? url.toString()
+			: `${url.pathname}${url.search}`;
+
+		throw redirect(302, redirectPath);
 	}
 
 	throw error(errorToHandle.status, errorToHandle.message);

@@ -15,7 +15,7 @@
 		"lint:fix": "prettier --write . && eslint . --fix",
 		"validate-svelte": "echo '✅ Remember to use Svelte 5 runes! Check .svelte-instructions.md'",
 		"test:unit": "vitest",
-		"test": "test:unit -- --run && test:e2e",
+		"test": "vitest run && playwright test",
 		"test:e2e": "playwright test"
 	},
 	"devDependencies": {

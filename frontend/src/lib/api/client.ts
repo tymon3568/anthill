@@ -28,7 +28,9 @@ class ApiClient {
 		const isAuthEndpoint = endpoint.startsWith('/auth/login') ||
 		                      endpoint.startsWith('/auth/register') ||
 		                      endpoint.startsWith('/auth/oauth/authorize') ||
-		                      endpoint.startsWith('/auth/oauth/callback');
+		                      endpoint.startsWith('/auth/oauth/callback') ||
+		                      endpoint.startsWith('/auth/refresh') ||
+		                      endpoint.startsWith('/auth/oauth/refresh');
 
 		if (!isAuthEndpoint) {
 			const token = tokenManager.getAccessToken();

@@ -6,7 +6,7 @@ import type { OAuth2AuthorizeReq, OAuth2AuthorizeResp } from '$lib/api/auth';
 // Get backend user-service URL from environment
 const USER_SERVICE_URL = (env as any).PUBLIC_USER_SERVICE_URL || 'http://localhost:8000';
 
-export const POST: RequestHandler = async ({ request, url }) => {
+export const POST: RequestHandler = async ({ request, url, cookies }) => {
 	try {
 		// Parse request body as OAuth2AuthorizeReq
 		const body: OAuth2AuthorizeReq = await request.json();
@@ -27,8 +27,27 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		const data: OAuth2AuthorizeResp = await response.json();
 
-		// Store code_verifier in session for later use in callback
-		// This is needed for PKCE verification
+		// Store PKCE parameters in secure httpOnly cookies for callback verification
+		// These are short-lived (5 minutes) and httpOnly for security
+		if (data.code_verifier) {
+			cookies.set('oauth_code_verifier', data.code_verifier, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'lax', // Must be 'lax' to work with OAuth redirect flow
+				maxAge: 300 // 5 minutes - short-lived for security
+			});
+		}
+
+		if (data.state) {
+			cookies.set('oauth_state', data.state, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'lax', // Must be 'lax' to work with OAuth redirect flow
+				maxAge: 300 // 5 minutes - short-lived for security
+			});
+		}
 
 		// Redirect to Kanidm authorization URL
 		throw redirect(302, data.authorization_url);

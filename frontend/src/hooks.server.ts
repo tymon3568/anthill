@@ -7,19 +7,25 @@ import { dev } from '$app/environment';
 // Protected routes that require authentication
 const protectedRoutes = ['/dashboard', '/inventory', '/orders', '/settings', '/profile'];
 
-// Public routes that don't require authentication
-const publicRoutes = ['/', '/login', '/register', '/api/v1/auth'];
+// Public routes that don't require authentication (exact paths and specific prefixes only)
+const publicRoutes = ['/login', '/register'];
+const publicApiPrefixes = ['/api/v1/auth'];
 
 function isProtectedRoute(pathname: string): boolean {
 	return protectedRoutes.some((route) => pathname.startsWith(route));
 }
 
 function isPublicRoute(pathname: string): boolean {
-	return (
-		publicRoutes.some((route) => pathname.startsWith(route)) ||
-		pathname === '/' ||
-		pathname.startsWith('/api/')
-	);
+	// Exact match for root
+	if (pathname === '/') return true;
+
+	// Check public routes
+	if (publicRoutes.some((route) => pathname.startsWith(route))) return true;
+
+	// Check public API prefixes (only specific auth endpoints)
+	if (publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))) return true;
+
+	return false;
 }
 
 export const handle: Handle = async ({ event, resolve }) => {

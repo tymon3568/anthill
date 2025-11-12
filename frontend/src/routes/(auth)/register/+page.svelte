@@ -13,9 +13,9 @@
 		email: '',
 		password: '',
 		confirmPassword: '',
+		fullName: '',
 		tenantName: ''
 	});
-	let fullName = $state('');
 	let isLoading = $state(false);
 	let error = $state('');
 	let fieldErrors = $state<Record<string, string>>({});
@@ -24,12 +24,8 @@
 	async function handleSubmit(event: Event) {
 		event.preventDefault();
 
-		// First validate with valibot schema
-		const validationData = {
-			...formData,
-			fullName: fullName.trim()
-		};
-		const result = safeParse(fullRegisterSchema, validationData);
+		// Validate with valibot schema
+		const result = safeParse(fullRegisterSchema, formData);
 
 		if (!result.success) {
 			// Extract field-specific errors
@@ -63,7 +59,7 @@
 			const result = await authStore.emailRegister(
 				formData.email,
 				formData.password,
-				fullName.trim(),
+				formData.fullName.trim(),
 				formData.tenantName.trim()
 			);
 
@@ -113,7 +109,7 @@
 							id="fullName"
 							type="text"
 							placeholder="Enter your full name"
-							bind:value={fullName}
+							bind:value={formData.fullName}
 							required
 							disabled={isLoading}
 							class={fieldErrors.fullName ? 'border-red-500' : ''}

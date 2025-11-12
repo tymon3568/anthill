@@ -44,15 +44,5 @@ export const passwordStrengthSchema = pipe(
 	// Add more complex validation if needed
 );
 
-// Type exports for TypeScript
-export type LoginForm = {
-	email: string;
-	password: string;
-};
-
-export type RegisterForm = {
-	email: string;
-	password: string;
-	confirmPassword: string;
-	tenantName: string;
-};
+// Re-export form types from centralized types module
+export type { LoginForm, RegisterForm } from '$lib/types';
