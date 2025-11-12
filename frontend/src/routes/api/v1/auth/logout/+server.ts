@@ -1,21 +1,36 @@
-import { redirect } from '@sveltejs/kit';
+import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ cookies, url }) => {
+/**
+ * Logout endpoint - clears httpOnly authentication cookies
+ *
+ * This endpoint is called via fetch() from client-side code to clear
+ * httpOnly cookies (access_token, refresh_token) server-side.
+ *
+ * Returns JSON response instead of redirect to support programmatic logout.
+ */
+export const POST: RequestHandler = async ({ cookies }) => {
 	try {
 		// Clear all auth-related cookies
 		cookies.delete('access_token', { path: '/' });
 		cookies.delete('refresh_token', { path: '/' });
 		cookies.delete('oauth_code_verifier', { path: '/' });
+		cookies.delete('user_data', { path: '/' });
 
-		// Get redirect URL from query params or default to login
-		const redirectTo = url.searchParams.get('redirect') || '/login';
+		// Return success response (no sensitive data)
+		return json({
+			success: true,
+			message: 'Logout successful'
+		});
+	} catch (err) {
+		console.error('Logout error:', err);
 
-		// Redirect to login page
-		throw redirect(302, redirectTo);
-	} catch (error) {
-		console.error('Logout error:', error);
-		// Even if there's an error, redirect to login
-		throw redirect(302, '/login?error=logout_failed');
+		throw svelteError(
+			500,
+			JSON.stringify({
+				code: 'LOGOUT_FAILED',
+				message: 'Failed to clear authentication cookies'
+			})
+		);
 	}
 };

@@ -160,11 +160,44 @@ export async function register(userData: RegisterRequest): Promise<RegisterRespo
   }
 }
 
-export function logout(): void {
-  // DEPRECATED: Do not access localStorage for tokens
-  // Tokens are managed via httpOnly cookies by the backend
-  // Call backend logout endpoint to clear cookies server-side
-  // Only user_data (non-sensitive) may be stored in localStorage
+/**
+ * Logout user by clearing httpOnly cookies server-side
+ * 
+ * This function calls the backend logout endpoint which clears all httpOnly cookies
+ * (access_token, refresh_token) and the user_data cookie.
+ * 
+ * @throws {AuthApiError} If the logout request fails
+ */
+export async function logout(): Promise<void> {
+  try {
+    const response = await fetch('/api/v1/auth/logout', {
+      method: 'POST',
+      credentials: 'include', // Send httpOnly cookies to server
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error('Logout failed:', response.status, errorText);
+      throw new AuthApiError(
+        'LOGOUT_FAILED',
+        `Failed to logout: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // Success - cookies cleared server-side
+    console.log('Logout successful');
+  } catch (error) {
+    // Network errors or fetch failures
+    if (error instanceof AuthApiError) {
+      throw error;
+    }
+    
+    console.error('Logout network error:', error);
+    throw new AuthApiError('NETWORK_ERROR', 'Unable to connect to logout service');
+  }
 }
 
 /**

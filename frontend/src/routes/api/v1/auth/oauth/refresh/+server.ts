@@ -103,7 +103,16 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			});
 		}
 
-		return json(data);
+		// Return sanitized response - DO NOT expose tokens to client
+		// Tokens are stored in httpOnly cookies, only return non-sensitive metadata
+		const sanitizedResponse = {
+			success: true,
+			token_type: data.token_type,
+			expires_in: data.expires_in
+			// Explicitly omit: access_token, refresh_token, id_token
+		};
+
+		return json(sanitizedResponse);
 	} catch (err) {
 		console.error('OAuth2 refresh error:', err);
 

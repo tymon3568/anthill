@@ -121,25 +121,9 @@ export async function validateAndParseToken(
 					return null;
 				}
 
-				const verified = await response.json();
-
-				// Server verified the signature, now extract user info
-				const payload = decodeJwtPayload(token);
-				if (!payload) {
-					console.error('Token decode failed after verification');
-					return null;
-				}
-
-				// Extract tenant from groups
-				const tenantId = extractTenantFromGroups(payload.groups);
-
-				return {
-					userId: payload.sub,
-					email: payload.email,
-					name: payload.name || payload.preferred_username,
-					groups: payload.groups,
-					tenantId
-				};
+				// Trust server response - it has already verified and parsed the token
+				const userInfo: UserInfo = await response.json();
+				return userInfo;
 			} catch (networkError) {
 				console.error('Token verification network error:', networkError);
 				return null; // Do not accept unverified tokens
