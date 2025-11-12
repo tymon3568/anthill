@@ -180,5 +180,12 @@ Create login and registration pages using SvelteKit 5 runes, shadcn-svelte compo
     - Verified TypeScript compilation passes
     - Unit tests passing for auth API
     - Task completed: session_expired error resolved
-    - Status: Done</content>
+    - Status: Done
+*   2025-11-12 15:30: Additional fix for login error handling by Grok
+    - Issue: 401 errors on login showing "session_expired" instead of actual error
+    - Root cause: API client treating ALL 401 responses as session expired
+    - Fixed: Only treat 401 as session expired for authenticated endpoints
+    - For auth endpoints (login/register), return actual backend error message
+    - Now correctly shows "Invalid credentials" instead of "session_expired"
+    - TypeScript compilation verified passing</content>
 <parameter name="filePath">/home/arch/Project/test/anthill/PROJECT_TRACKING/V1_MVP/08_Frontend/8.2_Authentication_UI/task_08.02.01_authentication_pages.md

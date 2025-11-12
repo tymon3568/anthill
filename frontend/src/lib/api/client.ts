@@ -44,22 +44,35 @@ class ApiClient {
 			const response = await fetch(url, config);
 
 			if (!response.ok) {
+				// Parse error response first
+				const errorData = await response.json().catch(() => ({
+					message: 'Network error',
+					error: 'Network error'
+				}));
+
 				if (response.status === 401) {
-					// Token expired or invalid - clear session and redirect
-					tokenManager.clearAll();
-					if (typeof window !== 'undefined') {
-						window.location.href = '/login?error=session_expired';
+					// Only treat as session expired if NOT an auth endpoint
+					// For auth endpoints, this is just invalid credentials
+					if (!isAuthEndpoint) {
+						tokenManager.clearAll();
+						if (typeof window !== 'undefined') {
+							window.location.href = '/login?error=session_expired';
+						}
+						return {
+							success: false,
+							error: 'Session expired'
+						};
 					}
+					// For auth endpoints, return the actual error message
 					return {
 						success: false,
-						error: 'Session expired'
+						error: errorData.error || errorData.message || 'Authentication failed'
 					};
 				}
 
-				const errorData = await response.json().catch(() => ({ message: 'Network error' }));
 				return {
 					success: false,
-					error: errorData.message || `HTTP ${response.status}`
+					error: errorData.error || errorData.message || `HTTP ${response.status}`
 				};
 			}
 
