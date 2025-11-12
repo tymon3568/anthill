@@ -12,14 +12,43 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		// Parse request body as OAuth2CallbackReq
 		const body: OAuth2CallbackReq = await request.json();
 
+		// Retrieve PKCE parameters from cookies (set during authorize step)
+		const code_verifier = cookies.get('oauth_code_verifier');
+		const stored_state = cookies.get('oauth_state');
+
+		if (!code_verifier) {
+			throw error(400, JSON.stringify({
+				code: 'MISSING_CODE_VERIFIER',
+				message: 'PKCE code_verifier not found in session'
+			}));
+		}
+
+		// Verify state matches (CSRF protection)
+		if (stored_state && body.state !== stored_state) {
+			throw error(400, JSON.stringify({
+				code: 'STATE_MISMATCH',
+				message: 'OAuth state parameter mismatch'
+			}));
+		}
+
+		// Include code_verifier in request to backend
+		const callbackRequest: OAuth2CallbackReq = {
+			...body,
+			code_verifier
+		};
+
 		// Forward request to backend user-service
 		const response = await fetch(`${USER_SERVICE_URL}/api/v1/auth/oauth/callback`, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify(body)
+			body: JSON.stringify(callbackRequest)
 		});
+
+		// Clear PKCE cookies after use (single-use tokens)
+		cookies.delete('oauth_code_verifier', { path: '/' });
+		cookies.delete('oauth_state', { path: '/' });
 
 		if (!response.ok) {
 			const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
