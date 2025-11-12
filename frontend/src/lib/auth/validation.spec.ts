@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { loginSchema, registerSchema, calculatePasswordStrength, validatePasswordConfirmation } from './validation';
+import {
+	loginSchema,
+	registerSchema,
+	calculatePasswordStrength,
+	validatePasswordConfirmation
+} from './validation';
 import { safeParse } from 'valibot';
 
 describe('Auth Validation', () => {

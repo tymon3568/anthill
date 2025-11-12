@@ -190,10 +190,13 @@
           → [View folder](./V1_MVP/08_Frontend/8.1_Project_Setup/)
           → Progress: 1/1 tasks completed (Updated: 2025-11-05)
 
-    - [🔄] 8.2 Authentication UI (OAuth2) - `In Progress 75%`
+    - [⏳] 8.2 Authentication UI (Email/Password + OAuth2) - `Todo 0%`
           → [View folder](./V1_MVP/08_Frontend/8.2_Authentication_UI/)
-          → Backend auth integration completed, auth API client pending
-          → Progress: 3/4 tasks completed (Updated: 2025-11-06)
+          → Traditional email/password authentication foundation
+          → OAuth2 integration with Kanidm identity provider
+          → API infrastructure and client integration
+          → Progress: 0/4 tasks completed (Updated: 2025-11-12)
+          → **Issue**: task_08.02.01 blocked by session_expired error during login testing
 
     - [⏳] 8.3 Dashboard - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.3_Dashboard/)
@@ -285,7 +288,7 @@
 
 ## 📊 Project Metrics
 
-### Overall Progress: ~36% Complete (Updated: 2025-11-06)
+### Overall Progress: ~35% Complete (Updated: 2025-11-12)
 
 #### By Phase:
 - **Phase 1** (Infrastructure): ✅ 95% - Production ready
@@ -295,7 +298,7 @@
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
-- **Phase 8** (Frontend): 🔄 ~16% - Project setup complete, auth integration in progress
+- **Phase 8** (Frontend): ⏳ 4% - Project setup complete, auth UI tasks reset to initial state (Updated: 2025-11-12)
 - **Phase 9** (Analytics): ⏳ 0% - Not started
 - **Phase 10** (Deployment): ⏳ 0% - Not started
 - **Phase 11** (Monitoring): ⏳ 0% - Not started
@@ -408,30 +411,20 @@ open http://localhost:8000/docs  # Swagger UI
 
 ---
 
-**Last Updated**: 2025-11-06
+**Last Updated**: 2025-11-12
 **Project Status**: In Progress (Phase 3 Kanidm Integration)
 
-**Recent Changes (2025-11-06)**:
-- ✅ **Dashboard API Integration**: Added task_08.03.04_dashboard_data_api_integration.md to Dashboard module
-- ✅ **Settings API Integration**: Added task_08.07.04_settings_api_integration.md to Settings module
-- ✅ **Task Count Updates**: Updated Dashboard and Settings modules from 3 to 4 tasks each (25 total Phase 8 tasks)
-- ✅ **Progress Update**: Updated Phase 8 progress to ~16% (4/25 tasks completed)
-- ✅ **Backend Auth Integration**: Completed task_08.02.02_integrate_backend_auth.md (16/16 sub-tasks done)
-- ✅ **Task File Updates**: Synchronized checkboxes and progress tracking per folder-tasks workflow
-- ✅ **Progress Update**: Updated Phase 8 progress from 0% to ~15% (1/2 auth tasks completed)
-- ✅ **Frontend Setup**: Completed SvelteKit project foundation (task_08.01.01_setup_sveltekit_project.md)
-- ✅ **Progress Update**: Updated Phase 3 progress from 60% to 64% (16/25 tasks completed)
-- ✅ **Kanidm Integration**: 5/6 tasks completed (83% complete)
-- ✅ **Casbin Authorization**: 9/10 tasks completed (90% complete)
-- ✅ **User Management**: 2/5 tasks completed (40% complete)
-- ✅ **Task Tracking**: Fixed missing Assignee fields in completed tasks
-- ✅ **Documentation**: Updated folder-tasks workflow from Context7
-- ✅ **API Client Architecture**: Refactored API client tasks - distributed to respective UI modules
-- ✅ **API Infrastructure Core**: Added task_08.02.04_api_infrastructure_core_setup.md to Authentication UI
-- ✅ **Inventory API Integration**: Added task_08.04.04_inventory_service_api_client_integration.md to Product Management UI
-- ✅ **Order API Integration**: Added task_08.05.04_order_service_api_client_integration.md to Order Management UI
-- ✅ **Integration API Integration**: Added task_08.06.04_integration_service_api_client_integration.md to Integration UI
-- 🔄 Migrating from custom JWT authentication to Kanidm (OAuth2/OIDC)
-- 📚 Updated all documentation (ARCHITECTURE.md, README.md, etc.)
-- 📋 See `docs/KANIDM_MIGRATION_PLAN.md` for detailed migration plan
-**Next Milestone**: Complete remaining Phase 3 tasks, then start optimized Phase 4
+**Recent Changes (2025-11-12)**:
+- ❌ **Authentication UI Issue**: task_08.02.01 blocked by "session_expired" error during login testing
+      - Status changed from Completed to Blocked_By_Session_Expired_Error
+      - Requires investigation of session management and authentication flow
+      - Need to check backend API integration and session handling logic
+- ✅ **Authentication UI Tasks Re-authored**: Recreated all 4 tasks with clean folder-tasks format
+      - task_08.02.01_create_login_registration_pages.md: Focus on SvelteKit 5 runes + shadcn-svelte UI + Valibot validation
+      - task_08.02.02_integrate_oauth2_kanidm.md: Repurposed for email/password form actions, session cookies, logout flow
+      - task_08.02.03_auth_api_client_integration.md: Centralised email/password auth client with typed DTOs and retries
+      - task_08.02.04_api_infrastructure_core_setup.md: Shared fetch layer with retries, tenant headers, AppError mapping
+- ✅ **Task Structure Cleaned**: Removed all corrupted content and recreated clean task files
+- ✅ **Status Reset**: All tasks now ready for fresh implementation from scratch
+- ✅ **OpenAPI Compliance**: Tasks prepared to follow user-service OpenAPI specification
+- ✅ **Context7 Integration**: Tasks ready to work with latest Context7 documentation

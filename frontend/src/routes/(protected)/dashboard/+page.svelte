@@ -1,7 +1,14 @@
 <script lang="ts">
-	import { authState } from '$lib/stores/auth.svelte';
+	import { authState, authStore } from '$lib/stores/auth.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { goto } from '$app/navigation';
+
+	async function handleLogout() {
+		await authStore.emailLogout();
+		goto('/login');
+	}
 </script>
 
 <svelte:head>
@@ -9,9 +16,12 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-3xl font-bold">Dashboard</h1>
-		<p class="text-muted-foreground">Welcome back, {authState.user?.name || 'User'}!</p>
+	<div class="flex items-center justify-between">
+		<div>
+			<h1 class="text-3xl font-bold">Dashboard</h1>
+			<p class="text-muted-foreground">Welcome back, {authState.user?.name || 'User'}!</p>
+		</div>
+		<Button variant="outline" onclick={handleLogout}>Logout</Button>
 	</div>
 
 	<!-- Welcome Card -->
@@ -21,9 +31,7 @@
 		</CardHeader>
 		<CardContent>
 			<div class="space-y-4">
-				<p class="text-muted-foreground">
-					Your inventory management system is ready to use.
-				</p>
+				<p class="text-muted-foreground">Your inventory management system is ready to use.</p>
 				{#if authState.user}
 					<div class="space-y-2">
 						<p><strong>Email:</strong> {authState.user.email}</p>
@@ -74,8 +82,11 @@
 	<Card>
 		<CardContent class="pt-6">
 			<div class="text-center text-muted-foreground">
-				<p class="text-lg font-semibold mb-2">Inventory Features Coming Soon</p>
-				<p>Product management, stock tracking, and reporting features will be available once the backend services are ready.</p>
+				<p class="mb-2 text-lg font-semibold">Inventory Features Coming Soon</p>
+				<p>
+					Product management, stock tracking, and reporting features will be available once the
+					backend services are ready.
+				</p>
 			</div>
 		</CardContent>
 	</Card>

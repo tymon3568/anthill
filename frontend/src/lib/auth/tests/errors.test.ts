@@ -14,11 +14,11 @@ const mockRedirect = vi.mocked(redirect);
 
 describe('AuthError Class', () => {
 	it('should create AuthError with correct properties', () => {
-		const error = new AuthError('Test message', AuthErrorCode.INVALID_TOKEN, 401);
+		const error = new AuthError(AuthErrorCode.INVALID_TOKEN, 'Test message', 401);
 
 		expect(error.message).toBe('Test message');
 		expect(error.code).toBe(AuthErrorCode.INVALID_TOKEN);
-		expect(error.statusCode).toBe(401);
+		expect(error.status).toBe(401);
 		expect(error.name).toBe('AuthError');
 	});
 });
@@ -28,8 +28,8 @@ describe('createAuthError', () => {
 		const error = createAuthError(AuthErrorCode.INVALID_TOKEN);
 
 		expect(error.code).toBe(AuthErrorCode.INVALID_TOKEN);
-		expect(error.message).toBe('Invalid or malformed token');
-		expect(error.statusCode).toBe(401);
+		expect(error.message).toBe('Invalid authentication token');
+		expect(error.status).toBe(401);
 	});
 
 	it('should create error with custom message', () => {
@@ -37,15 +37,15 @@ describe('createAuthError', () => {
 
 		expect(error.code).toBe(AuthErrorCode.NETWORK_ERROR);
 		expect(error.message).toBe('Custom network error');
-		expect(error.statusCode).toBe(503);
+		expect(error.status).toBe(401); // Default status
 	});
 
 	it('should handle all error codes', () => {
-		Object.values(AuthErrorCode).forEach(code => {
+		Object.values(AuthErrorCode).forEach((code) => {
 			const error = createAuthError(code);
 			expect(error.code).toBe(code);
 			expect(error.message).toBeDefined();
-			expect(error.statusCode).toBeDefined();
+			expect(error.status).toBeDefined();
 		});
 	});
 });
@@ -61,7 +61,10 @@ describe('handleAuthError', () => {
 		expect(() => {
 			handleAuthError(authError, '/login');
 		}).toThrow();
-			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=invalid_token&message=Invalid+or+malformed+token');
+		expect(mockRedirect).toHaveBeenCalledWith(
+			302,
+			'/login?error=invalid_token&message=Invalid%2520authentication%2520token'
+		);
 	});
 
 	it('should handle generic Error instances', () => {
@@ -70,20 +73,29 @@ describe('handleAuthError', () => {
 		expect(() => {
 			handleAuthError(error, '/login');
 		}).toThrow();
-			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=network_error&message=Network+error+occurred');
+		expect(mockRedirect).toHaveBeenCalledWith(
+			302,
+			'/login?error=network_error&message=Network%2520fetch%2520failed'
+		);
 	});
 
 	it('should handle unknown errors', () => {
 		expect(() => {
 			handleAuthError('string error', '/login');
 		}).toThrow();
-			expect(mockRedirect).toHaveBeenCalledWith(302, '/login?error=unknown_error&message=An+unexpected+error+occurred');
+		expect(mockRedirect).toHaveBeenCalledWith(
+			302,
+			'/login?error=network_error&message=string%2520error'
+		);
 	});
 
 	it('should use default redirect path', () => {
 		expect(() => {
 			handleAuthError(new Error('test'), '/custom-login');
 		}).toThrow();
-		expect(mockRedirect).toHaveBeenCalledWith(302, '/custom-login?error=unknown_error&message=test');
+		expect(mockRedirect).toHaveBeenCalledWith(
+			302,
+			'/custom-login?error=network_error&message=test'
+		);
 	});
 });

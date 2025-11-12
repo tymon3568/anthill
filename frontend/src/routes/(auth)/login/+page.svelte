@@ -1,224 +1,139 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { tick } from 'svelte';
-	import { onMount } from 'svelte';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { useAuth } from '$lib/hooks/useAuth';
-	import { loginSchema } from '$lib/auth/validation';
-	import { parse, safeParse } from 'valibot';
+	import { loginSchema, type LoginForm } from '$lib/validation/auth';
+	import { authStore } from '$lib/stores/auth.svelte';
+	import { goto } from '$app/navigation';
+	import { safeParse } from 'valibot';
 
 	// Form state using Svelte 5 runes
-	let email = $state('');
-	let password = $state('');
+	let formData = $state<LoginForm>({
+		email: '',
+		password: ''
+	});
 	let isLoading = $state(false);
 	let error = $state('');
-	let submitted = $state(false);
-	let touched = $state({ email: false, password: false });
+	let fieldErrors = $state<Record<string, string>>({});
 
-	// Debounce state
-	let debounceTimer = $state<NodeJS.Timeout | null>(null);
-	let isSubmitting = $state(false);
+	// Form submission handler
+	async function handleSubmit(event: Event) {
+		event.preventDefault();
 
-	// Debounce function
-	function debounce<T extends (...args: any[]) => any>(func: T, delay: number): T {
-		return ((...args: Parameters<T>) => {
-			if (debounceTimer) clearTimeout(debounceTimer);
-			debounceTimer = setTimeout(() => func(...args), delay);
-		}) as T;
-	}
-
-	// Auth hook
-	const { login, isAuthenticated } = useAuth();
-
-	// Focus email input on mount
-	onMount(() => {
-		tick().then(() => {
-			const emailInput = document.getElementById('email') as HTMLInputElement;
-			if (emailInput) {
-				emailInput.focus();
-			}
-		});
-	});
-
-	// Get success message from URL params
-	let successMessage = $state(page.url.searchParams.get('message'));
-
-	// Get error message from URL params (for OAuth errors)
-	let errorMessage = $state(page.url.searchParams.get('error_description') || page.url.searchParams.get('error'));
-
-	// Form validation using Valibot
-	let isFormValid = $derived.by(() => {
-		try {
-			parse(loginSchema, { email, password });
-			return true;
-		} catch {
-			return false;
-		}
-	});
-
-	// Get validation errors - only show after form submission attempt
-	let validationErrors = $derived.by(() => {
-		const result = safeParse(loginSchema, { email, password });
-		const errors: Record<string, string> = {};
+		// Validate form data
+		const result = safeParse(loginSchema, formData);
 
 		if (!result.success) {
-			result.issues.forEach((issue: any) => {
-				const field = issue.path?.[0]?.key as string;
-				if (field && !errors[field]) { // Only take the first error per field
-					errors[field] = issue.message;
+			// Extract field-specific errors
+			fieldErrors = {};
+			result.issues.forEach((issue) => {
+				if (issue.path) {
+					const field = issue.path[0]?.key as string;
+					if (field) {
+						fieldErrors[field] = issue.message;
+					}
 				}
 			});
+			error = 'Please correct the errors below';
+			return;
 		}
-		return errors;
-	});	// Debounced submit handler
-	const debouncedSubmit = debounce(async () => {
-		if (isSubmitting) return;
-		isSubmitting = true;
 
-		try {
-			await handleSubmit();
-		} finally {
-			isSubmitting = false;
-		}
-	}, 300);
-
-	// Handle form submission
-	async function handleSubmit(event?: Event) {
-		if (event) event.preventDefault();
-
-		// Mark all fields as touched and enable error display
-		touched = { email: true, password: true };
-		submitted = true;
-
-		if (!isFormValid) return;
-
-		isLoading = true;
+		// Clear previous errors
 		error = '';
+		fieldErrors = {};
+		isLoading = true;
 
 		try {
-			await login(email, password);
-			// Redirect to dashboard after successful login
-			goto('/dashboard');
+			// Call the auth store login method
+			const result = await authStore.emailLogin(formData.email, formData.password);
+
+			if (result.success) {
+				// Redirect to dashboard or intended page
+				goto('/dashboard');
+			} else {
+				error = result.error || 'Login failed';
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Login failed';
 		} finally {
 			isLoading = false;
 		}
 	}
+
+	// Clear field error when user starts typing
+	function clearFieldError(field: string) {
+		if (fieldErrors[field]) {
+			fieldErrors = { ...fieldErrors };
+			delete fieldErrors[field];
+		}
+	}
 </script>
 
 <svelte:head>
-	<title>Sign In - Anthill</title>
+	<title>Login - Anthill</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-	<div class="max-w-md w-full space-y-8">
-		<div class="text-center">
+<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+	<div class="w-full max-w-md">
+		<div class="mb-8 text-center">
 			<h1 class="text-3xl font-bold text-gray-900">Welcome back</h1>
-			<p class="mt-2 text-sm text-gray-600">Sign in to your account</p>
+			<p class="mt-2 text-sm text-gray-600">Sign in to your Anthill account</p>
 		</div>
 
 		<Card>
 			<CardHeader>
 				<CardTitle>Sign In</CardTitle>
-				<CardDescription>
-					Enter your credentials to access your account
-				</CardDescription>
 			</CardHeader>
 
 			<CardContent>
-				{#if successMessage}
-					<div
-						class="text-sm text-green-600 bg-green-50 border border-green-200 rounded-md p-3 mb-4"
-						role="alert"
-						aria-live="polite"
-					>
-						{successMessage}
-					</div>
-				{/if}
-
-				{#if errorMessage}
-					<div
-						class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3 mb-4"
-						role="alert"
-						aria-live="polite"
-					>
-						{errorMessage}
-					</div>
-				{/if}
-
-				<form class="space-y-4" onsubmit={(e) => {
-					e.preventDefault();
-					if (!isLoading && !isSubmitting) {
-						debouncedSubmit();
-					}
-				}}>
-					<div>
+				<form onsubmit={handleSubmit} class="space-y-4">
+					<div class="space-y-2">
 						<Label for="email">Email</Label>
 						<Input
 							id="email"
-							name="email"
 							type="email"
 							placeholder="Enter your email"
-							bind:value={email}
+							bind:value={formData.email}
 							required
-							autocomplete="email"
 							disabled={isLoading}
-							aria-describedby={validationErrors.email ? "email-error" : undefined}
-							onblur={() => touched.email = true}
+							class={fieldErrors.email ? 'border-red-500' : ''}
+							oninput={() => clearFieldError('email')}
 						/>
-						{#if touched.email && validationErrors.email}
-							<p id="email-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.email}
-							</p>
+						{#if fieldErrors.email}
+							<p class="text-sm text-red-600">{fieldErrors.email}</p>
 						{/if}
 					</div>
 
-					<div>
+					<div class="space-y-2">
 						<Label for="password">Password</Label>
 						<Input
 							id="password"
-							name="password"
 							type="password"
 							placeholder="Enter your password"
-							bind:value={password}
+							bind:value={formData.password}
 							required
-							autocomplete="current-password"
 							disabled={isLoading}
-							aria-describedby={validationErrors.password ? "password-error" : undefined}
-							onblur={() => touched.password = true}
+							class={fieldErrors.password ? 'border-red-500' : ''}
+							oninput={() => clearFieldError('password')}
 						/>
-						{#if touched.password && validationErrors.password}
-							<p id="password-error" class="text-sm text-red-600 mt-1" role="alert">
-								{validationErrors.password}
-							</p>
+						{#if fieldErrors.password}
+							<p class="text-sm text-red-600">{fieldErrors.password}</p>
 						{/if}
 					</div>
 
-					{#if error}
+					{#if error && !Object.keys(fieldErrors).length}
 						<div
-							class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3"
+							class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600"
 							role="alert"
-							aria-live="polite"
 						>
 							{error}
 						</div>
 					{/if}
 
-					<Button
-						type="submit"
-						class="w-full"
-						disabled={isLoading || isSubmitting}
-					>
+					<Button type="submit" class="w-full" disabled={isLoading}>
 						{#if isLoading}
-							<span class="flex items-center space-x-2">
-								<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-								<span>Signing in...</span>
-							</span>
+							Signing in...
 						{:else}
 							Sign In
 						{/if}
@@ -228,12 +143,8 @@
 				<div class="mt-6 text-center">
 					<p class="text-sm text-gray-600">
 						Don't have an account?
-						<a
-							href="/register"
-							class="text-primary hover:text-primary/80 underline font-medium"
-							tabindex={isLoading ? -1 : 0}
-						>
-							Create one
+						<a href="/register" class="font-medium text-blue-600 underline hover:text-blue-500">
+							Sign up
 						</a>
 					</p>
 				</div>
@@ -241,13 +152,3 @@
 		</Card>
 	</div>
 </div>
-
-<style>
-	/* Additional responsive styles if needed */
-	@media (max-width: 640px) {
-		.min-h-screen {
-			padding-top: 2rem;
-			padding-bottom: 2rem;
-		}
-	}
-</style>

@@ -11,9 +11,9 @@ test.describe('Authentication E2E Tests', () => {
 		// Check if we're on login page
 		await expect(page.locator('h1')).toContainText(/Welcome back/i);
 		await expect(page.locator('text=/Sign in to your account/i')).toBeVisible();
-			await expect(page.locator('input[type="email"]')).toBeVisible();
-			await expect(page.locator('input[type="password"]')).toBeVisible();
-			await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
+		await expect(page.locator('input[type="email"]')).toBeVisible();
+		await expect(page.locator('input[type="password"]')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
 	});
 
 	test('should show validation errors for empty login form', async ({ page }) => {
@@ -215,11 +215,12 @@ test.describe('Authentication E2E Tests', () => {
 test.describe('OAuth2 Authentication Flow', () => {
 	test('should redirect to Kanidm for OAuth2 login', async ({ page }) => {
 		// Mock the OAuth2 authorize endpoint
-		await page.route('**/api/v1/auth/oauth/authorize', async route => {
+		await page.route('**/api/v1/auth/oauth/authorize', async (route) => {
 			await route.fulfill({
 				status: 302,
 				headers: {
-					'Location': 'https://idm.example.com/ui/oauth2?client_id=test-client&response_type=code&redirect_uri=http://localhost:5173/api/v1/auth/oauth/callback&state=test-state&code_challenge=test-challenge&code_challenge_method=S256'
+					Location:
+						'https://idm.example.com/ui/oauth2?client_id=test-client&response_type=code&redirect_uri=http://localhost:5173/api/v1/auth/oauth/callback&state=test-state&code_challenge=test-challenge&code_challenge_method=S256'
 				}
 			});
 		});
@@ -227,11 +228,10 @@ test.describe('OAuth2 Authentication Flow', () => {
 		await page.goto('/login');
 
 		// Click OAuth2 login button (assuming it exists)
-		const oauthButton = page.locator('button:has-text("Sign in with Kanidm")').or(
-			page.locator('button:has-text("OAuth2")')
-		).or(
-			page.locator('[data-testid="oauth-login"]')
-		);
+		const oauthButton = page
+			.locator('button:has-text("Sign in with Kanidm")')
+			.or(page.locator('button:has-text("OAuth2")'))
+			.or(page.locator('[data-testid="oauth-login"]'));
 
 		if (await oauthButton.isVisible()) {
 			await oauthButton.click();
@@ -247,11 +247,11 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 	test('should handle OAuth2 callback successfully', async ({ page }) => {
 		// Mock the OAuth2 callback endpoint
-		await page.route('**/api/v1/auth/oauth/callback*', async route => {
+		await page.route('**/api/v1/auth/oauth/callback*', async (route) => {
 			await route.fulfill({
 				status: 302,
 				headers: {
-					'Location': '/',
+					Location: '/',
 					'Set-Cookie': 'auth_token=test-jwt-token; Path=/; HttpOnly; Secure; SameSite=Lax'
 				}
 			});
@@ -267,17 +267,19 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 	test('should handle OAuth2 callback with error', async ({ page }) => {
 		// Mock OAuth2 callback with error
-		await page.route('**/api/v1/auth/oauth/callback*', async route => {
+		await page.route('**/api/v1/auth/oauth/callback*', async (route) => {
 			await route.fulfill({
 				status: 302,
 				headers: {
-					'Location': '/login?error=access_denied&error_description=User%20denied%20authorization'
+					Location: '/login?error=access_denied&error_description=User%20denied%20authorization'
 				}
 			});
 		});
 
 		// Simulate OAuth2 callback with error
-		await page.goto('/api/v1/auth/oauth/callback?error=access_denied&error_description=User%20denied%20authorization');
+		await page.goto(
+			'/api/v1/auth/oauth/callback?error=access_denied&error_description=User%20denied%20authorization'
+		);
 
 		// Should redirect to login with error
 		await page.waitForURL('/login?error=access_denied*');
@@ -295,17 +297,19 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 	test('should allow access to protected routes when authenticated', async ({ page }) => {
 		// Mock authentication by setting auth cookie
-		await page.context().addCookies([{
-			name: 'auth_token',
-			value: 'valid-jwt-token',
-			domain: 'localhost',
-			path: '/',
-			httpOnly: true,
-			secure: false
-		}]);
+		await page.context().addCookies([
+			{
+				name: 'auth_token',
+				value: 'valid-jwt-token',
+				domain: 'localhost',
+				path: '/',
+				httpOnly: true,
+				secure: false
+			}
+		]);
 
 		// Mock the protected route response
-		await page.route('**/dashboard', async route => {
+		await page.route('**/dashboard', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'text/html',
@@ -335,17 +339,19 @@ test.describe('OAuth2 Authentication Flow', () => {
 		};
 		const token = 'header.' + btoa(JSON.stringify(tokenPayload)) + '.signature';
 
-		await page.context().addCookies([{
-			name: 'auth_token',
-			value: token,
-			domain: 'localhost',
-			path: '/',
-			httpOnly: true,
-			secure: false
-		}]);
+		await page.context().addCookies([
+			{
+				name: 'auth_token',
+				value: token,
+				domain: 'localhost',
+				path: '/',
+				httpOnly: true,
+				secure: false
+			}
+		]);
 
 		// Mock token refresh endpoint
-		await page.route('**/api/v1/auth/oauth/refresh', async route => {
+		await page.route('**/api/v1/auth/oauth/refresh', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -371,17 +377,19 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 	test('should handle logout properly', async ({ page }) => {
 		// Set authenticated state
-		await page.context().addCookies([{
-			name: 'auth_token',
-			value: 'valid-jwt-token',
-			domain: 'localhost',
-			path: '/',
-			httpOnly: true,
-			secure: false
-		}]);
+		await page.context().addCookies([
+			{
+				name: 'auth_token',
+				value: 'valid-jwt-token',
+				domain: 'localhost',
+				path: '/',
+				httpOnly: true,
+				secure: false
+			}
+		]);
 
 		// Mock logout endpoint
-		await page.route('**/api/v1/auth/logout', async route => {
+		await page.route('**/api/v1/auth/logout', async (route) => {
 			await route.fulfill({
 				status: 200,
 				headers: {
@@ -393,11 +401,10 @@ test.describe('OAuth2 Authentication Flow', () => {
 		await page.goto('/dashboard');
 
 		// Click logout button (assuming it exists)
-		const logoutButton = page.locator('button:has-text("Logout")').or(
-			page.locator('button:has-text("Sign Out")')
-		).or(
-			page.locator('[data-testid="logout"]')
-		);
+		const logoutButton = page
+			.locator('button:has-text("Logout")')
+			.or(page.locator('button:has-text("Sign Out")'))
+			.or(page.locator('[data-testid="logout"]'));
 
 		if (await logoutButton.isVisible()) {
 			await logoutButton.click();
@@ -408,7 +415,7 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 			// Auth cookie should be cleared
 			const cookies = await page.context().cookies();
-			const authCookie = cookies.find(c => c.name === 'auth_token');
+			const authCookie = cookies.find((c) => c.name === 'auth_token');
 			expect(authCookie).toBeUndefined();
 		} else {
 			// If logout button doesn't exist, this test should be skipped
@@ -418,7 +425,7 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 	test('should handle network errors during OAuth2 flow', async ({ page }) => {
 		// Mock network failure for OAuth2 authorize
-		await page.route('**/api/v1/auth/oauth/authorize', async route => {
+		await page.route('**/api/v1/auth/oauth/authorize', async (route) => {
 			await route.fulfill({
 				status: 500,
 				contentType: 'application/json',
@@ -429,9 +436,9 @@ test.describe('OAuth2 Authentication Flow', () => {
 		await page.goto('/login');
 
 		// Try to trigger OAuth2 flow
-		const oauthButton = page.locator('button:has-text("Sign in with Kanidm")').or(
-			page.locator('button:has-text("OAuth2")')
-		);
+		const oauthButton = page
+			.locator('button:has-text("Sign in with Kanidm")')
+			.or(page.locator('button:has-text("OAuth2")'));
 
 		if (await oauthButton.isVisible()) {
 			await oauthButton.click();
@@ -454,14 +461,16 @@ test.describe('OAuth2 Authentication Flow', () => {
 		};
 		const expiredToken = 'header.' + btoa(JSON.stringify(expiredPayload)) + '.signature';
 
-		await page.context().addCookies([{
-			name: 'auth_token',
-			value: expiredToken,
-			domain: 'localhost',
-			path: '/',
-			httpOnly: true,
-			secure: false
-		}]);
+		await page.context().addCookies([
+			{
+				name: 'auth_token',
+				value: expiredToken,
+				domain: 'localhost',
+				path: '/',
+				httpOnly: true,
+				secure: false
+			}
+		]);
 
 		await page.goto('/dashboard');
 
@@ -481,14 +490,16 @@ test.describe('OAuth2 Authentication Flow', () => {
 		};
 		const token = 'header.' + btoa(JSON.stringify(tokenPayload)) + '.signature';
 
-		await page.context().addCookies([{
-			name: 'auth_token',
-			value: token,
-			domain: 'localhost',
-			path: '/',
-			httpOnly: true,
-			secure: false
-		}]);
+		await page.context().addCookies([
+			{
+				name: 'auth_token',
+				value: token,
+				domain: 'localhost',
+				path: '/',
+				httpOnly: true,
+				secure: false
+			}
+		]);
 
 		await page.goto('/dashboard');
 

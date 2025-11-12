@@ -35,7 +35,7 @@ export async function loginAction(email: string, password: string) {
 			authStore.setUser(user);
 
 			// Wait a tick to ensure state is updated
-			await new Promise(resolve => setTimeout(resolve, 0));
+			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			return { success: true };
 		} else {
@@ -56,7 +56,7 @@ export async function registerAction(userData: {
 	email: string;
 	password: string;
 	confirmPassword: string;
-	tenantName?: string
+	tenantName?: string;
 }) {
 	authStore.setLoading(true);
 	try {

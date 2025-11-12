@@ -3,11 +3,13 @@
 **🚨 ALL Svelte/SvelteKit development MUST use Svelte 5 runes and consult MCP documentation first!**
 
 ### 📚 **Before Any Code Changes:**
+
 1. **ALWAYS** call `mcp_svelte_list-sections` to explore available documentation
 2. **ALWAYS** call `mcp_svelte_get-documentation` with relevant sections
 3. **NEVER** implement without checking current Svelte 5 documentation
 
 ### 🏗️ **Svelte 5 Runes (MANDATORY):**
+
 - **`$state`** for reactive state (not `writable()` stores)
 - **`$derived`** for computed values (not `$:` statements)
 - **`$effect`** for side effects (not `$:` statements)
@@ -15,6 +17,7 @@
 - **Direct state access** (not `$store` syntax)
 
 ### 📖 **Full Guidelines:**
+
 See [`.svelte-instructions.md`](.svelte-instructions.md) for complete development guidelines.
 
 ---

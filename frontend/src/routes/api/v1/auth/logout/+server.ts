@@ -13,7 +13,6 @@ export const POST: RequestHandler = async ({ cookies, url }) => {
 
 		// Redirect to login page
 		throw redirect(302, redirectTo);
-
 	} catch (error) {
 		console.error('Logout error:', error);
 		// Even if there's an error, redirect to login

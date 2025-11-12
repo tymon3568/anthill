@@ -1,110 +1,74 @@
 import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
-import { createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { RequestHandler } from './$types';
 import type { Cookies } from '@sveltejs/kit';
+import type { OAuth2RefreshReq, OAuth2RefreshResp } from '$lib/api/auth';
 
-interface TokenResponse {
-	access_token: string;
-	refresh_token?: string;
-	expires_in?: number;
-	token_type?: string;
-}
-
-// OAuth2 Configuration from environment variables
-const KANIDM_BASE_URL = (env as any).PUBLIC_KANIDM_ISSUER_URL;
-const CLIENT_ID = (env as any).PUBLIC_KANIDM_CLIENT_ID;
+// Get backend user-service URL from environment
+const USER_SERVICE_URL = (env as any).PUBLIC_USER_SERVICE_URL || 'http://localhost:8000';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
-		// Get refresh token from httpOnly cookie
-		const refreshToken = cookies.get('refresh_token');
+		// Parse request body as OAuth2RefreshReq
+		const body: OAuth2RefreshReq = await request.json();
 
-		if (!refreshToken) {
-			throw error(401, JSON.stringify(createAuthError(AuthErrorCode.NO_SESSION)));
+		// Forward request to backend user-service
+		const response = await fetch(`${USER_SERVICE_URL}/api/v1/auth/oauth/refresh`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(body)
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+
+			// Clear invalid tokens
+			cookies.delete('access_token', { path: '/' });
+			cookies.delete('refresh_token', { path: '/' });
+
+			throw error(response.status, JSON.stringify(errorData));
 		}
 
-		// Exchange refresh token for new access token
-		const tokenResponse = await refreshAccessToken(refreshToken);
+		const data: OAuth2RefreshResp = await response.json();
 
-		// Store new tokens securely
-		storeTokensSecurely(cookies, tokenResponse);
+		// Store new tokens in httpOnly cookies if present
+		if (data.access_token) {
+			const maxAge = data.expires_in || 3600; // Default 1 hour
+			cookies.set('access_token', data.access_token, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'strict',
+				maxAge: maxAge
+			});
+		}
 
-		return json({
-			success: true,
-			access_token: tokenResponse.access_token,
-			expires_in: tokenResponse.expires_in,
-			token_type: tokenResponse.token_type
-		});
+		if (data.refresh_token) {
+			cookies.set('refresh_token', data.refresh_token, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'strict',
+				maxAge: 30 * 24 * 60 * 60 // 30 days
+			});
+		}
 
+		return json(data);
 	} catch (err) {
-		console.error('Token refresh error:', err);
+		console.error('OAuth2 refresh error:', err);
 
-		// Clear invalid tokens
-		cookies.delete('access_token', { path: '/' });
-		cookies.delete('refresh_token', { path: '/' });
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err; // Re-throw SvelteKit errors
+		}
 
-		const authError = err instanceof Error && 'code' in err
-			? err as any
-			: createAuthError(AuthErrorCode.REFRESH_FAILED);
-		throw error(authError.statusCode, JSON.stringify(authError));
+		throw error(
+			500,
+			JSON.stringify({
+				code: 'OAUTH_REFRESH_FAILED',
+				message: 'Failed to refresh OAuth2 tokens'
+			})
+		);
 	}
 };
-
-// Exchange refresh token for new access token
-async function refreshAccessToken(refreshToken: string) {
-	const tokenUrl = new URL('/oauth2/token', KANIDM_BASE_URL);
-
-	const response = await fetch(tokenUrl.toString(), {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-		},
-		body: new URLSearchParams({
-			grant_type: 'refresh_token',
-			client_id: CLIENT_ID,
-			refresh_token: refreshToken,
-		}),
-	});
-
-	if (!response.ok) {
-		const errorData = await response.text();
-		throw createAuthError(AuthErrorCode.REFRESH_FAILED, `Token refresh failed: ${response.status} ${errorData}`);
-	}
-
-	const tokenData = await response.json();
-
-	if (!tokenData.access_token) {
-		throw createAuthError(AuthErrorCode.REFRESH_FAILED, 'No access token received from refresh');
-	}
-
-	return {
-		access_token: tokenData.access_token,
-		refresh_token: tokenData.refresh_token || refreshToken, // Keep old refresh token if not provided
-		expires_in: tokenData.expires_in,
-		token_type: tokenData.token_type,
-	};
-}
-
-// Store tokens securely in httpOnly cookies
-function storeTokensSecurely(cookies: Cookies, tokenResponse: TokenResponse) {
-	const maxAge = tokenResponse.expires_in || 3600; // Default 1 hour
-
-	cookies.set('access_token', tokenResponse.access_token, {
-		path: '/',
-		httpOnly: true,
-		secure: true,
-		sameSite: 'strict',
-		maxAge: maxAge,
-	});
-
-	if (tokenResponse.refresh_token) {
-		cookies.set('refresh_token', tokenResponse.refresh_token, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'strict',
-			maxAge: 30 * 24 * 60 * 60, // 30 days
-		});
-	}
-}

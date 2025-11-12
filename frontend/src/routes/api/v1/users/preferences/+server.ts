@@ -51,8 +51,14 @@ export const PUT: RequestHandler = async ({ request, locals, cookies }) => {
 
 		// Validate preferences data
 		const allowedFields = [
-			'language', 'timezone', 'date_format', 'time_format',
-			'notification_preferences', 'profile_visibility', 'show_email', 'show_phone'
+			'language',
+			'timezone',
+			'date_format',
+			'time_format',
+			'notification_preferences',
+			'profile_visibility',
+			'show_email',
+			'show_phone'
 		];
 
 		const filteredData: Partial<UserProfile> = {};

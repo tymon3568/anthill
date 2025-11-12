@@ -60,7 +60,6 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			success: true,
 			data: profile
 		});
-
 	} catch (err) {
 		console.error('Get profile error:', err);
 
@@ -69,9 +68,10 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			throw err;
 		}
 
-		const authError = err instanceof Error && 'code' in err
-			? err as any
-			: createAuthError(AuthErrorCode.PROFILE_FETCH_FAILED);
+		const authError =
+			err instanceof Error && 'code' in err
+				? (err as any)
+				: createAuthError(AuthErrorCode.PROFILE_FETCH_FAILED);
 		throw error(authError.statusCode || 500, JSON.stringify(authError));
 	}
 };
@@ -118,7 +118,6 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 			success: true,
 			data: updatedProfile
 		});
-
 	} catch (err) {
 		console.error('Update profile error:', err);
 
@@ -127,9 +126,10 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 			throw err;
 		}
 
-		const authError = err instanceof Error && 'code' in err
-			? err as any
-			: createAuthError(AuthErrorCode.PROFILE_UPDATE_FAILED);
+		const authError =
+			err instanceof Error && 'code' in err
+				? (err as any)
+				: createAuthError(AuthErrorCode.PROFILE_UPDATE_FAILED);
 		throw error(authError.statusCode || 500, JSON.stringify(authError));
 	}
 };

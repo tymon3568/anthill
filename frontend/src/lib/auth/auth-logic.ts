@@ -13,7 +13,7 @@ export class AuthLogic {
 		user: null,
 		tenant: null,
 		isAuthenticated: false,
-		isLoading: false
+		isLoading: true
 	};
 
 	// Get current state (for testing)

@@ -38,25 +38,26 @@ export function useAuth() {
 			// Initialize auth state (await to avoid racing with storage init)
 			await authStore.initialize();
 
-			// Try to restore session from sessionStorage
-			if (await tokenManager.hasValidSession()) {
-				const storedUser = await tokenManager.getUserData();
+			// Try to restore session from cookies (set by OAuth2 callback)
+			const userDataCookie = document.cookie
+				.split('; ')
+				.find((row) => row.startsWith('user_data='));
 
-				if (storedUser) {
-					try {
-						const user = JSON.parse(storedUser) as User;
-						authStore.setUser(user);
-					} catch (error) {
-						console.error('Failed to parse stored user data:', error);
-						// Clear invalid data
-						tokenManager.clearAll();
-					}
+			if (userDataCookie) {
+				try {
+					const userDataValue = decodeURIComponent(userDataCookie.split('=')[1]);
+					const user = JSON.parse(userDataValue) as User;
+					authStore.setUser(user);
+				} catch (error) {
+					console.error('Failed to parse stored user data from cookie:', error);
+					// Clear invalid cookie
+					document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 				}
 			}
 		} catch (error) {
 			console.error('Failed to initialize auth:', error);
 			// Clear any corrupted data
-			tokenManager.clearAll();
+			document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 		} finally {
 			// Always set loading to false, even if initialization fails
 			authStore.setLoading(false);
@@ -68,80 +69,48 @@ export function useAuth() {
 		tenant: authState.tenant,
 		isAuthenticated: authState.isAuthenticated,
 		isLoading: authState.isLoading,
-		login: async (email: string, password: string) => {
+		login: async () => {
+			// OAuth2 login - redirect to authorization endpoint
 			authStore.setLoading(true);
 			try {
-				const result = await authApi.login({ email, password });
-				if (result.success && result.data) {
-					// Store tokens securely using tokenManager
-					tokenManager.setAccessToken(result.data.access_token, result.data.expires_in);
-					await tokenManager.setRefreshToken(result.data.refresh_token);
-
-					// Map backend UserInfo to frontend User type
-					const user: User = {
-						id: result.data.user.id,
-						email: result.data.user.email,
-						name: result.data.user.full_name || result.data.user.email,
-						role: (result.data.user.role as 'admin' | 'manager' | 'user') || 'user',
-						tenantId: result.data.user.tenant_id,
-						createdAt: result.data.user.created_at,
-						updatedAt: result.data.user.created_at // Backend doesn't return updated_at, use created_at
-					};
-
-					// Store user data for session persistence
-					await tokenManager.setUserData(JSON.stringify(user));
-
-					authStore.setUser(user);
-
-					// Wait a tick to ensure state is updated
-					await new Promise(resolve => setTimeout(resolve, 0));
-
-					return { success: true };
-				} else {
-					throw new Error(result.error || 'Login failed');
-				}
+				// This will redirect to Kanidm OAuth2 authorize endpoint
+				// The actual implementation is in the server endpoint
+				window.location.href = '/api/v1/auth/oauth/authorize';
+				// Return a promise that never resolves since navigation is in progress
+				return new Promise<never>(() => {
+					// Intentionally left unresolved; navigation is in progress.
+				});
 			} catch (err) {
-				throw err instanceof Error ? err : new Error('Login failed');
-			} finally {
 				authStore.setLoading(false);
+				throw err instanceof Error ? err : new Error('Login failed');
 			}
 		},
-		register: async (userData: { name: string; email: string; password: string; confirmPassword: string; tenantName?: string }) => {
+		register: async () => {
+			// OAuth2 registration - redirect to authorization endpoint
 			authStore.setLoading(true);
 			try {
-				const result = await authApi.register({
-					full_name: userData.name,
-					email: userData.email,
-					password: userData.password,
-					tenant_name: userData.tenantName
+				// This will redirect to Kanidm OAuth2 authorize endpoint for registration
+				// The actual implementation is in the server endpoint
+				window.location.href = '/api/v1/auth/oauth/authorize?mode=register';
+				// Return a promise that never resolves since navigation is in progress
+				return new Promise<never>(() => {
+					// Intentionally left unresolved; navigation is in progress.
 				});
-				if (result.success && result.data) {
-					// Registration successful, but don't auto-login
-					// User should login manually after registration
-					return { success: true };
-				} else {
-					throw new Error(result.error || 'Registration failed');
-				}
-			} finally {
+			} catch (err) {
 				authStore.setLoading(false);
+				throw err instanceof Error ? err : new Error('Registration failed');
 			}
 		},
 		logout: async () => {
-			// Call backend to revoke refresh token
-			const refreshToken = await tokenManager.getRefreshToken();
-			if (refreshToken) {
-				try {
-					// Backend expects { refresh_token: string }
-					await authApi.logoutLegacy({ refresh_token: refreshToken });
-				} catch (error) {
-					console.error('Logout API call failed:', error);
-					// Continue with client-side logout even if API fails
-				}
-			}
-
 			// Clear all tokens and user data
 			tokenManager.clearAll();
 			authStore.logout();
+
+			// Clear user data cookie
+			document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+			// Optional: Redirect to Kanidm logout endpoint
+			// window.location.href = 'https://idm.example.com/ui/logout';
 		}
 	};
 }

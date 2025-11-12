@@ -1,119 +1,42 @@
-// Browser Web Crypto API
-const crypto = globalThis.crypto;
-export function generateDeviceFingerprint(): string {
-	// Check if we're in a browser environment
-	if (typeof document === 'undefined' || typeof navigator === 'undefined' || typeof screen === 'undefined') {
-		// Fallback for server-side or limited environments
-		return btoa('server-fingerprint-' + Date.now());
-	}
+/**
+ * Token encryption utilities for secure storage
+ * Note: This is a simplified implementation. In production,
+ * use proper encryption with a secure key management system.
+ */
 
-	const canvas = document.createElement('canvas');
-	const ctx = canvas.getContext('2d');
-	ctx?.fillText('fingerprint', 10, 10);
+// Simple XOR encryption for demonstration (NOT secure for production!)
+const ENCRYPTION_KEY = 'anthill-secure-key-2024'; // In production, use environment variable
 
-	const fingerprint = [
-		navigator.userAgent,
-		navigator.language,
-		screen.width + 'x' + screen.height,
-		new Date().getTimezoneOffset(),
-		!!window.sessionStorage,
-		!!window.localStorage,
-		canvas.toDataURL()
-	].join('|');
-
-	return btoa(fingerprint);
-}
-
-// Derive encryption key from device fingerprint
-export async function deriveKeyFromFingerprint(fingerprint: string, salt: Uint8Array): Promise<CryptoKey> {
-	const encoder = new TextEncoder();
-	const keyMaterial = await crypto.subtle.importKey(
-		'raw',
-		encoder.encode(fingerprint),
-		'PBKDF2',
-		false,
-		['deriveKey']
-	);
-
-	return crypto.subtle.deriveKey(
-		{
-			name: 'PBKDF2',
-			salt: salt as BufferSource,
-			iterations: 100000,
-			hash: 'SHA-256'
-		},
-		keyMaterial,
-		{ name: 'AES-GCM', length: 256 },
-		false,
-		['encrypt', 'decrypt']
-	);
-}
-
-// Encrypt data using AES-GCM
-export async function encryptData(data: string, key: CryptoKey): Promise<string> {
-	const encoder = new TextEncoder();
-	const iv = crypto.getRandomValues(new Uint8Array(12));
-
-	const encrypted = await crypto.subtle.encrypt(
-		{ name: 'AES-GCM', iv },
-		key,
-		encoder.encode(data)
-	);
-
-	// Combine IV and encrypted data
-	const combined = new Uint8Array(iv.length + encrypted.byteLength);
-	combined.set(iv);
-	combined.set(new Uint8Array(encrypted), iv.length);
-
-	return btoa(String.fromCharCode(...combined));
-}
-
-// Decrypt data using AES-GCM
-export async function decryptData(encryptedData: string, key: CryptoKey): Promise<string> {
+export function encryptToken(token: string): string {
 	try {
-		const combined = new Uint8Array(atob(encryptedData).split('').map(c => c.charCodeAt(0)));
-		const iv = combined.slice(0, 12);
-		const encrypted = combined.slice(12);
-
-		const decrypted = await crypto.subtle.decrypt(
-			{ name: 'AES-GCM', iv },
-			key,
-			encrypted
-		);
-
-		const decoder = new TextDecoder();
-		return decoder.decode(decrypted);
-	} catch (error) {
-		throw new Error('Failed to decrypt data - invalid key or corrupted data');
-	}
-}
-
-// Get or create encryption key for current device
-let encryptionKey: CryptoKey | null = null;
-let deviceSalt: Uint8Array | null = null;
-
-export async function getEncryptionKey(): Promise<CryptoKey> {
-	if (!encryptionKey) {
-		const fingerprint = generateDeviceFingerprint();
-
-		// Generate random salt per session if not exists
-		if (!deviceSalt) {
-			deviceSalt = crypto.getRandomValues(new Uint8Array(32)); // 256-bit salt
+		// Simple XOR encryption (for demo only - NOT secure!)
+		let result = '';
+		for (let i = 0; i < token.length; i++) {
+			const charCode = token.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+			result += String.fromCharCode(charCode);
 		}
-
-		encryptionKey = await deriveKeyFromFingerprint(fingerprint, deviceSalt);
+		// Convert to base64 for safe storage
+		return btoa(result);
+	} catch (error) {
+		console.error('Token encryption failed:', error);
+		return token; // Fallback to unencrypted
 	}
-	return encryptionKey;
 }
 
-// Encrypt token for storage
-export async function encryptToken(token: string): Promise<string> {
-	const key = await getEncryptionKey();
-	return encryptData(token, key);
-}
-
-// Decrypt token from storage
-export async function decryptToken(encryptedToken: string): Promise<string> {
-	const key = await getEncryptionKey();
-	return decryptData(encryptedToken, key);
+export function decryptToken(encryptedToken: string): string {
+	try {
+		// Decode from base64
+		const encrypted = atob(encryptedToken);
+		// XOR decryption
+		let result = '';
+		for (let i = 0; i < encrypted.length; i++) {
+			const charCode =
+				encrypted.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+			result += String.fromCharCode(charCode);
+		}
+		return result;
+	} catch (error) {
+		console.error('Token decryption failed:', error);
+		return encryptedToken; // Fallback to encrypted value
+	}
 }

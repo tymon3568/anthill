@@ -32,7 +32,7 @@ describe('Auth API Client', () => {
 
 			vi.mocked(apiClient.get).mockResolvedValue(mockResponse);
 
-			const result = await authApi.handleOAuth2Callback('code', 'state');
+			const result = await authApi.handleOAuth2CallbackLegacy('code', 'state');
 
 			expect(apiClient.get).toHaveBeenCalledWith('/auth/oauth/callback?code=code&state=state');
 			expect(result).toEqual(mockResponse);
@@ -78,22 +78,22 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getProfile();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/profile');
+			expect(apiClient.get).toHaveBeenCalledWith('/auth/profile');
 			expect(result).toEqual(mockResponse);
 		});
 
 		it('should update user profile', async () => {
-			const updateData = { full_name: 'Jane Doe' };
+			const updateData = { display_name: 'Jane Doe' };
 			const mockResponse = {
 				success: true,
-				data: { id: 'user-1', email: 'user@example.com', full_name: 'Jane Doe' }
+				data: { id: 'user-1', email: 'user@example.com', display_name: 'Jane Doe' }
 			};
 
 			vi.mocked(apiClient.put).mockResolvedValue(mockResponse);
 
 			const result = await authApi.updateProfile(updateData);
 
-			expect(apiClient.put).toHaveBeenCalledWith('/users/profile', updateData);
+			expect(apiClient.put).toHaveBeenCalledWith('/auth/profile', updateData);
 			expect(result).toEqual(mockResponse);
 		});
 	});
@@ -112,7 +112,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getPreferences();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/preferences');
+			expect(apiClient.get).toHaveBeenCalledWith('/auth/preferences');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -127,7 +127,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.updatePreferences(updateData);
 
-			expect(apiClient.put).toHaveBeenCalledWith('/users/preferences', updateData);
+			expect(apiClient.put).toHaveBeenCalledWith('/auth/preferences', updateData);
 			expect(result).toEqual(mockResponse);
 		});
 	});
@@ -140,7 +140,9 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.checkPermission('products', 'read');
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/permissions/check?resource=products&action=read');
+			expect(apiClient.get).toHaveBeenCalledWith(
+				'/auth/permissions/check?resource=products&action=read'
+			);
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -154,7 +156,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getUserPermissions();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/permissions');
+			expect(apiClient.get).toHaveBeenCalledWith('/auth/permissions');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -168,7 +170,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getUserRoles();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/roles');
+			expect(apiClient.get).toHaveBeenCalledWith('/auth/roles');
 			expect(result).toEqual(mockResponse);
 		});
 	});
@@ -181,7 +183,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.validateSession();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/session/validate');
+			expect(apiClient.get).toHaveBeenCalledWith('/auth/session/validate');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -195,7 +197,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getSessionInfo();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/session');
+			expect(apiClient.get).toHaveBeenCalledWith('/auth/session');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -209,7 +211,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getActiveSessions();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/users/sessions');
+			expect(apiClient.get).toHaveBeenCalledWith('/auth/sessions');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -220,7 +222,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.terminateSession('session-1');
 
-			expect(apiClient.delete).toHaveBeenCalledWith('/users/sessions/session-1');
+			expect(apiClient.delete).toHaveBeenCalledWith('/auth/sessions/session-1');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -231,7 +233,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.endAllSessions();
 
-			expect(apiClient.delete).toHaveBeenCalledWith('/users/sessions');
+			expect(apiClient.delete).toHaveBeenCalledWith('/auth/sessions');
 			expect(result).toEqual(mockResponse);
 		});
 	});

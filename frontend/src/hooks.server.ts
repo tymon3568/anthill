@@ -5,30 +5,21 @@ import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 
 // Protected routes that require authentication
-const protectedRoutes = [
-	'/dashboard',
-	'/inventory',
-	'/orders',
-	'/settings',
-	'/profile'
-];
+const protectedRoutes = ['/dashboard', '/inventory', '/orders', '/settings', '/profile'];
 
 // Public routes that don't require authentication
-const publicRoutes = [
-	'/',
-	'/login',
-	'/register',
-	'/api/v1/auth'
-];
+const publicRoutes = ['/', '/login', '/register', '/api/v1/auth'];
 
 function isProtectedRoute(pathname: string): boolean {
-	return protectedRoutes.some(route => pathname.startsWith(route));
+	return protectedRoutes.some((route) => pathname.startsWith(route));
 }
 
 function isPublicRoute(pathname: string): boolean {
-	return publicRoutes.some(route => pathname.startsWith(route)) ||
-		   pathname === '/' ||
-		   pathname.startsWith('/api/');
+	return (
+		publicRoutes.some((route) => pathname.startsWith(route)) ||
+		pathname === '/' ||
+		pathname.startsWith('/api/')
+	);
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -38,7 +29,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Resolve response first
 	const response = await (async () => {
 		// Skip auth check for public routes and static assets
-		if (isPublicRoute(pathname) || pathname.startsWith('/favicon') || pathname.startsWith('/_app/')) {
+		if (
+			isPublicRoute(pathname) ||
+			pathname.startsWith('/favicon') ||
+			pathname.startsWith('/_app/')
+		) {
 			return resolve(event);
 		}
 
@@ -60,7 +55,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 					const refreshResponse = await fetch(`${url.origin}/api/v1/auth/oauth/refresh`, {
 						method: 'POST',
 						headers: {
-							'Cookie': `refresh_token=${refreshToken}`
+							Cookie: `refresh_token=${refreshToken}`
 						}
 					});
 
@@ -72,21 +67,30 @@ export const handle: Handle = async ({ event, resolve }) => {
 							httpOnly: true,
 							secure: true,
 							sameSite: 'strict',
-							maxAge: refreshData.expires_in || 3600,
+							maxAge: refreshData.expires_in || 3600
 						});
 						// Use the new access token for validation
 						currentAccessToken = refreshData.access_token;
 					} else {
 						// Refresh failed, redirect to login
-						handleAuthError(createAuthError(AuthErrorCode.SESSION_EXPIRED), `/login?redirect=${encodeURIComponent(pathname)}`);
+						handleAuthError(
+							createAuthError(AuthErrorCode.SESSION_EXPIRED),
+							`/login?redirect=${encodeURIComponent(pathname)}`
+						);
 					}
 				} else {
 					// No refresh token, redirect to login
-					handleAuthError(createAuthError(AuthErrorCode.NO_SESSION), `/login?redirect=${encodeURIComponent(pathname)}`);
+					handleAuthError(
+						createAuthError(AuthErrorCode.NO_SESSION),
+						`/login?redirect=${encodeURIComponent(pathname)}`
+					);
 				}
 			} catch (error) {
 				// Refresh failed, redirect to login
-				handleAuthError(createAuthError(AuthErrorCode.REFRESH_FAILED), `/login?redirect=${encodeURIComponent(pathname)}`);
+				handleAuthError(
+					createAuthError(AuthErrorCode.REFRESH_FAILED),
+					`/login?redirect=${encodeURIComponent(pathname)}`
+				);
 			}
 		}
 
@@ -96,7 +100,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// Invalid token, redirect to login
 			cookies.delete('access_token', { path: '/' });
 			cookies.delete('refresh_token', { path: '/' });
-			handleAuthError(createAuthError(AuthErrorCode.INVALID_TOKEN), `/login?redirect=${encodeURIComponent(pathname)}`);
+			handleAuthError(
+				createAuthError(AuthErrorCode.INVALID_TOKEN),
+				`/login?redirect=${encodeURIComponent(pathname)}`
+			);
 		}
 
 		// Store user info in locals for use in load functions and endpoints
@@ -109,7 +116,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Set CSP header based on environment
 	const csp = dev
 		? // Development CSP - more permissive
-		  [
+			[
 				"default-src 'self'",
 				"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
 				"style-src 'self' 'unsafe-inline'",
@@ -119,9 +126,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 				"object-src 'none'",
 				"base-uri 'self'",
 				"form-action 'self'"
-		  ].join('; ')
+			].join('; ')
 		: // Production CSP - strict
-		  [
+			[
 				"default-src 'self'",
 				"script-src 'self' 'unsafe-inline'", // SvelteKit needs unsafe-inline for hydration
 				"style-src 'self' 'unsafe-inline'",
@@ -131,7 +138,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				"object-src 'none'",
 				"base-uri 'self'",
 				"form-action 'self'"
-		  ].join('; ');
+			].join('; ');
 
 	response.headers.set('Content-Security-Policy', csp);
 

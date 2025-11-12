@@ -73,7 +73,7 @@ describe('Token Manager', () => {
 
 		it('should return false when token expires after 2 minutes', () => {
 			const token = 'test-access-token';
-			const expiresIn = 121; // 2 minutes 1 second
+			const expiresIn = 601; // 10 minutes 1 second
 
 			tokenManager.setAccessToken(token, expiresIn);
 

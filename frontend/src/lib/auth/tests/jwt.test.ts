@@ -23,7 +23,10 @@ describe('JWT Utilities', () => {
 			iat: Math.floor(Date.now() / 1000) - 60
 		};
 		const header = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9';
-		const payloadB64 = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+		const payloadB64 = btoa(JSON.stringify(payload))
+			.replace(/\+/g, '-')
+			.replace(/\//g, '_')
+			.replace(/=/g, '');
 		const signature = 'signature';
 		return `${header}.${payloadB64}.${signature}`;
 	};
@@ -46,7 +49,10 @@ describe('JWT Utilities', () => {
 		it('should decode valid JWT payload', () => {
 			// Create a proper JWT with base64url encoded payload
 			const header = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9';
-			const payload = btoa(JSON.stringify(mockPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+			const payload = btoa(JSON.stringify(mockPayload))
+				.replace(/\+/g, '-')
+				.replace(/\//g, '_')
+				.replace(/=/g, '');
 			const signature = 'signature';
 			const validJwt = `${header}.${payload}.${signature}`;
 
@@ -77,7 +83,13 @@ describe('JWT Utilities', () => {
 
 		it('should return null for expired token', async () => {
 			const expiredPayload = { ...mockPayload, exp: Math.floor(Date.now() / 1000) - 3600 };
-			const expiredJwt = 'header.' + btoa(JSON.stringify(expiredPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') + '.signature';
+			const expiredJwt =
+				'header.' +
+				btoa(JSON.stringify(expiredPayload))
+					.replace(/\+/g, '-')
+					.replace(/\//g, '_')
+					.replace(/=/g, '') +
+				'.signature';
 
 			const result = await validateAndParseToken(expiredJwt, false);
 			expect(result).toBeNull();
@@ -85,7 +97,13 @@ describe('JWT Utilities', () => {
 
 		it('should return null for token without required claims', async () => {
 			const invalidPayload = { groups: [] }; // Missing sub and email
-			const invalidJwt = 'header.' + btoa(JSON.stringify(invalidPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') + '.signature';
+			const invalidJwt =
+				'header.' +
+				btoa(JSON.stringify(invalidPayload))
+					.replace(/\+/g, '-')
+					.replace(/\//g, '_')
+					.replace(/=/g, '') +
+				'.signature';
 
 			const result = await validateAndParseToken(invalidJwt, false);
 			expect(result).toBeNull();
@@ -119,7 +137,13 @@ describe('JWT Utilities', () => {
 	describe('isTokenExpired', () => {
 		it('should return true for expired token', () => {
 			const expiredPayload = { exp: Math.floor(Date.now() / 1000) - 3600 };
-			const expiredJwt = 'header.' + btoa(JSON.stringify(expiredPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') + '.signature';
+			const expiredJwt =
+				'header.' +
+				btoa(JSON.stringify(expiredPayload))
+					.replace(/\+/g, '-')
+					.replace(/\//g, '_')
+					.replace(/=/g, '') +
+				'.signature';
 
 			const result = isTokenExpired(expiredJwt);
 			expect(result).toBe(true);
@@ -131,7 +155,13 @@ describe('JWT Utilities', () => {
 		});
 
 		it('should return true for token without exp claim', () => {
-			const noExpJwt = 'header.' + btoa(JSON.stringify({ sub: 'user' })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') + '.signature';
+			const noExpJwt =
+				'header.' +
+				btoa(JSON.stringify({ sub: 'user' }))
+					.replace(/\+/g, '-')
+					.replace(/\//g, '_')
+					.replace(/=/g, '') +
+				'.signature';
 
 			const result = isTokenExpired(noExpJwt);
 			expect(result).toBe(true);
@@ -156,7 +186,13 @@ describe('JWT Utilities', () => {
 			// Token expiring in 2 minutes
 			const soonExpiry = Math.floor(Date.now() / 1000) + 120;
 			const soonPayload = { ...mockPayload, exp: soonExpiry };
-			const soonJwt = 'header.' + btoa(JSON.stringify(soonPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '') + '.signature';
+			const soonJwt =
+				'header.' +
+				btoa(JSON.stringify(soonPayload))
+					.replace(/\+/g, '-')
+					.replace(/\//g, '_')
+					.replace(/=/g, '') +
+				'.signature';
 
 			const result = shouldRefreshToken(soonJwt);
 			expect(result).toBe(true);

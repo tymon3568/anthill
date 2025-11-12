@@ -5,7 +5,8 @@ interface RateLimitConfig {
 }
 
 class RateLimiter {
-	private attempts: Map<string, { count: number; resetTime: number; blockedUntil?: number }> = new Map();
+	private attempts: Map<string, { count: number; resetTime: number; blockedUntil?: number }> =
+		new Map();
 
 	private configs: Map<string, RateLimitConfig> = new Map();
 
