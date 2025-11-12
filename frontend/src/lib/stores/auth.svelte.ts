@@ -14,7 +14,7 @@ export const authState = $state<AuthStore>({
 	user: null,
 	tenant: null,
 	isAuthenticated: false,
-	isLoading: true
+	isLoading: false
 });
 
 // Sync Svelte state with logic state
@@ -53,20 +53,18 @@ export const authStore = {
 	initializeFromStorage: async () => {
 		if (!browser) return;
 
-		authStore.setLoading(true);
+		// Don't set loading here - let useAuth hook handle it
 		try {
 			// Token restoration is handled by useAuth hook with tokenManager
-			// This just ensures loading state is managed
+			// This just ensures state is initialized
 			authStore.setUser(null);
 			authStore.setTenant(null);
 		} catch (error) {
 			console.error('Auth initialization error:', error);
 			authStore.setUser(null);
 			authStore.setTenant(null);
-		} finally {
-			// Don't set loading to false here - let useAuth hook handle it
-			// authStore.setLoading(false);
 		}
+		// Don't set loading to false here - let useAuth hook handle it
 	},
 
 	logout: () => {

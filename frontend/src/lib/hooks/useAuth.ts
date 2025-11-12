@@ -31,6 +31,9 @@ function mapUserProfileToUser(profile: UserProfile): User {
 // Custom hook for auth initialization
 export function useAuth() {
 	onMount(async () => {
+		// Set loading to true while initializing
+		authStore.setLoading(true);
+
 		try {
 			// Initialize auth state (await to avoid racing with storage init)
 			await authStore.initialize();
