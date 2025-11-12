@@ -34,16 +34,15 @@ class RateLimiter {
 			return true;
 		}
 
+		// Check if window has expired - if so, reset
+		if (now > record.resetTime) {
+			this.attempts.delete(key);
+			return true;
+		}
+
 		// Check if currently blocked
 		if (record.blockedUntil && now < record.blockedUntil) {
 			return false;
-		}
-
-		// Check if window has expired
-		if (now > record.resetTime) {
-			// Reset the counter
-			this.attempts.delete(key);
-			return true;
 		}
 
 		// Check if under limit

@@ -4,18 +4,18 @@
 	import { useAuth } from '$lib/hooks/useAuth';
 	import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
 
-	// Auth loading component
-	let AuthLoading = () => LoadingSpinner;
-
 	let { children } = $props();
 
 	// Initialize auth state for entire app
-	useAuth();
+	const { isLoading } = useAuth();
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<AuthLoading />
-{@render children()}
+{#if isLoading}
+	<LoadingSpinner />
+{:else}
+	{@render children()}
+{/if}

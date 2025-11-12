@@ -60,7 +60,7 @@ export const tokenManager = {
 	 * Set refresh token in sessionStorage (encrypted)
 	 */
 	async setRefreshToken(token: string): Promise<void> {
-		if (!browser) return;
+		if (!browser || typeof sessionStorage === 'undefined') return;
 
 		try {
 			const encrypted = await encryptToken(token);
@@ -74,7 +74,7 @@ export const tokenManager = {
 	 * Get refresh token from sessionStorage (encrypted)
 	 */
 	async getRefreshToken(): Promise<string | null> {
-		if (!browser) return null;
+		if (!browser || typeof sessionStorage === 'undefined') return null;
 
 		try {
 			const encrypted = sessionStorage.getItem('refresh_token');
@@ -90,7 +90,7 @@ export const tokenManager = {
 	 * Store user data in sessionStorage (encrypted)
 	 */
 	async setUserData(userData: string): Promise<void> {
-		if (!browser) return;
+		if (!browser || typeof sessionStorage === 'undefined') return;
 
 		try {
 			const encrypted = await encryptToken(userData);
@@ -104,7 +104,7 @@ export const tokenManager = {
 	 * Get user data from sessionStorage (encrypted)
 	 */
 	async getUserData(): Promise<string | null> {
-		if (!browser) return null;
+		if (!browser || typeof sessionStorage === 'undefined') return null;
 
 		try {
 			const encrypted = sessionStorage.getItem('user_data');
@@ -120,7 +120,7 @@ export const tokenManager = {
 	 * Clear all tokens and user data (logout)
 	 */
 	clearAll(): void {
-		if (!browser) return;
+		if (!browser || typeof sessionStorage === 'undefined') return;
 
 		// Clear memory
 		accessToken = null;
@@ -139,7 +139,7 @@ export const tokenManager = {
 	 * Check if user has valid session (has refresh token)
 	 */
 	async hasValidSession(): Promise<boolean> {
-		if (!browser) return false;
+		if (!browser || typeof sessionStorage === 'undefined') return false;
 
 		try {
 			const token = await this.getRefreshToken();

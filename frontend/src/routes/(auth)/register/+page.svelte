@@ -130,11 +130,14 @@
 			isLoading = true;
 			error = '';
 
+			// Record the attempt for rate limiting
+			rateLimiter.recordAttempt(RATE_LIMIT_KEY);
+
 			try {
 				// Call register with proper field names
 				if (result.data) {
 					await registerAction({
-						name: result.data.full_name,
+						name: fullName,
 						email: result.data.email,
 						password: result.data.password,
 						confirmPassword: result.data.confirmPassword,
@@ -177,8 +180,6 @@
 		}, SUBMIT_DEBOUNCE_MS);
 	}
 </script>
-
-<svelte:head>
 	<title>Sign Up - Anthill</title>
 </svelte:head>
 

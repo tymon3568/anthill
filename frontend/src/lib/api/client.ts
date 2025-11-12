@@ -49,7 +49,7 @@ class ApiClient {
 			if (result.success && result.data) {
 				const expiresIn = result.data.expires_in || 900; // Default 15 minutes
 				tokenManager.setAccessToken(result.data.access_token, expiresIn);
-				tokenManager.setRefreshToken(result.data.refresh_token);
+				await tokenManager.setRefreshToken(result.data.refresh_token);
 				return result.data.access_token;
 			}
 		} catch (error) {
@@ -103,28 +103,43 @@ class ApiClient {
 			clearTimeout(timeoutId);
 
 			// Handle 401 Unauthorized - token expired
-			if (response.status === 401 && !isRefreshing) {
-				isRefreshing = true;
-				const newToken = await this.refreshAccessToken();
-				isRefreshing = false;
-
-				if (newToken) {
-					// Retry original request with new token
-					config.headers = {
-						...config.headers,
-						Authorization: `Bearer ${newToken}`
-					};
-					onTokenRefreshed(newToken);
-					return this.request<T>(endpoint, options);
+			if (response.status === 401) {
+				if (isRefreshing) {
+					// Refresh is already in progress, wait for it
+					return new Promise<ApiResponse<T>>((resolve) => {
+						subscribeTokenRefresh((token: string) => {
+							// Retry original request with new token
+							config.headers = {
+								...config.headers,
+								Authorization: `Bearer ${token}`
+							};
+							resolve(this.request<T>(endpoint, options));
+						});
+					});
 				} else {
-					// Refresh failed, redirect to login
-					if (typeof window !== 'undefined') {
-						window.location.href = '/login?error=session_expired';
+					// Start refresh process
+					isRefreshing = true;
+					const newToken = await this.refreshAccessToken();
+					isRefreshing = false;
+
+					if (newToken) {
+						// Retry original request with new token
+						config.headers = {
+							...config.headers,
+							Authorization: `Bearer ${newToken}`
+						};
+						onTokenRefreshed(newToken);
+						return this.request<T>(endpoint, options);
+					} else {
+						// Refresh failed, redirect to login
+						if (typeof window !== 'undefined') {
+							window.location.href = '/login?error=session_expired';
+						}
+						return {
+							success: false,
+							error: 'Session expired'
+						};
 					}
-					return {
-						success: false,
-						error: 'Session expired'
-					};
 				}
 			}
 

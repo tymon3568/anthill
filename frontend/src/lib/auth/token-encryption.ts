@@ -1,6 +1,12 @@
 // Browser Web Crypto API
 const crypto = globalThis.crypto;
 export function generateDeviceFingerprint(): string {
+	// Check if we're in a browser environment
+	if (typeof document === 'undefined' || typeof navigator === 'undefined' || typeof screen === 'undefined') {
+		// Fallback for server-side or limited environments
+		return btoa('server-fingerprint-' + Date.now());
+	}
+
 	const canvas = document.createElement('canvas');
 	const ctx = canvas.getContext('2d');
 	ctx?.fillText('fingerprint', 10, 10);
