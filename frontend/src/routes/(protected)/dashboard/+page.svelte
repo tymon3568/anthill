@@ -1,14 +1,7 @@
 <script lang="ts">
-	import { authState, authStore } from '$lib/stores/auth.svelte';
+	import { authState } from '$lib/stores/auth.svelte';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Button } from '$lib/components/ui/button';
-	import { goto } from '$app/navigation';
-
-	async function handleLogout() {
-		await authStore.emailLogout();
-		goto('/login');
-	}
 </script>
 
 <svelte:head>
@@ -16,14 +9,6 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-3xl font-bold">Dashboard</h1>
-			<p class="text-muted-foreground">Welcome back, {authState.user?.name || 'User'}!</p>
-		</div>
-		<Button variant="outline" onclick={handleLogout}>Logout</Button>
-	</div>
-
 	<!-- Welcome Card -->
 	<Card>
 		<CardHeader>
