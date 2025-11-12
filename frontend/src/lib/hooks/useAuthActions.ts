@@ -83,15 +83,12 @@ export async function registerAction(userData: {
  * Logout action - can be used without triggering auth initialization
  */
 export async function logoutAction() {
-	// Call backend to revoke refresh token
-	const refreshToken = await tokenManager.getRefreshToken();
-	if (refreshToken) {
-		try {
-			await authApi.logoutLegacy({ refresh_token: refreshToken });
-		} catch (error) {
-			console.error('Logout API call failed:', error);
-			// Continue with client-side logout even if API fails
-		}
+	// Call backend to revoke refresh token from httpOnly cookies
+	try {
+		await authApi.logout();
+	} catch (error) {
+		console.error('Logout API call failed:', error);
+		// Continue with client-side logout even if API fails
 	}
 
 	// Clear all tokens and user data
