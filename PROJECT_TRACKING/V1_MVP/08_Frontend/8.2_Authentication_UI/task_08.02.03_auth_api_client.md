@@ -176,9 +176,49 @@ export function getStoredToken(): string | null {
   return null;
 }
 
+/**
+ * Check authentication status
+ * 
+ * IMPORTANT: Authentication is determined SERVER-SIDE via httpOnly cookies.
+ * 
+ * Client-side authentication check approaches:
+ * 
+ * 1. RECOMMENDED - Check for user_data cookie (non-httpOnly, readable):
+ *    The backend sets a 'user_data' cookie on successful login containing
+ *    non-sensitive user info. Frontend can read this to determine auth state.
+ * 
+ *    export function isAuthenticated(): boolean {
+ *      return document.cookie.includes('user_data=');
+ *    }
+ * 
+ * 2. ALTERNATIVE - Call backend validation endpoint:
+ *    Make a request to /api/v1/auth/me which validates the httpOnly cookies
+ *    server-side and returns user info or 401.
+ * 
+ *    export async function checkAuth(): Promise<boolean> {
+ *      try {
+ *        const response = await fetch('/api/v1/auth/me', {
+ *          credentials: 'include' // Send httpOnly cookies
+ *        });
+ *        return response.ok;
+ *      } catch {
+ *        return false;
+ *      }
+ *    }
+ * 
+ * 3. Server-side route protection (SvelteKit):
+ *    Use hooks.server.ts to validate httpOnly cookies and redirect
+ *    unauthenticated requests. Frontend just handles the redirect.
+ * 
+ * For this project, we use approach #1 (user_data cookie) for client-side checks
+ * and approach #3 (server hooks) for actual route protection.
+ */
 export function isAuthenticated(): boolean {
-  const token = getStoredToken();
-  return !!token; // In production, also check token expiration
+  // Check if user_data cookie exists (set by backend on login)
+  if (typeof document !== 'undefined') {
+    return document.cookie.includes('user_data=');
+  }
+  return false;
 }
 ```
 
@@ -188,20 +228,27 @@ export function isAuthenticated(): boolean {
 - [ ] Test registration with valid data
 - [ ] Test registration with existing email
 - [ ] Test network error handling
-- [ ] Test token storage and retrieval
-- [ ] Verify logout clears tokens
+- [ ] Verify httpOnly cookies are set after successful login (access_token, refresh_token)
+- [ ] Verify user_data cookie (non-httpOnly) is readable client-side
+- [ ] Verify logout clears all auth cookies
+- [ ] Test isAuthenticated() returns true when user_data cookie exists
+- [ ] Test isAuthenticated() returns false after logout
+- [ ] Verify protected routes redirect to login when not authenticated
 
 ## References:
 *   User service OpenAPI specification
 *   `shared/error/src/lib.rs` - Backend error types
 *   `services/user_service/api/handlers/auth.rs` - Auth endpoints
+*   `frontend/src/hooks.server.ts` - Server-side authentication hooks
 *   Project API patterns and conventions
 
 ## Notes / Discussion:
 ---
 *   Follow user service API endpoints and DTOs
 *   Handle multi-tenant headers if required
-*   Consider security implications of token storage
+*   **SECURITY: Tokens stored in httpOnly cookies (access_token, refresh_token)**
+*   **Client-side auth check uses user_data cookie (non-httpOnly, readable)**
+*   **Server-side route protection via hooks.server.ts validates httpOnly cookies**
 *   Error messages should be user-friendly
 *   API client should be reusable across the application
 

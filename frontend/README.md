@@ -40,7 +40,7 @@ See [`.svelte-instructions.md`](.svelte-instructions.md) for complete developmen
 - **State Management**: Svelte 5 runes (no external stores needed)
 - **Forms**: Valibot for validation
 - **Testing**: Vitest (unit) + Playwright (E2E)
-- **Package Manager**: Bun
+- **Package Manager**: npm (with native tooling)
 - **Deployment**: CapRover with Docker
 
 ## Svelte 5 Runes Usage
@@ -79,7 +79,7 @@ $effect(() => {
 
 ### Prerequisites
 
-- **Bun** (MANDATORY - see [`.svelte-instructions.md`](.svelte-instructions.md) for usage guidelines)
+- **Node.js 20+** (native tools: vite, svelte-kit, vitest, playwright)
 - Docker (for local development)
 
 ### Setup
@@ -87,27 +87,27 @@ $effect(() => {
 1. Install dependencies:
 
 ```bash
-bun install
+npm install
 ```
 
 2. Start development server:
 
 ```bash
-bun run dev
+npm run dev
 ```
 
 3. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ### Available Scripts
 
-- `bun run dev` - Start development server
-- `bun run build` - Build for production
-- `bun run preview` - Preview production build
-- `bun run check` - Type checking and linting
-- `bun run test:unit` - Run unit tests
-- `bun run test:e2e` - Run E2E tests
-- `bun run test` - Run all tests
-- `bun run format` - Format code with Prettier
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run check` - Type checking and linting
+- `npm run test:unit` - Run unit tests
+- `npm run test:e2e` - Run E2E tests
+- `npm run test` - Run all tests
+- `npm run format` - Format code with Prettier
 
 ## Project Structure
 

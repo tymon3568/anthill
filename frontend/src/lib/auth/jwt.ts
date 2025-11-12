@@ -88,17 +88,66 @@ export function extractTenantFromGroups(groups: string[]): string | undefined {
 }
 
 /**
- * Validate and parse JWT token (server-side with signature verification)
- * This is a placeholder - in production, you'd verify the JWT signature
- * against the Kanidm public key
+ * Validate and parse JWT token with optional signature verification
+ *
+ * @param token - JWT token to validate
+ * @param verifySignature - If true, verifies signature against server-side endpoint
+ * @returns UserInfo if valid, null otherwise
+ *
+ * IMPORTANT: Client-side cannot securely verify JWT signatures directly.
+ * When verifySignature is true, this function calls a server-side endpoint
+ * that performs proper signature verification using Kanidm's JWKS.
  */
 export async function validateAndParseToken(
 	token: string,
 	verifySignature: boolean = false
 ): Promise<UserInfo | null> {
 	try {
-		// For now, just decode without verification (client-side behavior)
-		// In production, you'd verify the signature here
+		if (verifySignature) {
+			// Server-side verification required - call backend endpoint
+			// The backend will verify signature against Kanidm JWKS
+			try {
+				const response = await fetch('/api/v1/auth/verify-token', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ token }),
+					credentials: 'include'
+				});
+
+				if (!response.ok) {
+					console.error('Server-side token verification failed:', response.status);
+					return null;
+				}
+
+				const verified = await response.json();
+
+				// Server verified the signature, now extract user info
+				const payload = decodeJwtPayload(token);
+				if (!payload) {
+					console.error('Token decode failed after verification');
+					return null;
+				}
+
+				// Extract tenant from groups
+				const tenantId = extractTenantFromGroups(payload.groups);
+
+				return {
+					userId: payload.sub,
+					email: payload.email,
+					name: payload.name || payload.preferred_username,
+					groups: payload.groups,
+					tenantId
+				};
+			} catch (networkError) {
+				console.error('Token verification network error:', networkError);
+				return null; // Do not accept unverified tokens
+			}
+		}
+
+		// Client-side decode without signature verification
+		// Use this only for non-security-critical operations
 		const payload = decodeJwtPayload(token);
 		if (!payload) return null;
 
