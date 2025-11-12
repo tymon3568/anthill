@@ -196,7 +196,7 @@
           → OAuth2 integration with Kanidm identity provider
           → API infrastructure and client integration
           → Progress: 0/4 tasks completed (Updated: 2025-11-12)
-          → **Issue**: task_08.02.01 blocked by session_expired error during login testing
+          → **Status**: task_08.02.01 session_expired error fixed and resolved
 
     - [⏳] 8.3 Dashboard - `Todo`
           → [View folder](./V1_MVP/08_Frontend/8.3_Dashboard/)
@@ -415,10 +415,11 @@ open http://localhost:8000/docs  # Swagger UI
 **Project Status**: In Progress (Phase 3 Kanidm Integration)
 
 **Recent Changes (2025-11-12)**:
-- ❌ **Authentication UI Issue**: task_08.02.01 blocked by "session_expired" error during login testing
-      - Status changed from Completed to Blocked_By_Session_Expired_Error
-      - Requires investigation of session management and authentication flow
-      - Need to check backend API integration and session handling logic
+- ✅ **Authentication UI Issue Resolved**: task_08.02.01 session_expired error fixed
+      - Root cause: API client sending Authorization headers to login endpoints + token storage inconsistency
+      - Fixed API client to exclude auth headers for login/register endpoints
+      - Synchronized AuthSession and tokenManager storage systems
+      - Task status changed to Done
 - ✅ **Authentication UI Tasks Re-authored**: Recreated all 4 tasks with clean folder-tasks format
       - task_08.02.01_create_login_registration_pages.md: Focus on SvelteKit 5 runes + shadcn-svelte UI + Valibot validation
       - task_08.02.02_integrate_oauth2_kanidm.md: Repurposed for email/password form actions, session cookies, logout flow

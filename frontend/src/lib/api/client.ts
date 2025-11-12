@@ -24,13 +24,20 @@ class ApiClient {
 			...options
 		};
 
-		// Add auth token if available
-		const token = tokenManager.getAccessToken();
-		if (token) {
-			config.headers = {
-				...config.headers,
-				Authorization: `Bearer ${token}`
-			};
+		// Add auth token if available, but NOT for auth endpoints that don't require authentication
+		const isAuthEndpoint = endpoint.startsWith('/auth/login') ||
+		                      endpoint.startsWith('/auth/register') ||
+		                      endpoint.startsWith('/auth/oauth/authorize') ||
+		                      endpoint.startsWith('/auth/oauth/callback');
+
+		if (!isAuthEndpoint) {
+			const token = tokenManager.getAccessToken();
+			if (token) {
+				config.headers = {
+					...config.headers,
+					Authorization: `Bearer ${token}`
+				};
+			}
 		}
 
 		try {

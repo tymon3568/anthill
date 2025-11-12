@@ -1,4 +1,5 @@
 import { authApi, type EmailAuthResponse, type EmailUserInfo } from '$lib/api/auth';
+import { tokenManager } from './token-manager';
 
 // Session management utilities
 export class AuthSession {
@@ -38,6 +39,10 @@ export class AuthSession {
 		localStorage.setItem(this.ACCESS_TOKEN_KEY, data.access_token);
 		localStorage.setItem(this.REFRESH_TOKEN_KEY, data.refresh_token);
 		localStorage.setItem(this.USER_KEY, JSON.stringify(data.user));
+
+		// Also update tokenManager for API client compatibility
+		tokenManager.setAccessToken(data.access_token, data.expires_in);
+		tokenManager.setRefreshToken(data.refresh_token);
 	}
 
 	// Clear session data
@@ -47,6 +52,9 @@ export class AuthSession {
 		localStorage.removeItem(this.ACCESS_TOKEN_KEY);
 		localStorage.removeItem(this.REFRESH_TOKEN_KEY);
 		localStorage.removeItem(this.USER_KEY);
+
+		// Also clear tokenManager
+		tokenManager.clearAll();
 	}
 
 	// Check if user is authenticated
