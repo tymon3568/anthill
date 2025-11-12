@@ -4,7 +4,6 @@
  */
 
 import { browser } from '$app/environment';
-import { encryptToken, decryptToken } from './token-encryption';
 
 // In-memory token storage (most secure)
 let accessToken: string | null = null;
@@ -41,29 +40,28 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Set refresh token in sessionStorage (encrypted)
+	 * Set refresh token in sessionStorage
+	 * Note: sessionStorage is cleared on tab close, providing some security
 	 */
 	async setRefreshToken(token: string): Promise<void> {
 		if (!browser || typeof sessionStorage === 'undefined') return;
 
 		try {
-			const encrypted = encryptToken(token);
-			sessionStorage.setItem('refresh_token', encrypted);
+			sessionStorage.setItem('refresh_token', token);
 		} catch (error) {
 			console.error('Failed to store refresh token:', error);
 		}
 	},
 
 	/**
-	 * Get refresh token from sessionStorage (decrypted)
+	 * Get refresh token from sessionStorage
 	 */
 	async getRefreshToken(): Promise<string | null> {
 		if (!browser || typeof sessionStorage === 'undefined') return null;
 
 		try {
-			const encrypted = sessionStorage.getItem('refresh_token');
-			if (!encrypted) return null;
-			return decryptToken(encrypted);
+			const token = sessionStorage.getItem('refresh_token');
+			return token;
 		} catch (error) {
 			console.error('Failed to get refresh token:', error);
 			return null;
@@ -71,29 +69,27 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Store user data in sessionStorage (encrypted)
+	 * Store user data in sessionStorage
 	 */
 	async setUserData(userData: string): Promise<void> {
 		if (!browser || typeof sessionStorage === 'undefined') return;
 
 		try {
-			const encrypted = encryptToken(userData);
-			sessionStorage.setItem('user_data', encrypted);
+			sessionStorage.setItem('user_data', userData);
 		} catch (error) {
 			console.error('Failed to store user data:', error);
 		}
 	},
 
 	/**
-	 * Get user data from sessionStorage (decrypted)
+	 * Get user data from sessionStorage
 	 */
 	async getUserData(): Promise<string | null> {
 		if (!browser || typeof sessionStorage === 'undefined') return null;
 
 		try {
-			const encrypted = sessionStorage.getItem('user_data');
-			if (!encrypted) return null;
-			return decryptToken(encrypted);
+			const userData = sessionStorage.getItem('user_data');
+			return userData;
 		} catch (error) {
 			console.error('Failed to get user data:', error);
 			return null;
