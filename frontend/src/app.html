@@ -3,18 +3,6 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<!-- Content Security Policy for XSS protection -->
-		<meta http-equiv="Content-Security-Policy" content="
-			default-src 'self';
-			script-src 'self' 'nonce-%sveltekit.nonce%';
-			style-src 'self' 'unsafe-inline';
-			img-src 'self' data: https:;
-			font-src 'self' data:;
-			connect-src 'self' https: wss:;
-			object-src 'none';
-			base-uri 'self';
-			form-action 'self';
-		" />
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
