@@ -40,9 +40,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		if (!response.ok) {
 			const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
 
-			// Clear invalid tokens
+			// Clear all auth-related cookies on refresh failure
 			cookies.delete('access_token', { path: '/' });
 			cookies.delete('refresh_token', { path: '/' });
+			cookies.delete('user_data', { path: '/' });
 
 			throw error(response.status, JSON.stringify(errorData));
 		}
