@@ -5,7 +5,23 @@ import type { Cookies } from '@sveltejs/kit';
 import type { OAuth2CallbackReq, OAuth2CallbackResp } from '$lib/api/auth';
 
 // Get backend user-service URL from environment
-const USER_SERVICE_URL = (env as any).PUBLIC_USER_SERVICE_URL || 'http://localhost:8000';
+// In production, this MUST be set. In development, we allow fallback to localhost.
+function getUserServiceUrl(): string {
+	if (env.PUBLIC_USER_SERVICE_URL) {
+		return env.PUBLIC_USER_SERVICE_URL;
+	}
+
+	// Only allow fallback in development
+	if (env.PUBLIC_APP_ENV === 'development') {
+		console.warn('PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000');
+		return 'http://localhost:8000';
+	}
+
+	// Production must fail loudly if misconfigured
+	throw new Error('PUBLIC_USER_SERVICE_URL environment variable is required in production');
+}
+
+const USER_SERVICE_URL = getUserServiceUrl();
 
 export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	try {
@@ -24,11 +40,22 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		}
 
 		// Verify state matches (CSRF protection)
-		if (stored_state && body.state !== stored_state) {
-			throw error(400, JSON.stringify({
-				code: 'STATE_MISMATCH',
-				message: 'OAuth state parameter mismatch'
-			}));
+		if (body.state) {
+			// If OAuth provider sent state, cookie MUST exist
+			if (!stored_state) {
+				throw error(400, JSON.stringify({
+					code: 'MISSING_STATE_COOKIE',
+					message: 'OAuth state cookie not found in session'
+				}));
+			}
+
+			// Verify state matches
+			if (body.state !== stored_state) {
+				throw error(400, JSON.stringify({
+					code: 'STATE_MISMATCH',
+					message: 'OAuth state parameter mismatch'
+				}));
+			}
 		}
 
 		// Include code_verifier in request to backend
@@ -113,16 +140,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		if (redirectParam) {
 			// Only allow internal paths (must start with / but not //)
 			if (redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
-				// Additional check: ensure it's not a protocol-relative URL
-				try {
-					const testUrl = new URL(redirectParam, 'http://localhost');
-					if (testUrl.protocol === 'http:' || testUrl.protocol === 'https:') {
-						redirectTo = redirectParam;
-					}
-				} catch {
-					// Invalid URL, use default
-					console.warn('Invalid redirect parameter, using default');
-				}
+				redirectTo = redirectParam;
 			} else {
 				console.warn('Rejected unsafe redirect parameter:', redirectParam);
 			}

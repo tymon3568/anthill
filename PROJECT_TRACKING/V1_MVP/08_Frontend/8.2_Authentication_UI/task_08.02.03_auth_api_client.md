@@ -116,11 +116,10 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   try {
     const response = await apiClient.post<LoginResponse>('/api/v1/auth/login', credentials);
 
-    // Store token securely
-    if (response.access_token) {
-      localStorage.setItem('auth_token', response.access_token);
-      localStorage.setItem('token_type', response.token_type || 'Bearer');
-    }
+    // SECURITY: Tokens are stored in httpOnly cookies by the backend
+    // Client should NOT store tokens in localStorage (XSS vulnerability)
+    // The backend /api/v1/auth/login endpoint sets access_token and refresh_token cookies
+    // with httpOnly, secure, and sameSite attributes for maximum security
 
     return response;
   } catch (error) {
@@ -162,13 +161,19 @@ export async function register(userData: RegisterRequest): Promise<RegisterRespo
 }
 
 export function logout(): void {
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('token_type');
-  // Redirect to login page will be handled by auth store
+  // DEPRECATED: Do not access localStorage for tokens
+  // Tokens are managed via httpOnly cookies by the backend
+  // Call backend logout endpoint to clear cookies server-side
+  // Only user_data (non-sensitive) may be stored in localStorage
 }
 
+/**
+ * @deprecated Token storage moved to httpOnly cookies
+ * This function is kept for backward compatibility but should not be used
+ */
 export function getStoredToken(): string | null {
-  return localStorage.getItem('auth_token');
+  console.warn('getStoredToken() is deprecated. Tokens are in httpOnly cookies.');
+  return null;
 }
 
 export function isAuthenticated(): boolean {

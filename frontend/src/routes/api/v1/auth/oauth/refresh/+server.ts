@@ -5,7 +5,23 @@ import type { Cookies } from '@sveltejs/kit';
 import type { OAuth2RefreshReq, OAuth2RefreshResp } from '$lib/api/auth';
 
 // Get backend user-service URL from environment
-const USER_SERVICE_URL = (env as any).PUBLIC_USER_SERVICE_URL || 'http://localhost:8000';
+// In production, this MUST be set. In development, we allow fallback to localhost.
+function getUserServiceUrl(): string {
+	if (env.PUBLIC_USER_SERVICE_URL) {
+		return env.PUBLIC_USER_SERVICE_URL;
+	}
+
+	// Only allow fallback in development
+	if (env.PUBLIC_APP_ENV === 'development') {
+		console.warn('PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000');
+		return 'http://localhost:8000';
+	}
+
+	// Production must fail loudly if misconfigured
+	throw new Error('PUBLIC_USER_SERVICE_URL environment variable is required in production');
+}
+
+const USER_SERVICE_URL = getUserServiceUrl();
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
