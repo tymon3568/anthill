@@ -38,21 +38,21 @@ Create the `stock_moves` table, which will act as an **immutable** stock ledger.
 ## AI Agent Log:
 ---
 *   2025-10-29 14:00: Task claimed by Claude
-    - Verified dependency task_04.01.01_create_products_table.md is Done
-    - Starting work on creating stock_moves table migration
-    - Following Anthill multi-tenancy and immutability patterns
+  - Verified dependency task_04.01.01_create_products_table.md is Done
+  - Starting work on creating stock_moves table migration
+  - Following Anthill multi-tenancy and immutability patterns
 
 *   2025-10-29 14:30: Migration file created by Claude
-    - Created migration 20250110000024_create_stock_moves_table.sql
-    - Implemented comprehensive stock_moves table schema with immutability constraints
-    - Added multi-tenant foreign keys and composite indexes
-    - Included idempotency key for duplicate prevention
-    - Added triggers for cost calculation and immutability enforcement
+  - Created migration 20250110000024_create_stock_moves_table.sql
+  - Implemented comprehensive stock_moves table schema with immutability constraints
+  - Added multi-tenant foreign keys and composite indexes
+  - Included idempotency key for duplicate prevention
+  - Added triggers for cost calculation and immutability enforcement
 
 *   2025-10-29 15:00: Migration tested and completed by Claude
-    - Fixed foreign key constraint issues (removed composite references)
-    - Migration applied successfully to PostgreSQL database
-    - All sub-tasks completed: schema defined, immutability enforced, indexes created
-    - All acceptance criteria met: migration created, schema implemented, indexes added, migration runs successfully
-    - Stock moves table ready as foundation for inventory operations
-    - Task ready for review
+  - Fixed foreign key constraint issues (removed composite references)
+  - Migration applied successfully to PostgreSQL database
+  - All sub-tasks completed: schema defined, immutability enforced, indexes created
+  - All acceptance criteria met: migration created, schema implemented, indexes added, migration runs successfully
+  - Stock moves table ready as foundation for inventory operations
+  - Task ready for review

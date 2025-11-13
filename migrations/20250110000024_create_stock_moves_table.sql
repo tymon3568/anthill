@@ -59,8 +59,8 @@ CREATE TABLE stock_moves (
         CHECK (quantity != 0),
     CONSTRAINT stock_moves_positive_unit_cost
         CHECK (unit_cost IS NULL OR unit_cost >= 0),
-    CONSTRAINT stock_moves_positive_total_cost
-        CHECK (total_cost IS NULL OR total_cost >= 0),
+    CONSTRAINT stock_moves_total_cost_consistency
+        CHECK (total_cost IS NULL OR total_cost = quantity::BIGINT * unit_cost::BIGINT),
     CONSTRAINT stock_moves_idempotency_unique_per_tenant
         UNIQUE (tenant_id, idempotency_key) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT stock_moves_product_fk
@@ -112,9 +112,7 @@ CREATE INDEX idx_stock_moves_tenant_destination_location
 CREATE INDEX idx_stock_moves_tenant_type_date
     ON stock_moves(tenant_id, move_type, move_date DESC);
 
--- Idempotency index (enforced by unique constraint above)
-CREATE INDEX idx_stock_moves_tenant_idempotency
-    ON stock_moves(tenant_id, idempotency_key);
+-- Idempotency index (enforced by unique constraint above) - REMOVED: UNIQUE constraint already creates index
 
 -- Composite indexes for complex queries
 CREATE INDEX idx_stock_moves_tenant_product_location_date
@@ -135,7 +133,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- Calculate total_cost as quantity * unit_cost
     IF NEW.unit_cost IS NOT NULL THEN
-        NEW.total_cost := NEW.quantity * NEW.unit_cost;
+        NEW.total_cost := (NEW.quantity::BIGINT * NEW.unit_cost::BIGINT)::BIGINT;
     END IF;
 
     RETURN NEW;
@@ -204,6 +202,7 @@ COMMENT ON COLUMN stock_moves.move_date IS 'Timestamp when the physical movement
 COMMENT ON COLUMN stock_moves.move_reason IS 'Human-readable reason for the movement';
 COMMENT ON COLUMN stock_moves.batch_info IS 'Lot/serial/batch tracking information JSON';
 COMMENT ON COLUMN stock_moves.metadata IS 'Additional movement-specific data JSON';
+COMMENT ON COLUMN stock_moves.created_at IS 'Timestamp when the movement record was created (immutable)';
 
 -- ==================================
 -- MIGRATION METADATA
