@@ -2,18 +2,23 @@
 
 export interface User {
 	id: string;
-	email: string;
-	name: string;
+	email?: string;
+	name?: string;
 	role: 'admin' | 'manager' | 'user';
 	tenantId: string;
 	createdAt: string;
 	updatedAt: string;
+	// Kanidm-specific fields
+	kanidm_user_id?: string;
+	preferred_username?: string;
+	groups?: string[];
 }
 
 export interface Tenant {
 	id: string;
 	name: string;
-	domain: string;
+	domain?: string;
+	slug?: string;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -104,7 +109,8 @@ export interface RegisterForm {
 	email: string;
 	password: string;
 	confirmPassword: string;
-	name: string;
+	fullName: string;
+	tenantName: string;
 }
 
 export interface ProductForm {

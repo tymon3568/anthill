@@ -1,24 +1,9 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { ApiResponse } from '$lib/types';
 import { tokenManager } from '$lib/auth/token-manager';
+
 // Base API configuration
 const API_BASE_URL = PUBLIC_API_BASE_URL;
-
-// Track if we're currently refreshing to avoid duplicate refresh calls
-let isRefreshing = false;
-let refreshPromise: Promise<string | null> | null = null;
-let refreshSubscribers: Array<(token: string) => void> = [];
-
-// Subscribe to token refresh completion
-function subscribeTokenRefresh(cb: (token: string) => void) {
-	refreshSubscribers.push(cb);
-}
-
-// Notify all subscribers when refresh completes
-function onTokenRefreshed(token: string) {
-	refreshSubscribers.forEach(cb => cb(token));
-	refreshSubscribers = [];
-}
 
 // Generic API client
 class ApiClient {
@@ -26,55 +11,6 @@ class ApiClient {
 
 	constructor(baseURL: string = API_BASE_URL) {
 		this.baseURL = baseURL;
-	}
-
-	private async refreshAccessToken(): Promise<string | null> {
-		// If refresh is already in progress, return the existing promise
-		if (refreshPromise) {
-			return refreshPromise;
-		}
-
-		// Start new refresh
-		refreshPromise = this.performTokenRefresh();
-		try {
-			return await refreshPromise;
-		} finally {
-			// Clean up after refresh completes
-			refreshPromise = null;
-		}
-	}
-
-	private async performTokenRefresh(): Promise<string | null> {
-		const refreshToken = await tokenManager.getRefreshToken();
-		if (!refreshToken) return null;
-
-		try {
-			// Direct API call to avoid circular dependency
-			const response = await fetch(`${this.baseURL}/auth/refresh`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ refresh_token: refreshToken })
-			});
-
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}`);
-			}
-
-			const result = await response.json();
-			if (result.success && result.data) {
-				const expiresIn = result.data.expires_in || 900; // Default 15 minutes
-				tokenManager.setAccessToken(result.data.access_token, expiresIn);
-				await tokenManager.setRefreshToken(result.data.refresh_token);
-				return result.data.access_token;
-			}
-		} catch (error) {
-			console.error('Token refresh failed:', error);
-			// Clear invalid tokens
-			tokenManager.clearAll();
-		}
-		return null;
 	}
 
 	private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
@@ -88,65 +24,57 @@ class ApiClient {
 			...options
 		};
 
-		// Create AbortController for timeout
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+		// Add auth token if available, but NOT for auth endpoints that don't require authentication
+		const isAuthEndpoint = endpoint.startsWith('/auth/login') ||
+		                      endpoint.startsWith('/auth/register') ||
+		                      endpoint.startsWith('/auth/oauth/authorize') ||
+		                      endpoint.startsWith('/auth/oauth/callback') ||
+		                      endpoint.startsWith('/auth/refresh') ||
+		                      endpoint.startsWith('/auth/oauth/refresh');
 
-		config.signal = controller.signal;
-
-		// Check if token needs refresh before request
-		if (tokenManager.isAccessTokenExpiringSoon()) {
-			const newToken = await this.refreshAccessToken();
-			if (newToken) {
-				onTokenRefreshed(newToken);
+		if (!isAuthEndpoint) {
+			const token = tokenManager.getAccessToken();
+			if (token) {
+				config.headers = {
+					...config.headers,
+					Authorization: `Bearer ${token}`
+				};
 			}
-		}
-
-		// Add auth token if available
-		let token = tokenManager.getAccessToken();
-		if (token) {
-			config.headers = {
-				...config.headers,
-				Authorization: `Bearer ${token}`
-			};
 		}
 
 		try {
 			const response = await fetch(url, config);
 
-			// Clear timeout on successful response
-			clearTimeout(timeoutId);
+			if (!response.ok) {
+				// Parse error response first
+				const errorData = await response.json().catch(() => ({
+					message: 'Network error',
+					error: 'Network error'
+				}));
 
-			// Handle 401 Unauthorized - token expired
-			if (response.status === 401) {
-				// Try to refresh token once
-				const newToken = await this.refreshAccessToken();
-
-				if (newToken) {
-					// Retry original request with new token
-					config.headers = {
-						...config.headers,
-						Authorization: `Bearer ${newToken}`
-					};
-					onTokenRefreshed(newToken);
-					return this.request<T>(endpoint, options);
-				} else {
-					// Refresh failed, redirect to login
-					if (typeof window !== 'undefined') {
-						window.location.href = '/login?error=session_expired';
+				if (response.status === 401) {
+					// Only treat as session expired if NOT an auth endpoint
+					// For auth endpoints, this is just invalid credentials
+					if (!isAuthEndpoint) {
+						tokenManager.clearAll();
+						if (typeof window !== 'undefined') {
+							window.location.href = '/login?error=session_expired';
+						}
+						return {
+							success: false,
+							error: 'Session expired'
+						};
 					}
+					// For auth endpoints, return the actual error message
 					return {
 						success: false,
-						error: 'Session expired'
+						error: errorData.error || errorData.message || 'Authentication failed'
 					};
 				}
-			}
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({ message: 'Network error' }));
 				return {
 					success: false,
-					error: errorData.message || `HTTP ${response.status}`
+					error: errorData.error || errorData.message || `HTTP ${response.status}`
 				};
 			}
 
@@ -169,17 +97,6 @@ class ApiClient {
 				data
 			};
 		} catch (error) {
-			// Clear timeout on error
-			clearTimeout(timeoutId);
-
-			// Handle timeout specifically
-			if (error instanceof Error && error.name === 'AbortError') {
-				return {
-					success: false,
-					error: 'Request timeout - please try again'
-				};
-			}
-
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : 'Unknown error'

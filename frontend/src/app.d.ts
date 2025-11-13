@@ -20,6 +20,7 @@ declare module '$env/dynamic/public' {
 		PUBLIC_KANIDM_CLIENT_ID?: string;
 		PUBLIC_KANIDM_ISSUER_URL?: string;
 		PUBLIC_KANIDM_REDIRECT_URI?: string;
+		PUBLIC_USER_SERVICE_URL?: string;
 	};
 }
 
@@ -29,6 +30,7 @@ declare module '$env/static/public' {
 	export const PUBLIC_KANIDM_CLIENT_ID: string;
 	export const PUBLIC_KANIDM_ISSUER_URL: string;
 	export const PUBLIC_KANIDM_REDIRECT_URI: string;
+	export const PUBLIC_USER_SERVICE_URL: string;
 }
 
 export {};

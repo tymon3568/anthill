@@ -1,160 +1,170 @@
-import { redirect } from '@sveltejs/kit';
+import { json, error, redirect } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
-import { validateAndParseToken } from '$lib/auth/jwt';
-import { createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { RequestHandler } from './$types';
 import type { Cookies } from '@sveltejs/kit';
+import type { OAuth2CallbackReq, OAuth2CallbackResp } from '$lib/api/auth';
 
-interface TokenResponse {
-	access_token: string;
-	refresh_token?: string;
-	expires_in?: number;
-	token_type?: string;
-}
-
-// Validate required environment variables
-function getRequiredEnv(key: string): string {
-	const value = (env as Record<string, string | undefined>)[key];
-	if (!value) {
-		throw createAuthError(
-			AuthErrorCode.KANIDM_UNAVAILABLE,
-			`Missing required environment variable: ${key}`
-		);
+// Get backend user-service URL from environment
+// In production, this MUST be set. In development, we allow fallback to localhost.
+function getUserServiceUrl(): string {
+	if (env.PUBLIC_USER_SERVICE_URL) {
+		return env.PUBLIC_USER_SERVICE_URL;
 	}
-	return value;
+
+	// Only allow fallback in development
+	if (env.PUBLIC_APP_ENV === 'development') {
+		console.warn('PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000');
+		return 'http://localhost:8000';
+	}
+
+	// Production must fail loudly if misconfigured
+	throw new Error('PUBLIC_USER_SERVICE_URL environment variable is required in production');
 }
 
-// OAuth2 Configuration from environment variables
-const KANIDM_BASE_URL = getRequiredEnv('PUBLIC_KANIDM_ISSUER_URL');
-const CLIENT_ID = getRequiredEnv('PUBLIC_KANIDM_CLIENT_ID');
-const REDIRECT_URI = getRequiredEnv('PUBLIC_KANIDM_REDIRECT_URI');
+const USER_SERVICE_URL = getUserServiceUrl();
 
-export const GET: RequestHandler = async ({ url, cookies, locals }) => {
+export const POST: RequestHandler = async ({ request, cookies, url }) => {
 	try {
-		const code = url.searchParams.get('code');
-		const state = url.searchParams.get('state');
-		const error = url.searchParams.get('error');
+		// Parse request body as OAuth2CallbackReq
+		const body: OAuth2CallbackReq = await request.json();
 
-		// Validate state parameter for CSRF protection
-		const storedState = cookies.get('oauth_state');
-		if (!state || !storedState || state !== storedState) {
-			throw createAuthError(AuthErrorCode.INVALID_STATE, 'Invalid state parameter');
+		// Retrieve PKCE parameters from cookies (set during authorize step)
+		const code_verifier = cookies.get('oauth_code_verifier');
+		const stored_state = cookies.get('oauth_state');
+
+		if (!code_verifier) {
+			throw error(400, JSON.stringify({
+				code: 'MISSING_CODE_VERIFIER',
+				message: 'PKCE code_verifier not found in session'
+			}));
 		}
+
+		// Verify state matches (CSRF protection)
+		if (body.state) {
+			// If OAuth provider sent state, cookie MUST exist
+			if (!stored_state) {
+				throw error(400, JSON.stringify({
+					code: 'MISSING_STATE_COOKIE',
+					message: 'OAuth state cookie not found in session'
+				}));
+			}
+
+			// Verify state matches
+			if (body.state !== stored_state) {
+				throw error(400, JSON.stringify({
+					code: 'STATE_MISMATCH',
+					message: 'OAuth state parameter mismatch'
+				}));
+			}
+		}
+
+		// Include code_verifier in request to backend
+		const callbackRequest: OAuth2CallbackReq = {
+			...body,
+			code_verifier
+		};
+
+		// Forward request to backend user-service
+		const response = await fetch(`${USER_SERVICE_URL}/api/v1/auth/oauth/callback`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(callbackRequest)
+		});
+
+		// Clear PKCE cookies after use (single-use tokens)
+		cookies.delete('oauth_code_verifier', { path: '/' });
 		cookies.delete('oauth_state', { path: '/' });
 
-		// Handle OAuth2 errors from Kanidm
-		if (error) {
-			console.error('OAuth2 callback error:', error);
-			throw redirect(302, `/login?error=${error}`);
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+			throw error(response.status, JSON.stringify(errorData));
 		}
 
-		// Validate required parameters
-		if (!code) {
-			throw createAuthError(AuthErrorCode.INVALID_CODE);
+		const data: OAuth2CallbackResp = await response.json();
+
+		// Store tokens in httpOnly cookies if present
+		if (data.access_token) {
+			const maxAge = data.expires_in || 3600; // Default 1 hour
+			cookies.set('access_token', data.access_token, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'strict',
+				maxAge: maxAge
+			});
 		}
 
-		// Get code verifier from cookie
-		const codeVerifier = cookies.get('oauth_code_verifier');
-		if (!codeVerifier) {
-			throw createAuthError(AuthErrorCode.MISSING_VERIFIER);
+		if (data.refresh_token) {
+			cookies.set('refresh_token', data.refresh_token, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'strict',
+				maxAge: 30 * 24 * 60 * 60 // 30 days
+			});
 		}
 
-		// Exchange authorization code for tokens
-		const tokenResponse = await exchangeCodeForTokens(code, codeVerifier);
+		// Store user and tenant information for client-side access
+		if (data.user) {
+			const userData = {
+				kanidm_user_id: data.user.kanidm_user_id,
+				email: data.user.email,
+				preferred_username: data.user.preferred_username,
+				groups: data.user.groups,
+				tenant: data.tenant
+					? {
+							tenant_id: data.tenant.tenant_id,
+							name: data.tenant.name,
+							slug: data.tenant.slug,
+							role: data.tenant.role
+						}
+					: undefined
+			};
 
-		// Validate and parse JWT token
-		const userInfo = validateAndParseToken(tokenResponse.access_token);
-
-		if (!userInfo) {
-			throw createAuthError(AuthErrorCode.INVALID_TOKEN);
+			// Store user data in a cookie that can be read by client
+			cookies.set('user_data', JSON.stringify(userData), {
+				path: '/',
+				httpOnly: false, // Allow client-side access
+				secure: true,
+				sameSite: 'strict',
+				maxAge: 30 * 24 * 60 * 60 // 30 days
+			});
 		}
 
-		// Store tokens securely in httpOnly cookies
-		storeTokensSecurely(cookies, tokenResponse);
+		// Validate and sanitize redirect parameter (prevent open redirect)
+		const redirectParam = url.searchParams.get('redirect');
+		let redirectTo = '/dashboard'; // Default safe redirect
 
-		// Update auth store with user information
-		// Note: This would typically be handled by the auth store
-		// For now, we'll redirect to dashboard
+		if (redirectParam) {
+			// Only allow internal paths (must start with / but not //)
+			if (redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+				redirectTo = redirectParam;
+			} else {
+				console.warn('Rejected unsafe redirect parameter:', redirectParam);
+			}
+		}
 
-		// Clear the code verifier cookie
-		cookies.delete('oauth_code_verifier', { path: '/' });
-
-		// Redirect to dashboard on success
-		throw redirect(302, '/dashboard');
-
-	} catch (error) {
-		console.error('OAuth2 callback error:', error);
+		throw redirect(302, redirectTo);
+	} catch (err) {
+		console.error('OAuth2 callback error:', err);
 
 		// Clear any stored tokens on error
 		cookies.delete('access_token', { path: '/' });
 		cookies.delete('refresh_token', { path: '/' });
+		cookies.delete('user_data', { path: '/' });
 
-		// Handle auth errors with proper error codes
-		if (error instanceof Error && 'code' in error) {
-			const authError = error as any;
-			throw redirect(302, `/login?error=${authError.code}&message=${encodeURIComponent(authError.message)}`);
-		} else {
-			throw redirect(302, '/login?error=callback_failed');
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err; // Re-throw SvelteKit errors
 		}
+
+		throw error(
+			500,
+			JSON.stringify({
+				code: 'OAUTH_CALLBACK_FAILED',
+				message: 'Failed to complete OAuth2 callback'
+			})
+		);
 	}
 };
-
-// Exchange authorization code for access and refresh tokens
-async function exchangeCodeForTokens(code: string, codeVerifier: string) {
-	const tokenUrl = new URL('/oauth2/token', KANIDM_BASE_URL);
-
-	const response = await fetch(tokenUrl.toString(), {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-		},
-		body: new URLSearchParams({
-			grant_type: 'authorization_code',
-			client_id: CLIENT_ID,
-			code: code,
-			redirect_uri: REDIRECT_URI,
-			code_verifier: codeVerifier,
-		}),
-	});
-
-	if (!response.ok) {
-		const errorData = await response.text();
-		throw createAuthError(AuthErrorCode.TOKEN_EXCHANGE_FAILED, `Token exchange failed: ${response.status} ${errorData}`);
-	}
-
-	const tokenData = await response.json();
-
-	if (!tokenData.access_token) {
-		throw createAuthError(AuthErrorCode.TOKEN_EXCHANGE_FAILED, 'No access token received');
-	}
-
-	return {
-		access_token: tokenData.access_token,
-		refresh_token: tokenData.refresh_token,
-		expires_in: tokenData.expires_in,
-		token_type: tokenData.token_type,
-	};
-}
-
-// Store tokens securely in httpOnly cookies
-function storeTokensSecurely(cookies: Cookies, tokenResponse: TokenResponse) {
-	const maxAge = tokenResponse.expires_in || 3600; // Default 1 hour
-
-	cookies.set('access_token', tokenResponse.access_token, {
-		path: '/',
-		httpOnly: true,
-		secure: true,
-		sameSite: 'strict',
-		maxAge: maxAge,
-	});
-
-	if (tokenResponse.refresh_token) {
-		cookies.set('refresh_token', tokenResponse.refresh_token, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'strict',
-			maxAge: 30 * 24 * 60 * 60, // 30 days
-		});
-	}
-}

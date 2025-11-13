@@ -1,23 +1,16 @@
-// Conditionally import environment variable for testing compatibility
-let kanidmIssuerUrl = 'https://idm.example.com';
-try {
-	const env = await import('$env/dynamic/public');
-	kanidmIssuerUrl = env.env.PUBLIC_KANIDM_ISSUER_URL || kanidmIssuerUrl;
-} catch {
-	// For testing environments, use default
-	kanidmIssuerUrl = 'https://idm.example.com';
-}
+// Simplified JWT handling for client-side use only
+// Removed complex signature verification - not needed for client-side
 
 export interface KanidmJWT {
-	sub: string;           // Kanidm user UUID
-	email: string;         // User email
+	sub: string; // Kanidm user UUID
+	email: string; // User email
 	preferred_username?: string;
 	name?: string;
-	groups: string[];      // Kanidm groups (tenant mappings)
-	exp: number;           // Expiry timestamp
-	iat: number;           // Issued at timestamp
-	iss?: string;          // Issuer
-	aud?: string;          // Audience
+	groups: string[]; // Kanidm groups (tenant mappings)
+	exp: number; // Expiry timestamp
+	iat: number; // Issued at timestamp
+	iss?: string; // Issuer
+	aud?: string; // Audience
 }
 
 export interface UserInfo {
@@ -30,8 +23,6 @@ export interface UserInfo {
 
 /**
  * Decode JWT payload without verification (for client-side use)
- * WARNING: This does NOT verify the JWT signature - only use for display purposes
- * Server-side verification should always be performed for security
  */
 export function decodeJwtPayload(token: string): KanidmJWT | null {
 	try {
@@ -44,134 +35,6 @@ export function decodeJwtPayload(token: string): KanidmJWT | null {
 		console.error('Failed to decode JWT:', error);
 		return null;
 	}
-}
-
-/**
- * Verify JWT signature using Kanidm's public key
- * NOTE: This should ideally be done server-side for security
- * Client-side verification is provided for completeness but has limitations
- */
-export async function verifyJwtSignature(token: string): Promise<boolean> {
-	try {
-		// Split token into parts
-		const parts = token.split('.');
-		if (parts.length !== 3) return false;
-
-		const [header, payload, signature] = parts;
-
-		// Decode header to get algorithm and key ID
-		const headerData = JSON.parse(atob(header.replace(/-/g, '+').replace(/_/g, '/')));
-		const { alg, kid } = headerData;
-
-		if (alg !== 'RS256') {
-			console.error('Unsupported JWT algorithm:', alg);
-			return false;
-		}
-
-		// Fetch JWKS from Kanidm
-		const jwksUrl = `${kanidmIssuerUrl}/.well-known/jwks.json`;
-		const jwksResponse = await fetch(jwksUrl);
-
-		if (!jwksResponse.ok) {
-			console.error('Failed to fetch JWKS');
-			return false;
-		}
-
-		const jwks = await jwksResponse.json();
-		const key = jwks.keys.find((k: any) => k.kid === kid);
-
-		if (!key) {
-			console.error('Public key not found for kid:', kid);
-			return false;
-		}
-
-		// Import the RSA public key
-		const publicKey = await crypto.subtle.importKey(
-			'jwk',
-			key,
-			{
-				name: 'RSASSA-PKCS1-v1_5',
-				hash: 'SHA-256',
-			},
-			false,
-			['verify']
-		);
-
-		// Verify signature
-		const encoder = new TextEncoder();
-		const data = encoder.encode(`${header}.${payload}`);
-		const signatureBytes = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-
-		return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', publicKey, signatureBytes, data);
-
-	} catch (error) {
-		console.error('JWT signature verification failed:', error);
-		return false;
-	}
-}
-
-/**
- * Validate JWT structure and extract user information
- * @param accessToken JWT token to validate
- * @param verifySignature Whether to verify JWT signature (default: false for client-side)
- */
-export async function validateAndParseToken(accessToken: string, verifySignature = false): Promise<UserInfo | null> {
-	// Verify signature if requested
-	if (verifySignature) {
-		const isValid = await verifyJwtSignature(accessToken);
-		if (!isValid) {
-			console.error('JWT signature verification failed');
-			return null;
-		}
-	}
-
-	const payload = decodeJwtPayload(accessToken);
-	if (!payload) return null;
-
-	// Basic validation
-	if (!payload.sub || !payload.email) {
-		console.error('Invalid JWT: missing required claims');
-		return null;
-	}
-
-	// Check expiry
-	if (payload.exp && payload.exp * 1000 < Date.now()) {
-		console.error('JWT token has expired');
-		return null;
-	}
-
-	// Extract tenant information from groups
-	const tenantId = extractTenantFromGroups(payload.groups);
-
-	return {
-		userId: payload.sub,
-		email: payload.email,
-		name: payload.name || payload.preferred_username,
-		groups: payload.groups || [],
-		tenantId
-	};
-}
-
-/**
- * Extract tenant ID from Kanidm groups
- */
-export function extractTenantFromGroups(groups: string[]): string | undefined {
-	if (!groups || !Array.isArray(groups)) {
-		return undefined;
-	}
-
-	// Look for groups that match tenant pattern
-	// Example: ['tenant_acme_users', 'tenant_xyz_admins']
-	const tenantGroup = groups.find(group =>
-		group.startsWith('tenant_') && group.endsWith('_users')
-	);
-
-	if (tenantGroup) {
-		// Extract tenant name from group (e.g., 'acme' from 'tenant_acme_users')
-		return tenantGroup.replace('tenant_', '').replace('_users', '');
-	}
-
-	return undefined;
 }
 
 /**
@@ -201,4 +64,107 @@ export function shouldRefreshToken(token: string): boolean {
 
 	const fiveMinutes = 5 * 60 * 1000;
 	return expiry - Date.now() < fiveMinutes;
+}
+
+/**
+ * Extract tenant ID from Kanidm groups
+ */
+export function extractTenantFromGroups(groups: string[]): string | undefined {
+	if (!groups || !Array.isArray(groups)) {
+		return undefined;
+	}
+
+	// Look for groups that match tenant pattern
+	const tenantGroup = groups.find(
+		(group) => group.startsWith('tenant_') && group.endsWith('_users')
+	);
+
+	if (tenantGroup) {
+		// Extract tenant name from group
+		return tenantGroup.replace('tenant_', '').replace('_users', '');
+	}
+
+	return undefined;
+}
+
+/**
+ * Validate and parse JWT token with optional signature verification
+ *
+ * @param token - JWT token to validate
+ * @param verifySignature - If true, performs full cryptographic verification via server
+ * @returns UserInfo if valid, null otherwise
+ *
+ * CRITICAL SECURITY MODES:
+ *
+ * verifySignature=true (SECURE):
+ *   - Calls server endpoint that performs full JWT signature verification
+ *   - Validates signature against Kanidm JWKS (cryptographic verification)
+ *   - Checks exp, nbf, iss claims
+ *   - Rejects expired or manipulated tokens
+ *   - Groups and tenantId are signature-protected (cannot be tampered)
+ *   - USE THIS for any security-critical operations (authorization, access control)
+ *
+ * verifySignature=false (INSECURE):
+ *   - Client-side base64 decode only (NO signature verification)
+ *   - Anyone can forge tokens with arbitrary claims
+ *   - Only checks basic expiry via exp claim (which can be forged)
+ *   - USE THIS ONLY for non-security-critical UI operations (display name, etc.)
+ *   - NEVER use for authorization decisions
+ */
+export async function validateAndParseToken(
+	token: string,
+	verifySignature: boolean = false
+): Promise<UserInfo | null> {
+	try {
+		if (verifySignature) {
+			// SECURE PATH: Server-side cryptographic verification
+			// The backend performs full JWT signature verification against Kanidm JWKS
+			try {
+				const response = await fetch('/api/v1/auth/verify-token', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ token }),
+					credentials: 'include'
+				});
+
+				if (!response.ok) {
+					console.error('Server-side token verification failed:', response.status);
+					return null; // Reject unverified/expired tokens
+				}
+
+				// Trust server response - it has cryptographically verified the token
+				// Groups, tenantId, and all claims are signature-protected
+				const userInfo: UserInfo = await response.json();
+				return userInfo;
+			} catch (networkError) {
+				console.error('Token verification network error:', networkError);
+				return null; // Do not accept unverified tokens - fail closed
+			}
+		}
+
+		// INSECURE PATH: Client-side decode without signature verification
+		// ⚠️ WARNING: Use ONLY for non-security-critical operations
+		// This path is vulnerable to token forgery and manipulation
+		const payload = decodeJwtPayload(token);
+		if (!payload) return null;
+
+		// Check if token is expired (note: exp claim itself can be forged!)
+		if (isTokenExpired(token)) return null;
+
+		// Extract tenant from groups (note: groups can be forged!)
+		const tenantId = extractTenantFromGroups(payload.groups);
+
+		return {
+			userId: payload.sub,
+			email: payload.email,
+			name: payload.name || payload.preferred_username,
+			groups: payload.groups,
+			tenantId
+		};
+	} catch (error) {
+		console.error('Token validation failed:', error);
+		return null;
+	}
 }

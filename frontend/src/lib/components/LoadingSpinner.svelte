@@ -18,7 +18,7 @@
 </script>
 
 <div
-	class="animate-spin rounded-full border-b-primary border-t-transparent {sizeClasses[
+	class="animate-spin rounded-full border-t-transparent border-b-primary {sizeClasses[
 		size
 	]} {className}"
 	role="status"

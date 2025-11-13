@@ -41,7 +41,7 @@ describe('Auth Store Logic', () => {
 		it('should allow write access for managers and admins', () => {
 			const roles = ['manager', 'admin'];
 
-			roles.forEach(role => {
+			roles.forEach((role) => {
 				authLogic.setUser({
 					id: 'user-1',
 					email: 'user@example.com',
@@ -90,7 +90,7 @@ describe('Auth Store Logic', () => {
 		it('should deny admin access for non-admins', () => {
 			const nonAdminRoles = ['user', 'manager'];
 
-			nonAdminRoles.forEach(role => {
+			nonAdminRoles.forEach((role) => {
 				authLogic.setUser({
 					id: 'user-1',
 					email: 'user@example.com',

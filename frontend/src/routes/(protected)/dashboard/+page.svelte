@@ -9,11 +9,6 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<div>
-		<h1 class="text-3xl font-bold">Dashboard</h1>
-		<p class="text-muted-foreground">Welcome back, {authState.user?.name || 'User'}!</p>
-	</div>
-
 	<!-- Welcome Card -->
 	<Card>
 		<CardHeader>
@@ -21,9 +16,7 @@
 		</CardHeader>
 		<CardContent>
 			<div class="space-y-4">
-				<p class="text-muted-foreground">
-					Your inventory management system is ready to use.
-				</p>
+				<p class="text-muted-foreground">Your inventory management system is ready to use.</p>
 				{#if authState.user}
 					<div class="space-y-2">
 						<p><strong>Email:</strong> {authState.user.email}</p>
@@ -74,8 +67,11 @@
 	<Card>
 		<CardContent class="pt-6">
 			<div class="text-center text-muted-foreground">
-				<p class="text-lg font-semibold mb-2">Inventory Features Coming Soon</p>
-				<p>Product management, stock tracking, and reporting features will be available once the backend services are ready.</p>
+				<p class="mb-2 text-lg font-semibold">Inventory Features Coming Soon</p>
+				<p>
+					Product management, stock tracking, and reporting features will be available once the
+					backend services are ready.
+				</p>
 			</div>
 		</CardContent>
 	</Card>

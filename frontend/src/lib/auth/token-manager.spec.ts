@@ -1,18 +1,8 @@
-import { describe, it, expect, beforeEach, vi, afterEach, type MockedFunction } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { tokenManager } from './token-manager';
-import { encryptToken, decryptToken } from './token-encryption';
 
 // Mock browser environment - sessionStorage is already mocked in vitest-setup-server.ts
 const mockBrowser = window.sessionStorage as any;
-
-// Mock the encryption functions
-vi.mock('./token-encryption', () => ({
-	encryptToken: vi.fn(),
-	decryptToken: vi.fn()
-}));
-
-const mockEncryptToken = vi.mocked(encryptToken);
-const mockDecryptToken = vi.mocked(decryptToken);
 
 // Mock browser detection
 vi.mock('$app/environment', () => ({
@@ -27,10 +17,6 @@ describe('Token Manager', () => {
 		// Reset sessionStorage mocks
 		mockBrowser.setItem.mockReset();
 		mockBrowser.removeItem.mockReset();
-		// Note: Don't reset getItem here as tests set it up individually
-		// Set up encryption mocks
-		mockEncryptToken.mockResolvedValue('encrypted-token');
-		mockDecryptToken.mockResolvedValue('decrypted-data');
 	});
 
 	afterEach(() => {
@@ -73,7 +59,7 @@ describe('Token Manager', () => {
 
 		it('should return false when token expires after 2 minutes', () => {
 			const token = 'test-access-token';
-			const expiresIn = 121; // 2 minutes 1 second
+			const expiresIn = 601; // 10 minutes 1 second
 
 			tokenManager.setAccessToken(token, expiresIn);
 
@@ -89,16 +75,16 @@ describe('Token Manager', () => {
 		it('should store and retrieve refresh token', async () => {
 			const token = 'test-refresh-token';
 
-			// Mock sessionStorage to return the encrypted token for refresh_token key
+			// Mock sessionStorage to return the token for refresh_token key
 			mockBrowser.getItem.mockImplementation((key: string) => {
-				if (key === 'refresh_token') return 'encrypted-token';
+				if (key === 'refresh_token') return token;
 				return null;
 			});
 
 			await tokenManager.setRefreshToken(token);
 			const retrieved = await tokenManager.getRefreshToken();
 
-			expect(retrieved).toBe('decrypted-data');
+			expect(retrieved).toBe(token);
 		});
 
 		it('should return null when no refresh token is stored', async () => {
@@ -129,16 +115,16 @@ describe('Token Manager', () => {
 		it('should store and retrieve user data', async () => {
 			const userData = JSON.stringify({ id: '1', email: 'test@example.com' });
 
-			// Mock sessionStorage to return the encrypted data for user_data key
+			// Mock sessionStorage to return the data for user_data key
 			mockBrowser.getItem.mockImplementation((key: string) => {
-				if (key === 'user_data') return 'encrypted-token';
+				if (key === 'user_data') return userData;
 				return null;
 			});
 
 			await tokenManager.setUserData(userData);
 			const retrieved = await tokenManager.getUserData();
 
-			expect(retrieved).toBe('decrypted-data');
+			expect(retrieved).toBe(userData);
 		});
 
 		it('should return null when no user data is stored', async () => {
@@ -167,21 +153,25 @@ describe('Token Manager', () => {
 
 	describe('clearAll', () => {
 		it('should clear all tokens and data', async () => {
+			const refreshToken = 'refresh-token';
+			const userData = 'user-data';
+
 			// Set up data
 			tokenManager.setAccessToken('access-token', 3600);
-			await tokenManager.setRefreshToken('refresh-token');
-			await tokenManager.setUserData('user-data');
+			await tokenManager.setRefreshToken(refreshToken);
+			await tokenManager.setUserData(userData);
 
-			// Mock sessionStorage to return encrypted data initially
+			// Mock sessionStorage to return data initially
 			mockBrowser.getItem.mockImplementation((key: string) => {
-				if (key === 'refresh_token' || key === 'user_data') return 'encrypted-token';
+				if (key === 'refresh_token') return refreshToken;
+				if (key === 'user_data') return userData;
 				return null;
 			});
 
 			// Verify data is set
 			expect(tokenManager.getAccessToken()).toBe('access-token');
-			expect(await tokenManager.getRefreshToken()).toBe('decrypted-data');
-			expect(await tokenManager.getUserData()).toBe('decrypted-data');
+			expect(await tokenManager.getRefreshToken()).toBe(refreshToken);
+			expect(await tokenManager.getUserData()).toBe(userData);
 
 			// Clear all
 			tokenManager.clearAll();
@@ -206,13 +196,15 @@ describe('Token Manager', () => {
 
 	describe('hasValidSession', () => {
 		it('should return true when refresh token exists', async () => {
-			// Mock sessionStorage to return encrypted token
+			const token = 'refresh-token';
+
+			// Mock sessionStorage to return token
 			mockBrowser.getItem.mockImplementation((key: string) => {
-				if (key === 'refresh_token') return 'encrypted-token';
+				if (key === 'refresh_token') return token;
 				return null;
 			});
 
-			await tokenManager.setRefreshToken('refresh-token');
+			await tokenManager.setRefreshToken(token);
 
 			const hasSession = await tokenManager.hasValidSession();
 

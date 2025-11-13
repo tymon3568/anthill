@@ -20,17 +20,19 @@
 </svelte:head>
 
 {#if authState.isLoading}
-	<div class="min-h-screen flex items-center justify-center bg-gray-50">
+	<div class="flex min-h-screen items-center justify-center bg-gray-50">
 		<div class="text-center">
-			<div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+			<div
+				class="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-primary border-t-transparent"
+			></div>
 			<p class="text-gray-600">Loading...</p>
 		</div>
 	</div>
 {:else}
 	<!-- This will be replaced by redirect -->
-	<div class="min-h-screen flex items-center justify-center bg-gray-50">
+	<div class="flex min-h-screen items-center justify-center bg-gray-50">
 		<div class="text-center">
-			<h1 class="text-2xl font-bold text-gray-900 mb-4">Anthill Inventory</h1>
+			<h1 class="mb-4 text-2xl font-bold text-gray-900">Anthill Inventory</h1>
 			<p class="text-gray-600">Redirecting...</p>
 		</div>
 	</div>

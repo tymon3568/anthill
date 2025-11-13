@@ -1,110 +1,131 @@
 import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
-import { createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { RequestHandler } from './$types';
 import type { Cookies } from '@sveltejs/kit';
+import type { OAuth2RefreshReq, OAuth2RefreshResp } from '$lib/api/auth';
 
-interface TokenResponse {
-	access_token: string;
-	refresh_token?: string;
-	expires_in?: number;
-	token_type?: string;
+// Get backend user-service URL from environment
+// In production, this MUST be set. In development, we allow fallback to localhost.
+function getUserServiceUrl(): string {
+	if (env.PUBLIC_USER_SERVICE_URL) {
+		return env.PUBLIC_USER_SERVICE_URL;
+	}
+
+	// Only allow fallback in development
+	if (env.PUBLIC_APP_ENV === 'development') {
+		console.warn('PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000');
+		return 'http://localhost:8000';
+	}
+
+	// Production must fail loudly if misconfigured
+	throw new Error('PUBLIC_USER_SERVICE_URL environment variable is required in production');
 }
 
-// OAuth2 Configuration from environment variables
-const KANIDM_BASE_URL = (env as any).PUBLIC_KANIDM_ISSUER_URL;
-const CLIENT_ID = (env as any).PUBLIC_KANIDM_CLIENT_ID;
+const USER_SERVICE_URL = getUserServiceUrl();
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
-		// Get refresh token from httpOnly cookie
-		const refreshToken = cookies.get('refresh_token');
+		// Support both cookie-based and body-based refresh token flows
+		let refreshToken: string | undefined;
 
-		if (!refreshToken) {
-			throw error(401, JSON.stringify(createAuthError(AuthErrorCode.NO_SESSION)));
+		// Try to parse JSON body first (for explicit refresh_token in request)
+		try {
+			const contentLength = request.headers.get('content-length');
+			if (contentLength && parseInt(contentLength) > 0) {
+				const body: OAuth2RefreshReq = await request.json();
+				refreshToken = body.refresh_token;
+			}
+		} catch (parseError) {
+			// JSON parsing failed or no body - will fall back to cookies
+			console.debug('No JSON body or parse failed, checking cookies for refresh_token');
 		}
 
-		// Exchange refresh token for new access token
-		const tokenResponse = await refreshAccessToken(refreshToken);
+		// If no refresh_token in body, read from httpOnly cookie
+		if (!refreshToken) {
+			refreshToken = cookies.get('refresh_token');
+		}
 
-		// Store new tokens securely
-		storeTokensSecurely(cookies, tokenResponse);
+		// If still no refresh_token, fail
+		if (!refreshToken) {
+			throw error(
+				401,
+				JSON.stringify({
+					code: 'MISSING_REFRESH_TOKEN',
+					message: 'No refresh token provided in body or cookies'
+				})
+			);
+		}
 
-		return json({
-			success: true,
-			access_token: tokenResponse.access_token,
-			expires_in: tokenResponse.expires_in,
-			token_type: tokenResponse.token_type
+		// Synthesize the payload for backend
+		const payload: OAuth2RefreshReq = { refresh_token: refreshToken };
+
+		// Forward request to backend user-service
+		const response = await fetch(`${USER_SERVICE_URL}/api/v1/auth/oauth/refresh`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(payload)
 		});
 
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+
+			// Clear all auth-related cookies on refresh failure
+			cookies.delete('access_token', { path: '/' });
+			cookies.delete('refresh_token', { path: '/' });
+			cookies.delete('user_data', { path: '/' });
+
+			throw error(response.status, JSON.stringify(errorData));
+		}
+
+		const data: OAuth2RefreshResp = await response.json();
+
+		// Store new tokens in httpOnly cookies if present
+		if (data.access_token) {
+			const maxAge = data.expires_in || 3600; // Default 1 hour
+			cookies.set('access_token', data.access_token, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'strict',
+				maxAge: maxAge
+			});
+		}
+
+		if (data.refresh_token) {
+			cookies.set('refresh_token', data.refresh_token, {
+				path: '/',
+				httpOnly: true,
+				secure: true,
+				sameSite: 'strict',
+				maxAge: 30 * 24 * 60 * 60 // 30 days
+			});
+		}
+
+		// Return sanitized response - DO NOT expose tokens to client
+		// Tokens are stored in httpOnly cookies, only return non-sensitive metadata
+		const sanitizedResponse = {
+			success: true,
+			token_type: data.token_type,
+			expires_in: data.expires_in
+			// Explicitly omit: access_token, refresh_token, id_token
+		};
+
+		return json(sanitizedResponse);
 	} catch (err) {
-		console.error('Token refresh error:', err);
+		console.error('OAuth2 refresh error:', err);
 
-		// Clear invalid tokens
-		cookies.delete('access_token', { path: '/' });
-		cookies.delete('refresh_token', { path: '/' });
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err; // Re-throw SvelteKit errors
+		}
 
-		const authError = err instanceof Error && 'code' in err
-			? err as any
-			: createAuthError(AuthErrorCode.REFRESH_FAILED);
-		throw error(authError.statusCode, JSON.stringify(authError));
+		throw error(
+			500,
+			JSON.stringify({
+				code: 'OAUTH_REFRESH_FAILED',
+				message: 'Failed to refresh OAuth2 tokens'
+			})
+		);
 	}
 };
-
-// Exchange refresh token for new access token
-async function refreshAccessToken(refreshToken: string) {
-	const tokenUrl = new URL('/oauth2/token', KANIDM_BASE_URL);
-
-	const response = await fetch(tokenUrl.toString(), {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-		},
-		body: new URLSearchParams({
-			grant_type: 'refresh_token',
-			client_id: CLIENT_ID,
-			refresh_token: refreshToken,
-		}),
-	});
-
-	if (!response.ok) {
-		const errorData = await response.text();
-		throw createAuthError(AuthErrorCode.REFRESH_FAILED, `Token refresh failed: ${response.status} ${errorData}`);
-	}
-
-	const tokenData = await response.json();
-
-	if (!tokenData.access_token) {
-		throw createAuthError(AuthErrorCode.REFRESH_FAILED, 'No access token received from refresh');
-	}
-
-	return {
-		access_token: tokenData.access_token,
-		refresh_token: tokenData.refresh_token || refreshToken, // Keep old refresh token if not provided
-		expires_in: tokenData.expires_in,
-		token_type: tokenData.token_type,
-	};
-}
-
-// Store tokens securely in httpOnly cookies
-function storeTokensSecurely(cookies: Cookies, tokenResponse: TokenResponse) {
-	const maxAge = tokenResponse.expires_in || 3600; // Default 1 hour
-
-	cookies.set('access_token', tokenResponse.access_token, {
-		path: '/',
-		httpOnly: true,
-		secure: true,
-		sameSite: 'strict',
-		maxAge: maxAge,
-	});
-
-	if (tokenResponse.refresh_token) {
-		cookies.set('refresh_token', tokenResponse.refresh_token, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'strict',
-			maxAge: 30 * 24 * 60 * 60, // 30 days
-		});
-	}
-}

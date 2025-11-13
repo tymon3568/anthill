@@ -35,7 +35,7 @@ export async function loginAction(email: string, password: string) {
 			authStore.setUser(user);
 
 			// Wait a tick to ensure state is updated
-			await new Promise(resolve => setTimeout(resolve, 0));
+			await new Promise((resolve) => setTimeout(resolve, 0));
 
 			return { success: true };
 		} else {
@@ -56,7 +56,7 @@ export async function registerAction(userData: {
 	email: string;
 	password: string;
 	confirmPassword: string;
-	tenantName?: string
+	tenantName?: string;
 }) {
 	authStore.setLoading(true);
 	try {
@@ -83,15 +83,12 @@ export async function registerAction(userData: {
  * Logout action - can be used without triggering auth initialization
  */
 export async function logoutAction() {
-	// Call backend to revoke refresh token
-	const refreshToken = await tokenManager.getRefreshToken();
-	if (refreshToken) {
-		try {
-			await authApi.logoutLegacy({ refresh_token: refreshToken });
-		} catch (error) {
-			console.error('Logout API call failed:', error);
-			// Continue with client-side logout even if API fails
-		}
+	// Call backend to revoke refresh token from httpOnly cookies
+	try {
+		await authApi.logout();
+	} catch (error) {
+		console.error('Logout API call failed:', error);
+		// Continue with client-side logout even if API fails
 	}
 
 	// Clear all tokens and user data

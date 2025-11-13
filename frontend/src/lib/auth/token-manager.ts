@@ -1,16 +1,9 @@
 /**
- * Production-grade token management
- *
- * Strategy:
- * 1. Keep access_token in memory (most secure, lost on page refresh)
- * 2. Keep refresh_token in sessionStorage (survives refresh, cleared on tab close)
- * 3. Never use localStorage (vulnerable to XSS across all tabs)
- * 4. Auto-refresh before token expiration
- * 5. Clear all on logout
+ * Simplified token management for client-side use
+ * Uses sessionStorage for security (cleared on tab close)
  */
 
 import { browser } from '$app/environment';
-import { encryptToken, decryptToken } from './token-encryption';
 
 // In-memory token storage (most secure)
 let accessToken: string | null = null;
@@ -26,7 +19,7 @@ export const tokenManager = {
 
 		accessToken = token;
 		// Calculate expiration time (expiresIn is in seconds)
-		tokenExpiresAt = Date.now() + (expiresIn * 1000);
+		tokenExpiresAt = Date.now() + expiresIn * 1000;
 	},
 
 	/**
@@ -47,39 +40,28 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Check if access token is about to expire (within 2 minutes)
-	 */
-	isAccessTokenExpiringSoon(): boolean {
-		if (!browser || !tokenExpiresAt) return false;
-
-		const twoMinutes = 2 * 60 * 1000;
-		return Date.now() >= (tokenExpiresAt - twoMinutes);
-	},
-
-	/**
-	 * Set refresh token in sessionStorage (encrypted)
+	 * Set refresh token in sessionStorage
+	 * Note: sessionStorage is cleared on tab close, providing some security
 	 */
 	async setRefreshToken(token: string): Promise<void> {
 		if (!browser || typeof sessionStorage === 'undefined') return;
 
 		try {
-			const encrypted = await encryptToken(token);
-			sessionStorage.setItem('refresh_token', encrypted);
+			sessionStorage.setItem('refresh_token', token);
 		} catch (error) {
 			console.error('Failed to store refresh token:', error);
 		}
 	},
 
 	/**
-	 * Get refresh token from sessionStorage (encrypted)
+	 * Get refresh token from sessionStorage
 	 */
 	async getRefreshToken(): Promise<string | null> {
 		if (!browser || typeof sessionStorage === 'undefined') return null;
 
 		try {
-			const encrypted = sessionStorage.getItem('refresh_token');
-			if (!encrypted) return null;
-			return await decryptToken(encrypted);
+			const token = sessionStorage.getItem('refresh_token');
+			return token;
 		} catch (error) {
 			console.error('Failed to get refresh token:', error);
 			return null;
@@ -87,29 +69,27 @@ export const tokenManager = {
 	},
 
 	/**
-	 * Store user data in sessionStorage (encrypted)
+	 * Store user data in sessionStorage
 	 */
 	async setUserData(userData: string): Promise<void> {
 		if (!browser || typeof sessionStorage === 'undefined') return;
 
 		try {
-			const encrypted = await encryptToken(userData);
-			sessionStorage.setItem('user_data', encrypted);
+			sessionStorage.setItem('user_data', userData);
 		} catch (error) {
 			console.error('Failed to store user data:', error);
 		}
 	},
 
 	/**
-	 * Get user data from sessionStorage (encrypted)
+	 * Get user data from sessionStorage
 	 */
 	async getUserData(): Promise<string | null> {
 		if (!browser || typeof sessionStorage === 'undefined') return null;
 
 		try {
-			const encrypted = sessionStorage.getItem('user_data');
-			if (!encrypted) return null;
-			return await decryptToken(encrypted);
+			const userData = sessionStorage.getItem('user_data');
+			return userData;
 		} catch (error) {
 			console.error('Failed to get user data:', error);
 			return null;
@@ -157,5 +137,16 @@ export const tokenManager = {
 
 		const remaining = tokenExpiresAt - Date.now();
 		return Math.max(0, Math.floor(remaining / 1000));
+	},
+
+	/**
+	 * Check if access token is expiring soon (within 5 minutes)
+	 */
+	isAccessTokenExpiringSoon(): boolean {
+		const timeUntilExpiration = this.getTimeUntilExpiration();
+		if (timeUntilExpiration === null) return false;
+
+		const fiveMinutes = 5 * 60; // 5 minutes in seconds
+		return timeUntilExpiration <= fiveMinutes;
 	}
 };

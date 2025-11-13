@@ -9,9 +9,9 @@ export default defineConfig({
 	testDir: 'e2e',
 	use: {
 		actionTimeout: 10000,
-		navigationTimeout: 30000,
+		navigationTimeout: 30000
 	},
 	expect: {
-		timeout: 10000,
-	},
+		timeout: 10000
+	}
 });

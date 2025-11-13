@@ -7,10 +7,10 @@ const localStorageMock = {
 	getItem: vi.fn(),
 	setItem: vi.fn(),
 	removeItem: vi.fn(),
-	clear: vi.fn(),
+	clear: vi.fn()
 };
 Object.defineProperty(global, 'localStorage', {
-	value: localStorageMock,
+	value: localStorageMock
 });
 
 describe('Auth Store (AuthLogic)', () => {

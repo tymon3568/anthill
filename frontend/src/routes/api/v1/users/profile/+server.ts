@@ -53,11 +53,7 @@ const mockUserProfile: UserProfile = {
 	display_name: 'John Doe',
 	tenant_id: 'tenant-456',
 	roles: ['user'],
-	permissions: [
-		'read:products',
-		'write:products',
-		'read:orders'
-	],
+	permissions: ['read:products', 'write:products', 'read:orders'],
 	created_at: '2025-01-01T00:00:00Z',
 	updated_at: '2025-01-01T00:00:00Z',
 	// Extended profile fields
@@ -131,7 +127,6 @@ export const GET: RequestHandler = async ({ cookies }) => {
 		};
 
 		return json(profile);
-
 	} catch (err) {
 		console.error('Get profile error:', err);
 
@@ -140,9 +135,10 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			throw err;
 		}
 
-		const authError = err instanceof Error && 'code' in err
-			? err as any
-			: createAuthError(AuthErrorCode.PROFILE_FETCH_FAILED);
+		const authError =
+			err instanceof Error && 'code' in err
+				? (err as any)
+				: createAuthError(AuthErrorCode.PROFILE_FETCH_FAILED);
 		throw error(authError.statusCode || 500, JSON.stringify(authError));
 	}
 };
@@ -167,9 +163,25 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 
 		// Validate update data (basic validation)
 		const allowedFields = [
-			'username', 'display_name', 'full_name', 'phone', 'bio', 'title', 'department', 'location',
-			'website_url', 'social_links', 'language', 'timezone', 'date_format', 'time_format',
-			'notification_preferences', 'profile_visibility', 'show_email', 'show_phone', 'custom_fields'
+			'username',
+			'display_name',
+			'full_name',
+			'phone',
+			'bio',
+			'title',
+			'department',
+			'location',
+			'website_url',
+			'social_links',
+			'language',
+			'timezone',
+			'date_format',
+			'time_format',
+			'notification_preferences',
+			'profile_visibility',
+			'show_email',
+			'show_phone',
+			'custom_fields'
 		];
 		const filteredData: Partial<UserProfile> = {};
 
@@ -196,7 +208,6 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 		};
 
 		return json(updatedProfile);
-
 	} catch (err) {
 		console.error('Update profile error:', err);
 
@@ -205,9 +216,10 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 			throw err;
 		}
 
-		const authError = err instanceof Error && 'code' in err
-			? err as any
-			: createAuthError(AuthErrorCode.PROFILE_UPDATE_FAILED);
+		const authError =
+			err instanceof Error && 'code' in err
+				? (err as any)
+				: createAuthError(AuthErrorCode.PROFILE_UPDATE_FAILED);
 		throw error(authError.statusCode || 500, JSON.stringify(authError));
 	}
 };
