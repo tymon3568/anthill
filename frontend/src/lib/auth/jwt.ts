@@ -91,12 +91,25 @@ export function extractTenantFromGroups(groups: string[]): string | undefined {
  * Validate and parse JWT token with optional signature verification
  *
  * @param token - JWT token to validate
- * @param verifySignature - If true, verifies signature against server-side endpoint
+ * @param verifySignature - If true, performs full cryptographic verification via server
  * @returns UserInfo if valid, null otherwise
  *
- * IMPORTANT: Client-side cannot securely verify JWT signatures directly.
- * When verifySignature is true, this function calls a server-side endpoint
- * that performs proper signature verification using Kanidm's JWKS.
+ * CRITICAL SECURITY MODES:
+ *
+ * verifySignature=true (SECURE):
+ *   - Calls server endpoint that performs full JWT signature verification
+ *   - Validates signature against Kanidm JWKS (cryptographic verification)
+ *   - Checks exp, nbf, iss claims
+ *   - Rejects expired or manipulated tokens
+ *   - Groups and tenantId are signature-protected (cannot be tampered)
+ *   - USE THIS for any security-critical operations (authorization, access control)
+ *
+ * verifySignature=false (INSECURE):
+ *   - Client-side base64 decode only (NO signature verification)
+ *   - Anyone can forge tokens with arbitrary claims
+ *   - Only checks basic expiry via exp claim (which can be forged)
+ *   - USE THIS ONLY for non-security-critical UI operations (display name, etc.)
+ *   - NEVER use for authorization decisions
  */
 export async function validateAndParseToken(
 	token: string,
@@ -104,8 +117,8 @@ export async function validateAndParseToken(
 ): Promise<UserInfo | null> {
 	try {
 		if (verifySignature) {
-			// Server-side verification required - call backend endpoint
-			// The backend will verify signature against Kanidm JWKS
+			// SECURE PATH: Server-side cryptographic verification
+			// The backend performs full JWT signature verification against Kanidm JWKS
 			try {
 				const response = await fetch('/api/v1/auth/verify-token', {
 					method: 'POST',
@@ -118,27 +131,29 @@ export async function validateAndParseToken(
 
 				if (!response.ok) {
 					console.error('Server-side token verification failed:', response.status);
-					return null;
+					return null; // Reject unverified/expired tokens
 				}
 
-				// Trust server response - it has already verified and parsed the token
+				// Trust server response - it has cryptographically verified the token
+				// Groups, tenantId, and all claims are signature-protected
 				const userInfo: UserInfo = await response.json();
 				return userInfo;
 			} catch (networkError) {
 				console.error('Token verification network error:', networkError);
-				return null; // Do not accept unverified tokens
+				return null; // Do not accept unverified tokens - fail closed
 			}
 		}
 
-		// Client-side decode without signature verification
-		// Use this only for non-security-critical operations
+		// INSECURE PATH: Client-side decode without signature verification
+		// ⚠️ WARNING: Use ONLY for non-security-critical operations
+		// This path is vulnerable to token forgery and manipulation
 		const payload = decodeJwtPayload(token);
 		if (!payload) return null;
 
-		// Check if token is expired
+		// Check if token is expired (note: exp claim itself can be forged!)
 		if (isTokenExpired(token)) return null;
 
-		// Extract tenant from groups
+		// Extract tenant from groups (note: groups can be forged!)
 		const tenantId = extractTenantFromGroups(payload.groups);
 
 		return {

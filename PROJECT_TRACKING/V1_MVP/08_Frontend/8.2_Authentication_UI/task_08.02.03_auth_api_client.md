@@ -113,51 +113,62 @@ export class AuthApiError extends Error {
 }
 
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  try {
-    const response = await apiClient.post<LoginResponse>('/api/v1/auth/login', credentials);
+  // Call apiClient which returns ApiResponse<T> (does not throw)
+  const response = await apiClient.post<LoginResponse>('/api/v1/auth/login', credentials);
 
-    // SECURITY: Tokens are stored in httpOnly cookies by the backend
-    // Client should NOT store tokens in localStorage (XSS vulnerability)
-    // The backend /api/v1/auth/login endpoint sets access_token and refresh_token cookies
-    // with httpOnly, secure, and sameSite attributes for maximum security
+  // Check if request was successful
+  if (!response.success) {
+    // Map known error messages to AuthApiError codes
+    const errorMsg = response.error || 'Unknown error';
 
-    return response;
-  } catch (error) {
-    if (error instanceof AuthApiError) {
-      throw error;
-    }
-
-    // Map HTTP errors to AuthApiError
-    if (error.status === 401) {
+    // Check for specific error patterns
+    if (errorMsg.includes('401') || errorMsg.toLowerCase().includes('invalid credentials')) {
       throw new AuthApiError('INVALID_CREDENTIALS', 'Invalid email or password');
     }
-    if (error.status === 429) {
+    if (errorMsg.includes('429') || errorMsg.toLowerCase().includes('rate limit')) {
       throw new AuthApiError('RATE_LIMITED', 'Too many login attempts. Please try again later.');
     }
+    if (errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch')) {
+      throw new AuthApiError('NETWORK_ERROR', 'Unable to connect to authentication service');
+    }
 
-    throw new AuthApiError('NETWORK_ERROR', 'Unable to connect to authentication service');
+    // Generic error fallback
+    throw new AuthApiError('UNKNOWN_ERROR', errorMsg);
   }
+
+  // SECURITY: Tokens are stored in httpOnly cookies by the backend
+  // Client should NOT store tokens in localStorage (XSS vulnerability)
+  // The backend /api/v1/auth/login endpoint sets access_token and refresh_token cookies
+  // with httpOnly, secure, and sameSite attributes for maximum security
+
+  return response.data!; // TypeScript knows data exists when success=true
 }
 
 export async function register(userData: RegisterRequest): Promise<RegisterResponse> {
-  try {
-    const response = await apiClient.post<RegisterResponse>('/api/v1/auth/register', userData);
-    return response;
-  } catch (error) {
-    if (error instanceof AuthApiError) {
-      throw error;
-    }
+  // Call apiClient which returns ApiResponse<T> (does not throw)
+  const response = await apiClient.post<RegisterResponse>('/api/v1/auth/register', userData);
 
-    // Map HTTP errors to AuthApiError
-    if (error.status === 409) {
+  // Check if request was successful
+  if (!response.success) {
+    // Map known error messages to AuthApiError codes
+    const errorMsg = response.error || 'Unknown error';
+
+    // Check for specific error patterns
+    if (errorMsg.includes('409') || errorMsg.toLowerCase().includes('already exists')) {
       throw new AuthApiError('USER_EXISTS', 'An account with this email already exists');
     }
-    if (error.status === 400) {
+    if (errorMsg.includes('400') || errorMsg.toLowerCase().includes('validation')) {
       throw new AuthApiError('VALIDATION_ERROR', 'Please check your input and try again');
     }
+    if (errorMsg.toLowerCase().includes('network') || errorMsg.toLowerCase().includes('fetch')) {
+      throw new AuthApiError('NETWORK_ERROR', 'Unable to connect to authentication service');
+    }
 
-    throw new AuthApiError('NETWORK_ERROR', 'Unable to connect to authentication service');
+    // Generic error fallback
+    throw new AuthApiError('UNKNOWN_ERROR', errorMsg);
   }
+
+  return response.data!; // TypeScript knows data exists when success=true
 }
 
 /**
