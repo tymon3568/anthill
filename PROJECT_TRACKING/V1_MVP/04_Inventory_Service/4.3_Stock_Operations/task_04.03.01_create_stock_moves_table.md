@@ -5,25 +5,25 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.3_Stock_Operations
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** NeedsReview
+**Assignee:** Claude
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-10-29
 
 ## Detailed Description:
 Create the `stock_moves` table, which will act as an **immutable** stock ledger. This is one of the most critical tables in the inventory system, providing a complete audit trail of all stock movements.
 
 ## Specific Sub-tasks:
-- [ ] 1. Create a new SQL migration file for the `stock_moves` table.
-- [ ] 2. Define all columns as specified: `move_id`, `tenant_id`, `product_id`, `source_location_id`, `destination_location_id`, `move_type`, `quantity`, `unit_cost`, `reference_type`, `reference_id`, `idempotency_key`, etc.
-- [ ] 3. Ensure the table is designed to be immutable (no application logic should ever `UPDATE` a row).
-- [ ] 4. Add critical indexes on (`tenant_id`, `product_id`, `move_date`) and (`reference_type`, `reference_id`).
+- [x] 1. Create a new SQL migration file for the `stock_moves` table.
+- [x] 2. Define all columns as specified: `move_id`, `tenant_id`, `product_id`, `source_location_id`, `destination_location_id`, `move_type`, `quantity`, `unit_cost`, `reference_type`, `reference_id`, `idempotency_key`, etc.
+- [x] 3. Ensure the table is designed to be immutable (no application logic should ever `UPDATE` a row).
+- [x] 4. Add critical indexes on (`tenant_id`, `product_id`, `move_date`) and (`reference_type`, `reference_id`).
 
 ## Acceptance Criteria:
-- [ ] A new SQL migration is created for the `stock_moves` table.
-- [ ] The table schema is implemented as specified.
-- [ ] Critical indexes are created for performance.
-- [ ] The migration runs successfully.
+- [x] A new SQL migration is created for the `stock_moves` table.
+- [x] The table schema is implemented as specified.
+- [x] Critical indexes are created for performance.
+- [x] The migration runs successfully.
 
 ## Dependencies:
 *   Task: `task_04.01.01_create_products_table.md`
@@ -37,4 +37,22 @@ Create the `stock_moves` table, which will act as an **immutable** stock ledger.
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+*   2025-10-29 14:00: Task claimed by Claude
+    - Verified dependency task_04.01.01_create_products_table.md is Done
+    - Starting work on creating stock_moves table migration
+    - Following Anthill multi-tenancy and immutability patterns
+
+*   2025-10-29 14:30: Migration file created by Claude
+    - Created migration 20250110000024_create_stock_moves_table.sql
+    - Implemented comprehensive stock_moves table schema with immutability constraints
+    - Added multi-tenant foreign keys and composite indexes
+    - Included idempotency key for duplicate prevention
+    - Added triggers for cost calculation and immutability enforcement
+
+*   2025-10-29 15:00: Migration tested and completed by Claude
+    - Fixed foreign key constraint issues (removed composite references)
+    - Migration applied successfully to PostgreSQL database
+    - All sub-tasks completed: schema defined, immutability enforced, indexes created
+    - All acceptance criteria met: migration created, schema implemented, indexes added, migration runs successfully
+    - Stock moves table ready as foundation for inventory operations
+    - Task ready for review
