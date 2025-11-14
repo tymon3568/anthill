@@ -1,6 +1,6 @@
 -- Migration: Create stock_adjustments table
 -- Description: Creates the stock_adjustments table to record reasons for manual stock adjustments
--- Dependencies: stock_moves table, warehouse_locations table, products table, users table
+-- Dependencies: stock_moves table, warehouse_locations table, products table, users table, and UNIQUE constraints from 20250110000026
 -- Created: 2025-10-29
 
 -- ==================================
@@ -17,18 +17,18 @@ CREATE TABLE stock_adjustments (
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
 
     -- Reference to the corresponding stock move
-    move_id UUID NOT NULL REFERENCES stock_moves(move_id),
+    move_id UUID NOT NULL,
 
     -- Product and location context
-    product_id UUID NOT NULL REFERENCES products(product_id),
-    warehouse_id UUID NOT NULL REFERENCES warehouse_locations(location_id),
+    product_id UUID NOT NULL,
+    warehouse_id UUID NOT NULL,
 
     -- Adjustment details
     reason_code VARCHAR(50) NOT NULL,  -- e.g., 'damaged', 'lost', 'count_error', 'promotion'
     notes TEXT,                        -- Detailed explanation
 
     -- Approval workflow
-    approved_by UUID REFERENCES users(user_id),  -- User who approved the adjustment
+    approved_by UUID,  -- User who approved the adjustment
 
     -- Audit fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -41,7 +41,23 @@ CREATE TABLE stock_adjustments (
     CONSTRAINT stock_adjustments_reason_not_empty
         CHECK (trim(reason_code) != ''),
     CONSTRAINT stock_adjustments_soft_delete_check
-        CHECK (deleted_at IS NULL OR deleted_at > created_at)
+        CHECK (deleted_at IS NULL OR deleted_at >= updated_at),
+    CONSTRAINT stock_adjustments_tenant_move_fk
+        FOREIGN KEY (tenant_id, move_id)
+        REFERENCES stock_moves (tenant_id, move_id)
+        DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT stock_adjustments_tenant_product_fk
+        FOREIGN KEY (tenant_id, product_id)
+        REFERENCES products (tenant_id, product_id)
+        DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT stock_adjustments_tenant_warehouse_fk
+        FOREIGN KEY (tenant_id, warehouse_id)
+        REFERENCES warehouse_locations (tenant_id, location_id)
+        DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT stock_adjustments_tenant_user_fk
+        FOREIGN KEY (tenant_id, approved_by)
+        REFERENCES users (tenant_id, user_id)
+        DEFERRABLE INITIALLY DEFERRED
 );
 
 -- ==================================
@@ -49,10 +65,6 @@ CREATE TABLE stock_adjustments (
 -- ==================================
 
 -- Primary lookup indexes
-CREATE INDEX idx_stock_adjustments_tenant_adjustment
-    ON stock_adjustments(tenant_id, adjustment_id)
-    WHERE deleted_at IS NULL;
-
 CREATE INDEX idx_stock_adjustments_tenant_move
     ON stock_adjustments(tenant_id, move_id)
     WHERE deleted_at IS NULL;
@@ -79,18 +91,10 @@ CREATE INDEX idx_stock_adjustments_tenant_approved_by
 -- ==================================
 
 -- Auto-update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_stock_adjustments_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 CREATE TRIGGER update_stock_adjustments_updated_at_trigger
     BEFORE UPDATE ON stock_adjustments
     FOR EACH ROW
-    EXECUTE FUNCTION update_stock_adjustments_updated_at();
+    EXECUTE FUNCTION update_updated_at_column();
 
 -- ==================================
 -- COMMENTS for Documentation
@@ -117,5 +121,5 @@ COMMENT ON COLUMN stock_adjustments.deleted_at IS 'Soft delete timestamp';
 -- 1. Audit trail for manual adjustments
 -- 2. Approval workflow tracking
 -- 3. Reporting on adjustment reasons
--- 4. Multi-tenant isolation
+-- 4. Multi-tenant isolation with composite FKs
 -- 5. Soft delete for compliance

@@ -36,14 +36,14 @@ Create the `stock_adjustments` table to record the reasons for manual stock adju
 ## AI Agent Log:
 ---
 *   2025-10-29 10:00: Task claimed by Grok
-    - Verified dependency task_04.03.01_create_stock_moves_table.md is NeedsReview (migration exists)
-    - Starting work on creating stock_adjustments table migration
-    - Following Anthill multi-tenancy patterns
+  - Verified dependency task_04.03.01_create_stock_moves_table.md is NeedsReview (migration exists)
+  - Starting work on creating stock_adjustments table migration
+  - Following Anthill multi-tenancy patterns
 
 *   2025-10-29 11:00: Migration file created and implemented by Grok
-    - Created 20250110000025_create_stock_adjustments_table.sql
-    - Defined all required columns with proper constraints and indexes
-    - Added foreign key to stock_moves table (move_id)
-    - Included triggers for updated_at and comprehensive comments
-    - All sub-tasks completed: migration created, columns defined, FK added
-    - Migration syntax validated with cargo check, ready for review
+  - Created 20250110000025_create_stock_adjustments_table.sql
+  - Defined all required columns with proper constraints and indexes
+  - Added composite foreign keys for multi-tenancy isolation
+  - Included triggers for updated_at and comprehensive comments
+  - All sub-tasks completed: migration created, columns defined, FK added
+  - Migration syntax validated with cargo check, ready for review
