@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.3_Stock_Operations
 **Priority:** High
-**Status:** NeedsReview
+**Status:** InProgress_By_Grok
 **Assignee:** Grok
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-10-29
@@ -47,3 +47,7 @@ Create the `stock_adjustments` table to record the reasons for manual stock adju
   - Included triggers for updated_at and comprehensive comments
   - All sub-tasks completed: migration created, columns defined, FK added
   - Migration syntax validated with cargo check, ready for review
+
+*   2025-10-29 12:00: Continuing work on fixing DEFERRABLE constraints by Grok
+  - Identified missing DEFERRABLE INITIALLY DEFERRED in unique constraints migration (20250110000025)
+  - Proceeding to edit the migration file to add DEFERRABLE clauses
