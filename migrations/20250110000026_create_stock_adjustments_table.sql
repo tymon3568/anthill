@@ -1,6 +1,6 @@
 -- Migration: Create stock_adjustments table
 -- Description: Creates the stock_adjustments table to record reasons for manual stock adjustments
--- Dependencies: stock_moves table, warehouse_locations table, products table, users table, and UNIQUE constraints from 20250110000023
+-- Dependencies: stock_moves table, warehouse_locations table, products table, users table, and UNIQUE constraints from 20250110000025
 -- Created: 2025-10-29
 
 -- ==================================
@@ -28,7 +28,7 @@ CREATE TABLE stock_adjustments (
     notes TEXT,                        -- Detailed explanation
 
     -- Approval workflow
-    approved_by UUID,  -- User who approved the adjustment
+    approved_by UUID NOT NULL,  -- User who approved the adjustment
 
     -- Audit fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -54,9 +54,9 @@ CREATE TABLE stock_adjustments (
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouse_locations (tenant_id, location_id)
         DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT stock_adjustments_approved_by_fk
-        FOREIGN KEY (approved_by)
-        REFERENCES users (user_id)
+    CONSTRAINT stock_adjustments_tenant_approved_by_fk
+        FOREIGN KEY (tenant_id, approved_by)
+        REFERENCES users (tenant_id, user_id)
         DEFERRABLE INITIALLY DEFERRED
 );
 
@@ -65,7 +65,9 @@ CREATE TABLE stock_adjustments (
 -- ==================================
 
 -- Primary lookup indexes
-
+CREATE INDEX idx_stock_adjustments_tenant_move
+    ON stock_adjustments(tenant_id, move_id)
+    WHERE deleted_at IS NULL;
 
 -- Business query indexes
 CREATE INDEX idx_stock_adjustments_tenant_product
