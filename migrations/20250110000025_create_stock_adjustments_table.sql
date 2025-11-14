@@ -1,6 +1,6 @@
 -- Migration: Create stock_adjustments table
 -- Description: Creates the stock_adjustments table to record reasons for manual stock adjustments
--- Dependencies: stock_moves table, warehouse_locations table, products table, users table, and UNIQUE constraints from 20250110000024
+-- Dependencies: stock_moves table, warehouse_locations table, products table, users table, and UNIQUE constraints from 20250110000023
 -- Created: 2025-10-29
 
 -- ==================================
