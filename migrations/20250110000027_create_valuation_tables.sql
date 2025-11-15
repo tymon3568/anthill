@@ -29,7 +29,6 @@ CREATE TABLE inventory_valuation_layers (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Constraints
-    UNIQUE (tenant_id, product_id, created_at),  -- Prevent duplicate layers at same time
 
     -- Foreign keys
     FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id)
