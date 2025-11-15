@@ -272,22 +272,40 @@ impl ValuationRepository for ValuationRepositoryImpl {
         unit_cost: Option<i64>,
         updated_by: Option<Uuid>,
     ) -> Result<Valuation> {
-        // Get current valuation
-        let current = self
-            .find_by_product_id(tenant_id, product_id)
-            .await?
-            .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
+        let mut tx = self.pool.begin().await?;
+
+        // Lock the row for update
+        let current = sqlx::query_as!(
+            Valuation,
+            r#"
+            SELECT
+                valuation_id, tenant_id, product_id, valuation_method,
+                current_unit_cost, total_quantity, total_value, standard_cost,
+                last_updated, updated_by
+            FROM inventory_valuations
+            WHERE tenant_id = $1 AND product_id = $2
+            FOR UPDATE
+            "#,
+            tenant_id,
+            product_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
 
         let (new_quantity, new_value, new_unit_cost) = match current.valuation_method {
             ValuationMethod::Fifo => {
-                // For FIFO, we handle layers separately - just update totals
                 let new_quantity = current.total_quantity + quantity_change;
                 let new_value = if quantity_change > 0 {
                     // Receipt: add to value
                     current.total_value + (unit_cost.unwrap_or(0) * quantity_change)
                 } else {
-                    // Delivery: subtract from value (layers handle the cost)
-                    current.total_value
+                    // Delivery: consume layers and subtract their cost from total_value
+                    let consumed_cost = self
+                        .layer_repo
+                        .consume_layers(tenant_id, product_id, quantity_change.abs())
+                        .await?;
+                    current.total_value - consumed_cost
                 };
                 (new_quantity, new_value, current.current_unit_cost)
             },
@@ -305,7 +323,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
                     // Delivery: use current average
                     let delivery_value =
                         current.current_unit_cost.unwrap_or(0) * quantity_change.abs();
-                    let new_value = current.total_value + delivery_value; // quantity_change is negative
+                    let new_value = current.total_value - delivery_value;
                     (new_quantity, new_value, current.current_unit_cost)
                 }
             },
@@ -336,8 +354,10 @@ impl ValuationRepository for ValuationRepositoryImpl {
             new_unit_cost,
             updated_by
         )
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
+
+        tx.commit().await?;
 
         Ok(Valuation {
             valuation_id: row.valuation_id,
@@ -393,7 +413,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             )
             SELECT valuation_id, tenant_id, product_id, valuation_method,
                    current_unit_cost, total_quantity, total_value, standard_cost,
-                   $6, $7
+                   $3, $4
             FROM inventory_valuations
             WHERE tenant_id = $1 AND product_id = $2
             "#,
@@ -468,7 +488,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             )
             SELECT valuation_id, tenant_id, product_id, valuation_method,
                    current_unit_cost, total_quantity, total_value, standard_cost,
-                   $6, $7
+                   $3, $4
             FROM inventory_valuations
             WHERE tenant_id = $1 AND product_id = $2
             "#,
@@ -574,13 +594,25 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
         product_id: Uuid,
         quantity_to_consume: i64,
     ) -> Result<i64> {
+        let mut tx = self.pool.begin().await?;
         let mut remaining_to_consume = quantity_to_consume;
         let mut total_cost = 0i64;
 
         // Get layers ordered by creation time (FIFO)
-        let layers = self
-            .find_active_by_product_id(tenant_id, product_id)
-            .await?;
+        let layers = sqlx::query_as!(
+            ValuationLayer,
+            r#"
+            SELECT layer_id, tenant_id, product_id, quantity, unit_cost, total_value,
+                   created_at, updated_at
+            FROM inventory_valuation_layers
+            WHERE tenant_id = $1 AND product_id = $2 AND quantity > 0
+            ORDER BY created_at ASC
+            "#,
+            tenant_id,
+            product_id
+        )
+        .fetch_all(&mut *tx)
+        .await?;
 
         for layer in layers {
             if remaining_to_consume <= 0 {
@@ -594,13 +626,13 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
                 r#"
                 UPDATE inventory_valuation_layers
                 SET quantity = quantity - $3, total_value = quantity * unit_cost
-                WHERE layer_id = $1 AND quantity >= $3
+                WHERE layer_id = $1 AND tenant_id = $2 AND quantity >= $3
                 "#,
                 layer.layer_id,
                 tenant_id,
                 consume_from_this_layer
             )
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
 
             total_cost += consume_from_this_layer * layer.unit_cost;
@@ -608,8 +640,18 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
         }
 
         // Clean up empty layers
-        self.cleanup_empty_layers(tenant_id, product_id).await?;
+        sqlx::query!(
+            r#"
+            DELETE FROM inventory_valuation_layers
+            WHERE tenant_id = $1 AND product_id = $2 AND quantity = 0
+            "#,
+            tenant_id,
+            product_id
+        )
+        .execute(&mut *tx)
+        .await?;
 
+        tx.commit().await?;
         Ok(total_cost)
     }
 
