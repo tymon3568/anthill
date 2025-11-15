@@ -20,7 +20,7 @@ CREATE TABLE inventory_valuation_layers (
     product_id UUID NOT NULL REFERENCES products(product_id),
 
     -- Layer details
-    quantity BIGINT NOT NULL CHECK (quantity > 0),  -- Remaining quantity in this layer
+    quantity BIGINT NOT NULL CHECK (quantity >= 0),  -- Remaining quantity in this layer (zero once consumed)
     unit_cost BIGINT NOT NULL CHECK (unit_cost >= 0),  -- Cost per unit in cents
     total_value BIGINT NOT NULL,  -- Calculated total
 

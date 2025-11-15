@@ -189,6 +189,7 @@ pub struct ValuationHistory {
 
 impl ValuationHistory {
     /// Create a new history record
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         valuation_id: Uuid,
         tenant_id: Uuid,

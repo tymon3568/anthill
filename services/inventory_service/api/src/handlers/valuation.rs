@@ -211,11 +211,14 @@ pub async fn get_valuation_history(
     Path(product_id): Path<Uuid>,
     Query(params): Query<HistoryQueryParams>,
 ) -> Result<Json<ValuationHistoryResponse>, AppError> {
+    let limit = params.limit.map(|l| l.min(100)).or(Some(50));
+    let offset = params.offset.or(Some(0));
+
     let request = GetValuationHistoryRequest {
         tenant_id: auth_user.tenant_id,
         product_id,
-        limit: params.limit,
-        offset: params.offset,
+        limit,
+        offset,
     };
 
     let history = state
