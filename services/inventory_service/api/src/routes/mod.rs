@@ -15,12 +15,15 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::handlers::category::{create_category_routes, AppState};
 use crate::handlers::search::create_search_routes;
+use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
+use inventory_service_infra::services::valuation::ValuationServiceImpl;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -123,12 +126,23 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let product_repo = ProductRepositoryImpl::new(pool.clone());
     let product_service = ProductServiceImpl::new(Arc::new(product_repo));
 
+    let valuation_repo = ValuationRepositoryImpl::new(pool.clone());
+    let valuation_service = ValuationServiceImpl::new(
+        Arc::new(valuation_repo.clone())
+            as Arc<dyn inventory_service_core::repositories::valuation::ValuationRepository>,
+        Arc::new(valuation_repo.clone())
+            as Arc<dyn inventory_service_core::repositories::valuation::ValuationLayerRepository>,
+        Arc::new(valuation_repo)
+            as Arc<dyn inventory_service_core::repositories::valuation::ValuationHistoryRepository>,
+    );
+
     let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
 
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
         product_service: Arc::new(product_service),
+        valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
@@ -144,6 +158,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Create routes with state
     let category_routes = create_category_routes(state.clone());
     let search_routes = create_search_routes(state.clone());
+    let valuation_routes = create_valuation_routes(state.clone());
     let warehouse_routes = create_warehouse_routes(state.clone());
 
     // Add CORS configuration
@@ -181,6 +196,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     Router::new()
         .nest("/api/v1/inventory", category_routes)
         .nest("/api/v1/inventory/products", search_routes)
+        .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
         .layer(axum::middleware::from_fn_with_state(authz_state, casbin_middleware))
         .layer(cors)
