@@ -1,4 +1,3 @@
-anthill-windsurf/services/inventory_service/core/src/repositories/valuation.rs
 //! Valuation repository traits
 //!
 //! Defines data access interfaces for inventory valuation operations.
@@ -7,7 +6,9 @@ anthill-windsurf/services/inventory_service/core/src/repositories/valuation.rs
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domains::inventory::valuation::{Valuation, ValuationHistory, ValuationLayer, ValuationMethod};
+use crate::domains::inventory::valuation::{
+    Valuation, ValuationHistory, ValuationLayer, ValuationMethod,
+};
 use crate::Result;
 
 /// Repository trait for inventory valuation data access
@@ -21,7 +22,11 @@ pub trait ValuationRepository: Send + Sync {
     ///
     /// # Returns
     /// Current valuation if exists
-    async fn find_by_product_id(&self, tenant_id: Uuid, product_id: Uuid) -> Result<Option<Valuation>>;
+    async fn find_by_product_id(
+        &self,
+        tenant_id: Uuid,
+        product_id: Uuid,
+    ) -> Result<Option<Valuation>>;
 
     /// Create new valuation record
     ///
@@ -41,7 +46,12 @@ pub trait ValuationRepository: Send + Sync {
     ///
     /// # Returns
     /// Updated valuation
-    async fn update(&self, tenant_id: Uuid, product_id: Uuid, valuation: &Valuation) -> Result<Valuation>;
+    async fn update(
+        &self,
+        tenant_id: Uuid,
+        product_id: Uuid,
+        valuation: &Valuation,
+    ) -> Result<Valuation>;
 
     /// Set valuation method for a product
     ///
@@ -151,7 +161,11 @@ pub trait ValuationLayerRepository: Send + Sync {
     ///
     /// # Returns
     /// List of active cost layers
-    async fn find_active_by_product_id(&self, tenant_id: Uuid, product_id: Uuid) -> Result<Vec<ValuationLayer>>;
+    async fn find_active_by_product_id(
+        &self,
+        tenant_id: Uuid,
+        product_id: Uuid,
+    ) -> Result<Vec<ValuationLayer>>;
 
     /// Create new cost layer
     ///

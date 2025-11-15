@@ -1,4 +1,3 @@
-anthill-windsurf/services/inventory_service/core/src/services/valuation.rs
 //! Valuation service trait
 //!
 //! Defines the business logic interface for inventory valuation operations.
@@ -53,7 +52,10 @@ pub trait ValuationService: Send + Sync {
     ///
     /// # Returns
     /// Updated valuation data
-    async fn set_valuation_method(&self, request: SetValuationMethodRequest) -> Result<ValuationDto>;
+    async fn set_valuation_method(
+        &self,
+        request: SetValuationMethodRequest,
+    ) -> Result<ValuationDto>;
 
     /// Set standard cost for a product
     ///
@@ -84,7 +86,10 @@ pub trait ValuationService: Send + Sync {
     ///
     /// # Returns
     /// List of active cost layers
-    async fn get_valuation_layers(&self, request: GetValuationLayersRequest) -> Result<ValuationLayersResponse>;
+    async fn get_valuation_layers(
+        &self,
+        request: GetValuationLayersRequest,
+    ) -> Result<ValuationLayersResponse>;
 
     /// Get valuation history for a product
     ///
@@ -98,7 +103,10 @@ pub trait ValuationService: Send + Sync {
     ///
     /// # Returns
     /// Historical valuation records with pagination
-    async fn get_valuation_history(&self, request: GetValuationHistoryRequest) -> Result<ValuationHistoryResponse>;
+    async fn get_valuation_history(
+        &self,
+        request: GetValuationHistoryRequest,
+    ) -> Result<ValuationHistoryResponse>;
 
     /// Perform cost adjustment
     ///
@@ -181,5 +189,9 @@ pub trait ValuationService: Send + Sync {
     ///
     /// # Returns
     /// Current valuation method
-    async fn get_valuation_method(&self, tenant_id: Uuid, product_id: Uuid) -> Result<ValuationMethod>;
+    async fn get_valuation_method(
+        &self,
+        tenant_id: Uuid,
+        product_id: Uuid,
+    ) -> Result<ValuationMethod>;
 }

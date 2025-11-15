@@ -1,15 +1,11 @@
-anthill-windsurf/services/inventory_service/core/src/domains/inventory/dto/valuation_dto.rs
+//! Valuation DTOs for API communication
+//!
+//! Data transfer objects for inventory valuation operations,
+//! supporting FIFO, AVCO, and Standard costing methods.
+
+use crate::domains::inventory::valuation::ValuationMethod;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-/// Supported inventory valuation methods
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ValuationMethod {
-    Fifo,
-    Avco,
-    Standard,
-}
 
 /// Current valuation information for a product
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,7 +16,7 @@ pub struct ValuationDto {
     pub valuation_method: ValuationMethod,
     pub current_unit_cost: Option<i64>, // In cents
     pub total_quantity: i64,
-    pub total_value: i64, // In cents
+    pub total_value: i64,           // In cents
     pub standard_cost: Option<i64>, // In cents, only for standard method
     pub last_updated: chrono::DateTime<chrono::Utc>,
 }
@@ -32,7 +28,7 @@ pub struct ValuationLayerDto {
     pub tenant_id: Uuid,
     pub product_id: Uuid,
     pub quantity: i64,
-    pub unit_cost: i64, // In cents
+    pub unit_cost: i64,   // In cents
     pub total_value: i64, // In cents
     pub created_at: chrono::DateTime<chrono::Utc>,
 }

@@ -22,14 +22,14 @@ CREATE TABLE inventory_valuation_layers (
     -- Layer details
     quantity BIGINT NOT NULL CHECK (quantity > 0),  -- Remaining quantity in this layer
     unit_cost BIGINT NOT NULL CHECK (unit_cost >= 0),  -- Cost per unit in cents
-    total_value BIGINT NOT NULL CHECK (total_value = quantity * unit_cost),  -- Calculated total
+    total_value BIGINT NOT NULL,  -- Calculated total
 
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Constraints
-    UNIQUE (tenant_id, product_id, layer_id),  -- Prevent duplicate layers
+    UNIQUE (tenant_id, product_id, created_at),  -- Prevent duplicate layers at same time
 
     -- Foreign keys
     FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id)

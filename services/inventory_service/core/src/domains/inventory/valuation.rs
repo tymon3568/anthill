@@ -1,4 +1,8 @@
-anthill-windsurf/services/inventory_service/core/src/domains/inventory/valuation.rs
+//! Valuation domain entities
+//!
+//! Core business entities for inventory valuation system,
+//! supporting FIFO, AVCO, and Standard costing methods.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -6,6 +10,7 @@ use uuid::Uuid;
 /// Supported inventory valuation methods
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ValuationMethod {
     Fifo,
     Avco,
@@ -42,11 +47,7 @@ pub struct Valuation {
 
 impl Valuation {
     /// Create a new valuation
-    pub fn new(
-        tenant_id: Uuid,
-        product_id: Uuid,
-        valuation_method: ValuationMethod,
-    ) -> Self {
+    pub fn new(tenant_id: Uuid, product_id: Uuid, valuation_method: ValuationMethod) -> Self {
         Self {
             valuation_id: Uuid::now_v7(),
             tenant_id,
@@ -62,7 +63,13 @@ impl Valuation {
     }
 
     /// Update valuation with new data
-    pub fn update(&mut self, unit_cost: Option<i64>, quantity: i64, value: i64, updated_by: Option<Uuid>) {
+    pub fn update(
+        &mut self,
+        unit_cost: Option<i64>,
+        quantity: i64,
+        value: i64,
+        updated_by: Option<Uuid>,
+    ) {
         self.current_unit_cost = unit_cost;
         self.total_quantity = quantity;
         self.total_value = value;
@@ -107,7 +114,7 @@ pub struct ValuationLayer {
 
     /// Layer details
     pub quantity: i64, // Remaining quantity in this layer
-    pub unit_cost: i64, // Cost per unit in cents
+    pub unit_cost: i64,   // Cost per unit in cents
     pub total_value: i64, // Calculated total in cents
 
     /// Timestamps
@@ -118,6 +125,8 @@ pub struct ValuationLayer {
 impl ValuationLayer {
     /// Create a new cost layer
     pub fn new(tenant_id: Uuid, product_id: Uuid, quantity: i64, unit_cost: i64) -> Self {
+        assert!(quantity >= 0, "quantity must be non-negative");
+        assert!(unit_cost >= 0, "unit_cost must be non-negative");
         let total_value = quantity * unit_cost;
         Self {
             layer_id: Uuid::now_v7(),
@@ -133,6 +142,7 @@ impl ValuationLayer {
 
     /// Consume quantity from this layer (for FIFO)
     pub fn consume(&mut self, quantity_to_consume: i64) -> i64 {
+        assert!(quantity_to_consume >= 0, "quantity_to_consume must be non-negative");
         if quantity_to_consume >= self.quantity {
             let consumed = self.quantity;
             self.quantity = 0;
