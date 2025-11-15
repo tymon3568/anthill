@@ -22,6 +22,7 @@ use inventory_service_core::dto::category::{
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::product::ProductService;
+use inventory_service_core::services::valuation::ValuationService;
 
 use shared_auth::enforcer::SharedEnforcer;
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, KanidmClientProvider, RequireAdmin};
@@ -33,6 +34,7 @@ use shared_kanidm_client::KanidmClient;
 pub struct AppState {
     pub category_service: Arc<dyn CategoryService>,
     pub product_service: Arc<dyn ProductService>,
+    pub valuation_service: Arc<dyn ValuationService>,
     pub warehouse_repository: Arc<dyn WarehouseRepository>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
