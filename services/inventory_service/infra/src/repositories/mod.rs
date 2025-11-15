@@ -4,9 +4,11 @@
 
 pub mod category;
 pub mod product;
+pub mod valuation;
 pub mod warehouse;
 
 // Re-export repositories for convenience
 pub use category::CategoryRepositoryImpl;
 pub use product::ProductRepositoryImpl;
+pub use valuation::ValuationRepositoryImpl;
 pub use warehouse::WarehouseRepositoryImpl;
