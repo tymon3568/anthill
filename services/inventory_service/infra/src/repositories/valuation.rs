@@ -16,19 +16,54 @@ use inventory_service_core::repositories::valuation::{
 use inventory_service_core::Result;
 
 /// PostgreSQL implementation of valuation repositories
+///
+/// This struct provides concrete implementations for:
+/// - ValuationRepository: Core valuation operations
+/// - ValuationLayerRepository: FIFO cost layer management
+/// - ValuationHistoryRepository: Audit trail and historical tracking
 pub struct ValuationRepositoryImpl {
     pool: PgPool,
 }
 
 impl ValuationRepositoryImpl {
     /// Create new repository instance
+    ///
+    /// # Arguments
+    /// * `pool` - PostgreSQL connection pool
+    ///
+    /// # Returns
+    /// New ValuationRepositoryImpl instance
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
+    }
+
+    /// Convert database string to ValuationMethod enum
+    ///
+    /// # Arguments
+    /// * `s` - String representation from database
+    ///
+    /// # Returns
+    /// Corresponding ValuationMethod enum value, defaults to Fifo
+    fn string_to_valuation_method(s: &str) -> ValuationMethod {
+        match s {
+            "fifo" => ValuationMethod::Fifo,
+            "avco" => ValuationMethod::Avco,
+            "standard" => ValuationMethod::Standard,
+            _ => ValuationMethod::Fifo,
+        }
     }
 }
 
 #[async_trait]
 impl ValuationRepository for ValuationRepositoryImpl {
+    /// Find valuation record by product ID
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for multi-tenancy
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Option containing the valuation if found
     async fn find_by_product_id(
         &self,
         tenant_id: Uuid,
@@ -53,12 +88,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: r.valuation_id,
             tenant_id: r.tenant_id,
             product_id: r.product_id,
-            valuation_method: match r.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo, // Default fallback
-            },
+            valuation_method: Self::string_to_valuation_method(r.valuation_method.as_str()),
             current_unit_cost: r.current_unit_cost,
             total_quantity: r.total_quantity.unwrap_or(0),
             total_value: r.total_value.unwrap_or(0),
@@ -68,6 +98,13 @@ impl ValuationRepository for ValuationRepositoryImpl {
         }))
     }
 
+    /// Create a new valuation record
+    ///
+    /// # Arguments
+    /// * `valuation` - Valuation data to insert
+    ///
+    /// # Returns
+    /// Created valuation with generated fields
     async fn create(&self, valuation: &Valuation) -> Result<Valuation> {
         let method_str = match valuation.valuation_method {
             ValuationMethod::Fifo => "fifo",
@@ -104,12 +141,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -119,6 +151,15 @@ impl ValuationRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Update an existing valuation record
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `valuation` - Updated valuation data
+    ///
+    /// # Returns
+    /// Updated valuation record
     async fn update(
         &self,
         tenant_id: Uuid,
@@ -157,12 +198,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -172,6 +208,16 @@ impl ValuationRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Change the valuation method for a product
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `method` - New valuation method
+    /// * `updated_by` - User who made the change
+    ///
+    /// # Returns
+    /// Updated valuation record
     async fn set_valuation_method(
         &self,
         tenant_id: Uuid,
@@ -206,12 +252,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -221,6 +262,16 @@ impl ValuationRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Set the standard cost for a product
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `standard_cost` - New standard cost in cents
+    /// * `updated_by` - User who made the change
+    ///
+    /// # Returns
+    /// Updated valuation record
     async fn set_standard_cost(
         &self,
         tenant_id: Uuid,
@@ -249,12 +300,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -264,6 +310,20 @@ impl ValuationRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Update valuation based on stock movement
+    ///
+    /// Handles receipts and deliveries for all valuation methods (FIFO, AVCO, Standard)
+    /// with proper cost layer management and transaction safety.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `quantity_change` - Positive for receipts, negative for deliveries
+    /// * `unit_cost` - Cost per unit for receipts
+    /// * `updated_by` - User who initiated the movement
+    ///
+    /// # Returns
+    /// Updated valuation record
     async fn update_from_stock_move(
         &self,
         tenant_id: Uuid,
@@ -297,15 +357,89 @@ impl ValuationRepository for ValuationRepositoryImpl {
             ValuationMethod::Fifo => {
                 let new_quantity = current.total_quantity + quantity_change;
                 let new_value = if quantity_change > 0 {
-                    // Receipt: add to value
-                    current.total_value + (unit_cost.unwrap_or(0) * quantity_change)
+                    // Receipt: create new cost layer
+                    let unit_cost = unit_cost.ok_or_else(|| {
+                        shared_error::AppError::ValidationError(
+                            "Unit cost required for receipt".to_string(),
+                        )
+                    })?;
+                    let layer_id = Uuid::now_v7();
+                    sqlx::query!(
+                        r#"
+                        INSERT INTO inventory_valuation_layers (
+                            layer_id, tenant_id, product_id, quantity, unit_cost, total_value
+                        )
+                        VALUES ($1, $2, $3, $4, $5, $6)
+                        "#,
+                        layer_id,
+                        tenant_id,
+                        product_id,
+                        quantity_change,
+                        unit_cost,
+                        unit_cost * quantity_change
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                    current.total_value + (unit_cost * quantity_change)
                 } else {
-                    // Delivery: consume layers and subtract their cost from total_value
-                    let consumed_cost = self
-                        .layer_repo
-                        .consume_layers(tenant_id, product_id, quantity_change.abs())
+                    // Delivery: consume layers within this transaction
+                    let mut remaining_to_consume = quantity_change.abs();
+                    let mut total_cost = 0i64;
+
+                    // Get layers ordered by creation time (FIFO)
+                    let layers = sqlx::query_as!(
+                        ValuationLayer,
+                        r#"
+                        SELECT layer_id, tenant_id, product_id, quantity, unit_cost, total_value,
+                               created_at, updated_at
+                        FROM inventory_valuation_layers
+                        WHERE tenant_id = $1 AND product_id = $2 AND quantity > 0
+                        ORDER BY created_at ASC
+                        "#,
+                        tenant_id,
+                        product_id
+                    )
+                    .fetch_all(&mut *tx)
+                    .await?;
+
+                    for layer in layers {
+                        if remaining_to_consume <= 0 {
+                            break;
+                        }
+
+                        let consume_from_this_layer = remaining_to_consume.min(layer.quantity);
+
+                        // Update layer quantity
+                        sqlx::query!(
+                            r#"
+                            UPDATE inventory_valuation_layers
+                            SET quantity = quantity - $3, total_value = quantity * unit_cost
+                            WHERE layer_id = $1 AND tenant_id = $2 AND quantity >= $3
+                            "#,
+                            layer.layer_id,
+                            tenant_id,
+                            consume_from_this_layer
+                        )
+                        .execute(&mut *tx)
                         .await?;
-                    current.total_value - consumed_cost
+
+                        total_cost += consume_from_this_layer * layer.unit_cost;
+                        remaining_to_consume -= consume_from_this_layer;
+                    }
+
+                    // Clean up empty layers
+                    sqlx::query!(
+                        r#"
+                        DELETE FROM inventory_valuation_layers
+                        WHERE tenant_id = $1 AND product_id = $2 AND quantity = 0
+                        "#,
+                        tenant_id,
+                        product_id
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+
+                    current.total_value - total_cost
                 };
                 (new_quantity, new_value, current.current_unit_cost)
             },
@@ -363,12 +497,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -378,6 +507,20 @@ impl ValuationRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Adjust inventory cost without changing quantity
+    ///
+    /// Used for cost adjustments, revaluations, or corrections.
+    /// Creates audit trail entry.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `adjustment_amount` - Amount to add/subtract from total value
+    /// * `reason` - Reason for the adjustment
+    /// * `updated_by` - User who made the adjustment
+    ///
+    /// # Returns
+    /// Updated valuation record
     async fn adjust_cost(
         &self,
         tenant_id: Uuid,
@@ -429,12 +572,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -444,6 +582,20 @@ impl ValuationRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Revalue entire inventory at new unit cost
+    ///
+    /// Recalculates total value based on current quantity and new unit cost.
+    /// Creates audit trail entry.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `new_unit_cost` - New cost per unit
+    /// * `reason` - Reason for revaluation
+    /// * `updated_by` - User who performed revaluation
+    ///
+    /// # Returns
+    /// Updated valuation record
     async fn revalue_inventory(
         &self,
         tenant_id: Uuid,
@@ -504,12 +656,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -522,6 +669,16 @@ impl ValuationRepository for ValuationRepositoryImpl {
 
 #[async_trait]
 impl ValuationLayerRepository for ValuationRepositoryImpl {
+    /// Find all active cost layers for a product
+    ///
+    /// Active layers have quantity > 0, ordered by creation time (FIFO).
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Vector of active valuation layers
     async fn find_active_by_product_id(
         &self,
         tenant_id: Uuid,
@@ -556,6 +713,15 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
             .collect())
     }
 
+    /// Create a new cost layer
+    ///
+    /// Used for FIFO receipts to track cost layers separately.
+    ///
+    /// # Arguments
+    /// * `layer` - Layer data to insert
+    ///
+    /// # Returns
+    /// Created layer with generated fields
     async fn create(&self, layer: &ValuationLayer) -> Result<ValuationLayer> {
         let row = sqlx::query!(
             r#"
@@ -588,6 +754,18 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Consume cost layers for delivery (FIFO)
+    ///
+    /// Reduces layer quantities starting from oldest layers.
+    /// Returns total cost of consumed quantity.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `quantity_to_consume` - Quantity to consume from layers
+    ///
+    /// # Returns
+    /// Total cost of consumed layers
     async fn consume_layers(
         &self,
         tenant_id: Uuid,
@@ -655,6 +833,14 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
         Ok(total_cost)
     }
 
+    /// Get total quantity across all active layers
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Sum of quantities in all active layers
     async fn get_total_quantity(&self, tenant_id: Uuid, product_id: Uuid) -> Result<i64> {
         let row = sqlx::query!(
             r#"
@@ -671,6 +857,14 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
         Ok(row.total_quantity.unwrap_or(0))
     }
 
+    /// Remove layers with zero quantity
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Number of layers removed
     async fn cleanup_empty_layers(&self, tenant_id: Uuid, product_id: Uuid) -> Result<i64> {
         let result = sqlx::query!(
             r#"
@@ -689,6 +883,18 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
 
 #[async_trait]
 impl ValuationHistoryRepository for ValuationRepositoryImpl {
+    /// Find valuation history records for a product
+    ///
+    /// Returns historical snapshots ordered by change time (newest first).
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `limit` - Maximum records to return (default 50, max 100)
+    /// * `offset` - Number of records to skip
+    ///
+    /// # Returns
+    /// Vector of historical valuation records
     async fn find_by_product_id(
         &self,
         tenant_id: Uuid,
@@ -724,12 +930,7 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
                 valuation_id: r.valuation_id,
                 tenant_id: r.tenant_id,
                 product_id: r.product_id,
-                valuation_method: match r.valuation_method.as_str() {
-                    "fifo" => ValuationMethod::Fifo,
-                    "avco" => ValuationMethod::Avco,
-                    "standard" => ValuationMethod::Standard,
-                    _ => ValuationMethod::Fifo,
-                },
+                valuation_method: Self::string_to_valuation_method(r.valuation_method.as_str()),
                 unit_cost: r.unit_cost,
                 total_quantity: r.total_quantity.unwrap_or(0),
                 total_value: r.total_value.unwrap_or(0),
@@ -741,6 +942,13 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
             .collect())
     }
 
+    /// Create a new history record
+    ///
+    /// # Arguments
+    /// * `history` - History data to insert
+    ///
+    /// # Returns
+    /// Created history record with generated fields
     async fn create(&self, history: &ValuationHistory) -> Result<ValuationHistory> {
         let method_str = match history.valuation_method {
             ValuationMethod::Fifo => "fifo",
@@ -780,12 +988,7 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: match row.valuation_method.as_str() {
-                "fifo" => ValuationMethod::Fifo,
-                "avco" => ValuationMethod::Avco,
-                "standard" => ValuationMethod::Standard,
-                _ => ValuationMethod::Fifo,
-            },
+            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
             unit_cost: row.unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -796,6 +999,14 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
         })
     }
 
+    /// Count total history records for a product
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Total number of history records
     async fn count_by_product_id(&self, tenant_id: Uuid, product_id: Uuid) -> Result<i64> {
         let row = sqlx::query!(
             r#"

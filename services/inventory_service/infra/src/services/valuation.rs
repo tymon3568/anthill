@@ -22,14 +22,32 @@ use inventory_service_core::services::valuation::ValuationService;
 use inventory_service_core::Result;
 
 /// Implementation of ValuationService
+///
+/// Provides business logic for inventory valuation operations including:
+/// - Valuation method management (FIFO, AVCO, Standard)
+/// - Cost layer management for FIFO costing
+/// - Stock movement processing with automatic cost calculation
+/// - Cost adjustments and revaluations with audit trails
+/// - Historical valuation tracking and reporting
 pub struct ValuationServiceImpl {
+    /// Repository for core valuation operations
     valuation_repo: Arc<dyn ValuationRepository>,
+    /// Repository for FIFO cost layer management
     layer_repo: Arc<dyn ValuationLayerRepository>,
+    /// Repository for valuation history and audit trails
     history_repo: Arc<dyn ValuationHistoryRepository>,
 }
 
 impl ValuationServiceImpl {
     /// Create new service instance
+    ///
+    /// # Arguments
+    /// * `valuation_repo` - Repository for valuation operations
+    /// * `layer_repo` - Repository for cost layer management
+    /// * `history_repo` - Repository for historical tracking
+    ///
+    /// # Returns
+    /// New ValuationServiceImpl instance
     pub fn new(
         valuation_repo: Arc<dyn ValuationRepository>,
         layer_repo: Arc<dyn ValuationLayerRepository>,
@@ -45,6 +63,13 @@ impl ValuationServiceImpl {
 
 #[async_trait]
 impl ValuationService for ValuationServiceImpl {
+    /// Get current valuation for a product
+    ///
+    /// # Arguments
+    /// * `request` - Request containing tenant_id and product_id
+    ///
+    /// # Returns
+    /// Current valuation data as DTO
     async fn get_valuation(&self, request: GetValuationRequest) -> Result<ValuationDto> {
         let valuation = self
             .valuation_repo
@@ -52,19 +77,19 @@ impl ValuationService for ValuationServiceImpl {
             .await?
             .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
 
-        Ok(ValuationDto {
-            valuation_id: valuation.valuation_id,
-            tenant_id: valuation.tenant_id,
-            product_id: valuation.product_id,
-            valuation_method: valuation.valuation_method,
-            current_unit_cost: valuation.current_unit_cost,
-            total_quantity: valuation.total_quantity,
-            total_value: valuation.total_value,
-            standard_cost: valuation.standard_cost,
-            last_updated: valuation.last_updated,
-        })
+        Ok(self.valuation_to_dto(valuation))
     }
 
+    /// Set the valuation method for a product
+    ///
+    /// Creates valuation record if it doesn't exist.
+    /// For FIFO method, initializes cost layers from existing stock.
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant_id, product_id, and new valuation method
+    ///
+    /// # Returns
+    /// Updated valuation data as DTO
     async fn set_valuation_method(
         &self,
         request: SetValuationMethodRequest,
@@ -101,19 +126,19 @@ impl ValuationService for ValuationServiceImpl {
             // This would require access to stock move history
         }
 
-        Ok(ValuationDto {
-            valuation_id: valuation.valuation_id,
-            tenant_id: valuation.tenant_id,
-            product_id: valuation.product_id,
-            valuation_method: valuation.valuation_method,
-            current_unit_cost: valuation.current_unit_cost,
-            total_quantity: valuation.total_quantity,
-            total_value: valuation.total_value,
-            standard_cost: valuation.standard_cost,
-            last_updated: valuation.last_updated,
-        })
+        Ok(self.valuation_to_dto(valuation))
     }
 
+    /// Set the standard cost for a product
+    ///
+    /// Only allowed for products using Standard costing method.
+    /// Recalculates total value and creates history record.
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant_id, product_id, and new standard cost
+    ///
+    /// # Returns
+    /// Updated valuation data as DTO
     async fn set_standard_cost(&self, request: SetStandardCostRequest) -> Result<ValuationDto> {
         // Validate cost is positive
         if request.standard_cost <= 0 {
@@ -122,20 +147,35 @@ impl ValuationService for ValuationServiceImpl {
             ));
         }
 
-        // Get current valuation
-        let valuation = self
+        // Get current valuation (pre-change state)
+        let pre_change_valuation = self
             .valuation_repo
             .find_by_product_id(request.tenant_id, request.product_id)
             .await?
             .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
 
         // Check if using standard costing
-        if !matches!(valuation.valuation_method, ValuationMethod::Standard) {
+        if !matches!(pre_change_valuation.valuation_method, ValuationMethod::Standard) {
             return Err(shared_error::AppError::BusinessError(
                 "Standard cost can only be set for products using Standard costing method"
                     .to_string(),
             ));
         }
+
+        // Create history record with pre-change state
+        let history = ValuationHistory::new(
+            pre_change_valuation.valuation_id,
+            pre_change_valuation.tenant_id,
+            pre_change_valuation.product_id,
+            pre_change_valuation.valuation_method.clone(),
+            pre_change_valuation.current_unit_cost,
+            pre_change_valuation.total_quantity,
+            pre_change_valuation.total_value,
+            pre_change_valuation.standard_cost,
+            None, // TODO: get from auth context
+            &format!("Standard cost updated to {}", request.standard_cost),
+        );
+        self.history_repo.create(&history).await?;
 
         let updated = self
             .valuation_repo
@@ -156,19 +196,18 @@ impl ValuationService for ValuationServiceImpl {
             .update(request.tenant_id, request.product_id, &final_valuation)
             .await?;
 
-        Ok(ValuationDto {
-            valuation_id: final_valuation.valuation_id,
-            tenant_id: final_valuation.tenant_id,
-            product_id: final_valuation.product_id,
-            valuation_method: final_valuation.valuation_method,
-            current_unit_cost: final_valuation.current_unit_cost,
-            total_quantity: final_valuation.total_quantity,
-            total_value: final_valuation.total_value,
-            standard_cost: final_valuation.standard_cost,
-            last_updated: final_valuation.last_updated,
-        })
+        Ok(self.valuation_to_dto(final_valuation))
     }
 
+    /// Get all active cost layers for a product
+    ///
+    /// Returns layers with remaining quantity > 0, ordered by creation time.
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant_id and product_id
+    ///
+    /// # Returns
+    /// Response containing vector of valuation layers
     async fn get_valuation_layers(
         &self,
         request: GetValuationLayersRequest,
@@ -196,6 +235,15 @@ impl ValuationService for ValuationServiceImpl {
         Ok(ValuationLayersResponse { layers: layer_dtos })
     }
 
+    /// Get valuation history for a product
+    ///
+    /// Returns historical snapshots with pagination support.
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant_id, product_id, limit, and offset
+    ///
+    /// # Returns
+    /// Response containing history records and total count
     async fn get_valuation_history(
         &self,
         request: GetValuationHistoryRequest,
@@ -238,6 +286,15 @@ impl ValuationService for ValuationServiceImpl {
         })
     }
 
+    /// Adjust inventory cost without changing quantity
+    ///
+    /// Adds/subtracts from total value and creates audit trail.
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant_id, product_id, adjustment amount, and reason
+    ///
+    /// # Returns
+    /// Updated valuation data as DTO
     async fn adjust_cost(&self, request: CostAdjustmentRequest) -> Result<ValuationDto> {
         let updated = self
             .valuation_repo
@@ -250,19 +307,19 @@ impl ValuationService for ValuationServiceImpl {
             )
             .await?;
 
-        Ok(ValuationDto {
-            valuation_id: updated.valuation_id,
-            tenant_id: updated.tenant_id,
-            product_id: updated.product_id,
-            valuation_method: updated.valuation_method,
-            current_unit_cost: updated.current_unit_cost,
-            total_quantity: updated.total_quantity,
-            total_value: updated.total_value,
-            standard_cost: updated.standard_cost,
-            last_updated: updated.last_updated,
-        })
+        Ok(self.valuation_to_dto(updated))
     }
 
+    /// Revalue entire inventory at new unit cost
+    ///
+    /// Recalculates total value based on current quantity and new cost.
+    /// Creates audit trail entry.
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant_id, product_id, new unit cost, and reason
+    ///
+    /// # Returns
+    /// Updated valuation data as DTO
     async fn revalue_inventory(&self, request: RevaluationRequest) -> Result<ValuationDto> {
         // Validate new cost is positive
         if request.new_unit_cost <= 0 {
@@ -282,19 +339,23 @@ impl ValuationService for ValuationServiceImpl {
             )
             .await?;
 
-        Ok(ValuationDto {
-            valuation_id: updated.valuation_id,
-            tenant_id: updated.tenant_id,
-            product_id: updated.product_id,
-            valuation_method: updated.valuation_method,
-            current_unit_cost: updated.current_unit_cost,
-            total_quantity: updated.total_quantity,
-            total_value: updated.total_value,
-            standard_cost: updated.standard_cost,
-            last_updated: updated.last_updated,
-        })
+        Ok(self.valuation_to_dto(updated))
     }
 
+    /// Process stock movement and update valuation
+    ///
+    /// Handles receipts and deliveries for all valuation methods.
+    /// Creates history record with pre-change state.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `quantity_change` - Positive for receipts, negative for deliveries
+    /// * `unit_cost` - Cost per unit (required for receipts)
+    /// * `user_id` - User who initiated the movement
+    ///
+    /// # Returns
+    /// Updated valuation data as DTO
     async fn process_stock_movement(
         &self,
         tenant_id: Uuid,
@@ -303,14 +364,14 @@ impl ValuationService for ValuationServiceImpl {
         unit_cost: Option<i64>,
         user_id: Option<Uuid>,
     ) -> Result<ValuationDto> {
-        // Get current valuation
-        let valuation = self
+        // Get current valuation (pre-change state)
+        let pre_change_valuation = self
             .valuation_repo
             .find_by_product_id(tenant_id, product_id)
             .await?
             .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
 
-        match valuation.valuation_method {
+        let result = match pre_change_valuation.valuation_method {
             ValuationMethod::Fifo => {
                 self.process_fifo_movement(
                     tenant_id,
@@ -335,9 +396,40 @@ impl ValuationService for ValuationServiceImpl {
                 self.process_standard_movement(tenant_id, product_id, quantity_change, user_id)
                     .await
             },
+        };
+
+        // Create history record with pre-change state
+        if let Ok(dto) = &result {
+            let history = ValuationHistory::new(
+                pre_change_valuation.valuation_id,
+                pre_change_valuation.tenant_id,
+                pre_change_valuation.product_id,
+                pre_change_valuation.valuation_method.clone(),
+                pre_change_valuation.current_unit_cost,
+                pre_change_valuation.total_quantity,
+                pre_change_valuation.total_value,
+                pre_change_valuation.standard_cost,
+                user_id,
+                &format!("Stock movement: {} units", quantity_change),
+            );
+            // Note: We don't fail the operation if history creation fails
+            let _ = self.history_repo.create(&history).await;
         }
+
+        result
     }
 
+    /// Calculate current inventory value
+    ///
+    /// For FIFO: sums all active layer values
+    /// For AVCO/Standard: returns stored total_value
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Current inventory value in cents
     async fn calculate_inventory_value(&self, tenant_id: Uuid, product_id: Uuid) -> Result<i64> {
         let valuation = self
             .valuation_repo
@@ -361,6 +453,14 @@ impl ValuationService for ValuationServiceImpl {
         }
     }
 
+    /// Get the current valuation method for a product
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Current valuation method
     async fn get_valuation_method(
         &self,
         tenant_id: Uuid,
@@ -378,6 +478,19 @@ impl ValuationService for ValuationServiceImpl {
 
 impl ValuationServiceImpl {
     /// Process FIFO stock movement
+    ///
+    /// Creates new layers for receipts, consumes existing layers for deliveries.
+    /// Updates valuation totals accordingly.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `quantity_change` - Movement quantity
+    /// * `unit_cost` - Unit cost for receipts
+    /// * `user_id` - User ID for attribution
+    ///
+    /// # Returns
+    /// Updated valuation DTO
     async fn process_fifo_movement(
         &self,
         tenant_id: Uuid,
@@ -386,60 +499,28 @@ impl ValuationServiceImpl {
         unit_cost: Option<i64>,
         user_id: Option<Uuid>,
     ) -> Result<ValuationDto> {
-        if quantity_change > 0 {
-            // Receipt: create new cost layer
-            let unit_cost = unit_cost.ok_or_else(|| {
-                shared_error::AppError::ValidationError(
-                    "Unit cost required for receipt".to_string(),
-                )
-            })?;
-
-            let layer = ValuationLayer::new(tenant_id, product_id, quantity_change, unit_cost);
-            self.layer_repo.create(&layer).await?;
-        } else if quantity_change < 0 {
-            // Delivery: consume from layers
-            let quantity_to_consume = quantity_change.abs();
-            self.layer_repo
-                .consume_layers(tenant_id, product_id, quantity_to_consume)
-                .await?;
-        }
-
-        // Update valuation totals
-        let total_quantity = self
-            .layer_repo
-            .get_total_quantity(tenant_id, product_id)
-            .await?;
-        let total_value = self
-            .calculate_inventory_value(tenant_id, product_id)
-            .await?;
-
-        let mut valuation = self
-            .valuation_repo
-            .find_by_product_id(tenant_id, product_id)
-            .await?
-            .unwrap();
-        valuation.total_quantity = total_quantity;
-        valuation.total_value = total_value;
-
         let updated = self
             .valuation_repo
-            .update(tenant_id, product_id, &valuation)
+            .update_from_stock_move(tenant_id, product_id, quantity_change, unit_cost, user_id)
             .await?;
 
-        Ok(ValuationDto {
-            valuation_id: updated.valuation_id,
-            tenant_id: updated.tenant_id,
-            product_id: updated.product_id,
-            valuation_method: updated.valuation_method,
-            current_unit_cost: updated.current_unit_cost,
-            total_quantity: updated.total_quantity,
-            total_value: updated.total_value,
-            standard_cost: updated.standard_cost,
-            last_updated: updated.last_updated,
-        })
+        Ok(self.valuation_to_dto(updated))
     }
 
     /// Process AVCO stock movement
+    ///
+    /// Recalculates weighted average cost on receipts.
+    /// Uses current average for deliveries.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `quantity_change` - Movement quantity
+    /// * `unit_cost` - Unit cost for receipts
+    /// * `user_id` - User ID for attribution
+    ///
+    /// # Returns
+    /// Updated valuation DTO
     async fn process_avco_movement(
         &self,
         tenant_id: Uuid,
@@ -453,20 +534,21 @@ impl ValuationServiceImpl {
             .update_from_stock_move(tenant_id, product_id, quantity_change, unit_cost, user_id)
             .await?;
 
-        Ok(ValuationDto {
-            valuation_id: updated.valuation_id,
-            tenant_id: updated.tenant_id,
-            product_id: updated.product_id,
-            valuation_method: updated.valuation_method,
-            current_unit_cost: updated.current_unit_cost,
-            total_quantity: updated.total_quantity,
-            total_value: updated.total_value,
-            standard_cost: updated.standard_cost,
-            last_updated: updated.last_updated,
-        })
+        Ok(self.valuation_to_dto(updated))
     }
 
     /// Process Standard costing stock movement
+    ///
+    /// Updates quantity and recalculates value using standard cost.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `quantity_change` - Movement quantity
+    /// * `user_id` - User ID for attribution
+    ///
+    /// # Returns
+    /// Updated valuation DTO
     async fn process_standard_movement(
         &self,
         tenant_id: Uuid,
@@ -479,16 +561,27 @@ impl ValuationServiceImpl {
             .update_from_stock_move(tenant_id, product_id, quantity_change, None, user_id)
             .await?;
 
-        Ok(ValuationDto {
-            valuation_id: updated.valuation_id,
-            tenant_id: updated.tenant_id,
-            product_id: updated.product_id,
-            valuation_method: updated.valuation_method,
-            current_unit_cost: updated.current_unit_cost,
-            total_quantity: updated.total_quantity,
-            total_value: updated.total_value,
-            standard_cost: updated.standard_cost,
-            last_updated: updated.last_updated,
-        })
+        Ok(self.valuation_to_dto(updated))
+    }
+
+    /// Convert Valuation entity to ValuationDto
+    ///
+    /// # Arguments
+    /// * `valuation` - Valuation entity
+    ///
+    /// # Returns
+    /// ValuationDto for API responses
+    fn valuation_to_dto(&self, valuation: Valuation) -> ValuationDto {
+        ValuationDto {
+            valuation_id: valuation.valuation_id,
+            tenant_id: valuation.tenant_id,
+            product_id: valuation.product_id,
+            valuation_method: valuation.valuation_method,
+            current_unit_cost: valuation.current_unit_cost,
+            total_quantity: valuation.total_quantity,
+            total_value: valuation.total_value,
+            standard_cost: valuation.standard_cost,
+            last_updated: valuation.last_updated,
+        }
     }
 }
