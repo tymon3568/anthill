@@ -426,7 +426,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
                         sqlx::query!(
                             r#"
                             UPDATE inventory_valuation_layers
-                            SET quantity = quantity - $3, total_value = quantity * unit_cost
+                            SET quantity = quantity - $3, total_value = (quantity - $3) * unit_cost
                             WHERE layer_id = $1 AND tenant_id = $2 AND quantity >= $3
                             "#,
                             layer.layer_id,
@@ -438,6 +438,15 @@ impl ValuationRepository for ValuationRepositoryImpl {
 
                         total_cost += consume_from_this_layer * layer.unit_cost;
                         remaining_to_consume -= consume_from_this_layer;
+                    }
+
+                    if remaining_to_consume > 0 {
+                        return Err(shared_error::AppError::BusinessError(
+                            format!(
+                                "Insufficient FIFO layers: {} units still needed after consuming all layers",
+                                remaining_to_consume
+                            )
+                        ));
                     }
 
                     // Clean up empty layers
@@ -470,6 +479,14 @@ impl ValuationRepository for ValuationRepositoryImpl {
                     // Delivery: use current average
                     let delivery_value =
                         current.current_unit_cost.unwrap_or(0) * quantity_change.abs();
+                    if delivery_value > current.total_value {
+                        return Err(shared_error::AppError::BusinessError(
+                            format!(
+                                "Insufficient inventory value: attempting to deliver {} but only {} available",
+                                delivery_value, current.total_value
+                            )
+                        ));
+                    }
                     let new_value = current.total_value - delivery_value;
                     (new_quantity, new_value, current.current_unit_cost)
                 }
@@ -839,7 +856,7 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
             sqlx::query!(
                 r#"
                 UPDATE inventory_valuation_layers
-                SET quantity = quantity - $3, total_value = quantity * unit_cost
+                SET quantity = quantity - $3, total_value = (quantity - $3) * unit_cost
                 WHERE layer_id = $1 AND tenant_id = $2 AND quantity >= $3
                 "#,
                 layer.layer_id,
@@ -851,6 +868,13 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
 
             total_cost += consume_from_this_layer * layer.unit_cost;
             remaining_to_consume -= consume_from_this_layer;
+        }
+
+        if remaining_to_consume > 0 {
+            return Err(shared_error::AppError::BusinessError(format!(
+                "Insufficient FIFO layers: {} units still needed after consuming all layers",
+                remaining_to_consume
+            )));
         }
 
         // Clean up empty layers
