@@ -418,8 +418,11 @@ impl ValuationService for ValuationServiceImpl {
                 user_id,
                 &format!("Stock movement: {} units", quantity_change),
             );
-            // Note: We don't fail the operation if history creation fails
-            let _ = self.history_repo.create(&history).await;
+            // Log history creation failures for audit trail monitoring
+            if let Err(e) = self.history_repo.create(&history).await {
+                tracing::error!("Failed to create history record: {:?}", e);
+                // Consider: should this fail the operation for compliance?
+            }
         }
 
         result

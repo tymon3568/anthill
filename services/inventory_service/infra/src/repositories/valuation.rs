@@ -543,6 +543,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         reason: &str,
         updated_by: Option<Uuid>,
     ) -> Result<Valuation> {
+        // Capture pre-change state
+        let before = self
+            .find_by_product_id(tenant_id, product_id)
+            .await?
+            .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
+
         let row = sqlx::query!(
             r#"
             UPDATE inventory_valuations
@@ -560,7 +566,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
-        // Insert history record
+        // Insert history record with pre-change state
+        let method_str = match before.valuation_method {
+            ValuationMethod::Fifo => "fifo",
+            ValuationMethod::Avco => "avco",
+            ValuationMethod::Standard => "standard",
+        };
         sqlx::query!(
             r#"
             INSERT INTO inventory_valuation_history (
@@ -568,14 +579,16 @@ impl ValuationRepository for ValuationRepositoryImpl {
                 unit_cost, total_quantity, total_value, standard_cost,
                 changed_by, change_reason
             )
-            SELECT valuation_id, tenant_id, product_id, valuation_method,
-                   current_unit_cost, total_quantity, total_value, standard_cost,
-                   $3, $4
-            FROM inventory_valuations
-            WHERE tenant_id = $1 AND product_id = $2
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
-            tenant_id,
-            product_id,
+            before.valuation_id,
+            before.tenant_id,
+            before.product_id,
+            method_str,
+            before.current_unit_cost,
+            before.total_quantity,
+            before.total_value,
+            before.standard_cost,
             updated_by,
             reason
         )
@@ -645,7 +658,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
-        // Insert history record
+        // Insert history record with pre-change state
+        let method_str = match current.valuation_method {
+            ValuationMethod::Fifo => "fifo",
+            ValuationMethod::Avco => "avco",
+            ValuationMethod::Standard => "standard",
+        };
         sqlx::query!(
             r#"
             INSERT INTO inventory_valuation_history (
@@ -653,14 +671,16 @@ impl ValuationRepository for ValuationRepositoryImpl {
                 unit_cost, total_quantity, total_value, standard_cost,
                 changed_by, change_reason
             )
-            SELECT valuation_id, tenant_id, product_id, valuation_method,
-                   current_unit_cost, total_quantity, total_value, standard_cost,
-                   $3, $4
-            FROM inventory_valuations
-            WHERE tenant_id = $1 AND product_id = $2
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
-            tenant_id,
-            product_id,
+            current.valuation_id,
+            current.tenant_id,
+            current.product_id,
+            method_str,
+            current.current_unit_cost,
+            current.total_quantity,
+            current.total_value,
+            current.standard_cost,
             updated_by,
             reason
         )
