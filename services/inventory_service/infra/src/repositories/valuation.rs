@@ -43,13 +43,16 @@ impl ValuationRepositoryImpl {
     /// * `s` - String representation from database
     ///
     /// # Returns
-    /// Corresponding ValuationMethod enum value, defaults to Fifo
-    fn string_to_valuation_method(s: &str) -> ValuationMethod {
+    /// Corresponding ValuationMethod enum value or error for unknown values
+    fn string_to_valuation_method(s: &str) -> Result<ValuationMethod, shared_error::AppError> {
         match s {
-            "fifo" => ValuationMethod::Fifo,
-            "avco" => ValuationMethod::Avco,
-            "standard" => ValuationMethod::Standard,
-            _ => ValuationMethod::Fifo,
+            "fifo" => Ok(ValuationMethod::Fifo),
+            "avco" => Ok(ValuationMethod::Avco),
+            "standard" => Ok(ValuationMethod::Standard),
+            unknown => Err(shared_error::AppError::DataCorruption(format!(
+                "Unknown valuation method in database: {}",
+                unknown
+            ))),
         }
     }
 }
@@ -84,18 +87,24 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row.map(|r| Valuation {
-            valuation_id: r.valuation_id,
-            tenant_id: r.tenant_id,
-            product_id: r.product_id,
-            valuation_method: Self::string_to_valuation_method(r.valuation_method.as_str()),
-            current_unit_cost: r.current_unit_cost,
-            total_quantity: r.total_quantity.unwrap_or(0),
-            total_value: r.total_value.unwrap_or(0),
-            standard_cost: r.standard_cost,
-            last_updated: r.last_updated,
-            updated_by: r.updated_by,
-        }))
+        Ok(row
+            .map(|r| -> Result<Valuation> {
+                Ok(Valuation {
+                    valuation_id: r.valuation_id,
+                    tenant_id: r.tenant_id,
+                    product_id: r.product_id,
+                    valuation_method: Self::string_to_valuation_method(
+                        r.valuation_method.as_str(),
+                    )?,
+                    current_unit_cost: r.current_unit_cost,
+                    total_quantity: r.total_quantity.unwrap_or(0),
+                    total_value: r.total_value.unwrap_or(0),
+                    standard_cost: r.standard_cost,
+                    last_updated: r.last_updated,
+                    updated_by: r.updated_by,
+                })
+            })
+            .transpose()?)
     }
 
     /// Create a new valuation record
@@ -137,11 +146,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(Valuation {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -194,11 +204,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(Valuation {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -248,11 +259,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(Valuation {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -296,11 +308,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(Valuation {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -493,11 +506,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
 
         tx.commit().await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(Valuation {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -568,11 +582,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .execute(&self.pool)
         .await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(Valuation {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -652,11 +667,12 @@ impl ValuationRepository for ValuationRepositoryImpl {
         .execute(&self.pool)
         .await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(Valuation {
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             current_unit_cost: row.current_unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),
@@ -925,21 +941,25 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
 
         Ok(rows
             .into_iter()
-            .map(|r| ValuationHistory {
-                history_id: r.history_id,
-                valuation_id: r.valuation_id,
-                tenant_id: r.tenant_id,
-                product_id: r.product_id,
-                valuation_method: Self::string_to_valuation_method(r.valuation_method.as_str()),
-                unit_cost: r.unit_cost,
-                total_quantity: r.total_quantity.unwrap_or(0),
-                total_value: r.total_value.unwrap_or(0),
-                standard_cost: r.standard_cost,
-                changed_at: r.changed_at,
-                changed_by: r.changed_by,
-                change_reason: r.change_reason,
+            .map(|r| -> Result<ValuationHistory> {
+                Ok(ValuationHistory {
+                    history_id: r.history_id,
+                    valuation_id: r.valuation_id,
+                    tenant_id: r.tenant_id,
+                    product_id: r.product_id,
+                    valuation_method: Self::string_to_valuation_method(
+                        r.valuation_method.as_str(),
+                    )?,
+                    unit_cost: r.unit_cost,
+                    total_quantity: r.total_quantity.unwrap_or(0),
+                    total_value: r.total_value.unwrap_or(0),
+                    standard_cost: r.standard_cost,
+                    changed_at: r.changed_at,
+                    changed_by: r.changed_by,
+                    change_reason: r.change_reason,
+                })
             })
-            .collect())
+            .collect::<Result<Vec<_>>>()?)
     }
 
     /// Create a new history record
@@ -983,12 +1003,13 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
+        let valuation_method = Self::string_to_valuation_method(row.valuation_method.as_str())?;
         Ok(ValuationHistory {
             history_id: row.history_id,
             valuation_id: row.valuation_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            valuation_method: Self::string_to_valuation_method(row.valuation_method.as_str()),
+            valuation_method,
             unit_cost: row.unit_cost,
             total_quantity: row.total_quantity.unwrap_or(0),
             total_value: row.total_value.unwrap_or(0),

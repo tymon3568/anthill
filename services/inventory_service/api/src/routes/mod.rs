@@ -126,13 +126,13 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let product_repo = ProductRepositoryImpl::new(pool.clone());
     let product_service = ProductServiceImpl::new(Arc::new(product_repo));
 
-    let valuation_repo = ValuationRepositoryImpl::new(pool.clone());
+    let valuation_repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
     let valuation_service = ValuationServiceImpl::new(
-        Arc::new(valuation_repo.clone())
+        valuation_repo.clone()
             as Arc<dyn inventory_service_core::repositories::valuation::ValuationRepository>,
-        Arc::new(valuation_repo.clone())
+        valuation_repo.clone()
             as Arc<dyn inventory_service_core::repositories::valuation::ValuationLayerRepository>,
-        Arc::new(valuation_repo)
+        valuation_repo
             as Arc<dyn inventory_service_core::repositories::valuation::ValuationHistoryRepository>,
     );
 

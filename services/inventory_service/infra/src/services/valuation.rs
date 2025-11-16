@@ -100,6 +100,18 @@ impl ValuationService for ValuationServiceImpl {
             .find_by_product_id(request.tenant_id, request.product_id)
             .await?;
 
+        // Reject changing to FIFO if product has existing inventory
+        if matches!(request.valuation_method, ValuationMethod::Fifo) {
+            if let Some(ref val) = existing {
+                if val.total_quantity > 0 {
+                    return Err(shared_error::AppError::BusinessError(
+                        "Cannot change to FIFO valuation method when product has existing inventory. \
+                         FIFO requires cost layer initialization from stock move history.".to_string(),
+                    ));
+                }
+            }
+        }
+
         let valuation = if let Some(val) = existing {
             // Update existing
             self.valuation_repo
@@ -119,12 +131,6 @@ impl ValuationService for ValuationServiceImpl {
             );
             self.valuation_repo.create(&new_valuation).await?
         };
-
-        // For FIFO, initialize with existing quantity if any
-        if matches!(request.valuation_method, ValuationMethod::Fifo) {
-            // TODO: Initialize layers from existing stock moves
-            // This would require access to stock move history
-        }
 
         Ok(self.valuation_to_dto(valuation))
     }
