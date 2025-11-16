@@ -34,6 +34,21 @@ jobs:
     name: Lint & Format Check
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: anthill_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,11 +71,43 @@ jobs:
       - name: Cache build artifacts
         uses: Swatinem/rust-cache@v2
 
+      - name: Install sqlx-cli
+        run: |
+          cargo install sqlx-cli \
+            --no-default-features \
+            --features postgres \
+            --version 0.8.6 \
+            || echo "sqlx-cli already installed"
+
+      - name: Wait for PostgreSQL
+        run: |
+          TIMEOUT=60
+          ELAPSED=0
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "PostgreSQL failed to become ready within ${TIMEOUT}s"
+              exit 1
+            fi
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
+
+      - name: Setup test database
+        run: |
+          # Run migrations
+          sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
+
+          # Generate sqlx metadata for macro expansion
+          cargo sqlx prepare --database-url "${{ env.DATABASE_URL }}"
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
       - name: Run clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
 
   # Job 2: Unit tests (fast, no database)
   unit-tests:
@@ -149,7 +196,7 @@ jobs:
           cargo install sqlx-cli \
             --no-default-features \
             --features postgres \
-            --version 0.8.2 \
+            --version 0.8.6 \
             || echo "sqlx-cli already installed"
 
       - name: Wait for PostgreSQL
@@ -238,7 +285,7 @@ jobs:
           cargo install sqlx-cli \
             --no-default-features \
             --features postgres \
-            --version 0.8.2 \
+            --version 0.8.6 \
             || echo "sqlx-cli already installed"
 
       - name: Setup test database
@@ -323,7 +370,7 @@ jobs:
           cargo install sqlx-cli \
             --no-default-features \
             --features postgres \
-            --version 0.8.2 \
+            --version 0.8.6 \
             || echo "sqlx-cli already installed"
 
       - name: Setup test database
