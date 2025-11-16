@@ -523,9 +523,23 @@ impl ValuationRepository for ValuationRepositoryImpl {
                     (new_quantity, new_value, new_unit_cost)
                 } else {
                     // Delivery: use current average
-                    let delivery_value =
-                        current.current_unit_cost.unwrap_or(0) * quantity_change.abs();
-                    let new_value = current.total_value - delivery_value;
+                    let delivery_value = current
+                        .current_unit_cost
+                        .unwrap_or(0)
+                        .checked_mul(quantity_change.abs())
+                        .ok_or_else(|| {
+                            shared_error::AppError::ValidationError(
+                                "Inventory value calculation overflow".to_string(),
+                            )
+                        })?;
+                    let new_value = current.total_value.checked_sub(delivery_value).ok_or_else(|| {
+                        shared_error::AppError::BusinessError(
+                            format!(
+                                "Insufficient inventory value: attempting to deliver {} but only {} available",
+                                delivery_value, current.total_value
+                            )
+                        )
+                    })?;
                     (new_quantity, new_value, current.current_unit_cost)
                 }
             },
