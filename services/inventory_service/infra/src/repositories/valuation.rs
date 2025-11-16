@@ -376,39 +376,40 @@ impl ValuationRepository for ValuationRepositoryImpl {
                             "Unit cost required for receipt".to_string(),
                         )
                     })?;
-                    } else {
-                        // Receipt: create new layer
-                        let layer_id = Uuid::now_v7();
+                    let layer_id = Uuid::now_v7();
 
-                        let layer_value = unit_cost
-                            .checked_mul(quantity_change)
-                            .ok_or_else(|| shared_error::AppError::ValidationError(
-                                "Inventory value calculation overflow".to_string()
-                            ))?;
-                        let new_total = current.total_value
-                            .checked_add(layer_value)
-                            .ok_or_else(|| shared_error::AppError::ValidationError(
-                                "Inventory value calculation overflow".to_string()
-                            ))?;
-
-                        sqlx::query!(
-                            r#"
-                            INSERT INTO inventory_valuation_layers (
-                                layer_id, tenant_id, product_id, quantity, unit_cost, total_value
-                            )
-                            VALUES ($1, $2, $3, $4, $5, $6)
-                            "#,
-                            layer_id,
-                            tenant_id,
-                            product_id,
-                            quantity_change,
-                            unit_cost,
-                            layer_value
+                    let layer_value = unit_cost.checked_mul(quantity_change).ok_or_else(|| {
+                        shared_error::AppError::ValidationError(
+                            "Inventory value calculation overflow".to_string(),
                         )
-                        .execute(&mut *tx)
-                        .await?;
-                        new_total
-                    };
+                    })?;
+                    let new_total =
+                        current
+                            .total_value
+                            .checked_add(layer_value)
+                            .ok_or_else(|| {
+                                shared_error::AppError::ValidationError(
+                                    "Inventory value calculation overflow".to_string(),
+                                )
+                            })?;
+
+                    sqlx::query!(
+                        r#"
+                        INSERT INTO inventory_valuation_layers (
+                            layer_id, tenant_id, product_id, quantity, unit_cost, total_value
+                        )
+                        VALUES ($1, $2, $3, $4, $5, $6)
+                        "#,
+                        layer_id,
+                        tenant_id,
+                        product_id,
+                        quantity_change,
+                        unit_cost,
+                        layer_value
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                    new_total
                 } else {
                     // Delivery: consume layers within this transaction
                     let mut remaining_to_consume = quantity_change.abs();
@@ -453,14 +454,16 @@ impl ValuationRepository for ValuationRepositoryImpl {
 
                         let cost_increment = consume_from_this_layer
                             .checked_mul(layer.unit_cost)
-                            .ok_or_else(|| shared_error::AppError::ValidationError(
-                                "Inventory value calculation overflow".to_string()
-                            ))?;
-                        total_cost = total_cost
-                            .checked_add(cost_increment)
-                            .ok_or_else(|| shared_error::AppError::ValidationError(
-                                "Inventory value calculation overflow".to_string()
-                            ))?;
+                            .ok_or_else(|| {
+                            shared_error::AppError::ValidationError(
+                                "Inventory value calculation overflow".to_string(),
+                            )
+                        })?;
+                        total_cost = total_cost.checked_add(cost_increment).ok_or_else(|| {
+                            shared_error::AppError::ValidationError(
+                                "Inventory value calculation overflow".to_string(),
+                            )
+                        })?;
                         remaining_to_consume -= consume_from_this_layer;
                     }
 
@@ -485,7 +488,11 @@ impl ValuationRepository for ValuationRepositoryImpl {
                     .execute(&mut *tx)
                     .await?;
 
-                    current.total_value - total_cost
+                    current.total_value.checked_sub(total_cost).ok_or_else(|| {
+                        shared_error::AppError::ValidationError(
+                            "Inventory value calculation overflow".to_string(),
+                        )
+                    })?
                 };
                 (new_quantity, new_value, current.current_unit_cost)
             },
@@ -495,38 +502,30 @@ impl ValuationRepository for ValuationRepositoryImpl {
                     (0, 0, None)
                 } else if quantity_change > 0 {
                     // Receipt: recalculate average
-                    let receipt_value = unit_cost.unwrap_or(0)
+                    let receipt_value = unit_cost
+                        .unwrap_or(0)
                         .checked_mul(quantity_change)
-                        .ok_or_else(|| shared_error::AppError::ValidationError(
-                            "Inventory value calculation overflow".to_string()
-                        ))?;
-                    let new_value = current.total_value
-                        .checked_add(receipt_value)
-                        .ok_or_else(|| shared_error::AppError::ValidationError(
-                            "Inventory value calculation overflow".to_string()
-                        ))?;
+                        .ok_or_else(|| {
+                            shared_error::AppError::ValidationError(
+                                "Inventory value calculation overflow".to_string(),
+                            )
+                        })?;
+                    let new_value =
+                        current
+                            .total_value
+                            .checked_add(receipt_value)
+                            .ok_or_else(|| {
+                                shared_error::AppError::ValidationError(
+                                    "Inventory value calculation overflow".to_string(),
+                                )
+                            })?;
                     let new_unit_cost = Some(new_value / new_quantity);
                     (new_quantity, new_value, new_unit_cost)
                 } else {
                     // Delivery: use current average
-                    let delivery_value = current.current_unit_cost.unwrap_or(0)
-                        .checked_mul(quantity_change.abs())
-                        .ok_or_else(|| shared_error::AppError::ValidationError(
-                            "Inventory value calculation overflow".to_string()
-                        ))?;
-                    if delivery_value > current.total_value {
-                        return Err(shared_error::AppError::BusinessError(
-                            format!(
-                                "Insufficient inventory value: attempting to deliver {} but only {} available",
-                                delivery_value, current.total_value
-                            )
-                        ));
-                    }
-                    let new_value = current.total_value
-                        .checked_sub(delivery_value)
-                        .ok_or_else(|| shared_error::AppError::ValidationError(
-                            "Inventory value calculation overflow".to_string()
-                        ))?;
+                    let delivery_value =
+                        current.current_unit_cost.unwrap_or(0) * quantity_change.abs();
+                    let new_value = current.total_value - delivery_value;
                     (new_quantity, new_value, current.current_unit_cost)
                 }
             },
@@ -535,11 +534,15 @@ impl ValuationRepository for ValuationRepositoryImpl {
                 let new_value = if new_quantity == 0 {
                     0
                 } else {
-                    current.standard_cost.unwrap_or(0)
+                    current
+                        .standard_cost
+                        .unwrap_or(0)
                         .checked_mul(new_quantity)
-                        .ok_or_else(|| shared_error::AppError::ValidationError(
-                            "Inventory value calculation overflow".to_string()
-                        ))?
+                        .ok_or_else(|| {
+                            shared_error::AppError::ValidationError(
+                                "Inventory value calculation overflow".to_string(),
+                            )
+                        })?
                 };
                 (new_quantity, new_value, current.current_unit_cost)
             },
@@ -698,11 +701,14 @@ impl ValuationRepository for ValuationRepositoryImpl {
             .await?
             .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
 
-        let new_value = current.total_quantity
+        let new_value = current
+            .total_quantity
             .checked_mul(new_unit_cost)
-            .ok_or_else(|| shared_error::AppError::ValidationError(
-                "Inventory value calculation overflow".to_string()
-            ))?;
+            .ok_or_else(|| {
+                shared_error::AppError::ValidationError(
+                    "Inventory value calculation overflow".to_string(),
+                )
+            })?;
 
         let row = sqlx::query!(
             r#"
