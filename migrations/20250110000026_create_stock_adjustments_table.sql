@@ -44,20 +44,16 @@ CREATE TABLE stock_adjustments (
         CHECK (deleted_at IS NULL OR deleted_at >= updated_at),
     CONSTRAINT stock_adjustments_tenant_move_fk
         FOREIGN KEY (tenant_id, move_id)
-        REFERENCES stock_moves (tenant_id, move_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES stock_moves (tenant_id, move_id),
     CONSTRAINT stock_adjustments_tenant_product_fk
         FOREIGN KEY (tenant_id, product_id)
-        REFERENCES products (tenant_id, product_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES products (tenant_id, product_id),
     CONSTRAINT stock_adjustments_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
-        REFERENCES warehouse_locations (tenant_id, location_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES warehouse_locations (tenant_id, location_id),
     CONSTRAINT stock_adjustments_tenant_approved_by_fk
         FOREIGN KEY (tenant_id, approved_by)
         REFERENCES users (tenant_id, user_id)
-        DEFERRABLE INITIALLY DEFERRED
 );
 
 -- ==================================
