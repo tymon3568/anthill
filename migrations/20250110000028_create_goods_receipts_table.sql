@@ -52,12 +52,14 @@ CREATE TABLE goods_receipts (
         UNIQUE (tenant_id, receipt_number) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT goods_receipts_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
-        REFERENCES warehouses (tenant_id, warehouse_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES warehouses (tenant_id, warehouse_id),
+    CONSTRAINT goods_receipts_tenant_created_by_fk
+        FOREIGN KEY (tenant_id, created_by)
+        REFERENCES users (tenant_id, user_id),
     CONSTRAINT goods_receipts_positive_totals
         CHECK (total_quantity >= 0 AND total_value >= 0),
     CONSTRAINT goods_receipts_delivery_dates
-        CHECK (actual_delivery_date IS NULL OR expected_delivery_date IS NULL OR actual_delivery_date >= expected_delivery_date)
+        CHECK (actual_delivery_date IS NULL OR expected_delivery_date IS NULL OR actual_delivery_date >= expected_delivery_date - INTERVAL '30 days')
 );
 
 -- ==================================
