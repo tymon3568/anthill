@@ -69,4 +69,6 @@ Create the `goods_receipts` table to manage goods receipt notes (GRN), which are
   - Fixed markdown list indentation in task file
   - All critical issues resolved; nitpick on sequence design noted but left as is
   - Committed and pushed fixes to branch
-  - Status: NeedsReview - PR ready for final review
+  - Additional fix: Remove inline REFERENCES from warehouse_id column to rely on tenant-scoped FK constraint
+  - Final fix applied and committed
+  - Status: NeedsReview - all fixes complete, ready for final review
