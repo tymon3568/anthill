@@ -21,7 +21,7 @@ CREATE TABLE goods_receipts (
     reference_number VARCHAR(100),        -- External reference (PO number, etc.)
 
     -- Warehouse and supplier relationships
-    warehouse_id UUID NOT NULL REFERENCES warehouses(warehouse_id),
+    warehouse_id UUID NOT NULL,
     supplier_id UUID,  -- References future suppliers table (nullable for now)
 
     -- Receipt status
