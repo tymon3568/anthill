@@ -54,14 +54,14 @@ CREATE TABLE goods_receipt_items (
     CONSTRAINT goods_receipt_items_positive_total
         CHECK (line_total >= 0),
     CONSTRAINT goods_receipt_items_tenant_receipt_fk
-        FOREIGN KEY (tenant_id, receipt_id)
-        REFERENCES goods_receipts (tenant_id, receipt_id),
+        FOREIGN KEY (receipt_id)
+        REFERENCES goods_receipts (receipt_id),
     CONSTRAINT goods_receipt_items_tenant_product_fk
-        FOREIGN KEY (tenant_id, product_id)
-        REFERENCES products (tenant_id, product_id),
+        FOREIGN KEY (product_id)
+        REFERENCES products (product_id),
     CONSTRAINT goods_receipt_items_tenant_uom_fk
-        FOREIGN KEY (tenant_id, uom_id)
-        REFERENCES unit_of_measures (tenant_id, uom_id)
+        FOREIGN KEY (uom_id)
+        REFERENCES unit_of_measures (uom_id)
 );
 
 -- ==================================
