@@ -90,6 +90,10 @@ pub async fn create_receipt(
     State(state): State<AppState>,
     Json(request): Json<ReceiptCreateRequest>,
 ) -> Result<(StatusCode, Json<ReceiptResponse>), AppError> {
+    request
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
     let receipt = state
         .receipt_service
         .create_receipt(auth_user.tenant_id, auth_user.user_id, request)
@@ -131,6 +135,10 @@ pub async fn list_receipts(
     State(state): State<AppState>,
     Query(query): Query<ReceiptListQuery>,
 ) -> Result<Json<ReceiptListResponse>, AppError> {
+    query
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
     let response = state
         .receipt_service
         .list_receipts(auth_user.tenant_id, query)

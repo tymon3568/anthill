@@ -24,6 +24,7 @@ pub struct ReceiptServiceImpl<R, S, O> {
     receipt_repository: Arc<R>,
     stock_move_repository: Arc<S>,
     outbox_repository: Arc<O>,
+    pool: sqlx::PgPool,
 }
 
 impl<R, S, O> ReceiptServiceImpl<R, S, O>
@@ -38,6 +39,7 @@ where
     /// * `receipt_repository` - Repository for receipt operations
     /// * `stock_move_repository` - Repository for stock move operations
     /// * `outbox_repository` - Repository for event publishing
+    /// * `pool` - Database connection pool for transactions
     ///
     /// # Returns
     /// New ReceiptServiceImpl instance
@@ -45,11 +47,13 @@ where
         receipt_repository: Arc<R>,
         stock_move_repository: Arc<S>,
         outbox_repository: Arc<O>,
+        pool: sqlx::PgPool,
     ) -> Self {
         Self {
             receipt_repository,
             stock_move_repository,
             outbox_repository,
+            pool,
         }
     }
 }

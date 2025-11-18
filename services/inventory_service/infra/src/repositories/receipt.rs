@@ -80,7 +80,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             request.expected_delivery_date,
             request.notes,
             user_id,
-            "VND".to_string()
+            request.currency_code.clone()
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -160,7 +160,6 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .await?;
 
         tx.commit().await?;
-
         Ok(ReceiptResponse {
             receipt_id,
             receipt_number: receipt.receipt_number,
@@ -389,9 +388,19 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         tenant_id: Uuid,
         idempotency_key: &str,
     ) -> Result<bool, AppError> {
-        // For receipts, we can use a combination of tenant_id and a hash of key request data
-        // For now, return false (not implemented)
-        Ok(false)
+        let count: i64 = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*)::BIGINT as "count!"
+            FROM stock_moves
+            WHERE tenant_id = $1 AND idempotency_key = $2
+            "#,
+            tenant_id,
+            idempotency_key
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(count > 0)
     }
 }
 
@@ -460,8 +469,8 @@ impl OutboxRepository for OutboxRepositoryImpl {
     /// Publish receipt created event to outbox (stub implementation)
     async fn publish_receipt_created_event(
         &self,
-        _tenant_id: Uuid,
-        _receipt_id: Uuid,
+        tenant_id: Uuid,
+        receipt_id: Uuid,
     ) -> Result<(), AppError> {
         // TODO: Implement outbox pattern when available
         // For now, this is a no-op

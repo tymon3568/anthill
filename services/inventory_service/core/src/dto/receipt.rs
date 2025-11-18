@@ -26,6 +26,10 @@ pub struct ReceiptCreateRequest {
     #[validate(length(max = 1000))]
     pub notes: Option<String>,
 
+    /// ISO 4217 currency code (e.g., "VND", "USD")
+    #[validate(length(min = 3, max = 3, message = "Currency code must be 3 characters"))]
+    pub currency_code: String,
+
     /// Line items being received
     #[validate(length(min = 1, message = "At least one receipt item is required"))]
     pub items: Vec<ReceiptItemCreateRequest>,
@@ -42,7 +46,7 @@ pub struct ReceiptItemCreateRequest {
     pub expected_quantity: i64,
 
     /// Actual quantity received and accepted
-    #[validate(range(min = 0, message = "Received quantity must be non-negative"))]
+    #[validate(range(min = 1, message = "Received quantity must be positive"))]
     pub received_quantity: i64,
 
     /// Cost per unit in smallest currency unit (cents/xu)
@@ -175,14 +179,16 @@ pub struct ReceiptItemResponse {
 }
 
 /// Query parameters for listing receipts
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct ReceiptListQuery {
     /// Page number (1-based)
     #[serde(default = "default_page")]
+    #[validate(range(min = 1))]
     pub page: i32,
 
     /// Items per page
     #[serde(default = "default_page_size")]
+    #[validate(range(min = 1, max = 100))]
     pub page_size: i32,
 
     /// Filter by warehouse

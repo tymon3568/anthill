@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.4_Stock_Operations
 **Priority:** High
-**Status:** Done
+**Status:** NeedsReview
 **Assignee:** Grok
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-11-18
@@ -50,3 +50,13 @@ Implement the endpoint to create a new Goods Receipt Note (GRN).
     - Added comprehensive error handling and authentication
     - All acceptance criteria met: endpoint created, validation implemented, stock moves generated
     - Status: Done - ready for testing and integration
+*   2025-11-18 09:00: PR review issues fixed by Grok
+    - Implemented proper idempotency check using stock_moves table
+    - Fixed validation inconsistency: required received_quantity >= 1
+    - Added DTO validation call in create_receipt handler
+    - Added currency_code field to ReceiptCreateRequest
+    - Updated repository to use request.currency_code instead of hardcoded VND
+    - Added validation to ReceiptListQuery for page and page_size
+    - Fixed markdown list indentation in task file
+    - Removed unused receipt_service from main AppState
+    - Status: NeedsReview - fixes applied, awaiting review

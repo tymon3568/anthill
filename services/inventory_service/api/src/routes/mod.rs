@@ -151,6 +151,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         Arc::new(receipt_repo),
         Arc::new(stock_move_repo),
         Arc::new(outbox_repo),
+        pool.clone(),
     );
 
     // Create application state

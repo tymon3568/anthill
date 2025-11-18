@@ -36,7 +36,6 @@ pub struct AppState {
     pub product_service: Arc<dyn ProductService>,
     pub valuation_service: Arc<dyn ValuationService>,
     pub warehouse_repository: Arc<dyn WarehouseRepository>,
-    pub receipt_service: Arc<dyn inventory_service_core::services::receipt::ReceiptService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,
