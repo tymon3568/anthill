@@ -20,6 +20,7 @@ pub trait ReceiptRepository: Send + Sync {
         tenant_id: Uuid,
         user_id: Uuid,
         request: &ReceiptCreateRequest,
+        idempotency_key: &str,
     ) -> Result<ReceiptResponse, AppError>;
 
     /// Get a receipt by ID

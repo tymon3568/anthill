@@ -12,6 +12,7 @@ use axum::{
     Router,
 };
 use uuid::Uuid;
+use validator::Validate;
 
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,

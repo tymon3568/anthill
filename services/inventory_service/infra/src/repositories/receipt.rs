@@ -47,6 +47,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         tenant_id: Uuid,
         user_id: Uuid,
         request: &ReceiptCreateRequest,
+        idempotency_key: &str,
     ) -> Result<ReceiptResponse, AppError> {
         let mut tx = self.pool.begin().await?;
 
@@ -158,6 +159,33 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         )
         .execute(&mut *tx)
         .await?;
+
+        // Create stock moves within the same transaction
+        for item_request in &request.items {
+            let move_id = Uuid::now_v7();
+            sqlx::query!(
+                r#"
+                INSERT INTO stock_moves (
+                    move_id, tenant_id, product_id, move_type, quantity,
+                    unit_cost, reference_type, reference_id, idempotency_key,
+                    move_date, move_reason
+                )
+                VALUES ($1, $2, $3, 'receipt', $4, $5, 'grn', $6, $7, NOW(), 'Goods receipt')
+                "#,
+                move_id,
+                tenant_id,
+                item_request.product_id,
+                item_request.received_quantity,
+                item_request.unit_cost,
+                receipt_id,
+                format!("{}-{}", idempotency_key, item_request.product_id)
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        // TODO: Publish receipt created event to outbox (when outbox table is implemented)
+        // For now, this is a no-op until outbox pattern is fully implemented
 
         tx.commit().await?;
         Ok(ReceiptResponse {

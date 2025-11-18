@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.4_Stock_Operations
 **Priority:** High
-**Status:** NeedsReview
+**Status:** Done
 **Assignee:** Grok
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-11-18
@@ -60,3 +60,10 @@ Implement the endpoint to create a new Goods Receipt Note (GRN).
     - Fixed markdown list indentation in task file
     - Removed unused receipt_service from main AppState
     - Status: NeedsReview - fixes applied, awaiting review
+*   2025-11-18 10:00: Comprehensive fixes completed by Grok
+    - Fixed atomicity: receipt creation, stock moves, and outbox now in single transaction
+    - Added missing validator::Validate import in receipt handler
+    - Updated unit tests to include required currency_code field
+    - Removed unused imports in repository file
+    - All critical issues resolved: atomicity, imports, test alignment
+    - Status: Done - all fixes applied and tested

@@ -87,25 +87,10 @@ where
             return Err(AppError::Conflict("Receipt already exists".to_string()));
         }
 
-        // Create receipt and items in transaction
+        // Create receipt, items, stock moves, and outbox event in a single transaction
         let receipt = self
             .receipt_repository
-            .create_receipt(tenant_id, user_id, &request)
-            .await?;
-
-        // Create stock moves for received items
-        self.stock_move_repository
-            .create_receipt_stock_moves(
-                tenant_id,
-                receipt.receipt_id,
-                &request.items,
-                &idempotency_key,
-            )
-            .await?;
-
-        // Publish receipt created event (outbox pattern - stub for now)
-        self.outbox_repository
-            .publish_receipt_created_event(tenant_id, receipt.receipt_id)
+            .create_receipt(tenant_id, user_id, &request, &idempotency_key)
             .await?;
 
         Ok(receipt)
@@ -226,6 +211,7 @@ mod tests {
             reference_number: Some("PO-123".to_string()),
             expected_delivery_date: None,
             notes: None,
+            currency_code: "VND".to_string(),
             items: vec![
                 inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
                     product_id: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440002").unwrap(),
@@ -264,6 +250,7 @@ mod tests {
             reference_number: None,
             expected_delivery_date: None,
             notes: None,
+            currency_code: "VND".to_string(),
             items: vec![
                 inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
                     product_id: Uuid::new_v4(),
@@ -292,6 +279,7 @@ mod tests {
             reference_number: None,
             expected_delivery_date: None,
             notes: None,
+            currency_code: "VND".to_string(),
             items: vec![],
         };
 
@@ -304,6 +292,7 @@ mod tests {
             reference_number: None,
             expected_delivery_date: None,
             notes: None,
+            currency_code: "VND".to_string(),
             items: vec![
                 inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
                     product_id: Uuid::new_v4(),
