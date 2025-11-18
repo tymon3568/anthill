@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::handlers::category::{create_category_routes, AppState};
+use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::search::create_search_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
@@ -138,12 +139,27 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
 
+    // Initialize receipt repositories and services
+    let receipt_repo =
+        inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
+    let stock_move_repo =
+        inventory_service_infra::repositories::receipt::StockMoveRepositoryImpl::new(pool.clone());
+    let outbox_repo =
+        inventory_service_infra::repositories::receipt::OutboxRepositoryImpl::new(pool.clone());
+
+    let receipt_service = inventory_service_infra::services::receipt::ReceiptServiceImpl::new(
+        Arc::new(receipt_repo),
+        Arc::new(stock_move_repo),
+        Arc::new(outbox_repo),
+    );
+
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
         product_service: Arc::new(product_service),
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
+        receipt_service: Arc::new(receipt_service),
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -157,6 +173,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Create routes with state
     let category_routes = create_category_routes(state.clone());
+    let receipt_routes = create_receipt_routes(crate::handlers::receipt::AppState::new(
+        state.receipt_service.clone(),
+    ));
     let search_routes = create_search_routes(state.clone());
     let valuation_routes = create_valuation_routes(state.clone());
     let warehouse_routes = create_warehouse_routes(state.clone());
@@ -195,6 +214,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     Router::new()
         .nest("/api/v1/inventory", category_routes)
+        .nest("/api/v1/inventory/receipts", receipt_routes)
         .nest("/api/v1/inventory/products", search_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
