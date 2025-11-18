@@ -54,6 +54,9 @@ CREATE TABLE unit_of_measures (
         CHECK (rounding_precision >= 0 AND rounding_precision <= 6)
 );
 
+-- Add unique constraint for composite foreign keys
+ALTER TABLE unit_of_measures ADD CONSTRAINT unit_of_measures_tenant_uom_unique UNIQUE (tenant_id, uom_id) DEFERRABLE INITIALLY DEFERRED;
+
 -- ==================================
 -- INDEXES for Performance
 -- ==================================

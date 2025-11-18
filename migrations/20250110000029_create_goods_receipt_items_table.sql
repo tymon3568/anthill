@@ -3,10 +3,7 @@
 -- Dependencies: goods_receipts table (20250110000028), products table (20250110000017), unit_of_measures table (20250110000018)
 -- Created: 2025-11-17
 
--- Add unique constraints required for composite foreign keys
-ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_receipt_unique UNIQUE (tenant_id, receipt_id) DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE products ADD CONSTRAINT products_tenant_product_unique UNIQUE (tenant_id, product_id) DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE unit_of_measures ADD CONSTRAINT unit_of_measures_tenant_uom_unique UNIQUE (tenant_id, uom_id) DEFERRABLE INITIALLY DEFERRED;
+
 
 -- ==================================
 -- GOODS_RECEIPT_ITEMS TABLE (GRN Line Items)

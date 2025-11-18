@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.4_Stock_Operations
 **Priority:** High
-**Status:** InProgress_By_Grok
+**Status:** NeedsReview
 **Assignee:** Grok
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-11-17
@@ -61,3 +61,14 @@ Create the `goods_receipt_items` table to store the line items for each Goods Re
     - Reviewers prefer composite FKs for tenant-scoped integrity; will add unique constraints to parent tables and revert FKs to composite
     - Will add ALTER TABLE statements to add UNIQUE (tenant_id, id) constraints in current migration
     - Will revert FKs back to composite form
+*   2025-11-17 08:05: Completed revised PR review fixes by Grok
+    - Added ALTER TABLE statements to add UNIQUE constraints on (tenant_id, id) for goods_receipts, products, and unit_of_measures
+    - Reverted FKs back to composite form for tenant-scoped integrity
+    - All critical issues resolved; migration now properly implements multi-tenant FKs
+    - Status: NeedsReview - revised fixes applied, ready for final review and merge
+*   2025-11-17 08:10: Applied final code review fix by Grok
+    - Moved UNIQUE constraints to parent migrations (20250110000028 for goods_receipts, 20250110000018 for unit_of_measures) as per review feedback
+    - Removed ALTER TABLE statements from child migration (20250110000029)
+    - Products constraint already existed in 20250110000025
+    - Composite FKs now valid with proper DEFERRABLE UNIQUE constraints in parent tables
+    - Ready for commit and push
