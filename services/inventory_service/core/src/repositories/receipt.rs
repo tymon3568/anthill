@@ -38,4 +38,12 @@ pub trait ReceiptRepository: Send + Sync {
 
     /// Check if a receipt exists by ID
     async fn receipt_exists(&self, tenant_id: Uuid, receipt_id: Uuid) -> Result<bool, AppError>;
+
+    /// Validate and complete a goods receipt note
+    async fn validate_receipt(
+        &self,
+        tenant_id: Uuid,
+        receipt_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<ReceiptResponse, AppError>;
 }

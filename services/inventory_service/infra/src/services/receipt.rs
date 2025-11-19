@@ -89,6 +89,18 @@ where
             .await
     }
 
+    /// Validate and complete a goods receipt note
+    async fn validate_receipt(
+        &self,
+        tenant_id: Uuid,
+        receipt_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<ReceiptResponse, AppError> {
+        self.receipt_repository
+            .validate_receipt(tenant_id, receipt_id, user_id)
+            .await
+    }
+
     /// Validate receipt data before creation
     async fn validate_receipt_request(
         &self,
@@ -329,6 +341,15 @@ mod tests {
             _tenant_id: Uuid,
             _receipt_id: Uuid,
         ) -> Result<bool, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn validate_receipt(
+            &self,
+            _tenant_id: Uuid,
+            _receipt_id: Uuid,
+            _user_id: Uuid,
+        ) -> Result<ReceiptResponse, AppError> {
             unimplemented!("Not needed for validation tests")
         }
     }

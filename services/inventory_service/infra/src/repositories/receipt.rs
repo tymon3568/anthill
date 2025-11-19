@@ -76,10 +76,10 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             r#"
             INSERT INTO goods_receipts (
                 receipt_id, tenant_id, receipt_number, reference_number,
-                warehouse_id, supplier_id, expected_delivery_date, notes,
+                warehouse_id, supplier_id, status, expected_delivery_date, notes,
                 created_by, currency_code
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING receipt_id, receipt_number, reference_number,
                       warehouse_id, supplier_id, status, receipt_date,
                       expected_delivery_date, actual_delivery_date, notes,
@@ -92,6 +92,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             request.reference_number,
             request.warehouse_id,
             request.supplier_id,
+            "confirmed",
             request.expected_delivery_date,
             request.notes,
             user_id,
@@ -424,5 +425,122 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .await?;
 
         Ok(count > 0)
+    }
+
+    /// Validate and complete a goods receipt note
+    async fn validate_receipt(
+        &self,
+        tenant_id: Uuid,
+        receipt_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<ReceiptResponse, AppError> {
+        let mut tx = self.pool.begin().await?;
+
+        // Check if receipt exists and get current status
+        let receipt = sqlx::query!(
+            r#"
+            SELECT status
+            FROM goods_receipts
+            WHERE tenant_id = $1 AND receipt_id = $2 AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            receipt_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Receipt not found".to_string()))?;
+
+        // Validate current status - can only validate from 'confirmed' or 'partially_received'
+        if receipt.status != "confirmed" && receipt.status != "partially_received" {
+            return Err(AppError::ValidationError(format!(
+                "Cannot validate receipt with status '{}'. Must be 'confirmed' or 'partially_received'",
+                receipt.status
+            )));
+        }
+
+        // Update receipt status to 'received' (completed)
+        sqlx::query!(
+            r#"
+            UPDATE goods_receipts
+            SET status = 'received', actual_delivery_date = NOW()
+            WHERE tenant_id = $1 AND receipt_id = $2
+            "#,
+            tenant_id,
+            receipt_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Get receipt items for valuation updates
+        let items = sqlx::query!(
+            r#"
+            SELECT product_id, received_quantity, unit_cost
+            FROM goods_receipt_items
+            WHERE tenant_id = $1 AND receipt_id = $2 AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            receipt_id
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+
+        // Update inventory valuation layers for each item
+        for item in &items {
+            if let Some(unit_cost) = item.unit_cost {
+                // Add to valuation layers (FIFO costing)
+                sqlx::query!(
+                    r#"
+                    INSERT INTO inventory_valuation_layers (
+                        tenant_id, product_id, quantity, unit_cost, total_value
+                    )
+                    VALUES ($1, $2, $3, $4, $5)
+                    "#,
+                    tenant_id,
+                    item.product_id,
+                    item.received_quantity as i64,
+                    unit_cost,
+                    (item.received_quantity as i64) * unit_cost
+                )
+                .execute(&mut *tx)
+                .await?;
+
+                // Update or insert inventory valuation
+                sqlx::query!(
+                    r#"
+                    INSERT INTO inventory_valuations (
+                        tenant_id, product_id, valuation_method,
+                        current_unit_cost, total_quantity, total_value
+                    )
+                    VALUES ($1, $2, 'fifo', $3, $4, $5)
+                    ON CONFLICT (tenant_id, product_id)
+                    DO UPDATE SET
+                        current_unit_cost = CASE
+                            WHEN inventory_valuations.total_quantity + $4 = 0 THEN 0
+                            ELSE ((inventory_valuations.total_value + $5) / (inventory_valuations.total_quantity + $4))
+                        END,
+                        total_quantity = inventory_valuations.total_quantity + $4,
+                        total_value = inventory_valuations.total_value + $5,
+                        last_updated = NOW(),
+                        updated_by = $6
+                    "#,
+                    tenant_id,
+                    item.product_id,
+                    unit_cost,
+                    item.received_quantity as i64,
+                    (item.received_quantity as i64) * unit_cost,
+                    user_id
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        // TODO: Publish receipt completed event to outbox/NATS
+        // For now, this is a placeholder until outbox pattern is implemented
+
+        tx.commit().await?;
+
+        // Return updated receipt
+        self.get_receipt(tenant_id, receipt_id).await
     }
 }
