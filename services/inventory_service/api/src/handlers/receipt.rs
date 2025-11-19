@@ -52,7 +52,7 @@ pub fn create_receipt_routes(state: AppState) -> Router {
 /// Requires authenticated user with appropriate tenant access
 ///
 /// # Idempotency
-/// Supports idempotent operations via X-Idempotency-Key header (future implementation)
+/// Supports idempotent operations via service-generated key from request payload
 ///
 /// # Parameters
 /// * `request` - Receipt creation data including warehouse, supplier, and line items

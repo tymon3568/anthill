@@ -9,8 +9,8 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use inventory_service_core::dto::receipt::{
-    ReceiptCreateRequest, ReceiptItemCreateRequest, ReceiptItemResponse, ReceiptListQuery,
-    ReceiptListResponse, ReceiptResponse, ReceiptSummaryResponse,
+    ReceiptCreateRequest, ReceiptItemResponse, ReceiptListQuery, ReceiptListResponse,
+    ReceiptResponse, ReceiptSummaryResponse,
 };
 use inventory_service_core::repositories::receipt::ReceiptRepository;
 use shared_error::AppError;
@@ -156,9 +156,25 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         let total_quantity: i64 = items.iter().map(|item| item.received_quantity as i64).sum();
         let total_value: i64 = items.iter().map(|item| item.line_total as i64).sum();
 
+        // Update receipt with computed totals
+        sqlx::query!(
+            r#"
+            UPDATE goods_receipts
+            SET total_quantity = $1, total_value = $2
+            WHERE receipt_id = $3 AND tenant_id = $4
+            "#,
+            total_quantity,
+            total_value,
+            receipt_id,
+            tenant_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
         // Create stock moves within the same transaction
-        for item_request in &request.items {
+        for (index, item_request) in request.items.iter().enumerate() {
             let move_id = Uuid::now_v7();
+            let item_idempotency_key = format!("{}-{}", idempotency_key, index);
             sqlx::query!(
                 r#"
                 INSERT INTO stock_moves (
@@ -174,7 +190,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                 item_request.received_quantity,
                 item_request.unit_cost,
                 receipt_id,
-                idempotency_key
+                item_idempotency_key
             )
             .execute(&mut *tx)
             .await?;

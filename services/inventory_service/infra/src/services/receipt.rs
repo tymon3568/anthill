@@ -160,8 +160,12 @@ fn generate_idempotency_key(request: &ReceiptCreateRequest) -> String {
     request.supplier_id.hash(&mut hasher);
     request.reference_number.hash(&mut hasher);
 
-    // Hash the items (simplified - in production, sort items for consistency)
-    for item in &request.items {
+    // Sort items for consistent hashing
+    let mut sorted_items = request.items.clone();
+    sorted_items.sort_by_key(|item| item.product_id);
+
+    // Hash the items
+    for item in &sorted_items {
         item.product_id.hash(&mut hasher);
         item.received_quantity.hash(&mut hasher);
     }
