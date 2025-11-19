@@ -46,7 +46,8 @@ pub fn create_receipt_routes(state: AppState) -> Router {
 /// POST /api/v1/inventory/receipts - Create a new Goods Receipt Note
 ///
 /// Creates a new GRN with the provided receipt data and line items.
-/// The operation includes validation, stock movement creation, and event publishing.
+/// The operation includes validation and stock movement creation.
+/// Event publishing will be added when the outbox pattern is implemented.
 ///
 /// # Authentication
 /// Requires authenticated user with appropriate tenant access

@@ -152,13 +152,16 @@ where
 /// Creates a deterministic key based on key request fields to prevent duplicates.
 /// In production, this should be more sophisticated and include user context.
 fn generate_idempotency_key(request: &ReceiptCreateRequest) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+    use sha2::{Digest, Sha256};
 
-    let mut hasher = DefaultHasher::new();
-    request.warehouse_id.hash(&mut hasher);
-    request.supplier_id.hash(&mut hasher);
-    request.reference_number.hash(&mut hasher);
+    let mut hasher = Sha256::new();
+    hasher.update(request.warehouse_id.as_bytes());
+    if let Some(supplier_id) = request.supplier_id {
+        hasher.update(supplier_id.as_bytes());
+    }
+    if let Some(ref_num) = &request.reference_number {
+        hasher.update(ref_num.as_bytes());
+    }
 
     // Sort items for consistent hashing
     let mut sorted_items = request.items.clone();
@@ -166,11 +169,11 @@ fn generate_idempotency_key(request: &ReceiptCreateRequest) -> String {
 
     // Hash the items
     for item in &sorted_items {
-        item.product_id.hash(&mut hasher);
-        item.received_quantity.hash(&mut hasher);
+        hasher.update(item.product_id.as_bytes());
+        hasher.update(&item.received_quantity.to_le_bytes());
     }
 
-    format!("receipt-{:x}", hasher.finish())
+    format!("receipt-{:x}", hasher.finalize())
 }
 
 #[cfg(test)]
@@ -186,7 +189,7 @@ mod tests {
             reference_number: Some("PO-123".to_string()),
             expected_delivery_date: None,
             notes: None,
-            currency_code: "VND".to_string(),
+            currency_code: "USD".to_string(),
             items: vec![
                 inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
                     product_id: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440002").unwrap(),
@@ -225,7 +228,7 @@ mod tests {
             reference_number: None,
             expected_delivery_date: None,
             notes: None,
-            currency_code: "VND".to_string(),
+            currency_code: "USD".to_string(),
             items: vec![
                 inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
                     product_id: Uuid::new_v4(),
@@ -247,6 +250,8 @@ mod tests {
 
     #[test]
     fn test_dto_validation_invalid() {
+        // Note: These tests only cover DTO-level validation.
+        // Service-level validation (e.g., warehouse/product existence) requires mocking repositories.
         // Test empty items
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
@@ -254,7 +259,7 @@ mod tests {
             reference_number: None,
             expected_delivery_date: None,
             notes: None,
-            currency_code: "VND".to_string(),
+            currency_code: "USD".to_string(),
             items: vec![],
         };
 
@@ -267,7 +272,7 @@ mod tests {
             reference_number: None,
             expected_delivery_date: None,
             notes: None,
-            currency_code: "VND".to_string(),
+            currency_code: "USD".to_string(),
             items: vec![
                 inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
                     product_id: Uuid::new_v4(),
@@ -284,5 +289,263 @@ mod tests {
         };
 
         assert!(request.validate().is_err());
+    }
+
+    // Dummy repository for testing service-level validation
+    struct DummyReceiptRepository;
+
+    #[async_trait]
+    impl ReceiptRepository for DummyReceiptRepository {
+        async fn create_receipt(
+            &self,
+            _tenant_id: Uuid,
+            _user_id: Uuid,
+            _request: &ReceiptCreateRequest,
+            _idempotency_key: &str,
+        ) -> Result<ReceiptResponse, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn get_receipt(
+            &self,
+            _tenant_id: Uuid,
+            _receipt_id: Uuid,
+        ) -> Result<ReceiptResponse, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn list_receipts(
+            &self,
+            _tenant_id: Uuid,
+            _query: ReceiptListQuery,
+        ) -> Result<ReceiptListResponse, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn receipt_exists(
+            &self,
+            _tenant_id: Uuid,
+            _receipt_id: Uuid,
+        ) -> Result<bool, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_valid_request() {
+        let repo = DummyReceiptRepository;
+        let service = ReceiptServiceImpl::new(repo);
+
+        let tenant_id = Uuid::new_v4();
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: Uuid::new_v4(),
+                    expected_quantity: 10,
+                    received_quantity: 8,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_invalid_empty_items() {
+        let repo = DummyReceiptRepository;
+        let service = ReceiptServiceImpl::new(repo);
+
+        let tenant_id = Uuid::new_v4();
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "At least one receipt item is required");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_invalid_nil_warehouse() {
+        let repo = DummyReceiptRepository;
+        let service = ReceiptServiceImpl::new(repo);
+
+        let tenant_id = Uuid::new_v4();
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::nil(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: Uuid::new_v4(),
+                    expected_quantity: 10,
+                    received_quantity: 8,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Warehouse ID is required");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_invalid_nil_product() {
+        let repo = DummyReceiptRepository;
+        let service = ReceiptServiceImpl::new(repo);
+
+        let tenant_id = Uuid::new_v4();
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: Uuid::nil(),
+                    expected_quantity: 10,
+                    received_quantity: 8,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Item 1: Product ID is required");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_invalid_zero_received_quantity() {
+        let repo = DummyReceiptRepository;
+        let service = ReceiptServiceImpl::new(repo);
+
+        let tenant_id = Uuid::new_v4();
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: Uuid::new_v4(),
+                    expected_quantity: 10,
+                    received_quantity: 0,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Item 1: Received quantity must be positive");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_invalid_negative_expected_quantity() {
+        let repo = DummyReceiptRepository;
+        let service = ReceiptServiceImpl::new(repo);
+
+        let tenant_id = Uuid::new_v4();
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: Uuid::new_v4(),
+                    expected_quantity: -1,
+                    received_quantity: 8,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Item 1: Expected quantity cannot be negative");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_invalid_negative_unit_cost() {
+        let repo = DummyReceiptRepository;
+        let service = ReceiptServiceImpl::new(repo);
+
+        let tenant_id = Uuid::new_v4();
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: Uuid::new_v4(),
+                    expected_quantity: 10,
+                    received_quantity: 8,
+                    unit_cost: Some(-100),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Item 1: Unit cost cannot be negative");
     }
 }
