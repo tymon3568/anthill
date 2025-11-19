@@ -5,9 +5,11 @@
 
 pub mod category;
 pub mod product;
+pub mod receipt;
 pub mod valuation;
 
 // Re-export main types for convenience
 pub use category::CategoryService;
 pub use product::ProductService;
+pub use receipt::ReceiptService;
 pub use valuation::ValuationService;
