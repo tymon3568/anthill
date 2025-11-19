@@ -21,10 +21,10 @@ Implement the endpoint to complete or validate a Goods Receipt Note (GRN). This 
 - [x] 5. Publish an `inventory.receipt.completed` event to NATS.
 
 ## Acceptance Criteria:
-- [ ] The `POST /api/v1/inventory/receipts/:id/validate` endpoint is implemented.
-- [ ] The endpoint correctly updates the GRN status.
-- [ ] It creates the final `stock_moves` and updates inventory valuation.
-- [ ] An integration test verifies the validation process.
+- [x] The `POST /api/v1/inventory/receipts/:id/validate` endpoint is implemented.
+- [x] The endpoint correctly updates the GRN status.
+- [x] It creates the final `stock_moves` and updates inventory valuation.
+- [x] An integration test verifies the validation process.
 
 ## Dependencies:
 *   Task: `task_04.04.03_create_grn_endpoint.md`
