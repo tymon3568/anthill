@@ -143,10 +143,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
 
-    let receipt_service = inventory_service_infra::services::receipt::ReceiptServiceImpl::new(
-        Arc::new(receipt_repo),
-        pool.clone(),
-    );
+    let receipt_service =
+        inventory_service_infra::services::receipt::ReceiptServiceImpl::new(Arc::new(receipt_repo));
 
     // Create application state
     let state = AppState {

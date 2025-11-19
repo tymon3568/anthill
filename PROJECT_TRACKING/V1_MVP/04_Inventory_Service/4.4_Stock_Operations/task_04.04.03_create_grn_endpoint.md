@@ -40,35 +40,35 @@ Implement the endpoint to create a new Goods Receipt Note (GRN).
 ## AI Agent Log:
 ---
 *   2025-11-18 08:00: Task claimed by Grok
-  - Verified dependencies: task_04.04.02_create_goods_receipt_items_table.md (Status: Done) ✓
-  - Starting work on sub-task 1
+- Verified dependencies: task_04.04.02_create_goods_receipt_items_table.md (Status: Done) ✓
+- Starting work on sub-task 1
 *   2025-11-18 08:30: Task completed by Grok
-  - Implemented POST /api/v1/inventory/receipts endpoint with full validation
-  - Added idempotency key generation and duplicate prevention
-  - Created receipt and items in single transaction with stock moves
-  - Implemented GET endpoints for listing and retrieving receipts
-  - Added comprehensive error handling and authentication
-  - All acceptance criteria met: endpoint created, validation implemented, stock moves generated
-  - Status: Done - ready for testing and integration
+- Implemented POST /api/v1/inventory/receipts endpoint with full validation
+- Added idempotency key generation and duplicate prevention
+- Created receipt and items in single transaction with stock moves
+- Implemented GET endpoints for listing and retrieving receipts
+- Added comprehensive error handling and authentication
+- All acceptance criteria met: endpoint created, validation implemented, stock moves generated
+- Status: Done - ready for testing and integration
 *   2025-11-18 09:00: PR review issues fixed by Grok
-  - Implemented proper idempotency check using stock_moves table
-  - Fixed validation inconsistency: required received_quantity >= 1
-  - Added DTO validation call in create_receipt handler
-  - Added currency_code field to ReceiptCreateRequest
-  - Updated repository to use request.currency_code instead of hardcoded VND
-  - Added validation to ReceiptListQuery for page and page_size
-  - Fixed markdown list indentation in task file
-  - Removed unused receipt_service from main AppState
-  - Status: NeedsReview - fixes applied, awaiting review
+- Implemented proper idempotency check using stock_moves table
+- Fixed validation inconsistency: required received_quantity >= 1
+- Added DTO validation call in create_receipt handler
+- Added currency_code field to ReceiptCreateRequest
+- Updated repository to use request.currency_code instead of hardcoded VND
+- Added validation to ReceiptListQuery for page and page_size
+- Fixed markdown list indentation in task file
+- Removed unused receipt_service from main AppState
+- Status: NeedsReview - fixes applied, awaiting review
 *   2025-11-18 10:00: Comprehensive fixes completed by Grok
-  - Fixed atomicity: receipt creation, stock moves, and outbox now in single transaction
-  - Added missing validator::Validate import in receipt handler
-  - Updated unit tests to include required currency_code field
-  - Removed unused imports in repository file
-  - All critical issues resolved: atomicity, imports, test alignment
-  - Status: Done - all fixes applied and tested
+- Fixed atomicity: receipt creation, stock moves, and outbox now in single transaction
+- Added missing validator::Validate import in receipt handler
+- Updated unit tests to include required currency_code field
+- Removed unused imports in repository file
+- All critical issues resolved: atomicity, imports, test alignment
+- Status: Done - all fixes applied and tested
 *   2025-11-18 11:00: All issues resolved and committed by Grok
-  - Updated task status to Done
-  - All PR review issues have been fixed
-  - Code committed and pushed to branch
-  - Ready for final review and merge
+- Updated task status to Done
+- All PR review issues have been fixed
+- Code committed and pushed to branch
+- Ready for final review and merge

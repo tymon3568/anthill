@@ -22,7 +22,6 @@ use shared_error::AppError;
 /// with proper validation, transaction management, and side effects.
 pub struct ReceiptServiceImpl<R> {
     receipt_repository: Arc<R>,
-    pool: sqlx::PgPool,
 }
 
 impl<R> ReceiptServiceImpl<R>
@@ -33,15 +32,11 @@ where
     ///
     /// # Arguments
     /// * `receipt_repository` - Repository for receipt operations
-    /// * `pool` - Database connection pool for transactions
     ///
     /// # Returns
     /// New ReceiptServiceImpl instance
-    pub fn new(receipt_repository: Arc<R>, pool: sqlx::PgPool) -> Self {
-        Self {
-            receipt_repository,
-            pool,
-        }
+    pub fn new(receipt_repository: Arc<R>) -> Self {
+        Self { receipt_repository }
     }
 }
 

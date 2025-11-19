@@ -208,7 +208,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                 item_request.received_quantity,
                 item_request.unit_cost,
                 receipt_id,
-                format!("{}-{}", idempotency_key, item_request.product_id)
+                idempotency_key
             )
             .execute(&mut *tx)
             .await?;
