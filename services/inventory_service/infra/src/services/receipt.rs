@@ -20,50 +20,35 @@ use shared_error::AppError;
 ///
 /// Orchestrates the creation and management of Goods Receipt Notes (GRN)
 /// with proper validation, transaction management, and side effects.
-pub struct ReceiptServiceImpl<R, S, O> {
+pub struct ReceiptServiceImpl<R> {
     receipt_repository: Arc<R>,
-    stock_move_repository: Arc<S>,
-    outbox_repository: Arc<O>,
     pool: sqlx::PgPool,
 }
 
-impl<R, S, O> ReceiptServiceImpl<R, S, O>
+impl<R> ReceiptServiceImpl<R>
 where
     R: ReceiptRepository + Send + Sync,
-    S: StockMoveRepository + Send + Sync,
-    O: OutboxRepository + Send + Sync,
 {
     /// Create a new ReceiptServiceImpl
     ///
     /// # Arguments
     /// * `receipt_repository` - Repository for receipt operations
-    /// * `stock_move_repository` - Repository for stock move operations
-    /// * `outbox_repository` - Repository for event publishing
     /// * `pool` - Database connection pool for transactions
     ///
     /// # Returns
     /// New ReceiptServiceImpl instance
-    pub fn new(
-        receipt_repository: Arc<R>,
-        stock_move_repository: Arc<S>,
-        outbox_repository: Arc<O>,
-        pool: sqlx::PgPool,
-    ) -> Self {
+    pub fn new(receipt_repository: Arc<R>, pool: sqlx::PgPool) -> Self {
         Self {
             receipt_repository,
-            stock_move_repository,
-            outbox_repository,
             pool,
         }
     }
 }
 
 #[async_trait]
-impl<R, S, O> ReceiptService for ReceiptServiceImpl<R, S, O>
+impl<R> ReceiptService for ReceiptServiceImpl<R>
 where
     R: ReceiptRepository + Send + Sync,
-    S: StockMoveRepository + Send + Sync,
-    O: OutboxRepository + Send + Sync,
 {
     /// Create a new goods receipt note with validation and side effects
     async fn create_receipt(
@@ -77,15 +62,6 @@ where
 
         // Generate idempotency key from request data
         let idempotency_key = generate_idempotency_key(&request);
-
-        // Check for duplicate receipt (basic idempotency)
-        if self
-            .receipt_repository
-            .check_idempotency_key(tenant_id, &idempotency_key)
-            .await?
-        {
-            return Err(AppError::Conflict("Receipt already exists".to_string()));
-        }
 
         // Create receipt, items, stock moves, and outbox event in a single transaction
         let receipt = self
@@ -241,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_receipt_request_valid() {
+    fn test_dto_validation_valid() {
         // This would require mocking repositories
         // For now, just test basic validation logic
         let request = ReceiptCreateRequest {
@@ -271,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_receipt_request_invalid() {
+    fn test_dto_validation_invalid() {
         // Test empty items
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),

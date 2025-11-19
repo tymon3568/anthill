@@ -51,6 +51,23 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
     ) -> Result<ReceiptResponse, AppError> {
         let mut tx = self.pool.begin().await?;
 
+        // Check idempotency within transaction to prevent race condition
+        let count: i64 = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*)::BIGINT as "count!"
+            FROM stock_moves
+            WHERE tenant_id = $1 AND idempotency_key = $2
+            "#,
+            tenant_id,
+            idempotency_key
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if count > 0 {
+            return Err(AppError::Conflict("Receipt already exists".to_string()));
+        }
+
         // Generate receipt number
         let receipt_number: String = sqlx::query_scalar("SELECT generate_receipt_number()")
             .fetch_one(&mut *tx)
@@ -160,6 +177,19 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .execute(&mut *tx)
         .await?;
 
+        // Fetch updated totals
+        let updated_receipt = sqlx::query!(
+            r#"
+            SELECT total_quantity, total_value
+            FROM goods_receipts
+            WHERE receipt_id = $1 AND tenant_id = $2
+            "#,
+            receipt_id,
+            tenant_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
         // Create stock moves within the same transaction
         for item_request in &request.items {
             let move_id = Uuid::now_v7();
@@ -201,8 +231,8 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             actual_delivery_date: receipt.actual_delivery_date,
             notes: receipt.notes,
             created_by: receipt.created_by,
-            total_quantity: receipt.total_quantity.unwrap_or(0),
-            total_value: receipt.total_value.unwrap_or(0),
+            total_quantity: updated_receipt.total_quantity.unwrap_or(0),
+            total_value: updated_receipt.total_value.unwrap_or(0),
             currency_code: receipt.currency_code,
             items,
             created_at: receipt.created_at,
@@ -408,100 +438,5 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .await?;
 
         Ok(count > 0)
-    }
-
-    /// Check idempotency key for duplicate prevention
-    async fn check_idempotency_key(
-        &self,
-        tenant_id: Uuid,
-        idempotency_key: &str,
-    ) -> Result<bool, AppError> {
-        let count: i64 = sqlx::query_scalar!(
-            r#"
-            SELECT COUNT(*)::BIGINT as "count!"
-            FROM stock_moves
-            WHERE tenant_id = $1 AND idempotency_key = $2
-            "#,
-            tenant_id,
-            idempotency_key
-        )
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(count > 0)
-    }
-}
-
-/// PostgreSQL implementation of StockMoveRepository
-pub struct StockMoveRepositoryImpl {
-    pool: PgPool,
-}
-
-impl StockMoveRepositoryImpl {
-    /// Create a new StockMoveRepositoryImpl
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
-}
-
-#[async_trait]
-impl StockMoveRepository for StockMoveRepositoryImpl {
-    /// Create stock moves for receipt items
-    async fn create_receipt_stock_moves(
-        &self,
-        tenant_id: Uuid,
-        receipt_id: Uuid,
-        items: &[ReceiptItemCreateRequest],
-        idempotency_key: &str,
-    ) -> Result<(), AppError> {
-        for item in items {
-            let move_id = Uuid::now_v7();
-            sqlx::query!(
-                r#"
-                INSERT INTO stock_moves (
-                    move_id, tenant_id, product_id, move_type, quantity,
-                    unit_cost, reference_type, reference_id, idempotency_key,
-                    move_date, move_reason
-                )
-                VALUES ($1, $2, $3, 'receipt', $4, $5, 'grn', $6, $7, NOW(), 'Goods receipt')
-                "#,
-                move_id,
-                tenant_id,
-                item.product_id,
-                item.received_quantity,
-                item.unit_cost,
-                receipt_id,
-                format!("{}-{}", idempotency_key, item.product_id)
-            )
-            .execute(&self.pool)
-            .await?;
-        }
-        Ok(())
-    }
-}
-
-/// Stub implementation of OutboxRepository (for future outbox pattern)
-pub struct OutboxRepositoryImpl {
-    pool: PgPool,
-}
-
-impl OutboxRepositoryImpl {
-    /// Create a new OutboxRepositoryImpl
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
-}
-
-#[async_trait]
-impl OutboxRepository for OutboxRepositoryImpl {
-    /// Publish receipt created event to outbox (stub implementation)
-    async fn publish_receipt_created_event(
-        &self,
-        tenant_id: Uuid,
-        receipt_id: Uuid,
-    ) -> Result<(), AppError> {
-        // TODO: Implement outbox pattern when available
-        // For now, this is a no-op
-        Ok(())
     }
 }

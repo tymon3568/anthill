@@ -11,6 +11,6 @@ pub mod warehouse;
 // Re-export repositories for convenience
 pub use category::CategoryRepositoryImpl;
 pub use product::ProductRepositoryImpl;
-pub use receipt::{OutboxRepositoryImpl, ReceiptRepositoryImpl, StockMoveRepositoryImpl};
+pub use receipt::ReceiptRepositoryImpl;
 pub use valuation::ValuationRepositoryImpl;
 pub use warehouse::WarehouseRepositoryImpl;

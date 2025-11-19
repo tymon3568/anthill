@@ -6,8 +6,7 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::dto::receipt::{
-    ReceiptCreateRequest, ReceiptItemCreateRequest, ReceiptListQuery, ReceiptListResponse,
-    ReceiptResponse,
+    ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
 use shared_error::AppError;
 
@@ -39,35 +38,4 @@ pub trait ReceiptRepository: Send + Sync {
 
     /// Check if a receipt exists by ID
     async fn receipt_exists(&self, tenant_id: Uuid, receipt_id: Uuid) -> Result<bool, AppError>;
-
-    /// Check idempotency key for duplicate prevention
-    async fn check_idempotency_key(
-        &self,
-        tenant_id: Uuid,
-        idempotency_key: &str,
-    ) -> Result<bool, AppError>;
-}
-
-/// Repository trait for stock move operations (used by receipt creation)
-#[async_trait]
-pub trait StockMoveRepository: Send + Sync {
-    /// Create stock moves for receipt items
-    async fn create_receipt_stock_moves(
-        &self,
-        tenant_id: Uuid,
-        receipt_id: Uuid,
-        items: &[ReceiptItemCreateRequest],
-        idempotency_key: &str,
-    ) -> Result<(), AppError>;
-}
-
-/// Repository trait for outbox pattern (future implementation)
-#[async_trait]
-pub trait OutboxRepository: Send + Sync {
-    /// Publish receipt created event to outbox
-    async fn publish_receipt_created_event(
-        &self,
-        tenant_id: Uuid,
-        receipt_id: Uuid,
-    ) -> Result<(), AppError>;
 }

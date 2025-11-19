@@ -142,15 +142,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Initialize receipt repositories and services
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
-    let stock_move_repo =
-        inventory_service_infra::repositories::receipt::StockMoveRepositoryImpl::new(pool.clone());
-    let outbox_repo =
-        inventory_service_infra::repositories::receipt::OutboxRepositoryImpl::new(pool.clone());
 
     let receipt_service = inventory_service_infra::services::receipt::ReceiptServiceImpl::new(
         Arc::new(receipt_repo),
-        Arc::new(stock_move_repo),
-        Arc::new(outbox_repo),
         pool.clone(),
     );
 
