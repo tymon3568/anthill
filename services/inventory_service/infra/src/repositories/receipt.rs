@@ -5,17 +5,14 @@
 //! Goods Receipt Notes (GRN) and related stock movements.
 
 use async_trait::async_trait;
-use sqlx::postgres::PgRow;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptItemCreateRequest, ReceiptItemResponse, ReceiptListQuery,
     ReceiptListResponse, ReceiptResponse, ReceiptSummaryResponse,
 };
-use inventory_service_core::repositories::receipt::{
-    OutboxRepository, ReceiptRepository, StockMoveRepository,
-};
+use inventory_service_core::repositories::receipt::ReceiptRepository;
 use shared_error::AppError;
 
 /// PostgreSQL implementation of ReceiptRepository
@@ -155,40 +152,9 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             });
         }
 
-        // Update receipt totals
-        sqlx::query!(
-            r#"
-            UPDATE goods_receipts
-            SET total_quantity = (
-                SELECT COALESCE(SUM(received_quantity), 0)
-                FROM goods_receipt_items
-                WHERE receipt_id = $1 AND tenant_id = $2
-            ),
-            total_value = (
-                SELECT COALESCE(SUM(line_total), 0)
-                FROM goods_receipt_items
-                WHERE receipt_id = $1 AND tenant_id = $2
-            )
-            WHERE receipt_id = $1 AND tenant_id = $2
-            "#,
-            receipt_id,
-            tenant_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        // Fetch updated totals
-        let updated_receipt = sqlx::query!(
-            r#"
-            SELECT total_quantity, total_value
-            FROM goods_receipts
-            WHERE receipt_id = $1 AND tenant_id = $2
-            "#,
-            receipt_id,
-            tenant_id
-        )
-        .fetch_one(&mut *tx)
-        .await?;
+        // Compute totals from items
+        let total_quantity: i64 = items.iter().map(|item| item.received_quantity as i64).sum();
+        let total_value: i64 = items.iter().map(|item| item.line_total as i64).sum();
 
         // Create stock moves within the same transaction
         for item_request in &request.items {
@@ -231,8 +197,8 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             actual_delivery_date: receipt.actual_delivery_date,
             notes: receipt.notes,
             created_by: receipt.created_by,
-            total_quantity: updated_receipt.total_quantity.unwrap_or(0),
-            total_value: updated_receipt.total_value.unwrap_or(0),
+            total_quantity,
+            total_value,
             currency_code: receipt.currency_code,
             items,
             created_at: receipt.created_at,
@@ -300,6 +266,10 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         })
         .collect();
 
+        // Compute totals from items
+        let total_quantity: i64 = items.iter().map(|item| item.received_quantity as i64).sum();
+        let total_value: i64 = items.iter().map(|item| item.line_total as i64).sum();
+
         Ok(ReceiptResponse {
             receipt_id,
             receipt_number: receipt.receipt_number,
@@ -313,8 +283,8 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             actual_delivery_date: receipt.actual_delivery_date,
             notes: receipt.notes,
             created_by: receipt.created_by,
-            total_quantity: receipt.total_quantity.unwrap_or(0),
-            total_value: receipt.total_value.unwrap_or(0),
+            total_quantity,
+            total_value,
             currency_code: receipt.currency_code,
             items,
             created_at: receipt.created_at,
