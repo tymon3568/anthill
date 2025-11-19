@@ -516,7 +516,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                     DO UPDATE SET
                         current_unit_cost = CASE
                             WHEN inventory_valuations.total_quantity + $4 = 0 THEN 0
-                            ELSE ((inventory_valuations.total_value + $5) / (inventory_valuations.total_quantity + $4))
+                            ELSE CAST((inventory_valuations.total_value + $5) AS DECIMAL) / NULLIF(inventory_valuations.total_quantity + $4, 0)
                         END,
                         total_quantity = inventory_valuations.total_quantity + $4,
                         total_value = inventory_valuations.total_value + $5,
