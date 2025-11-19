@@ -179,7 +179,9 @@ fn generate_idempotency_key(request: &ReceiptCreateRequest) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     use uuid::Uuid;
+    use validator::Validate;
 
     #[test]
     fn test_generate_idempotency_key() {
@@ -333,10 +335,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_valid_request() {
-        let repo = DummyReceiptRepository;
-        let service = ReceiptServiceImpl::new(repo);
-
         let tenant_id = Uuid::new_v4();
+        let repo = Arc::new(DummyReceiptRepository);
+        let service = ReceiptServiceImpl::new(repo);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -365,10 +366,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_empty_items() {
-        let repo = DummyReceiptRepository;
-        let service = ReceiptServiceImpl::new(repo);
-
         let tenant_id = Uuid::new_v4();
+        let repo = Arc::new(DummyReceiptRepository);
+        let service = ReceiptServiceImpl::new(repo);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -386,7 +386,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_nil_warehouse() {
-        let repo = DummyReceiptRepository;
+        let repo = Arc::new(DummyReceiptRepository);
         let service = ReceiptServiceImpl::new(repo);
 
         let tenant_id = Uuid::new_v4();
@@ -419,7 +419,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_nil_product() {
-        let repo = DummyReceiptRepository;
+        let repo = Arc::new(DummyReceiptRepository);
         let service = ReceiptServiceImpl::new(repo);
 
         let tenant_id = Uuid::new_v4();
@@ -452,7 +452,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_zero_received_quantity() {
-        let repo = DummyReceiptRepository;
+        let repo = Arc::new(DummyReceiptRepository);
         let service = ReceiptServiceImpl::new(repo);
 
         let tenant_id = Uuid::new_v4();
@@ -485,7 +485,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_negative_expected_quantity() {
-        let repo = DummyReceiptRepository;
+        let repo = Arc::new(DummyReceiptRepository);
         let service = ReceiptServiceImpl::new(repo);
 
         let tenant_id = Uuid::new_v4();
@@ -518,7 +518,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_negative_unit_cost() {
-        let repo = DummyReceiptRepository;
+        let repo = Arc::new(DummyReceiptRepository);
         let service = ReceiptServiceImpl::new(repo);
 
         let tenant_id = Uuid::new_v4();
