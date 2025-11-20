@@ -37,14 +37,13 @@ async fn start_order_confirmed_consumer(
             match message {
                 Ok(event) => {
                     if let Err(e) = handle_order_confirmed(
-                        handle_order_confirmed(
-                            event,
-                            delivery_repo.clone(),
-                            delivery_item_repo.clone(),
-                            inventory_repo.clone(),
-                            &pool,
-                        )
-                        .await
+                        event,
+                        delivery_repo.clone(),
+                        delivery_item_repo.clone(),
+                        inventory_repo.clone(),
+                        &pool,
+                    )
+                    .await
                     {
                         tracing::error!("Failed to handle order.confirmed event: {}", e);
                     }
@@ -76,7 +75,10 @@ async fn handle_order_confirmed(
     );
 
     // Idempotency check: if delivery order already exists for this order, skip
-    if let Some(existing) = delivery_repo.find_by_order_id(tenant_id, order_data.order_id).await? {
+    if let Some(existing) = delivery_repo
+        .find_by_order_id(tenant_id, order_data.order_id)
+        .await?
+    {
         tracing::info!(
             "Delivery order {} already exists for order {}, skipping",
             existing.delivery_id,
@@ -237,9 +239,10 @@ async fn handle_order_confirmed(
         .await?;
 
         if result.rows_affected() == 0 {
-            return Err(AppError::ValidationError(
-                format!("Insufficient stock for product {}", item.product_id)
-            ));
+            return Err(AppError::ValidationError(format!(
+                "Insufficient stock for product {}",
+                item.product_id
+            )));
         }
     }
 
@@ -248,7 +251,8 @@ async fn handle_order_confirmed(
 
     tracing::info!(
         "Successfully created delivery order {} for order {}",
-        delivery_number, order_data.order_id
+        delivery_number,
+        order_data.order_id
     );
 
     Ok(())
