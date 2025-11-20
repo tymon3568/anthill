@@ -17,6 +17,8 @@ sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macro
 uuid = {workspace = true}
 # Validation
 validator = {workspace = true}
+# Hashing for idempotency keys
+sha2 = "0.10"
 
 [dev-dependencies]
 # Test dependencies

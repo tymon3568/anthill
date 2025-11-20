@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.4_Stock_Operations
 **Priority:** High
-**Status:** InProgress_By_Grok
+**Status:** NeedsReview
 **Assignee:** Grok
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-11-20
@@ -47,3 +47,9 @@ Create the `delivery_orders` table to manage the shipment of goods out of the wa
   - Addressing markdown indentation issue (MD007)
   - Fixing inverted date constraint logic in ship dates CHECK
   - Removing redundant unique constraint on (tenant_id, delivery_id)
+* 2025-11-20 11:00: PR review fixes completed by Grok
+  - Fixed markdown indentation to 2-space in task file
+  - Corrected ship dates CHECK to require actual_ship_date >= expected_ship_date
+  - Removed redundant UNIQUE (tenant_id, delivery_id) constraint from migration
+  - Committed and pushed changes to feature branch
+  - Status: NeedsReview - awaiting review

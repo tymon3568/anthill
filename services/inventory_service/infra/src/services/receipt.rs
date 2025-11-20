@@ -10,9 +10,7 @@ use uuid::Uuid;
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
-use inventory_service_core::repositories::receipt::{
-    OutboxRepository, ReceiptRepository, StockMoveRepository,
-};
+use inventory_service_core::repositories::receipt::ReceiptRepository;
 use inventory_service_core::services::receipt::ReceiptService;
 use shared_error::AppError;
 
@@ -104,7 +102,7 @@ where
     /// Validate receipt data before creation
     async fn validate_receipt_request(
         &self,
-        tenant_id: Uuid,
+        _tenant_id: Uuid,
         request: &ReceiptCreateRequest,
     ) -> Result<(), AppError> {
         // Validate that warehouse exists (basic check)
