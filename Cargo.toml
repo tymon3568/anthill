@@ -1,4 +1,5 @@
 [workspace]
+exclude = ["services/payment_service"]
 members = [
   # Services (3-crate pattern)
   "services/user_service/api",
@@ -33,6 +34,8 @@ config = "0.14"
 criterion = {version = "0.5", features = ["html_reports"]}
 dotenvy = "0.15"
 fake = {version = "2.9", features = ["derive", "uuid", "chrono"]}
+# Futures
+futures = "0.3"
 # Inventory service crates (internal)
 inventory_service_core = {path = "services/inventory_service/core"}
 inventory_service_infra = {path = "services/inventory_service/infra"}
@@ -41,6 +44,8 @@ jsonwebtoken = "9.2"
 lazy_static = "1.4"
 # Testing utilities
 mockall = "0.13"
+# Once cell for global state
+once_cell = "1.19"
 proptest = "1.4"
 regex = "1.10"
 # Serde - serialization

@@ -176,7 +176,9 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
             r#"
             SELECT * FROM delivery_orders
             WHERE tenant_id = $1 AND order_id = $2 AND deleted_at IS NULL
-            ORDER BY created_at DESC
+            ORDER BY created51
+ 
+_at DESC
             "#,
             tenant_id,
             order_id,
