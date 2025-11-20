@@ -40,6 +40,7 @@ pub fn create_receipt_routes(state: AppState) -> Router {
     Router::new()
         .route("/", post(create_receipt).get(list_receipts))
         .route("/{receipt_id}", get(get_receipt))
+        .route("/{receipt_id}/validate", post(validate_receipt))
         .with_state(state)
 }
 
@@ -200,6 +201,44 @@ pub async fn get_receipt(
     let receipt = state
         .receipt_service
         .get_receipt(auth_user.tenant_id, receipt_id)
+        .await?;
+
+    Ok(Json(receipt))
+}
+
+/// POST /api/v1/inventory/receipts/{receipt_id}/validate - Validate and complete a Goods Receipt Note
+///
+/// Validates and completes a GRN, changing its status to 'received' and updating
+/// inventory valuation layers. This action confirms the receipt of goods and makes
+/// them available in stock for further operations.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Path Parameters
+/// * `receipt_id` - UUID of the receipt to validate
+///
+/// # Returns
+/// * `200` - Receipt successfully validated with updated details
+/// * `400` - Receipt is not in a valid state for validation
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+/// * `404` - Receipt not found
+///
+/// # Example
+/// ```
+/// POST /api/v1/inventory/receipts/550e8400-e29b-41d4-a716-446655440000/validate
+/// ```
+///
+/// Response includes the updated receipt with status 'received'.
+pub async fn validate_receipt(
+    auth_user: AuthUser,
+    State(state): State<AppState>,
+    Path(receipt_id): Path<Uuid>,
+) -> Result<Json<ReceiptResponse>, AppError> {
+    let receipt = state
+        .receipt_service
+        .validate_receipt(auth_user.tenant_id, receipt_id, auth_user.user_id)
         .await?;
 
     Ok(Json(receipt))

@@ -14,13 +14,6 @@ use shared_error::AppError;
 #[async_trait]
 pub trait ReceiptService: Send + Sync {
     /// Create a new goods receipt note with validation and side effects
-    ///
-    /// This operation:
-    /// 1. Validates the request data
-    /// 2. Checks idempotency key to prevent duplicates
-    /// 3. Creates the receipt and items in a single transaction
-    /// 4. Creates corresponding stock moves
-    /// 5. Publishes events (future: outbox pattern)
     async fn create_receipt(
         &self,
         tenant_id: Uuid,
@@ -41,6 +34,14 @@ pub trait ReceiptService: Send + Sync {
         tenant_id: Uuid,
         query: ReceiptListQuery,
     ) -> Result<ReceiptListResponse, AppError>;
+
+    /// Validate and complete a goods receipt note
+    async fn validate_receipt(
+        &self,
+        tenant_id: Uuid,
+        receipt_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<ReceiptResponse, AppError>;
 
     /// Validate receipt data before creation
     async fn validate_receipt_request(
