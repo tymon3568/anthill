@@ -9,12 +9,12 @@ pub mod receipt;
 pub mod valuation;
 pub mod warehouse;
 
-// Re-export repositories for convenience
-pub use category::CategoryRepositoryImpl;
+// Re-export repository traits for convenience
+pub use category::CategoryRepository;
 pub use delivery_order::{
-    PgDeliveryOrderItemRepository, PgDeliveryOrderRepository, PgInventoryRepository,
+    DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
 };
-pub use product::ProductRepositoryImpl;
-pub use receipt::ReceiptRepositoryImpl;
-pub use valuation::ValuationRepositoryImpl;
-pub use warehouse::WarehouseRepositoryImpl;
+pub use product::ProductRepository;
+pub use receipt::ReceiptRepository;
+pub use valuation::ValuationRepository;
+pub use warehouse::WarehouseRepository;

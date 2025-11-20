@@ -349,6 +349,12 @@ impl InventoryRepository for PgInventoryRepository {
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError> {
+        if quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Quantity to reserve must be positive".to_string(),
+            ));
+        }
+
         let res = sqlx::query!(
             r#"
             UPDATE inventory_levels
@@ -381,6 +387,12 @@ impl InventoryRepository for PgInventoryRepository {
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError> {
+        if quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Quantity to release must be positive".to_string(),
+            ));
+        }
+
         let res = sqlx::query!(
             r#"
             UPDATE inventory_levels
@@ -428,5 +440,36 @@ impl InventoryRepository for PgInventoryRepository {
             Some(row) => Ok(row.available_quantity),
             None => Ok(0), // No inventory record means 0 available
         }
+    }
+}
+
+// sqlx implementations for DeliveryOrderStatus (moved from core to avoid infra deps)
+impl sqlx::Type<sqlx::Postgres> for inventory_service_core::models::DeliveryOrderStatus {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        <String as sqlx::Type<sqlx::Postgres>>::type_info()
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for inventory_service_core::models::DeliveryOrderStatus {
+    fn decode(
+        value: sqlx::postgres::PgValueRef<'r>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        let s = <String as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        match s.as_str() {
+            "draft" => Ok(inventory_service_core::models::DeliveryOrderStatus::Draft),
+            "confirmed" => Ok(inventory_service_core::models::DeliveryOrderStatus::Confirmed),
+            "partially_shipped" => {
+                Ok(inventory_service_core::models::DeliveryOrderStatus::PartiallyShipped)
+            },
+            "shipped" => Ok(inventory_service_core::models::DeliveryOrderStatus::Shipped),
+            "cancelled" => Ok(inventory_service_core::models::DeliveryOrderStatus::Cancelled),
+            _ => Err(format!("Unknown DeliveryOrderStatus: {}", s).into()),
+        }
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for inventory_service_core::models::DeliveryOrderStatus {
+    fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> sqlx::encode::IsNull {
+        <String as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&self.to_string(), buf)
     }
 }

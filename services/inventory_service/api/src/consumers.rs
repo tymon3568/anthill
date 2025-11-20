@@ -26,24 +26,25 @@ async fn start_order_confirmed_consumer(
     inventory_repo: Arc<PgInventoryRepository>,
     nats_url: &str,
 ) -> Result<(), AppError> {
-    let client = shared_events::init_nats_client(nats_url).await?;
-    let subscriber = shared_events::subscribe_event::<OrderConfirmedEvent>(
-        &client,
-        "order.confirmed".to_string(),
-    )
-    .await?;
+    shared_events::init_nats_client(nats_url).await?;
+    let client = shared_events::get_nats_client()?;
+    let subscriber = client
+        .subscribe_event::<OrderConfirmedEvent>("order.confirmed".to_string())
+        .await?;
 
     tokio::spawn(async move {
         while let Some(message) = subscriber.next().await {
             match message {
                 Ok(event) => {
                     if let Err(e) = handle_order_confirmed(
-                        event,
-                        delivery_repo.clone(),
-                        delivery_item_repo.clone(),
-                        inventory_repo.clone(),
-                    )
-                    .await
+                        handle_order_confirmed(
+                            event,
+                            delivery_repo.clone(),
+                            delivery_item_repo.clone(),
+                            inventory_repo.clone(),
+                            &pool,
+                        )
+                        .await
                     {
                         tracing::error!("Failed to handle order.confirmed event: {}", e);
                     }
@@ -63,21 +64,37 @@ async fn handle_order_confirmed(
     delivery_repo: Arc<PgDeliveryOrderRepository>,
     delivery_item_repo: Arc<PgDeliveryOrderItemRepository>,
     inventory_repo: Arc<PgInventoryRepository>,
+    pool: &sqlx::PgPool,
 ) -> Result<(), AppError> {
     let order_data = event.data;
     let tenant_id = order_data.tenant_id;
 
-    info!(
+    tracing::info!(
         "Processing order.confirmed event for order {} in tenant {}",
-        order_data.order_id, tenant_id
+        order_data.order_id,
+        tenant_id
     );
 
+    // Idempotency check: if delivery order already exists for this order, skip
+    if let Some(existing) = delivery_repo.find_by_order_id(tenant_id, order_data.order_id).await? {
+        tracing::info!(
+            "Delivery order {} already exists for order {}, skipping",
+            existing.delivery_id,
+            order_data.order_id
+        );
+        return Ok(());
+    }
+
     // Generate delivery order number using DB function
-    let delivery_number = generate_delivery_number().await?;
+    let delivery_number = generate_delivery_number(pool).await?;
 
     // System warehouse and user IDs (TODO: get from config)
+    // TODO: Replace with actual system warehouse/user IDs from config or seeded data
     let system_warehouse_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
     let system_user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
+
+    // Start transaction for atomicity
+    let mut tx = pool.begin().await?;
 
     // Create delivery order
     let delivery_id = Uuid::now_v7();
@@ -111,10 +128,50 @@ async fn handle_order_confirmed(
         deleted_at: None,
     };
 
-    // Save delivery order
-    delivery_repo.create(&delivery_order).await?;
+    // Save delivery order within transaction
+    // Note: Repositories need to be updated to accept &mut Transaction
+    // For now, using direct SQL within transaction
+    sqlx::query!(
+        r#"
+        INSERT INTO delivery_orders (
+            delivery_id, tenant_id, delivery_number, reference_number,
+            warehouse_id, order_id, customer_id, status,
+            delivery_date, expected_ship_date, actual_ship_date,
+            shipping_method, carrier, tracking_number, shipping_cost,
+            notes, created_by, total_quantity, total_value, currency_code,
+            created_at, updated_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+            $16, $17, $18, $19, $20, $21, $22
+        )
+        "#,
+        delivery_order.delivery_id,
+        delivery_order.tenant_id,
+        delivery_order.delivery_number,
+        delivery_order.reference_number,
+        delivery_order.warehouse_id,
+        delivery_order.order_id,
+        delivery_order.customer_id,
+        delivery_order.status.to_string(),
+        delivery_order.delivery_date,
+        delivery_order.expected_ship_date,
+        delivery_order.actual_ship_date,
+        delivery_order.shipping_method,
+        delivery_order.carrier,
+        delivery_order.tracking_number,
+        delivery_order.shipping_cost,
+        delivery_order.notes,
+        delivery_order.created_by,
+        delivery_order.total_quantity,
+        delivery_order.total_value,
+        delivery_order.currency_code,
+        delivery_order.created_at,
+        delivery_order.updated_at,
+    )
+    .execute(&mut *tx)
+    .await?;
 
-    // Process items and reserve stock
+    // Process items and reserve stock within transaction
     for item in &order_data.items {
         let delivery_item_id = Uuid::now_v7();
         let delivery_item = inventory_service_core::models::DeliveryOrderItem {
@@ -133,16 +190,63 @@ async fn handle_order_confirmed(
             deleted_at: None,
         };
 
-        // Persist delivery item
-        delivery_item_repo.create(&delivery_item).await?;
+        // Persist delivery item within transaction
+        sqlx::query!(
+            r#"
+            INSERT INTO delivery_order_items (
+                delivery_item_id, delivery_id, tenant_id, product_id,
+                ordered_quantity, picked_quantity, delivered_quantity,
+                unit_price, line_total, notes, created_at, updated_at
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+            )
+            "#,
+            delivery_item.delivery_item_id,
+            delivery_item.delivery_id,
+            delivery_item.tenant_id,
+            delivery_item.product_id,
+            delivery_item.ordered_quantity,
+            delivery_item.picked_quantity,
+            delivery_item.delivered_quantity,
+            delivery_item.unit_price,
+            delivery_item.line_total,
+            delivery_item.notes,
+            delivery_item.created_at,
+            delivery_item.updated_at,
+        )
+        .execute(&mut *tx)
+        .await?;
 
-        // Reserve stock
-        inventory_repo
-            .reserve_stock(tenant_id, item.product_id, item.quantity as i64)
-            .await?;
+        // Reserve stock within transaction with locking
+        let result = sqlx::query!(
+            r#"
+            UPDATE inventory_levels
+            SET available_quantity = available_quantity - $4,
+                reserved_quantity = reserved_quantity + $4,
+                updated_at = NOW()
+            WHERE tenant_id = $1 AND product_id = $2
+              AND available_quantity >= $4
+              AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            item.product_id,
+            item.quantity as i64,
+            item.quantity as i64,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::ValidationError(
+                format!("Insufficient stock for product {}", item.product_id)
+            ));
+        }
     }
 
-    info!(
+    // Commit transaction
+    tx.commit().await?;
+
+    tracing::info!(
         "Successfully created delivery order {} for order {}",
         delivery_number, order_data.order_id
     );
@@ -150,9 +254,10 @@ async fn handle_order_confirmed(
     Ok(())
 }
 
-async fn generate_delivery_number() -> Result<String, AppError> {
-    // TODO: Call DB function generate_delivery_number()
-    // For now, use timestamp
-    let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
-    Ok(format!("DO-{}", timestamp))
+async fn generate_delivery_number(pool: &sqlx::PgPool) -> Result<String, AppError> {
+    // Call DB function generate_delivery_number()
+    let result: (String,) = sqlx::query_as("SELECT generate_delivery_number()")
+        .fetch_one(pool)
+        .await?;
+    Ok(result.0)
 }

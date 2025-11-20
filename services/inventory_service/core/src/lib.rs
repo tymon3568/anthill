@@ -1,33 +1,32 @@
-//! Inventory Service API
+//! Inventory Service Core
 //!
-//! This crate contains the HTTP API handlers and routing for the inventory service.
-//! It provides REST endpoints for category management.
+//! This crate contains the business logic, domain models, and trait definitions
+//! for the inventory service. It has zero infrastructure dependencies.
 //!
 //! ## Architecture
 //!
-//! - `handlers/`: Axum HTTP handlers
-//! - `routes/`: Route definitions and middleware
-//! - `middleware/`: Custom middleware
-//! - `models/`: API-specific models and conversions
+//! - `domains/`: Domain entities and business logic
+//! - `dto/`: Data Transfer Objects for API communication
+//! - `models/`: Domain models including delivery orders and items
+//! - `repositories/`: Repository trait definitions (no implementations)
+//! - `services/`: Service trait definitions (no implementations)
 
-pub mod consumers;
-pub mod handlers;
-pub mod middleware;
+pub mod domains;
+pub mod dto;
 pub mod models;
-pub mod routes;
+pub mod repositories;
+pub mod services;
 
-// Re-export main components for convenience
-pub use routes::create_router;
+// Re-export commonly used types
+pub use domains::category::{Category, CategoryNode};
+pub use dto::category::{
+    CategoryCreateRequest, CategoryResponse, CategoryTreeResponse, CategoryUpdateRequest,
+};
+pub use repositories::category::CategoryRepository;
+pub use services::category::CategoryService;
 
-use axum::Router;
-use shared_config::Config;
-use shared_db::init_pool;
+// Re-export shared error types
+pub use shared_error::AppError;
 
-/// Create the complete application with database initialization
-/// Used for integration tests
-pub async fn create_app(config: Config) -> Router {
-    let pool = init_pool(&config.database_url, config.max_connections.unwrap_or(10))
-        .await
-        .expect("Failed to initialize database pool");
-    create_router(pool, &config).await
-}
+// Result type alias for convenience
+pub type Result<T> = std::result::Result<T, AppError>;

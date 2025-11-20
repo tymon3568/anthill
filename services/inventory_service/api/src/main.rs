@@ -30,12 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize event consumers (if NATS is configured)
     if let Some(nats_url) = &config.nats_url {
-        if let Err(e) =
-            inventory_service_api::consumers::init_event_consumers(pool.clone(), nats_url).await
-        {
-            tracing::error!("Failed to initialize event consumers: {}", e);
-            // Continue anyway, don't fail the service startup
-        }
+        inventory_service_api::consumers::init_event_consumers(pool.clone(), nats_url).await?;
     }
 
     // Create the application router

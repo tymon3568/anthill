@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -10,6 +11,21 @@ pub enum DeliveryOrderStatus {
     Shipped,
     Cancelled,
 }
+
+impl fmt::Display for DeliveryOrderStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            DeliveryOrderStatus::Draft => "draft",
+            DeliveryOrderStatus::Confirmed => "confirmed",
+            DeliveryOrderStatus::PartiallyShipped => "partially_shipped",
+            DeliveryOrderStatus::Shipped => "shipped",
+            DeliveryOrderStatus::Cancelled => "cancelled",
+        };
+        f.write_str(s)
+    }
+}
+
+// Note: sqlx implementations moved to infra crate to avoid infrastructure deps in core
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeliveryOrder {
