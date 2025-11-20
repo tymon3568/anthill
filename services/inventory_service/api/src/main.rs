@@ -5,7 +5,7 @@
 
 use std::net::SocketAddr;
 
-use inventory_service_api::{consumers, create_router};
+use inventory_service_api::create_router;
 use shared_config::Config;
 use shared_db::init_pool;
 use tokio::net::TcpListener;
@@ -27,14 +27,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize database connection pool
     let pool = init_pool(&config.database_url, config.max_connections.unwrap_or(10)).await?;
-
-    // Initialize event consumers (if NATS is configured)
-    if let Some(nats_url) = &config.nats_url {
-        if let Err(e) = consumers::init_event_consumers(pool.clone(), nats_url).await {
-            tracing::error!("Failed to initialize event consumers: {}", e);
-            // Continue anyway, don't fail the service startup
-        }
-    }
 
     // Create the application router
     let app = create_router(pool, &config).await;

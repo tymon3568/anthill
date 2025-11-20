@@ -10,7 +10,6 @@
 //! - `middleware/`: Custom middleware
 //! - `models/`: API-specific models and conversions
 
-pub mod consumers;
 pub mod handlers;
 pub mod middleware;
 pub mod models;

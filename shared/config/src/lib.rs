@@ -45,9 +45,6 @@ pub struct Config {
     /// Kanidm redirect URL (optional)
     pub kanidm_redirect_url: Option<String>,
 
-    /// NATS server URL (optional - for event-driven messaging)
-    pub nats_url: Option<String>,
-
     /// Casbin model configuration file path
     #[serde(default = "default_casbin_model_path")]
     pub casbin_model_path: String,

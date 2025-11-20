@@ -20,7 +20,6 @@ shared-auth = {workspace = true}
 shared_config = {workspace = true}
 shared_db = {workspace = true}
 shared_error = {workspace = true}
-shared_events = {workspace = true}
 shared_kanidm_client = {workspace = true}
 # SQLx - database
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
