@@ -16,8 +16,14 @@ pub async fn init_event_consumers(pool: sqlx::PgPool, nats_url: &str) -> Result<
     let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
     let inventory_repo = Arc::new(PgInventoryRepository::new(pool.clone()));
 
-    start_order_confirmed_consumer(delivery_repo, delivery_item_repo, inventory_repo, nats_url)
-        .await
+    start_order_confirmed_consumer(
+        delivery_repo,
+        delivery_item_repo,
+        inventory_repo,
+        nats_url,
+        pool,
+    )
+    .await
 }
 
 async fn start_order_confirmed_consumer(
@@ -25,6 +31,7 @@ async fn start_order_confirmed_consumer(
     delivery_item_repo: Arc<PgDeliveryOrderItemRepository>,
     inventory_repo: Arc<PgInventoryRepository>,
     nats_url: &str,
+    pool: sqlx::PgPool,
 ) -> Result<(), AppError> {
     shared_events::init_nats_client(nats_url).await?;
     let client = shared_events::get_nats_client()?;
@@ -223,16 +230,15 @@ async fn handle_order_confirmed(
         let result = sqlx::query!(
             r#"
             UPDATE inventory_levels
-            SET available_quantity = available_quantity - $4,
-                reserved_quantity = reserved_quantity + $4,
+            SET available_quantity = available_quantity - $3,
+                reserved_quantity = reserved_quantity + $3,
                 updated_at = NOW()
             WHERE tenant_id = $1 AND product_id = $2
-              AND available_quantity >= $4
+              AND available_quantity >= $3
               AND deleted_at IS NULL
             "#,
             tenant_id,
             item.product_id,
-            item.quantity as i64,
             item.quantity as i64,
         )
         .execute(&mut *tx)

@@ -6,6 +6,27 @@
 -- Note: In a real deployment, these would be created per-tenant or through
 -- configuration. For now, we create them for a default tenant.
 
+-- Insert system user first (referenced by warehouse created_by)
+INSERT INTO users (
+    user_id,
+    tenant_id,
+    email,
+    first_name,
+    last_name,
+    is_active,
+    created_at,
+    updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000000002'::uuid,
+    '00000000-0000-0000-0000-000000000000'::uuid, -- Default tenant ID
+    'system@anthill.local',
+    'System',
+    'User',
+    true,
+    NOW(),
+    NOW()
+) ON CONFLICT (tenant_id, user_id) DO NOTHING;
+
 -- Insert system warehouse (used for automated delivery orders)
 INSERT INTO warehouses (
     warehouse_id,
@@ -36,24 +57,3 @@ INSERT INTO warehouses (
     NOW(),
     NOW()
 ) ON CONFLICT (tenant_id, warehouse_id) DO NOTHING;
-
--- Insert system user (used for automated delivery orders)
-INSERT INTO users (
-    user_id,
-    tenant_id,
-    email,
-    first_name,
-    last_name,
-    is_active,
-    created_at,
-    updated_at
-) VALUES (
-    '00000000-0000-0000-0000-000000000002'::uuid,
-    '00000000-0000-0000-0000-000000000000'::uuid, -- Default tenant ID
-    'system@anthill.local',
-    'System',
-    'User',
-    true,
-    NOW(),
-    NOW()
-) ON CONFLICT (tenant_id, user_id) DO NOTHING;
