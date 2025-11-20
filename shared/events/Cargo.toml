@@ -1,0 +1,15 @@
+[dependencies]
+async-nats = "0.33"
+chrono = { version = "0.4", features = ["serde"] }
+futures-util = "0.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+shared_error = { path = "../error" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[package]
+edition = "2021"
+name = "shared_events"
+version = "0.1.0"

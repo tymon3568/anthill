@@ -14,7 +14,8 @@ members = [
   "shared/types",
   "shared/db",
   "shared/auth",
-  "shared/kanidm_client"
+  "shared/kanidm_client",
+  "shared/events"
 ]
 resolver = "2"
 
@@ -52,6 +53,7 @@ shared_config = {path = "shared/config"}
 shared_db = {path = "shared/db"}
 # Shared crates (internal)
 shared_error = {path = "shared/error"}
+shared_events = {path = "shared/events"}
 shared_jwt = {path = "shared/jwt"}
 shared_kanidm_client = {path = "shared/kanidm_client"}
 shared_types = {path = "shared/types"}
