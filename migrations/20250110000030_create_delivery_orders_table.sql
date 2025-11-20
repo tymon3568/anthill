@@ -68,11 +68,10 @@ CREATE TABLE delivery_orders (
     CONSTRAINT delivery_orders_positive_shipping_cost
         CHECK (shipping_cost IS NULL OR shipping_cost >= 0),
     CONSTRAINT delivery_orders_ship_dates
-        CHECK (actual_ship_date IS NULL OR expected_ship_date IS NULL OR actual_ship_date >= expected_ship_date - INTERVAL '30 days')
+        CHECK (actual_ship_date IS NULL OR expected_ship_date IS NULL OR actual_ship_date >= expected_ship_date)
 );
 
--- Add unique constraint for composite foreign keys
-ALTER TABLE delivery_orders ADD CONSTRAINT delivery_orders_tenant_delivery_unique UNIQUE (tenant_id, delivery_id) DEFERRABLE INITIALLY DEFERRED;
+
 
 -- ==================================
 -- SEQUENCE FOR DELIVERY NUMBER GENERATION
