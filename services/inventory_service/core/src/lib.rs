@@ -1,31 +1,33 @@
-//! Inventory Service Core
+//! Inventory Service API
 //!
-//! This crate contains the business logic, domain models, and trait definitions
-//! for the inventory service. It has zero infrastructure dependencies.
+//! This crate contains the HTTP API handlers and routing for the inventory service.
+//! It provides REST endpoints for category management.
 //!
 //! ## Architecture
 //!
-//! - `domains/`: Domain entities and business logic
-//! - `dto/`: Data Transfer Objects for API communication
-//! - `repositories/`: Repository trait definitions (no implementations)
-//! - `services/`: Service trait definitions (no implementations)
+//! - `handlers/`: Axum HTTP handlers
+//! - `routes/`: Route definitions and middleware
+//! - `middleware/`: Custom middleware
+//! - `models/`: API-specific models and conversions
 
-pub mod domains;
-pub mod dto;
+pub mod consumers;
+pub mod handlers;
+pub mod middleware;
 pub mod models;
-pub mod repositories;
-pub mod services;
+pub mod routes;
 
-// Re-export commonly used types
-pub use domains::category::{Category, CategoryNode};
-pub use dto::category::{
-    CategoryCreateRequest, CategoryResponse, CategoryTreeResponse, CategoryUpdateRequest,
-};
-pub use repositories::category::CategoryRepository;
-pub use services::category::CategoryService;
+// Re-export main components for convenience
+pub use routes::create_router;
 
-// Re-export shared error types
-pub use shared_error::AppError;
+use axum::Router;
+use shared_config::Config;
+use shared_db::init_pool;
 
-// Result type alias for convenience
-pub type Result<T> = std::result::Result<T, AppError>;
+/// Create the complete application with database initialization
+/// Used for integration tests
+pub async fn create_app(config: Config) -> Router {
+    let pool = init_pool(&config.database_url, config.max_connections.unwrap_or(10))
+        .await
+        .expect("Failed to initialize database pool");
+    create_router(pool, &config).await
+}

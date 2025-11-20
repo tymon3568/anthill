@@ -1,15 +1,26 @@
 [dependencies]
-async-nats = "0.33"
-chrono = { version = "0.4", features = ["serde"] }
-futures-util = "0.3"
-serde = { workspace = true }
-serde_json = { workspace = true }
-shared_error = { path = "../error" }
-tokio = { workspace = true }
-tracing = { workspace = true }
-uuid = { workspace = true }
+# Async runtime
+async-nats = "0.35"
+# Serde - serialization
+serde = {workspace = true, features = ["derive"]}
+# UUID
+uuid = {workspace = true}
+# Chrono for dates
+chrono.workspace = true
+# Futures
+futures.workspace = true
+# Once cell for global state
+once_cell.workspace = true
+serde_json.workspace = true
+# Error handling
+shared_error.workspace = true
+# Tokio for async
+tokio.workspace = true
+# Tracing
+tracing.workspace = true
 
 [package]
-edition = "2021"
 name = "shared_events"
-version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
