@@ -47,10 +47,13 @@ impl DeliveryService for DeliveryServiceImpl {
             ));
         }
 
-        // Find the delivery order
+        // Begin transaction
+        let mut tx = self.delivery_repo.begin_transaction().await?;
+
+        // Find the delivery order within transaction
         let mut delivery_order = self
             .delivery_repo
-            .find_by_id(tenant_id, delivery_id)
+            .find_by_id_with_tx(&mut tx, tenant_id, delivery_id)
             .await?
             .ok_or_else(|| {
                 AppError::NotFound(format!("Delivery order {} not found", delivery_id))
@@ -69,10 +72,10 @@ impl DeliveryService for DeliveryServiceImpl {
 
         // Process each item in the request
         for pick_item in &request.items {
-            // Find the delivery item
+            // Find the delivery item within transaction
             let mut delivery_item = self
                 .delivery_item_repo
-                .find_by_id(tenant_id, pick_item.delivery_item_id)
+                .find_by_id_with_tx(&mut tx, tenant_id, pick_item.delivery_item_id)
                 .await?
                 .ok_or_else(|| {
                     AppError::NotFound(format!(
@@ -112,8 +115,10 @@ impl DeliveryService for DeliveryServiceImpl {
             delivery_item.picked_quantity += pick_item.picked_quantity;
             delivery_item.updated_at = chrono::Utc::now();
 
-            // Save the updated item
-            self.delivery_item_repo.update(&delivery_item).await?;
+            // Save the updated item within transaction
+            self.delivery_item_repo
+                .update_with_tx(&mut tx, &delivery_item)
+                .await?;
 
             total_picked_quantity += pick_item.picked_quantity;
             updated_items_count += 1;
@@ -123,7 +128,13 @@ impl DeliveryService for DeliveryServiceImpl {
         delivery_order.status = DeliveryOrderStatus::Picked;
         delivery_order.updated_at = chrono::Utc::now();
 
-        self.delivery_repo.update(&delivery_order).await?;
+        // Save the updated delivery order within transaction
+        self.delivery_repo
+            .update_with_tx(&mut tx, &delivery_order)
+            .await?;
+
+        // Commit the transaction
+        tx.commit().await?;
 
         Ok(PickItemsResponse {
             delivery_id,
@@ -132,20 +143,4 @@ impl DeliveryService for DeliveryServiceImpl {
             total_picked_quantity,
         })
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use inventory_service_core::models::{DeliveryOrder, DeliveryOrderItem};
-    use inventory_service_core::repositories::{
-        MockDeliveryOrderItemRepository, MockDeliveryOrderRepository,
-    };
-    use std::sync::Arc;
-
-    // TODO: Add comprehensive unit tests
-    // - Test successful picking
-    // - Test validation errors (wrong status, invalid quantities, etc.)
-    // - Test not found errors
-    // - Test transaction rollback on errors
 }
