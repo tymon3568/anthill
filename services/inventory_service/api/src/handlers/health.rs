@@ -1,6 +1,7 @@
 use axum::{http::StatusCode, response::Response, Json};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use shared_config::Config;
 use sqlx::PgPool;
 
 use shared_error::AppError;
@@ -26,6 +27,7 @@ pub struct HealthResp {
 )]
 pub async fn health_check(
     axum::Extension(pool): axum::Extension<PgPool>,
+    axum::Extension(config): axum::Extension<&Config>,
 ) -> Result<Response, AppError> {
     // Check database connection
     let db_status = match sqlx::query("SELECT 1").execute(&pool).await {
@@ -37,21 +39,25 @@ pub async fn health_check(
     };
 
     // Check NATS connection
-    let nats_status = match shared_events::get_nats_client() {
-        Ok(client) => {
-            // Try to check if NATS is responsive by attempting a simple operation
-            match client.client.connection_state().await {
-                async_nats::connection::State::Connected => "healthy".to_string(),
-                _ => {
-                    tracing::warn!("NATS connection is not in connected state");
-                    "unhealthy".to_string()
-                },
-            }
-        },
-        Err(_) => {
-            // NATS not initialized - this is ok if not configured
-            "not_configured".to_string()
-        },
+    let nats_status = if config.nats_url.is_some() {
+        match shared_events::get_nats_client() {
+            Ok(client) => {
+                // Try to check if NATS is responsive by attempting a simple operation
+                match client.client.connection_state().await {
+                    async_nats::connection::State::Connected => "healthy".to_string(),
+                    _ => {
+                        tracing::warn!("NATS connection is not in connected state");
+                        "unhealthy".to_string()
+                    },
+                }
+            },
+            Err(_) => {
+                // NATS configured but not initialized (failed during startup)
+                "unhealthy".to_string()
+            },
+        }
+    } else {
+        "not_configured".to_string()
     };
 
     let overall_status = if db_status == "healthy"

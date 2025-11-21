@@ -213,6 +213,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
         .layer(Extension(pool))
+        .layer(Extension(config.clone()))
         .layer(axum::middleware::from_fn_with_state(authz_state, casbin_middleware))
         .layer(cors)
 }
