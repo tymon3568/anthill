@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use futures::StreamExt;
 use inventory_service_core::models::{DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus};
 use inventory_service_core::repositories::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
@@ -12,30 +13,22 @@ use shared_events::{EventEnvelope, OrderConfirmedEvent};
 use uuid::Uuid;
 
 pub async fn init_event_consumers(pool: sqlx::PgPool, nats_url: &str) -> Result<(), AppError> {
+    shared_events::init_nats_client(nats_url).await?;
     let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
     let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
     let inventory_repo = Arc::new(PgInventoryRepository::new(pool.clone()));
 
-    start_order_confirmed_consumer(
-        delivery_repo,
-        delivery_item_repo,
-        inventory_repo,
-        nats_url,
-        pool,
-    )
-    .await
+    start_order_confirmed_consumer(delivery_repo, delivery_item_repo, inventory_repo, pool).await
 }
 
 async fn start_order_confirmed_consumer(
     delivery_repo: Arc<PgDeliveryOrderRepository>,
     delivery_item_repo: Arc<PgDeliveryOrderItemRepository>,
     inventory_repo: Arc<PgInventoryRepository>,
-    nats_url: &str,
     pool: sqlx::PgPool,
 ) -> Result<(), AppError> {
-    shared_events::init_nats_client(nats_url).await?;
     let client = shared_events::get_nats_client()?;
-    let subscriber = client
+    let mut subscriber = client
         .subscribe_event::<OrderConfirmedEvent>("order.confirmed".to_string())
         .await?;
 
