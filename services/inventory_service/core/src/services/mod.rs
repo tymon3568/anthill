@@ -4,12 +4,14 @@
 //! No implementations here - pure interfaces.
 
 pub mod category;
+pub mod delivery;
 pub mod product;
 pub mod receipt;
 pub mod valuation;
 
 // Re-export main types for convenience
 pub use category::CategoryService;
+pub use delivery::DeliveryService;
 pub use product::ProductService;
 pub use receipt::ReceiptService;
 pub use valuation::ValuationService;

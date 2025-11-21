@@ -14,15 +14,20 @@ use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::handlers::category::{create_category_routes, AppState};
+use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::search::create_search_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+use inventory_service_infra::repositories::delivery_order::{
+    PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
+};
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
+use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
 
@@ -139,6 +144,11 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
 
+    // Initialize delivery repositories and services
+    let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
+    let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
+    let delivery_service = Arc::new(DeliveryServiceImpl::new(delivery_repo, delivery_item_repo));
+
     // Initialize receipt repositories and services
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
@@ -166,6 +176,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Create routes with state
     let category_routes = create_category_routes(state.clone());
+    let delivery_routes =
+        create_delivery_routes(crate::handlers::delivery::AppState::new(delivery_service));
     let receipt_routes = create_receipt_routes(crate::handlers::receipt::AppState::new(
         state.receipt_service.clone(),
     ));
@@ -214,6 +226,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Protected routes (require authentication)
     let protected_routes = Router::new()
         .nest("/api/v1/inventory", category_routes)
+        .nest("/api/v1/inventory/deliveries", delivery_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
         .nest("/api/v1/inventory/products", search_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)

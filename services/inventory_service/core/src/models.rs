@@ -8,6 +8,7 @@ use uuid::Uuid;
 pub enum DeliveryOrderStatus {
     Draft,
     Confirmed,
+    Picked,
     PartiallyShipped,
     Shipped,
     Cancelled,
@@ -18,6 +19,7 @@ impl fmt::Display for DeliveryOrderStatus {
         let s = match self {
             DeliveryOrderStatus::Draft => "Draft",
             DeliveryOrderStatus::Confirmed => "Confirmed",
+            DeliveryOrderStatus::Picked => "Picked",
             DeliveryOrderStatus::PartiallyShipped => "PartiallyShipped",
             DeliveryOrderStatus::Shipped => "Shipped",
             DeliveryOrderStatus::Cancelled => "Cancelled",
@@ -33,6 +35,7 @@ impl FromStr for DeliveryOrderStatus {
         match s {
             "Draft" => Ok(DeliveryOrderStatus::Draft),
             "Confirmed" => Ok(DeliveryOrderStatus::Confirmed),
+            "Picked" => Ok(DeliveryOrderStatus::Picked),
             "PartiallyShipped" => Ok(DeliveryOrderStatus::PartiallyShipped),
             "Shipped" => Ok(DeliveryOrderStatus::Shipped),
             "Cancelled" => Ok(DeliveryOrderStatus::Cancelled),
