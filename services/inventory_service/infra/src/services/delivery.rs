@@ -3,6 +3,7 @@
 //! This module contains the business logic implementation for Delivery Order operations.
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -115,7 +116,7 @@ impl DeliveryService for DeliveryServiceImpl {
 
             // Update the picked quantity
             delivery_item.picked_quantity += pick_item.picked_quantity;
-            delivery_item.updated_at = chrono::Utc::now();
+            delivery_item.updated_at = Utc::now();
 
             // Save the updated item within transaction
             self.delivery_item_repo
@@ -142,7 +143,7 @@ impl DeliveryService for DeliveryServiceImpl {
             DeliveryOrderStatus::PartiallyPicked
         };
         delivery_order.updated_by = Some(user_id);
-        delivery_order.updated_at = chrono::Utc::now();
+        delivery_order.updated_at = Utc::now();
 
         // Save the updated delivery order within transaction
         self.delivery_repo
@@ -187,7 +188,7 @@ impl DeliveryService for DeliveryServiceImpl {
             )));
         }
 
-        let packed_at = chrono::Utc::now();
+        let packed_at = Utc::now();
 
         // Update the delivery order status to Packed
         delivery_order.status = DeliveryOrderStatus::Packed;
