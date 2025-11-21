@@ -37,7 +37,7 @@ impl DeliveryService for DeliveryServiceImpl {
         &self,
         tenant_id: Uuid,
         delivery_id: Uuid,
-        _user_id: Uuid, // TODO: Use for audit logging when implemented
+        user_id: Uuid,
         request: PickItemsRequest,
     ) -> Result<PickItemsResponse, AppError> {
         // Validate request has items
@@ -124,8 +124,22 @@ impl DeliveryService for DeliveryServiceImpl {
             updated_items_count += 1;
         }
 
-        // Update the delivery order status to Picked
-        delivery_order.status = DeliveryOrderStatus::Picked;
+        // Fetch all delivery items to check if fully picked
+        let all_items = self
+            .delivery_item_repo
+            .find_by_delivery_id_with_tx(&mut tx, tenant_id, delivery_id)
+            .await?;
+        let all_fully_picked = all_items
+            .iter()
+            .all(|item| item.picked_quantity >= item.ordered_quantity);
+
+        // Update the delivery order status based on full pick
+        delivery_order.status = if all_fully_picked {
+            DeliveryOrderStatus::Picked
+        } else {
+            DeliveryOrderStatus::PartiallyPicked
+        };
+        delivery_order.updated_by = Some(user_id);
         delivery_order.updated_at = chrono::Utc::now();
 
         // Save the updated delivery order within transaction

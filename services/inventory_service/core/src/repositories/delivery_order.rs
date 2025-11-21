@@ -57,6 +57,12 @@ pub trait DeliveryOrderItemRepository: Send + Sync {
     async fn update(&self, delivery_item: &DeliveryOrderItem) -> Result<(), AppError>;
     async fn delete(&self, tenant_id: Uuid, delivery_item_id: Uuid) -> Result<(), AppError>;
 
+    async fn find_by_delivery_id_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        delivery_id: Uuid,
+    ) -> Result<Vec<DeliveryOrderItem>, AppError>;
     async fn find_by_id_with_tx(
         &self,
         tx: &mut Transaction<'_, sqlx::Postgres>,

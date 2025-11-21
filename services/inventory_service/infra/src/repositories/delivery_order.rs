@@ -28,11 +28,11 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
                 warehouse_id, order_id, customer_id, status,
                 delivery_date, expected_ship_date, actual_ship_date,
                 shipping_method, carrier, tracking_number, shipping_cost,
-                notes, created_by, total_quantity, total_value, currency_code,
+                notes, created_by, updated_by, total_quantity, total_value, currency_code,
                 created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-                $16, $17, $18, $19, $20, $21, $22
+                $16, $17, $18, $19, $20, $21, $22, $23
             )
             "#,
             delivery_order.delivery_id,
@@ -52,6 +52,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
             delivery_order.shipping_cost,
             delivery_order.notes,
             delivery_order.created_by,
+            delivery_order.updated_by,
             delivery_order.total_quantity,
             delivery_order.total_value,
             delivery_order.currency_code,
@@ -77,7 +78,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
                 status as "status: _",
                 delivery_date, expected_ship_date, actual_ship_date,
                 shipping_method, carrier, tracking_number, shipping_cost,
-                notes, created_by, total_quantity, total_value, currency_code,
+                notes, created_by, updated_by, total_quantity, total_value, currency_code,
                 created_at, updated_at, deleted_at
             FROM delivery_orders
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
@@ -107,7 +108,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
                 status as "status: _",
                 delivery_date, expected_ship_date, actual_ship_date,
                 shipping_method, carrier, tracking_number, shipping_cost,
-                notes, created_by, total_quantity, total_value, currency_code,
+                notes, created_by, updated_by, total_quantity, total_value, currency_code,
                 created_at, updated_at, deleted_at
             FROM delivery_orders
             WHERE tenant_id = $1 AND deleted_at IS NULL
@@ -131,8 +132,8 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
                 warehouse_id = $5, order_id = $6, customer_id = $7, status = $8,
                 delivery_date = $9, expected_ship_date = $10, actual_ship_date = $11,
                 shipping_method = $12, carrier = $13, tracking_number = $14, shipping_cost = $15,
-                notes = $16, total_quantity = $17, total_value = $18, currency_code = $19,
-                updated_at = $20
+                notes = $16, updated_by = $17, total_quantity = $18, total_value = $19, currency_code = $20,
+                updated_at = $21
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
             "#,
             delivery_order.tenant_id,
@@ -151,6 +152,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
             delivery_order.tracking_number,
             delivery_order.shipping_cost,
             delivery_order.notes,
+            delivery_order.updated_by,
             delivery_order.total_quantity,
             delivery_order.total_value,
             delivery_order.currency_code,
@@ -189,7 +191,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
                 status as "status: _",
                 delivery_date, expected_ship_date, actual_ship_date,
                 shipping_method, carrier, tracking_number, shipping_cost,
-                notes, created_by, total_quantity, total_value, currency_code,
+                notes, created_by, updated_by, total_quantity, total_value, currency_code,
                 created_at, updated_at, deleted_at
             FROM delivery_orders
             WHERE tenant_id = $1 AND order_id = $2 AND deleted_at IS NULL
@@ -222,7 +224,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
                 status as "status: _",
                 delivery_date, expected_ship_date, actual_ship_date,
                 shipping_method, carrier, tracking_number, shipping_cost,
-                notes, created_by, total_quantity, total_value, currency_code,
+                notes, created_by, updated_by, total_quantity, total_value, currency_code,
                 created_at, updated_at, deleted_at
             FROM delivery_orders
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
@@ -247,8 +249,8 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
                 warehouse_id = $5, order_id = $6, customer_id = $7, status = $8,
                 delivery_date = $9, expected_ship_date = $10, actual_ship_date = $11,
                 shipping_method = $12, carrier = $13, tracking_number = $14, shipping_cost = $15,
-                notes = $16, total_quantity = $17, total_value = $18, currency_code = $19,
-                updated_at = $20
+                notes = $16, updated_by = $17, total_quantity = $18, total_value = $19, currency_code = $20,
+                updated_at = $21
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
             "#,
             delivery_order.tenant_id,
@@ -267,6 +269,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
             delivery_order.tracking_number,
             delivery_order.shipping_cost,
             delivery_order.notes,
+            delivery_order.updated_by,
             delivery_order.total_quantity,
             delivery_order.total_value,
             delivery_order.currency_code,
@@ -428,6 +431,31 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
         Ok(result)
     }
 
+    async fn find_by_delivery_id_with_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        delivery_id: Uuid,
+    ) -> Result<Vec<DeliveryOrderItem>, AppError> {
+        let result = sqlx::query_as!(
+            DeliveryOrderItem,
+            r#"
+            SELECT
+                delivery_item_id, delivery_id, tenant_id, product_id,
+                ordered_quantity, picked_quantity, delivered_quantity,
+                unit_price, line_total, notes, created_at, updated_at, deleted_at
+            FROM delivery_order_items
+            WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
+            ORDER BY created_at
+            "#,
+            tenant_id,
+            delivery_id,
+        )
+        .fetch_all(&mut **tx)
+        .await?;
+        Ok(result)
+    }
+
     async fn update_with_tx(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -585,6 +613,10 @@ impl<'r> sqlx::Decode<'r, sqlx::Postgres> for inventory_service_core::models::De
         match s.as_str() {
             "draft" => Ok(inventory_service_core::models::DeliveryOrderStatus::Draft),
             "confirmed" => Ok(inventory_service_core::models::DeliveryOrderStatus::Confirmed),
+            "partially_picked" => {
+                Ok(inventory_service_core::models::DeliveryOrderStatus::PartiallyPicked)
+            },
+            "picked" => Ok(inventory_service_core::models::DeliveryOrderStatus::Picked),
             "partially_shipped" => {
                 Ok(inventory_service_core::models::DeliveryOrderStatus::PartiallyShipped)
             },
