@@ -8,6 +8,8 @@ use uuid::Uuid;
 pub enum DeliveryOrderStatus {
     Draft,
     Confirmed,
+    PartiallyPicked,
+    Picked,
     PartiallyShipped,
     Shipped,
     Cancelled,
@@ -18,6 +20,8 @@ impl fmt::Display for DeliveryOrderStatus {
         let s = match self {
             DeliveryOrderStatus::Draft => "Draft",
             DeliveryOrderStatus::Confirmed => "Confirmed",
+            DeliveryOrderStatus::PartiallyPicked => "PartiallyPicked",
+            DeliveryOrderStatus::Picked => "Picked",
             DeliveryOrderStatus::PartiallyShipped => "PartiallyShipped",
             DeliveryOrderStatus::Shipped => "Shipped",
             DeliveryOrderStatus::Cancelled => "Cancelled",
@@ -33,6 +37,8 @@ impl FromStr for DeliveryOrderStatus {
         match s {
             "Draft" => Ok(DeliveryOrderStatus::Draft),
             "Confirmed" => Ok(DeliveryOrderStatus::Confirmed),
+            "PartiallyPicked" => Ok(DeliveryOrderStatus::PartiallyPicked),
+            "Picked" => Ok(DeliveryOrderStatus::Picked),
             "PartiallyShipped" => Ok(DeliveryOrderStatus::PartiallyShipped),
             "Shipped" => Ok(DeliveryOrderStatus::Shipped),
             "Cancelled" => Ok(DeliveryOrderStatus::Cancelled),
@@ -60,6 +66,7 @@ pub struct DeliveryOrder {
     pub shipping_cost: Option<i64>, // in cents
     pub notes: Option<String>,
     pub created_by: Uuid,
+    pub updated_by: Option<Uuid>,
     pub total_quantity: i64,
     pub total_value: i64,
     pub currency_code: String,
@@ -126,6 +133,7 @@ pub struct DeliveryOrderResponse {
     pub shipping_cost: Option<i64>,
     pub notes: Option<String>,
     pub created_by: Uuid,
+    pub updated_by: Option<Uuid>,
     pub total_quantity: i64,
     pub total_value: i64,
     pub currency_code: String,

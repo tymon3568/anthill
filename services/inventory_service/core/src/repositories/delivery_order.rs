@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use sqlx::Transaction;
 use uuid::Uuid;
 
 use crate::models::{DeliveryOrder, DeliveryOrderItem};
@@ -25,6 +26,19 @@ pub trait DeliveryOrderRepository: Send + Sync {
         tenant_id: Uuid,
         order_id: Uuid,
     ) -> Result<Option<DeliveryOrder>, AppError>;
+
+    async fn begin_transaction(&self) -> Result<Transaction<'_, sqlx::Postgres>, AppError>;
+    async fn find_by_id_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        delivery_id: Uuid,
+    ) -> Result<Option<DeliveryOrder>, AppError>;
+    async fn update_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        delivery_order: &DeliveryOrder,
+    ) -> Result<(), AppError>;
 }
 
 #[async_trait]
@@ -42,6 +56,24 @@ pub trait DeliveryOrderItemRepository: Send + Sync {
     ) -> Result<Vec<DeliveryOrderItem>, AppError>;
     async fn update(&self, delivery_item: &DeliveryOrderItem) -> Result<(), AppError>;
     async fn delete(&self, tenant_id: Uuid, delivery_item_id: Uuid) -> Result<(), AppError>;
+
+    async fn find_by_delivery_id_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        delivery_id: Uuid,
+    ) -> Result<Vec<DeliveryOrderItem>, AppError>;
+    async fn find_by_id_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        delivery_item_id: Uuid,
+    ) -> Result<Option<DeliveryOrderItem>, AppError>;
+    async fn update_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        delivery_item: &DeliveryOrderItem,
+    ) -> Result<(), AppError>;
 }
 
 #[async_trait]

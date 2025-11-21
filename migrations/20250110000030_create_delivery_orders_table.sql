@@ -27,7 +27,7 @@ CREATE TABLE delivery_orders (
 
     -- Delivery status
     status VARCHAR(20) NOT NULL DEFAULT 'draft'
-        CHECK (status IN ('draft', 'confirmed', 'partially_shipped', 'shipped', 'cancelled')),
+        CHECK (status IN ('draft', 'confirmed', 'partially_picked', 'picked', 'partially_shipped', 'shipped', 'cancelled')),
 
     -- Dates
     delivery_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),     -- When the DO was created
@@ -43,6 +43,7 @@ CREATE TABLE delivery_orders (
     -- Delivery details
     notes TEXT,                                           -- Additional notes
     created_by UUID NOT NULL,                             -- User who created the DO
+    updated_by UUID,                                      -- User who last updated the DO
 
     -- Summary fields (calculated from delivery lines)
     total_quantity BIGINT DEFAULT 0,                      -- Total quantity shipped
@@ -173,7 +174,7 @@ COMMENT ON COLUMN delivery_orders.reference_number IS 'External reference number
 COMMENT ON COLUMN delivery_orders.warehouse_id IS 'Warehouse where goods are shipped from';
 COMMENT ON COLUMN delivery_orders.order_id IS 'Reference to sales order (nullable for future orders table)';
 COMMENT ON COLUMN delivery_orders.customer_id IS 'Customer receiving the goods (nullable for future customers table)';
-COMMENT ON COLUMN delivery_orders.status IS 'Delivery status: draft/confirmed/partially_shipped/shipped/cancelled';
+COMMENT ON COLUMN delivery_orders.status IS 'Delivery status: draft/confirmed/partially_picked/picked/partially_shipped/shipped/cancelled';
 COMMENT ON COLUMN delivery_orders.delivery_date IS 'Date when the DO was created';
 COMMENT ON COLUMN delivery_orders.expected_ship_date IS 'Expected shipping date';
 COMMENT ON COLUMN delivery_orders.actual_ship_date IS 'Actual shipping date';
@@ -183,6 +184,7 @@ COMMENT ON COLUMN delivery_orders.tracking_number IS 'Carrier tracking number';
 COMMENT ON COLUMN delivery_orders.shipping_cost IS 'Shipping cost in smallest currency unit';
 COMMENT ON COLUMN delivery_orders.notes IS 'Additional notes about the delivery';
 COMMENT ON COLUMN delivery_orders.created_by IS 'User ID who created the DO';
+COMMENT ON COLUMN delivery_orders.updated_by IS 'User ID who last updated the DO';
 COMMENT ON COLUMN delivery_orders.total_quantity IS 'Total quantity of all items in the delivery';
 COMMENT ON COLUMN delivery_orders.total_value IS 'Total value of the delivery in smallest currency unit (cents/xu)';
 COMMENT ON COLUMN delivery_orders.currency_code IS 'ISO 4217 currency code (VND, USD, etc.)';
