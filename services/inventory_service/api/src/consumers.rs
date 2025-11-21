@@ -74,22 +74,6 @@ async fn handle_order_confirmed(
         tenant_id
     );
 
-    // Idempotency check: if delivery order already exists for this order, skip
-    if let Some(existing) = delivery_repo
-        .find_by_order_id(tenant_id, order_data.order_id)
-        .await?
-    {
-        tracing::info!(
-            "Delivery order {} already exists for order {}, skipping",
-            existing.delivery_id,
-            order_data.order_id
-        );
-        return Ok(());
-    }
-
-    // Generate delivery order number using DB function
-    let delivery_number = generate_delivery_number(pool).await?;
-
     // System warehouse and user IDs (TODO: get from config)
     // TODO: Replace with actual system warehouse/user IDs from config or seeded data
     let system_warehouse_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
@@ -97,6 +81,24 @@ async fn handle_order_confirmed(
 
     // Start transaction for atomicity
     let mut tx = pool.begin().await?;
+
+    // Idempotency check inside transaction: if delivery order already exists for this order, skip
+    let existing = sqlx::query!(
+        "SELECT delivery_id FROM delivery_orders WHERE tenant_id = $1 AND order_id = $2",
+        tenant_id,
+        order_data.order_id
+    )
+    .fetch_optional(&mut *tx)
+    .await?;
+
+    if existing.is_some() {
+        tx.commit().await?;
+        tracing::info!("Delivery order already exists for order {}, skipping", order_data.order_id);
+        return Ok(());
+    }
+
+    // Generate delivery order number using DB function within transaction
+    let delivery_number = generate_delivery_number(&mut tx).await?;
 
     // Create delivery order
     let delivery_id = Uuid::now_v7();
@@ -257,10 +259,12 @@ async fn handle_order_confirmed(
     Ok(())
 }
 
-async fn generate_delivery_number(pool: &sqlx::PgPool) -> Result<String, AppError> {
-    // Call DB function generate_delivery_number()
+async fn generate_delivery_number(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+) -> Result<String, AppError> {
+    // Call DB function generate_delivery_number() within transaction
     let result: (String,) = sqlx::query_as("SELECT generate_delivery_number()")
-        .fetch_one(pool)
+        .fetch_one(&mut **tx)
         .await?;
     Ok(result.0)
 }
