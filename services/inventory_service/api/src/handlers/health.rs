@@ -27,7 +27,7 @@ pub struct HealthResp {
 )]
 pub async fn health_check(
     axum::Extension(pool): axum::Extension<PgPool>,
-    axum::Extension(config): axum::Extension<&Config>,
+    axum::Extension(config): axum::Extension<Config>,
 ) -> Result<Response, AppError> {
     // Check database connection
     let db_status = match sqlx::query("SELECT 1").execute(&pool).await {
