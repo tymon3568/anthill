@@ -40,6 +40,7 @@ pub enum AppError {
     InternalError(String), // Alias for InternalServerError
     ConfigError(String),
     DatabaseError(String), // String-based database error
+    ServiceUnavailable(String),
 }
 
 impl fmt::Display for AppError {
@@ -64,6 +65,7 @@ impl fmt::Display for AppError {
             AppError::InternalError(msg) => write!(f, "Internal error: {}", msg),
             AppError::ConfigError(msg) => write!(f, "Configuration error: {}", msg),
             AppError::DatabaseError(msg) => write!(f, "Database error: {}", msg),
+            AppError::ServiceUnavailable(msg) => write!(f, "Service unavailable: {}", msg),
         }
     }
 }
@@ -145,6 +147,9 @@ impl IntoResponse for AppError {
                     "Database error".to_string(),
                     "DATABASE_ERROR",
                 )
+            },
+            AppError::ServiceUnavailable(ref msg) => {
+                (StatusCode::SERVICE_UNAVAILABLE, msg.clone(), "SERVICE_UNAVAILABLE")
             },
         };
 

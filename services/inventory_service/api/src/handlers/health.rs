@@ -1,4 +1,4 @@
-use axum::Json;
+use axum::{http::StatusCode, response::Response, Json};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
@@ -21,12 +21,12 @@ pub struct HealthResp {
     operation_id = "inventory_health_check",
     responses(
         (status = 200, description = "Service is healthy", body = HealthResp),
-        (status = 503, description = "Service is unhealthy")
+        (status = 503, description = "Service is unhealthy", body = HealthResp)
     )
 )]
 pub async fn health_check(
     axum::Extension(pool): axum::Extension<PgPool>,
-) -> Result<Json<HealthResp>, AppError> {
+) -> Result<Response, AppError> {
     // Check database connection
     let db_status = match sqlx::query("SELECT 1").execute(&pool).await {
         Ok(_) => "healthy".to_string(),
@@ -62,11 +62,17 @@ pub async fn health_check(
         "degraded"
     };
 
-    Ok(Json(HealthResp {
+    let resp = HealthResp {
         status: overall_status.to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         timestamp: Utc::now(),
         database: db_status,
         nats: nats_status,
-    }))
+    };
+
+    if overall_status == "degraded" {
+        Ok((StatusCode::SERVICE_UNAVAILABLE, Json(resp)).into_response())
+    } else {
+        Ok((StatusCode::OK, Json(resp)).into_response())
+    }
 }
