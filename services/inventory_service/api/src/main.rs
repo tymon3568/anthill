@@ -28,6 +28,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize database connection pool
     let pool = init_pool(&config.database_url, config.max_connections.unwrap_or(10)).await?;
 
+    // Initialize event consumers (if NATS is configured)
+    if let Some(nats_url) = &config.nats_url {
+        if let Err(e) =
+            inventory_service_api::consumers::init_event_consumers(pool.clone(), nats_url).await
+        {
+            tracing::error!("Failed to initialize NATS event consumers: {}", e);
+            tracing::warn!("Service will start without event processing capabilities");
+        } else {
+            tracing::info!("NATS event consumers initialized successfully");
+        }
+    }
+
     // Create the application router
     let app = create_router(pool, &config).await;
 

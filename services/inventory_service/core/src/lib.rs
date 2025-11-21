@@ -7,11 +7,13 @@
 //!
 //! - `domains/`: Domain entities and business logic
 //! - `dto/`: Data Transfer Objects for API communication
+//! - `models/`: Domain models including delivery orders and items
 //! - `repositories/`: Repository trait definitions (no implementations)
 //! - `services/`: Service trait definitions (no implementations)
 
 pub mod domains;
 pub mod dto;
+pub mod models;
 pub mod repositories;
 pub mod services;
 

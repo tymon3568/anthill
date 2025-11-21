@@ -1,17 +1,20 @@
-//! Repository trait definitions for inventory service
+//! Repository implementations
 //!
-//! This module contains trait definitions for data access operations.
-//! No implementations here - pure interfaces.
+//! This module contains PostgreSQL implementations of the repository traits.
 
 pub mod category;
+pub mod delivery_order;
 pub mod product;
 pub mod receipt;
 pub mod valuation;
 pub mod warehouse;
 
-// Re-export main types for convenience
+// Re-export repository traits for convenience
 pub use category::CategoryRepository;
+pub use delivery_order::{
+    DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
+};
 pub use product::ProductRepository;
 pub use receipt::ReceiptRepository;
-pub use valuation::{ValuationHistoryRepository, ValuationLayerRepository, ValuationRepository};
+pub use valuation::ValuationRepository;
 pub use warehouse::WarehouseRepository;
