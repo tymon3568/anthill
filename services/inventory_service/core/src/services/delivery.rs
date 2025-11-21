@@ -5,7 +5,9 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::dto::delivery::{PickItemsRequest, PickItemsResponse};
+use crate::dto::delivery::{
+    PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse,
+};
 use shared_error::AppError;
 
 /// Service trait for delivery order operations
@@ -19,4 +21,13 @@ pub trait DeliveryService: Send + Sync {
         user_id: Uuid,
         request: PickItemsRequest,
     ) -> Result<PickItemsResponse, AppError>;
+
+    /// Pack items for a delivery order
+    async fn pack_items(
+        &self,
+        tenant_id: Uuid,
+        delivery_id: Uuid,
+        user_id: Uuid,
+        request: PackItemsRequest,
+    ) -> Result<PackItemsResponse, AppError>;
 }

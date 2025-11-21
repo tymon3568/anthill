@@ -1,5 +1,6 @@
 //! Data Transfer Objects for Delivery Order operations
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -23,4 +24,18 @@ pub struct PickItemsResponse {
     pub status: String,
     pub picked_items_count: usize,
     pub total_picked_quantity: i64,
+}
+
+/// Request to pack items for a delivery order
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackItemsRequest {
+    pub notes: Option<String>,
+}
+
+/// Response for pack operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackItemsResponse {
+    pub delivery_id: Uuid,
+    pub status: String,
+    pub packed_at: DateTime<Utc>,
 }
