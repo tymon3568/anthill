@@ -12,6 +12,8 @@ shared_error = {workspace = true}
 utoipa = {workspace = true, optional = true}
 # UUID
 uuid = {workspace = true}
+# Database
+sqlx = {workspace = true}
 # Validation
 validator = {workspace = true}
 

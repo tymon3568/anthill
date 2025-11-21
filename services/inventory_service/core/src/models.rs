@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::str::FromStr;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
 pub enum DeliveryOrderStatus {
     Draft,
     Confirmed,
@@ -15,17 +16,30 @@ pub enum DeliveryOrderStatus {
 impl fmt::Display for DeliveryOrderStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            DeliveryOrderStatus::Draft => "draft",
-            DeliveryOrderStatus::Confirmed => "confirmed",
-            DeliveryOrderStatus::PartiallyShipped => "partially_shipped",
-            DeliveryOrderStatus::Shipped => "shipped",
-            DeliveryOrderStatus::Cancelled => "cancelled",
+            DeliveryOrderStatus::Draft => "Draft",
+            DeliveryOrderStatus::Confirmed => "Confirmed",
+            DeliveryOrderStatus::PartiallyShipped => "PartiallyShipped",
+            DeliveryOrderStatus::Shipped => "Shipped",
+            DeliveryOrderStatus::Cancelled => "Cancelled",
         };
         f.write_str(s)
     }
 }
 
-// Note: sqlx implementations moved to infra crate to avoid infrastructure deps in core
+impl FromStr for DeliveryOrderStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Draft" => Ok(DeliveryOrderStatus::Draft),
+            "Confirmed" => Ok(DeliveryOrderStatus::Confirmed),
+            "PartiallyShipped" => Ok(DeliveryOrderStatus::PartiallyShipped),
+            "Shipped" => Ok(DeliveryOrderStatus::Shipped),
+            "Cancelled" => Ok(DeliveryOrderStatus::Cancelled),
+            _ => Err(format!("Unknown status: {}", s)),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeliveryOrder {
