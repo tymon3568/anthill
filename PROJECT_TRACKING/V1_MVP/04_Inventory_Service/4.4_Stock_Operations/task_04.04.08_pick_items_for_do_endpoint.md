@@ -38,15 +38,15 @@ Implement the endpoint for warehouse staff to pick items for a Delivery Order.
 ## AI Agent Log:
 ---
 *   2025-10-29 10:00: Task claimed by Claude
-    - Verified dependencies: task_04.04.07_create_do_from_order_endpoint.md is completed
-    - Starting work on implementing POST /api/v1/inventory/deliveries/:id/pick endpoint
-    - Will update picked_quantity and DO status
+  - Verified dependencies: task_04.04.07_create_do_from_order_endpoint.md is completed
+  - Starting work on implementing POST /api/v1/inventory/deliveries/:id/pick endpoint
+  - Will update picked_quantity and DO status
 
 *   2025-10-29 11:00: Implementation completed by Claude
-    - Created delivery service trait and implementation
-    - Added Picked status to DeliveryOrderStatus enum
-    - Implemented POST /api/v1/inventory/deliveries/:id/pick handler
-    - Added validation for quantities and status transitions
-    - Updated picked_quantity for delivery items and set DO status to Picked
-    - Added proper error handling and authorization
-    - Ready for review
+  - Created delivery service trait and implementation
+  - Added Picked status to DeliveryOrderStatus enum
+  - Implemented POST /api/v1/inventory/deliveries/:id/pick handler
+  - Added validation for quantities and status transitions
+  - Updated picked_quantity for delivery items and set DO status to Picked
+  - Added proper error handling and authorization
+  - Ready for review

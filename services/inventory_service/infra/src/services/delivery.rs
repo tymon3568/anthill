@@ -32,12 +32,12 @@ impl DeliveryServiceImpl {
 }
 
 #[async_trait]
-impl DeliveryService for PgDeliveryService {
+impl DeliveryService for DeliveryServiceImpl {
     async fn pick_items(
         &self,
         tenant_id: Uuid,
         delivery_id: Uuid,
-        user_id: Uuid,
+        _user_id: Uuid, // TODO: Use for audit logging when implemented
         request: PickItemsRequest,
     ) -> Result<PickItemsResponse, AppError> {
         // Validate request has items

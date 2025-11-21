@@ -27,7 +27,7 @@ CREATE TABLE delivery_orders (
 
     -- Delivery status
     status VARCHAR(20) NOT NULL DEFAULT 'draft'
-        CHECK (status IN ('draft', 'confirmed', 'partially_shipped', 'shipped', 'cancelled')),
+        CHECK (status IN ('draft', 'confirmed', 'picked', 'partially_shipped', 'shipped', 'cancelled')),
 
     -- Dates
     delivery_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),     -- When the DO was created
