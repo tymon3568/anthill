@@ -2,7 +2,7 @@
 //!
 //! This module defines the API routes and creates the main router.
 
-use axum::{http::HeaderValue, Router};
+use axum::{extract::Extension, http::HeaderValue, routing::get, Router};
 use shared_auth::{
     enforcer::create_enforcer,
     middleware::{casbin_middleware, AuthzState},
@@ -206,11 +206,13 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ]);
 
     Router::new()
+        .route("/health", get(crate::handlers::health::health_check))
         .nest("/api/v1/inventory", category_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
         .nest("/api/v1/inventory/products", search_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
+        .layer(Extension(pool))
         .layer(axum::middleware::from_fn_with_state(authz_state, casbin_middleware))
         .layer(cors)
 }
