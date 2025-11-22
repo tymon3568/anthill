@@ -159,3 +159,52 @@ pub struct DeliveryOrderItemResponse {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StockMove {
+    pub move_id: Uuid,
+    pub tenant_id: Uuid,
+    pub product_id: Uuid,
+    pub source_location_id: Option<Uuid>,
+    pub destination_location_id: Option<Uuid>,
+    pub move_type: String,
+    pub quantity: i64,
+    pub unit_cost: Option<i64>,
+    pub total_cost: Option<i64>,
+    pub reference_type: String,
+    pub reference_id: Uuid,
+    pub idempotency_key: String,
+    pub move_date: DateTime<Utc>,
+    pub move_reason: Option<String>,
+    pub batch_info: Option<serde_json::Value>,
+    pub metadata: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InventoryLevel {
+    pub inventory_id: Uuid,
+    pub tenant_id: Uuid,
+    pub product_id: Uuid,
+    pub available_quantity: i64,
+    pub reserved_quantity: i64,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateStockMoveRequest {
+    pub product_id: Uuid,
+    pub source_location_id: Option<Uuid>,
+    pub destination_location_id: Option<Uuid>,
+    pub move_type: String,
+    pub quantity: i64,
+    pub unit_cost: Option<i64>,
+    pub reference_type: String,
+    pub reference_id: Uuid,
+    pub idempotency_key: String,
+    pub move_reason: Option<String>,
+    pub batch_info: Option<serde_json::Value>,
+    pub metadata: Option<serde_json::Value>,
+}
