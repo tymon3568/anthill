@@ -196,10 +196,11 @@ impl TransferRepository for PgTransferRepository {
         sqlx::query!(
             r#"
             UPDATE stock_transfers
-            SET status = 'confirmed', approved_by = $1, approved_at = NOW(),
-                updated_by = $2, updated_at = NOW()
-            WHERE tenant_id = $3 AND transfer_id = $4 AND deleted_at IS NULL
+            SET status = $1, approved_by = $2, approved_at = NOW(),
+                updated_by = $3, updated_at = NOW()
+            WHERE tenant_id = $4 AND transfer_id = $5 AND deleted_at IS NULL
             "#,
+            TransferStatus::Shipped as TransferStatus,
             approved_by,
             updated_by,
             tenant_id,
@@ -221,10 +222,11 @@ impl TransferRepository for PgTransferRepository {
         sqlx::query!(
             r#"
             UPDATE stock_transfers
-            SET status = 'received', actual_receive_date = NOW(),
-                updated_by = $1, updated_at = NOW()
-            WHERE tenant_id = $2 AND transfer_id = $3 AND deleted_at IS NULL
+            SET status = $1, actual_receive_date = NOW(),
+                updated_by = $2, updated_at = NOW()
+            WHERE tenant_id = $3 AND transfer_id = $4 AND deleted_at IS NULL
             "#,
+            TransferStatus::Received as TransferStatus,
             updated_by,
             tenant_id,
             transfer_id
@@ -420,10 +422,11 @@ impl TransferItemRepository for PgTransferItemRepository {
         sqlx::query!(
             r#"
             UPDATE stock_transfer_items
-            SET quantity = $1, updated_at = NOW()
-            WHERE tenant_id = $2 AND transfer_item_id = $3 AND deleted_at IS NULL
+            SET quantity = $1, updated_by = $2, updated_at = NOW()
+            WHERE tenant_id = $3 AND transfer_item_id = $4 AND deleted_at IS NULL
             "#,
             quantity,
+            updated_by,
             tenant_id,
             item_id
         )
@@ -445,11 +448,12 @@ impl TransferItemRepository for PgTransferItemRepository {
         sqlx::query!(
             r#"
             UPDATE stock_transfer_items
-            SET deleted_at = NOW(), updated_at = NOW()
+            SET deleted_at = NOW(), deleted_by = $3, updated_at = NOW()
             WHERE tenant_id = $1 AND transfer_item_id = $2 AND deleted_at IS NULL
             "#,
             tenant_id,
-            item_id
+            item_id,
+            deleted_by
         )
         .execute(&*self.pool)
         .await
