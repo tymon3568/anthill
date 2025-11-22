@@ -3,5 +3,6 @@ pub mod delivery;
 pub mod health;
 pub mod receipt;
 pub mod search;
+pub mod transfer;
 pub mod valuation;
 pub mod warehouses;

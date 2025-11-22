@@ -6,6 +6,7 @@ pub mod category;
 pub mod delivery;
 pub mod product;
 pub mod receipt;
+pub mod transfer;
 pub mod valuation;
 
 #[cfg(test)]
@@ -16,4 +17,5 @@ pub use category::CategoryServiceImpl;
 pub use delivery::DeliveryServiceImpl;
 pub use product::ProductServiceImpl;
 pub use receipt::ReceiptServiceImpl;
+pub use transfer::PgTransferService;
 pub use valuation::ValuationServiceImpl;
