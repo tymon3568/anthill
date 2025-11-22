@@ -46,3 +46,10 @@ Create the `stock_takes` table to manage physical inventory counting sessions.
   - Included comprehensive indexes, constraints, and documentation
   - All sub-tasks and acceptance criteria completed
   - Ready for review and testing
+* 2025-11-22 14:00: Applied PR review fixes by Claude
+  - Reordered sequence and function creation before table in migration to prevent failures
+  - Fixed stock_takes_completion_dates constraint to require started_at when completed_at is set
+  - Made total_items_counted and total_variance NOT NULL DEFAULT 0
+  - Fixed markdown list indentation to 2 spaces in task file
+  - Committed and pushed fixes with descriptive message
+  - Status: Ready for re-review
