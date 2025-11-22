@@ -82,9 +82,9 @@ pub fn create_transfer_routes(state: AppState) -> Router {
 ///
 /// # Business Rules
 /// - Source and destination warehouses must be different
-/// - All products and UOMs must exist and be active
 /// - Quantities must be positive
 /// - Transfer is created in 'draft' status
+/// - Product and UOM existence is validated by database constraints
 ///
 /// # Example Response
 /// ```json

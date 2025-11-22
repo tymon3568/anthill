@@ -96,6 +96,9 @@ impl TransferService for PgTransferService {
             }
         }
 
+        // Note: Product and UOM existence/validation is handled by database constraints
+        // (foreign key constraints on product_id and uom_id in stock_transfer_items table)
+
         let items: Vec<TransferItem> = request
             .items
             .into_iter()
