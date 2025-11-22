@@ -42,11 +42,24 @@ Implement the API endpoints to manage the stock transfer workflow.
     - Starting work on implementing stock transfer endpoints
 
 *   2025-11-22 04:16: All sub-tasks completed by Grok
-    - Implemented POST /api/v1/inventory/transfers for creating draft transfers
-    - Implemented POST /api/v1/inventory/transfers/:id/confirm for confirming transfers and moving stock to transit
-    - Implemented POST /api/v1/inventory/transfers/:id/receive for receiving transfers and updating destination inventory
-    - Added stock_moves creation and inventory level updates in confirm/receive steps
-    - Added event publishing placeholder for inventory.transfer.completed
-    - Created domain entities, DTOs, repository traits, service implementations, and API handlers
-    - Integrated routes into the main router with authentication and authorization
+  - Implemented POST /api/v1/inventory/transfers for creating draft transfers
+  - Implemented POST /api/v1/inventory/transfers/:id/confirm for confirming transfers and moving stock to transit
+  - Implemented POST /api/v1/inventory/transfers/:id/receive for receiving transfers and updating destination inventory
+  - Added stock_moves creation and inventory level updates in confirm/receive steps
+  - Added event publishing placeholder for inventory.transfer.completed
+  - Created domain entities, DTOs, repository traits, service implementations, and API handlers
+  - Integrated routes into the main router with authentication and authorization
+  - Ready for testing
+
+*   2025-11-22 04:17: PR review fixes applied by Grok
+  - Fixed transfer_number generation to use DB default instead of empty string
+  - Added validation for positive quantities in transfer items
+  - Corrected state transitions: confirm sets Shipped, receive requires Shipped
+  - Updated comments to reflect simplified 2-step flow (source->destination)
+  - Replaced hard-coded status strings with enum casts in repository methods
+  - Added updated_by persistence in update_quantity method
+  - Added deleted_by column to stock_transfer_items table and updated delete method
+  - Created migration 20250121000003_add_deleted_by_to_stock_transfer_items.sql
+  - Committed and pushed fixes to feature branch
+  - PR ready for final review
     - Ready for testing and integration
