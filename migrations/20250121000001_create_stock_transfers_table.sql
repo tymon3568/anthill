@@ -68,8 +68,6 @@ CREATE TABLE stock_transfers (
     -- Constraints
     CONSTRAINT stock_transfers_number_unique_per_tenant
         UNIQUE (tenant_id, transfer_number) DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT stock_transfers_tenant_transfer_unique
-        UNIQUE (tenant_id, transfer_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT stock_transfers_different_warehouses
         CHECK (source_warehouse_id != destination_warehouse_id),
     CONSTRAINT stock_transfers_tenant_source_warehouse_fk
