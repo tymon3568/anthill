@@ -57,3 +57,9 @@ Create the `stock_transfers` table to manage internal stock transfers between wa
     - Pushed to feature/04.04.11-stock-transfers-table branch
     - Task status updated to NeedsReview
     - Ready for user review and testing
+
+*   2025-11-22 13:00: UNIQUE constraint fix added by Grok
+    - Added users_tenant_user_unique constraint to users table migration
+    - Required for composite foreign keys in stock_transfers table
+    - Enables proper referential integrity for created_by, updated_by, approved_by fields
+    - Committed and pushed additional fix to same feature branch
