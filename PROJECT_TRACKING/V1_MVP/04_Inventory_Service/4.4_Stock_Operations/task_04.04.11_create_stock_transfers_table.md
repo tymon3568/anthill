@@ -78,8 +78,15 @@ Create the `stock_transfers` table to manage internal stock transfers between wa
     - Task completed successfully
 
 *   2025-11-22 14:15: Rules updated and workflow finalized by Grok
-    - Added PR Review Auto-Fix Workflow Rules to .github/copilot-instructions.md
-    - Documented complete workflow from PR fetch to final push
-    - Included pre-fix checklist, process flow, and success criteria
-    - Ensured all future PR reviews follow standardized auto-fix procedures
-    - Project documentation updated for consistency
+  - Added PR Review Auto-Fix Workflow Rules to .github/copilot-instructions.md
+  - Documented complete workflow from PR fetch to final push
+  - Included pre-fix checklist, process flow, and success criteria
+  - Ensured all future PR reviews follow standardized auto-fix procedures
+  - Project documentation updated for consistency
+
+*   2025-11-22 14:30: Redundant constraint removed by Grok
+  - Removed stock_transfers_tenant_transfer_unique constraint from migration
+  - Constraint was redundant since transfer_id is already the primary key
+  - Primary keys are inherently unique, no additional constraint needed
+  - Cleaned up database schema for better performance and clarity
+  - Committed and pushed fix to feature branch
