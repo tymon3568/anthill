@@ -208,6 +208,118 @@ cargo test --workspace
 cargo test --package user_service_core
 ```
 
+## PR Review Auto-Fix Workflow Rules
+
+### Core Principles
+- **ALWAYS** follow this workflow when handling PR reviews to ensure consistent, automated fixes for unresolved issues.
+- **NEVER** fix issues that are marked as resolved, informational, or outside the scope of code changes.
+- **PRIORITY**: Focus on critical issues (security, breaking changes) first, then warnings, then style/lint issues.
+- **TRANSPARENCY**: Log all actions in the PR comments and task files for auditability.
+- **CONSENSUS**: If unsure about a fix, request human approval before proceeding.
+
+### Pre-Fix Checklist (MANDATORY)
+Before attempting any auto-fix:
+1. ✅ **Fetch PR Details**: Use the `fetch` tool to retrieve the PR page content (e.g., `https://github.com/user/repo/pull/123`).
+2. ✅ **Extract Unresolved Comments**: Parse the PR content to list all review comments that are:
+   - Not marked as "resolved"
+   - Related to code (ignore discussions, approvals, etc.)
+   - From authorized reviewers (e.g., CodeRabbit, Greptile, or assigned reviewers).
+3. ✅ **Categorize Issues**: Classify each unresolved comment by type:
+   - **Critical**: Security vulnerabilities, breaking changes, data integrity issues.
+   - **Warning**: Logic errors, performance issues, missing tests.
+   - **Style**: Linting, formatting, documentation inconsistencies.
+   - **Nitpick**: Minor suggestions, optional improvements.
+4. ✅ **Check Task Status**: Ensure the related task is in `InProgress_By_[Agent]` and dependencies are satisfied.
+5. ✅ **Run Local Validation**: Execute `cargo check --workspace` or equivalent to confirm current state.
+
+### Auto-Fix Process Flow
+```
+Fetch PR → List Unresolved Issues → Generate Fix Prompt → Evaluate Fixability → Apply Fix → Test & Commit → Update PR
+```
+
+### Step 1: Fetch PR URL
+- Use the `fetch` tool with the PR URL provided by the user or extracted from context.
+- Example: `fetch(url="https://github.com/tymon3568/anthill/pull/123")`
+- Parse the returned Markdown for review threads, comments, and status.
+
+### Step 2: List Unresolved Review Errors
+- Scan the fetched content for unresolved review comments.
+- Format as a bulleted list:
+  - **Comment ID/Line**: Brief description of the issue.
+  - **Reviewer**: Who flagged it (e.g., CodeRabbit).
+  - **Severity**: Critical/Warning/Style/Nitpick.
+  - **Suggested Fix**: If provided in the comment.
+- Ignore resolved threads or non-code feedback.
+
+### Step 3: Prompt for AI Agents
+- Generate a structured prompt for the AI agent to fix the issues.
+- Prompt Template:
+  ```
+  ## PR Review Auto-Fix Prompt
+
+  **PR URL**: [Insert PR URL]
+  **Unresolved Issues**:
+  - [Issue 1]: [Description] (Severity: [Level])
+  - [Issue 2]: [Description] (Severity: [Level])
+  - ...
+
+  **Task Context**: [Brief summary from task file, e.g., "Creating stock_adjustments migration for multi-tenancy"]
+
+  **Instructions**:
+  1. Analyze each issue for fixability: Can it be resolved with code changes? (Yes/No/Needs Clarification)
+  2. For fixable issues, propose specific code edits with file paths and line numbers.
+  3. Ensure fixes align with project rules (e.g., Anthill architecture, multi-tenancy patterns).
+  4. Prioritize fixes: Critical > Warning > Style > Nitpick.
+  5. If multiple issues conflict, resolve conservatively.
+  6. Output format: List fixes with before/after code blocks using `path/to/file#Lstart-end` syntax.
+
+  **Constraints**:
+  - Do not introduce new dependencies without approval.
+  - Maintain backward compatibility.
+  - Follow existing code style and patterns.
+  - Test fixes locally before committing.
+  ```
+
+### Step 4: Evaluate Fixability
+- **Criteria for Auto-Fix**:
+  - **Yes**: Clear, actionable issues (e.g., missing DEFERRABLE, syntax errors, index optimizations).
+  - **No**: Ambiguous issues, architectural changes, or those requiring human judgment (e.g., business rule decisions).
+  - **Needs Clarification**: Request user input if the fix impacts scope or requires external data.
+- If any issue is "No" or "Needs Clarification", stop and notify the user with a summary.
+- If all are "Yes", proceed to fix.
+
+### Step 5: Apply Fixes (Referencing Prompt)
+- Use the AI agent's response from Step 3 to apply changes.
+- For each fix:
+  - Edit files using the provided code blocks.
+  - Run `cargo check --workspace` after each edit to validate.
+  - If errors occur, revert and flag as unfixable.
+- Commit fixes with descriptive messages: `fix(pr_review): resolve [issue summary] [TaskID: XX.YY.ZZ]`
+- Push to the feature branch.
+
+### Step 6: Post-Fix Actions
+- Update PR: Comment on resolved threads with "Auto-fixed by [Agent]: [Brief fix description]".
+- Update Task File: Add log entry, mark sub-tasks as done, set status to `NeedsReview` if all issues resolved.
+- Notify User: Summarize actions taken and any remaining issues.
+
+### Success Criteria
+- All auto-fixable issues are resolved without introducing new errors.
+- PR comments are updated for transparency.
+- Task file reflects progress accurately.
+- Local tests pass (`cargo check`, etc.).
+
+### Common Pitfalls to Avoid
+❌ Fixing issues outside the agent's expertise (e.g., complex refactors).
+❌ Ignoring severity levels – always prioritize critical issues.
+❌ Committing without testing – validate every change.
+❌ Overwriting human decisions – defer to user for ambiguous cases.
+❌ Failing to update PR/task – maintain full traceability.
+
+### Collaboration Rules
+- If multiple agents are involved, coordinate via task file logs.
+- For cross-task issues, check dependencies before fixing.
+- Escalate to user if fixes require policy changes (e.g., altering business rules).
+
 ## Error Handling
 
 Use `AppError` from `shared/error`:
