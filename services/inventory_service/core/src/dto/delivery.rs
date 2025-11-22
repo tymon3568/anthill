@@ -39,3 +39,22 @@ pub struct PackItemsResponse {
     pub status: String,
     pub packed_at: DateTime<Utc>,
 }
+
+/// Request to ship a delivery order
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShipItemsRequest {
+    pub tracking_number: Option<String>,
+    pub carrier: Option<String>,
+    pub shipping_cost: Option<i64>,
+    pub notes: Option<String>,
+}
+
+/// Response for ship operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShipItemsResponse {
+    pub delivery_id: Uuid,
+    pub status: String,
+    pub shipped_at: DateTime<Utc>,
+    pub stock_moves_created: usize,
+    pub total_cogs: i64,
+}

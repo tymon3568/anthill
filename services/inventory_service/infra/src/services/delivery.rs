@@ -8,10 +8,17 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use inventory_service_core::dto::delivery::{
-    PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse,
+    PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
+    ShipItemsResponse,
 };
-use inventory_service_core::models::{DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus};
-use inventory_service_core::repositories::{DeliveryOrderItemRepository, DeliveryOrderRepository};
+use inventory_service_core::models::{
+    CreateStockMoveRequest, DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus, InventoryLevel,
+    StockMove,
+};
+use inventory_service_core::repositories::{
+    DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryLevelRepository,
+    StockMoveRepository,
+};
 use inventory_service_core::services::delivery::DeliveryService;
 use shared_error::AppError;
 
@@ -19,6 +26,8 @@ use shared_error::AppError;
 pub struct DeliveryServiceImpl {
     delivery_repo: Arc<dyn DeliveryOrderRepository>,
     delivery_item_repo: Arc<dyn DeliveryOrderItemRepository>,
+    stock_move_repo: Arc<dyn StockMoveRepository>,
+    inventory_level_repo: Arc<dyn InventoryLevelRepository>,
 }
 
 impl DeliveryServiceImpl {
@@ -26,10 +35,14 @@ impl DeliveryServiceImpl {
     pub fn new(
         delivery_repo: Arc<dyn DeliveryOrderRepository>,
         delivery_item_repo: Arc<dyn DeliveryOrderItemRepository>,
+        stock_move_repo: Arc<dyn StockMoveRepository>,
+        inventory_level_repo: Arc<dyn InventoryLevelRepository>,
     ) -> Self {
         Self {
             delivery_repo,
             delivery_item_repo,
+            stock_move_repo,
+            inventory_level_repo,
         }
     }
 }
@@ -210,6 +223,159 @@ impl DeliveryService for DeliveryServiceImpl {
             delivery_id,
             status: delivery_order.status.to_string(),
             packed_at,
+        })
+    }
+
+    async fn ship_items(
+        &self,
+        tenant_id: Uuid,
+        delivery_id: Uuid,
+        user_id: Uuid,
+        request: ShipItemsRequest,
+    ) -> Result<ShipItemsResponse, AppError> {
+        // Begin transaction
+        let mut tx = self.delivery_repo.begin_transaction().await?;
+
+        // Find the delivery order within transaction
+        let mut delivery_order = self
+            .delivery_repo
+            .find_by_id_with_tx(&mut tx, tenant_id, delivery_id)
+            .await?
+            .ok_or_else(|| {
+                AppError::NotFound(format!("Delivery order {} not found", delivery_id))
+            })?;
+
+        // Check if the delivery order is in a valid state for shipping
+        if delivery_order.status != DeliveryOrderStatus::Packed {
+            return Err(AppError::ValidationError(format!(
+                "Cannot ship items for delivery order with status '{}'. Only 'Packed' orders can be shipped.",
+                delivery_order.status
+            )));
+        }
+
+        // Get all delivery items
+        let delivery_items = self
+            .delivery_item_repo
+            .find_by_delivery_id_with_tx(&mut tx, tenant_id, delivery_id)
+            .await?;
+
+        let shipped_at = Utc::now();
+        let mut total_cogs = 0i64;
+        let mut stock_moves_created = 0;
+
+        // Process each delivery item
+        for item in &delivery_items {
+            // Skip items that weren't picked (shouldn't happen in Packed status, but safety check)
+            if item.picked_quantity <= 0 {
+                continue;
+            }
+
+            // Create stock move (warehouse -> customer virtual location)
+            let idempotency_key = format!("do-{}-item-{}", delivery_id, item.delivery_item_id);
+
+            // Check if stock move already exists (idempotency)
+            let exists = self
+                .stock_move_repo
+                .exists_by_idempotency_key(tenant_id, &idempotency_key)
+                .await?;
+
+            if !exists {
+                // Get current inventory level to calculate COGS
+                let inventory_level = self
+                    .inventory_level_repo
+                    .find_by_product(tenant_id, item.product_id)
+                    .await?
+                    .ok_or_else(|| {
+                        AppError::ValidationError(format!(
+                            "No inventory level found for product {}",
+                            item.product_id
+                        ))
+                    })?;
+
+                // For deliveries, we use the item's unit_price as COGS
+                // In a real system, this might come from inventory valuation
+                let unit_cost = Some(item.unit_price);
+                let total_cost = unit_cost.map(|cost| cost * item.picked_quantity);
+
+                let stock_move = CreateStockMoveRequest {
+                    product_id: item.product_id,
+                    source_location_id: Some(delivery_order.warehouse_id), // From warehouse
+                    destination_location_id: None, // To customer (virtual location)
+                    move_type: "delivery".to_string(),
+                    quantity: -item.picked_quantity, // Negative for outgoing
+                    unit_cost,
+                    reference_type: "do".to_string(),
+                    reference_id: delivery_id,
+                    idempotency_key: idempotency_key.clone(),
+                    move_reason: Some(format!("Delivery order {}", delivery_order.delivery_number)),
+                    batch_info: None,
+                    metadata: Some(serde_json::json!({
+                        "delivery_item_id": item.delivery_item_id,
+                        "customer_id": delivery_order.customer_id
+                    })),
+                };
+
+                // Create stock move within transaction
+                self.stock_move_repo
+                    .create_with_tx(&mut tx, &stock_move, tenant_id)
+                    .await?;
+
+                stock_moves_created += 1;
+
+                // Update inventory level (decrement available stock)
+                self.inventory_level_repo
+                    .update_available_quantity_with_tx(
+                        &mut tx,
+                        tenant_id,
+                        item.product_id,
+                        -item.picked_quantity,
+                    )
+                    .await?;
+
+                // Accumulate COGS
+                if let Some(cost) = total_cost {
+                    total_cogs += cost;
+                }
+            }
+        }
+
+        // Update the delivery order status to Shipped
+        delivery_order.status = DeliveryOrderStatus::Shipped;
+        delivery_order.actual_ship_date = Some(shipped_at);
+        delivery_order.updated_by = Some(user_id);
+        delivery_order.updated_at = shipped_at;
+
+        // Update shipping information if provided
+        if let Some(tracking_number) = request.tracking_number {
+            delivery_order.tracking_number = Some(tracking_number);
+        }
+        if let Some(carrier) = request.carrier {
+            delivery_order.carrier = Some(carrier);
+        }
+        if let Some(shipping_cost) = request.shipping_cost {
+            delivery_order.shipping_cost = Some(shipping_cost);
+        }
+        if let Some(notes) = request.notes {
+            delivery_order.notes = Some(notes);
+        }
+
+        // Save the updated delivery order within transaction
+        self.delivery_repo
+            .update_with_tx(&mut tx, &delivery_order)
+            .await?;
+
+        // TODO: Publish inventory.delivery.completed event
+        // This would typically be done via an event bus/message queue
+
+        // Commit the transaction
+        tx.commit().await?;
+
+        Ok(ShipItemsResponse {
+            delivery_id,
+            status: delivery_order.status.to_string(),
+            shipped_at,
+            stock_moves_created,
+            total_cogs,
         })
     }
 }

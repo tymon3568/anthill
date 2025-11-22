@@ -24,6 +24,9 @@ use inventory_service_infra::repositories::delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
 };
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::stock::{
+    PgInventoryLevelRepository, PgStockMoveRepository,
+};
 use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
@@ -147,7 +150,17 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Initialize delivery repositories and services
     let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
     let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
-    let delivery_service = Arc::new(DeliveryServiceImpl::new(delivery_repo, delivery_item_repo));
+
+    // Initialize stock repositories
+    let stock_move_repo = Arc::new(PgStockMoveRepository::new(pool.clone()));
+    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(pool.clone()));
+
+    let delivery_service = Arc::new(DeliveryServiceImpl::new(
+        delivery_repo,
+        delivery_item_repo,
+        stock_move_repo,
+        inventory_level_repo,
+    ));
 
     // Initialize receipt repositories and services
     let receipt_repo =
