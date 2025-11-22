@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{PgPool, Row};
+use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -283,55 +283,46 @@ impl TransferItemRepository for PgTransferItemRepository {
         tenant_id: Uuid,
         items: &[TransferItem],
     ) -> Result<Vec<TransferItem>, AppError> {
-        let mut created_items = Vec::new();
-
-        for item in items {
-            let row = sqlx::query!(
-                r#"
-                INSERT INTO stock_transfer_items (
-                    transfer_item_id, tenant_id, transfer_id, product_id,
-                    quantity, uom_id, unit_cost, line_total, line_number, notes
-                )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                RETURNING transfer_item_id, tenant_id, transfer_id, product_id,
-                          quantity, uom_id, unit_cost, line_total, line_number, notes,
-                          created_at, updated_at, updated_by, deleted_at, deleted_by
-                "#,
-                item.transfer_item_id,
-                tenant_id,
-                item.transfer_id,
-                item.product_id,
-                item.quantity,
-                item.uom_id,
-                item.unit_cost,
-                item.line_total,
-                item.line_number as i32,
-                item.notes
-            )
-            .fetch_one(&*self.pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(format!("Failed to create transfer item: {}", e))
-            })?;
-
-            created_items.push(TransferItem {
-                transfer_item_id: row.transfer_item_id,
-                tenant_id: row.tenant_id,
-                transfer_id: row.transfer_id,
-                product_id: row.product_id,
-                quantity: row.quantity,
-                uom_id: row.uom_id,
-                unit_cost: row.unit_cost,
-                line_total: row.line_total,
-                line_number: row.line_number as i32,
-                notes: row.notes,
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-                updated_by: row.updated_by,
-                deleted_at: row.deleted_at,
-                deleted_by: row.deleted_by,
-            });
+        // Fast-path: avoid hitting the DB if there is nothing to insert
+        if items.is_empty() {
+            return Ok(Vec::new());
         }
+
+        // Build a single multi-values INSERT statement using QueryBuilder
+        let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
+            r#"
+            INSERT INTO stock_transfer_items (
+                transfer_item_id, tenant_id, transfer_id, product_id,
+                quantity, uom_id, unit_cost, line_total, line_number, notes
+            )
+            "#,
+        );
+
+        query_builder.push_values(items.iter(), |mut b, item| {
+            b.push_bind(item.transfer_item_id)
+                .push_bind(tenant_id)
+                .push_bind(item.transfer_id)
+                .push_bind(item.product_id)
+                .push_bind(item.quantity)
+                .push_bind(item.uom_id)
+                .push_bind(item.unit_cost)
+                .push_bind(item.line_total)
+                .push_bind(item.line_number as i32)
+                .push_bind(&item.notes);
+        });
+
+        // Return the inserted rows so the behavior matches the previous implementation
+        query_builder.push(
+            r#"
+            RETURNING transfer_item_id, tenant_id, transfer_id, product_id,
+                      quantity, uom_id, unit_cost, line_total, line_number, notes,
+                      created_at, updated_at, updated_by, deleted_at, deleted_by
+            "#,
+        );
+
+        let query = query_builder.build_query_as::<TransferItem>();
+
+        let created_items = query.fetch_all(&*self.pool).await?;
 
         Ok(created_items)
     }
