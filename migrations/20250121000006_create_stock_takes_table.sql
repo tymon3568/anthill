@@ -4,6 +4,33 @@
 -- Created: 2025-11-22
 
 -- ==================================
+-- SEQUENCE FOR STOCK TAKE NUMBER GENERATION
+-- ==================================
+-- Global sequence for stock take numbers (STK-YYYY-XXXXX)
+-- Note: For production multi-tenant systems, consider per-tenant sequences
+
+CREATE SEQUENCE IF NOT EXISTS stock_take_number_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- ==================================
+-- FUNCTION FOR STOCK TAKE NUMBER GENERATION
+-- ==================================
+
+CREATE OR REPLACE FUNCTION generate_stock_take_number()
+RETURNS TEXT AS $$
+DECLARE
+    current_year TEXT := EXTRACT(YEAR FROM NOW())::TEXT;
+    next_seq TEXT := LPAD(nextval('stock_take_number_seq')::TEXT, 5, '0');
+BEGIN
+    RETURN 'STK-' || current_year || '-' || next_seq;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ==================================
 -- STOCK_TAKES TABLE (Physical Inventory Counting)
 -- ==================================
 -- This table manages Stock Takes (STK) which record physical inventory counting sessions
@@ -50,8 +77,8 @@ CREATE TABLE stock_takes (
     variance_threshold DECIMAL(5,2),                     -- Acceptable variance percentage (e.g., 2.5 for 2.5%)
 
     -- Summary fields (calculated from stock take lines)
-    total_items_counted INTEGER DEFAULT 0,               -- Number of items counted
-    total_variance BIGINT DEFAULT 0,                     -- Total variance in base units
+    total_items_counted INTEGER NOT NULL DEFAULT 0,      -- Number of items counted
+    total_variance BIGINT NOT NULL DEFAULT 0,            -- Total variance in base units
 
     -- Audit fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -80,37 +107,12 @@ CREATE TABLE stock_takes (
     CONSTRAINT stock_takes_variance_threshold_range
         CHECK (variance_threshold IS NULL OR (variance_threshold >= 0 AND variance_threshold <= 100)),
     CONSTRAINT stock_takes_completion_dates
-        CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at),
+        CHECK (completed_at IS NULL OR (started_at IS NOT NULL AND completed_at >= started_at)),
     CONSTRAINT stock_takes_approval_dates
         CHECK (approved_at IS NULL OR approved_by IS NOT NULL)
 );
 
--- ==================================
--- SEQUENCE FOR STOCK TAKE NUMBER GENERATION
--- ==================================
--- Global sequence for stock take numbers (STK-YYYY-XXXXX)
--- Note: For production multi-tenant systems, consider per-tenant sequences
 
-CREATE SEQUENCE IF NOT EXISTS stock_take_number_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
--- ==================================
--- FUNCTION FOR STOCK TAKE NUMBER GENERATION
--- ==================================
-
-CREATE OR REPLACE FUNCTION generate_stock_take_number()
-RETURNS TEXT AS $$
-DECLARE
-    current_year TEXT := EXTRACT(YEAR FROM NOW())::TEXT;
-    next_seq TEXT := LPAD(nextval('stock_take_number_seq')::TEXT, 5, '0');
-BEGIN
-    RETURN 'STK-' || current_year || '-' || next_seq;
-END;
-$$ LANGUAGE plpgsql;
 
 -- ==================================
 -- INDEXES for Performance
