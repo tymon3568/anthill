@@ -26,11 +26,11 @@ CREATE TABLE stock_transfer_items (
     quantity BIGINT NOT NULL DEFAULT 0,  -- Quantity to be transferred
 
     -- Unit of measure
-    uom_id UUID,  -- References unit_of_measures table
+    uom_id UUID NOT NULL,  -- References unit_of_measures table
 
     -- Cost information (stored in smallest currency unit: cents/xu)
     unit_cost BIGINT,  -- Cost per unit in cents (for valuation)
-    line_total BIGINT DEFAULT 0,  -- Calculated: quantity * unit_cost
+    line_total BIGINT NOT NULL DEFAULT 0,  -- Calculated: quantity * unit_cost
 
     -- Item ordering and details
     line_number INTEGER NOT NULL DEFAULT 1,  -- Line number for ordering items
@@ -48,15 +48,20 @@ CREATE TABLE stock_transfer_items (
         CHECK (unit_cost IS NULL OR unit_cost >= 0),
     CONSTRAINT stock_transfer_items_positive_total
         CHECK (line_total >= 0),
+    CONSTRAINT stock_transfer_items_unique_line_number
+        UNIQUE (tenant_id, transfer_id, line_number) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT stock_transfer_items_tenant_transfer_fk
         FOREIGN KEY (tenant_id, transfer_id)
-        REFERENCES stock_transfers (tenant_id, transfer_id),
+        REFERENCES stock_transfers (tenant_id, transfer_id)
+        ON DELETE RESTRICT,
     CONSTRAINT stock_transfer_items_tenant_product_fk
         FOREIGN KEY (tenant_id, product_id)
-        REFERENCES products (tenant_id, product_id),
+        REFERENCES products (tenant_id, product_id)
+        ON DELETE RESTRICT,
     CONSTRAINT stock_transfer_items_tenant_uom_fk
         FOREIGN KEY (tenant_id, uom_id)
         REFERENCES unit_of_measures (tenant_id, uom_id)
+        ON DELETE RESTRICT
 );
 
 -- ==================================
@@ -108,7 +113,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER calculate_stock_transfer_item_total_trigger
-    BEFORE INSERT OR UPDATE OF quantity, unit_cost
+    BEFORE INSERT OR UPDATE OF quantity, unit_cost, line_total
     ON stock_transfer_items
     FOR EACH ROW
     EXECUTE FUNCTION calculate_stock_transfer_item_total();

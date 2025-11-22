@@ -36,11 +36,11 @@ Create the `stock_transfer_items` table for the line items of a stock transfer.
 ## AI Agent Log:
 ---
 *   2025-11-22 04:11: Task claimed by Grok
-    - Verified dependency task_04.04.11_create_stock_transfers_table.md is Done
-    - Starting work on creating stock_transfer_items table migration
+  - Verified dependency task_04.04.11_create_stock_transfers_table.md is Done
+  - Starting work on creating stock_transfer_items table migration
 
 *   2025-11-22 04:12: All sub-tasks completed by Grok
-    - Created migration file 20250121000002_create_stock_transfer_items_table.sql
-    - Implemented stock_transfer_items table with multi-tenancy, foreign keys, indexes, and triggers
-    - Committed and pushed to feature branch feature/04.04.12-stock-transfer-items-table
-    - Ready for review
+  - Created migration file 20250121000002_create_stock_transfer_items_table.sql
+  - Implemented stock_transfer_items table with multi-tenancy, foreign keys, indexes, and triggers
+  - Committed and pushed to feature branch feature/04.04.12-stock-transfer-items-table
+  - Ready for review
