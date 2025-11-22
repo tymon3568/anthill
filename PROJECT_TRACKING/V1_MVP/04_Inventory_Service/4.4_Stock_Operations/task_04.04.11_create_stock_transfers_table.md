@@ -36,30 +36,30 @@ Create the `stock_transfers` table to manage internal stock transfers between wa
 ## AI Agent Log:
 ---
 *   2025-11-22 11:30: Task claimed by Grok
-    - Verified no dependencies required
-    - Created feature branch feature/04.04.11-stock-transfers-table
-    - Starting work on creating stock_transfers table migration
-    - Following Anthill multi-tenancy patterns
+  - Verified no dependencies required
+  - Created feature branch feature/04.04.11-stock-transfers-table
+  - Starting work on creating stock_transfers table migration
+  - Following Anthill multi-tenancy patterns
 
 *   2025-11-22 12:00: Migration file created by Grok
-    - Created migration 20250121000001_create_stock_transfers_table.sql
-    - Implemented comprehensive stock_transfers table schema with multi-tenancy
-    - Added auto-generating transfer numbers (ST-YYYY-XXXXX) with sequence and function
-    - Included transfer types, priorities, approval workflow, and comprehensive status tracking
-    - Added foreign key constraints to warehouses and users tables
-    - Created performance indexes for common queries
-    - Added triggers for auto-updating timestamps
-    - Files created: migrations/20250121000001_create_stock_transfers_table.sql
-    - Ready for review and testing
+  - Created migration 20250121000001_create_stock_transfers_table.sql
+  - Implemented comprehensive stock_transfers table schema with multi-tenancy
+  - Added auto-generating transfer numbers (ST-YYYY-XXXXX) with sequence and function
+  - Included transfer types, priorities, approval workflow, and comprehensive status tracking
+  - Added foreign key constraints to warehouses and users tables
+  - Created performance indexes for common queries
+  - Added triggers for auto-updating timestamps
+  - Files created: migrations/20250121000001_create_stock_transfers_table.sql
+  - Ready for review and testing
 
 *   2025-11-22 12:30: Task completed and pushed by Grok
-    - All changes committed with proper task ID format
-    - Pushed to feature/04.04.11-stock-transfers-table branch
-    - Task status updated to NeedsReview
-    - Ready for user review and testing
+  - All changes committed with proper task ID format
+  - Pushed to feature/04.04.11-stock-transfers-table branch
+  - Task status updated to NeedsReview
+  - Ready for user review and testing
 
 *   2025-11-22 13:00: UNIQUE constraint fix added by Grok
-    - Added users_tenant_user_unique constraint to users table migration
-    - Required for composite foreign keys in stock_transfers table
-    - Enables proper referential integrity for created_by, updated_by, approved_by fields
-    - Committed and pushed additional fix to same feature branch
+  - Added users_tenant_user_unique constraint to users table migration
+  - Required for composite foreign keys in stock_transfers table
+  - Enables proper referential integrity for created_by, updated_by, approved_by fields
+  - Committed and pushed additional fix to same feature branch
