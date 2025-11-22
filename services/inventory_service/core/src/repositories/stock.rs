@@ -40,6 +40,15 @@ pub trait StockMoveRepository: Send + Sync {
         stock_move: &CreateStockMoveRequest,
         tenant_id: Uuid,
     ) -> Result<(), AppError>;
+
+    /// Create stock move idempotently within transaction
+    /// Returns true if the row was created, false if it already existed (no-op)
+    async fn create_idempotent_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        stock_move: &CreateStockMoveRequest,
+        tenant_id: Uuid,
+    ) -> Result<bool, AppError>;
 }
 
 #[async_trait]

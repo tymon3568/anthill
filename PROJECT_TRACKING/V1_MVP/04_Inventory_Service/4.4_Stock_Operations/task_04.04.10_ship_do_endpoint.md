@@ -5,10 +5,10 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.4_Stock_Operations
 **Priority:** High
-**Status:** NeedsReview
+**Status:** InProgress_By_Grok
 **Assignee:** Grok
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-11-21
+**Last Updated:** 2025-11-22
 
 ## Detailed Description:
 Implement the final endpoint in the delivery flow to ship/validate a Delivery Order. This is the point where stock is actually deducted.
@@ -20,6 +20,7 @@ Implement the final endpoint in the delivery flow to ship/validate a Delivery Or
 - [x] 4. Calculate and record the Cost of Goods Sold (COGS) for accounting purposes.
 - [x] 5. Publish an `inventory.delivery.completed` event.
 - [x] 6. Update the DO status to `shipped`.
+- [x] 7. Fix race condition in idempotency check by using atomic INSERT ... ON CONFLICT DO NOTHING.
 
 ## Acceptance Criteria:
 - [x] The `POST /api/v1/inventory/deliveries/:id/ship` endpoint is implemented.
@@ -27,6 +28,7 @@ Implement the final endpoint in the delivery flow to ship/validate a Delivery Or
 - [x] COGS is calculated and recorded.
 - [x] The `inventory.delivery.completed` event is published.
 - [x] An integration test verifies the entire process.
+- [x] Race condition in idempotency check is fixed using atomic database operations.
 
 ## Dependencies:
 *   Task: `task_04.04.09_pack_items_for_do_endpoint.md`
@@ -56,3 +58,13 @@ Implement the final endpoint in the delivery flow to ship/validate a Delivery Or
     - Uses database transactions for atomic operations
     - Files modified: core/src/models.rs, core/src/dto/delivery.rs, core/src/services/delivery.rs, core/src/repositories/stock.rs, core/src/repositories/mod.rs, infra/src/services/delivery.rs, infra/src/repositories/stock.rs, infra/src/repositories/mod.rs, api/src/handlers/delivery.rs, api/src/routes/mod.rs
     - Ready for review
+
+*   2025-11-22 10:30: Race condition fix implemented by Grok
+    - Identified race condition in idempotency check that could cause double inventory decrements
+    - Added create_idempotent_with_tx method to StockMoveRepository trait
+    - Implemented atomic INSERT ... ON CONFLICT DO NOTHING in PgStockMoveRepository
+    - Modified ship_items method to use atomic check-and-create instead of pre-check
+    - Inventory updates and COGS accumulation now only occur when stock move is actually created
+    - Removed unused imports and variables
+    - Files modified: core/src/repositories/stock.rs, infra/src/repositories/stock.rs, infra/src/services/delivery.rs
+    - Race condition eliminated while maintaining idempotency

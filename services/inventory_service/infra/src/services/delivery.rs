@@ -3,7 +3,7 @@
 //! This module contains the business logic implementation for Delivery Order operations.
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -12,8 +12,7 @@ use inventory_service_core::dto::delivery::{
     ShipItemsResponse,
 };
 use inventory_service_core::models::{
-    CreateStockMoveRequest, DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus, InventoryLevel,
-    StockMove,
+    CreateStockMoveRequest, DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus,
 };
 use inventory_service_core::repositories::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryLevelRepository,
@@ -273,53 +272,48 @@ impl DeliveryService for DeliveryServiceImpl {
             // Create stock move (warehouse -> customer virtual location)
             let idempotency_key = format!("do-{}-item-{}", delivery_id, item.delivery_item_id);
 
-            // Check if stock move already exists (idempotency)
-            let exists = self
+            // Validate inventory level exists (needed regardless for idempotency)
+            self.inventory_level_repo
+                .find_by_product(tenant_id, item.product_id)
+                .await?
+                .ok_or_else(|| {
+                    AppError::ValidationError(format!(
+                        "No inventory level found for product {}",
+                        item.product_id
+                    ))
+                })?;
+
+            // For deliveries, we use the item's unit_price as COGS
+            // In a real system, this might come from inventory valuation
+            let unit_cost = Some(item.unit_price);
+            let total_cost = unit_cost.map(|cost| cost * item.picked_quantity);
+
+            let stock_move = CreateStockMoveRequest {
+                product_id: item.product_id,
+                source_location_id: Some(delivery_order.warehouse_id), // From warehouse
+                destination_location_id: None, // To customer (virtual location)
+                move_type: "delivery".to_string(),
+                quantity: -item.picked_quantity, // Negative for outgoing
+                unit_cost,
+                reference_type: "do".to_string(),
+                reference_id: delivery_id,
+                idempotency_key: idempotency_key.clone(),
+                move_reason: Some(format!("Delivery order {}", delivery_order.delivery_number)),
+                batch_info: None,
+                metadata: Some(serde_json::json!({
+                    "delivery_item_id": item.delivery_item_id,
+                    "customer_id": delivery_order.customer_id
+                })),
+            };
+
+            // Create stock move idempotently within transaction
+            // Returns true if created, false if already existed (no-op)
+            let created = self
                 .stock_move_repo
-                .exists_by_idempotency_key(tenant_id, &idempotency_key)
+                .create_idempotent_with_tx(&mut tx, &stock_move, tenant_id)
                 .await?;
 
-            if !exists {
-                // Get current inventory level to calculate COGS
-                let inventory_level = self
-                    .inventory_level_repo
-                    .find_by_product(tenant_id, item.product_id)
-                    .await?
-                    .ok_or_else(|| {
-                        AppError::ValidationError(format!(
-                            "No inventory level found for product {}",
-                            item.product_id
-                        ))
-                    })?;
-
-                // For deliveries, we use the item's unit_price as COGS
-                // In a real system, this might come from inventory valuation
-                let unit_cost = Some(item.unit_price);
-                let total_cost = unit_cost.map(|cost| cost * item.picked_quantity);
-
-                let stock_move = CreateStockMoveRequest {
-                    product_id: item.product_id,
-                    source_location_id: Some(delivery_order.warehouse_id), // From warehouse
-                    destination_location_id: None, // To customer (virtual location)
-                    move_type: "delivery".to_string(),
-                    quantity: -item.picked_quantity, // Negative for outgoing
-                    unit_cost,
-                    reference_type: "do".to_string(),
-                    reference_id: delivery_id,
-                    idempotency_key: idempotency_key.clone(),
-                    move_reason: Some(format!("Delivery order {}", delivery_order.delivery_number)),
-                    batch_info: None,
-                    metadata: Some(serde_json::json!({
-                        "delivery_item_id": item.delivery_item_id,
-                        "customer_id": delivery_order.customer_id
-                    })),
-                };
-
-                // Create stock move within transaction
-                self.stock_move_repo
-                    .create_with_tx(&mut tx, &stock_move, tenant_id)
-                    .await?;
-
+            if created {
                 stock_moves_created += 1;
 
                 // Update inventory level (decrement available stock)

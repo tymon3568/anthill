@@ -145,6 +145,43 @@ impl StockMoveRepository for PgStockMoveRepository {
 
         Ok(())
     }
+
+    async fn create_idempotent_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        stock_move: &CreateStockMoveRequest,
+        tenant_id: Uuid,
+    ) -> Result<bool, AppError> {
+        let result = sqlx::query!(
+            r#"
+            INSERT INTO stock_moves (
+                tenant_id, product_id, source_location_id, destination_location_id,
+                move_type, quantity, unit_cost, reference_type, reference_id,
+                idempotency_key, move_reason, batch_info, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            "#,
+            tenant_id,
+            stock_move.product_id,
+            stock_move.source_location_id,
+            stock_move.destination_location_id,
+            stock_move.move_type,
+            stock_move.quantity,
+            stock_move.unit_cost,
+            stock_move.reference_type,
+            stock_move.reference_id,
+            stock_move.idempotency_key,
+            stock_move.move_reason,
+            stock_move.batch_info,
+            stock_move.metadata,
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(AppError::DatabaseError)?;
+
+        // Return true if a row was inserted, false if it was a no-op due to conflict
+        Ok(result.rows_affected() > 0)
+    }
 }
 
 /// PostgreSQL implementation of InventoryLevelRepository
