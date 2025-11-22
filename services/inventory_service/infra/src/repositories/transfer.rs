@@ -41,7 +41,7 @@ impl TransferRepository for PgTransferRepository {
                       shipping_method, carrier, tracking_number, shipping_cost,
                       notes, reason, created_by, updated_by, approved_by, approved_at,
                       total_quantity, total_value, currency_code,
-                      created_at, updated_at, deleted_at
+                      created_at, updated_at, deleted_at, deleted_by
             "#,
             transfer.transfer_id,
             tenant_id,
@@ -99,6 +99,7 @@ impl TransferRepository for PgTransferRepository {
             created_at: row.created_at,
             updated_at: row.updated_at,
             deleted_at: row.deleted_at,
+            deleted_by: row.deleted_by,
         })
     }
 
@@ -116,7 +117,7 @@ impl TransferRepository for PgTransferRepository {
                    shipping_method, carrier, tracking_number, shipping_cost,
                    notes, reason, created_by, updated_by, approved_by, approved_at,
                    total_quantity, total_value, currency_code,
-                   created_at, updated_at, deleted_at
+                   created_at, updated_at, deleted_at, deleted_by
             FROM stock_transfers
             WHERE tenant_id = $1 AND transfer_id = $2 AND deleted_at IS NULL
             "#,
@@ -158,6 +159,7 @@ impl TransferRepository for PgTransferRepository {
             created_at: r.created_at,
             updated_at: r.updated_at,
             deleted_at: r.deleted_at,
+            deleted_by: r.deleted_by,
         }))
     }
 
@@ -247,7 +249,7 @@ impl TransferRepository for PgTransferRepository {
         sqlx::query!(
             r#"
             UPDATE stock_transfers
-            SET deleted_at = NOW(), updated_by = $1, updated_at = NOW()
+            SET deleted_at = NOW(), deleted_by = $1, updated_at = NOW()
             WHERE tenant_id = $2 AND transfer_id = $3 AND deleted_at IS NULL
             "#,
             deleted_by,
@@ -293,7 +295,7 @@ impl TransferItemRepository for PgTransferItemRepository {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING transfer_item_id, tenant_id, transfer_id, product_id,
                           quantity, uom_id, unit_cost, line_total, line_number, notes,
-                          created_at, updated_at, deleted_at
+                          created_at, updated_at, updated_by, deleted_at, deleted_by
                 "#,
                 item.transfer_item_id,
                 tenant_id,
@@ -325,7 +327,9 @@ impl TransferItemRepository for PgTransferItemRepository {
                 notes: row.notes,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
+                updated_by: row.updated_by,
                 deleted_at: row.deleted_at,
+                deleted_by: row.deleted_by,
             });
         }
 
@@ -341,7 +345,7 @@ impl TransferItemRepository for PgTransferItemRepository {
             r#"
             SELECT transfer_item_id, tenant_id, transfer_id, product_id,
                    quantity, uom_id, unit_cost, line_total, line_number, notes,
-                   created_at, updated_at, deleted_at
+                   created_at, updated_at, updated_by, deleted_at, deleted_by
             FROM stock_transfer_items
             WHERE tenant_id = $1 AND transfer_id = $2 AND deleted_at IS NULL
             ORDER BY line_number
@@ -368,7 +372,9 @@ impl TransferItemRepository for PgTransferItemRepository {
                 notes: r.notes,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
+                updated_by: r.updated_by,
                 deleted_at: r.deleted_at,
+                deleted_by: r.deleted_by,
             })
             .collect();
 
@@ -384,7 +390,7 @@ impl TransferItemRepository for PgTransferItemRepository {
             r#"
             SELECT transfer_item_id, tenant_id, transfer_id, product_id,
                    quantity, uom_id, unit_cost, line_total, line_number, notes,
-                   created_at, updated_at, deleted_at
+                   created_at, updated_at, updated_by, deleted_at, deleted_by
             FROM stock_transfer_items
             WHERE tenant_id = $1 AND transfer_item_id = $2 AND deleted_at IS NULL
             "#,
@@ -408,7 +414,9 @@ impl TransferItemRepository for PgTransferItemRepository {
             notes: r.notes,
             created_at: r.created_at,
             updated_at: r.updated_at,
+            updated_by: r.updated_by,
             deleted_at: r.deleted_at,
+            deleted_by: r.deleted_by,
         }))
     }
 

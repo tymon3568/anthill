@@ -68,6 +68,8 @@ pub struct Transfer {
     pub updated_at: DateTime<Utc>,
     /// Soft delete
     pub deleted_at: Option<DateTime<Utc>>,
+    /// User who deleted
+    pub deleted_by: Option<Uuid>,
 }
 
 /// Transfer status enumeration
@@ -129,9 +131,13 @@ pub struct TransferItem {
     pub line_number: i32,
     /// Additional notes
     pub notes: Option<String>,
+    /// User who updated
+    pub updated_by: Option<Uuid>,
     /// Audit timestamps
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     /// Soft delete
     pub deleted_at: Option<DateTime<Utc>>,
+    /// User who deleted
+    pub deleted_by: Option<Uuid>,
 }
