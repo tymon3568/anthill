@@ -220,7 +220,7 @@ pub async fn confirm_transfer(
 /// - Transfer must be in 'shipped' status
 /// - Creates stock moves for inventory tracking
 /// - Updates inventory levels (increments destination warehouse)
-/// - Publishes inventory.transfer.completed event
+/// - Will publish inventory.transfer.completed event (planned for future implementation)
 /// - Sets actual_receive_date timestamp
 ///
 /// # Example Response
