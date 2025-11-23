@@ -1,7 +1,7 @@
 -- Migration: Create stock_take_lines table
 -- Description: Creates the stock_take_lines table for recording individual product counts in stock takes
 -- Dependencies: stock_takes table (20250121000006), products table, users table
--- Created: 2025-11-23
+-- Created: 2025-11-23 (Timestamp in filename: 20251123)
 
 -- ==================================
 -- STOCK_TAKE_LINES TABLE (Stock Take Details)

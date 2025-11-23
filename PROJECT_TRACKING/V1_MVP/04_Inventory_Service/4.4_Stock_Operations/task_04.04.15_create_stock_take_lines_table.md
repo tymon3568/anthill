@@ -77,3 +77,6 @@ Create the `stock_take_lines` table to record the details of a stock take.
 - Removed unsupported DEFERRABLE INITIALLY DEFERRED from CREATE UNIQUE INDEX statement
 - Removed conflicting full UNIQUE constraint, retaining partial unique index for soft delete enforcement
 - Migration syntax now compatible with PostgreSQL
+* 2025-11-23 02:30: Updated migration header comment by Grok
+- Added timestamp consistency note: "Created: 2025-11-23 (Timestamp in filename: 20251123)"
+- Clarifies filename timestamp alignment for reviewers
