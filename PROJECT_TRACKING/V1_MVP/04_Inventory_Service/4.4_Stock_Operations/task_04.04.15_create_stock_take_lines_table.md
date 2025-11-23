@@ -73,3 +73,7 @@ Create the `stock_take_lines` table to record the details of a stock take.
 - Deleted redundant migration file
 - Ensured FK in stock_take_lines can reference the unique pair
 - All PR review issues addressed, task remains in NeedsReview
+* 2025-11-23 02:25: Fixed DEFERRABLE clause in unique index by Grok
+- Removed unsupported DEFERRABLE INITIALLY DEFERRED from CREATE UNIQUE INDEX statement
+- Removed conflicting full UNIQUE constraint, retaining partial unique index for soft delete enforcement
+- Migration syntax now compatible with PostgreSQL

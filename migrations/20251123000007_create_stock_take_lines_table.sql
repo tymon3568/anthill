@@ -61,7 +61,6 @@ CREATE TABLE stock_take_lines (
             (counted_by IS NULL AND counted_at IS NULL) OR
             (counted_by IS NOT NULL AND counted_at IS NOT NULL)
         )
-);
 
 -- ==================================
 -- INDEXES for Performance
@@ -71,8 +70,7 @@ CREATE TABLE stock_take_lines (
 -- Unique constraint (partial for soft delete)
 CREATE UNIQUE INDEX idx_stock_take_lines_unique_per_stock_take_product
     ON stock_take_lines(tenant_id, stock_take_id, product_id)
-    WHERE deleted_at IS NULL
-    DEFERRABLE INITIALLY DEFERRED;
+    WHERE deleted_at IS NULL;
 
 -- Primary lookup indexes
 CREATE INDEX idx_stock_take_lines_tenant_stock_take
