@@ -88,6 +88,8 @@ CREATE TABLE stock_takes (
     -- Constraints
     CONSTRAINT stock_takes_number_unique_per_tenant
         UNIQUE (tenant_id, stock_take_number) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT stock_takes_tenant_id_unique
+        UNIQUE (tenant_id, stock_take_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT stock_takes_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouses (tenant_id, warehouse_id),
