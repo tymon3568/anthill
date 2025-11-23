@@ -1,5 +1,6 @@
 pub mod dto;
 pub mod product;
+pub mod stock_take;
 pub mod transfer;
 pub mod valuation;
 pub mod warehouse;

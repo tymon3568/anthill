@@ -5,6 +5,7 @@
 pub mod category;
 pub mod delivery;
 pub mod receipt;
+pub mod stock_take;
 
 // Re-export main types for convenience
 pub use category::{
@@ -16,4 +17,9 @@ pub use delivery::{PickItemRequest, PickItemsRequest, PickItemsResponse};
 pub use receipt::{
     ReceiptCreateRequest, ReceiptItemCreateRequest, ReceiptItemResponse, ReceiptListQuery,
     ReceiptListResponse, ReceiptResponse, ReceiptSummaryResponse,
+};
+pub use stock_take::{
+    CountItem, CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest,
+    CreateStockTakeResponse, FinalizeStockTakeRequest, FinalizeStockTakeResponse, StockAdjustment,
+    StockTakeDetailResponse, StockTakeListQuery, StockTakeListResponse,
 };

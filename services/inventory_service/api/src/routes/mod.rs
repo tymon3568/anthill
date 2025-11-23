@@ -17,6 +17,7 @@ use crate::handlers::category::{create_category_routes, AppState};
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::search::create_search_routes;
+use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
@@ -25,8 +26,12 @@ use inventory_service_infra::repositories::delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
 };
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl;
 use inventory_service_infra::repositories::stock::{
     PgInventoryLevelRepository, PgStockMoveRepository,
+};
+use inventory_service_infra::repositories::stock_take::{
+    PgStockTakeLineRepository, PgStockTakeRepository,
 };
 use inventory_service_infra::repositories::transfer::{
     PgTransferItemRepository, PgTransferRepository,
@@ -37,6 +42,7 @@ use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
 use inventory_service_infra::services::receipt::ReceiptServiceImpl;
+use inventory_service_infra::services::stock_take::PgStockTakeService;
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
 
@@ -179,6 +185,17 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         inventory_level_repo,
     ));
 
+    // Initialize stock take repositories and services
+    let stock_take_repo = Arc::new(PgStockTakeRepository::new(pool.clone()));
+    let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(pool.clone()));
+
+    let stock_take_service = Arc::new(PgStockTakeService::new(
+        stock_take_repo,
+        stock_take_line_repo,
+        stock_move_repo.clone(),
+        inventory_level_repo.clone(),
+    ));
+
     // Initialize receipt repositories and services
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
@@ -214,6 +231,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let search_routes = create_search_routes(state.clone());
     let transfer_routes =
         create_transfer_routes(crate::handlers::transfer::AppState::new(transfer_service));
+    let stock_take_routes =
+        create_stock_take_routes(crate::handlers::stock_take::AppState::new(stock_take_service));
     let valuation_routes = create_valuation_routes(state.clone());
     let warehouse_routes = create_warehouse_routes(state.clone());
 
@@ -261,6 +280,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/deliveries", delivery_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
         .nest("/api/v1/inventory/products", search_routes)
+        .nest("/api/v1/inventory/stock-takes", stock_take_routes)
         .nest("/api/v1/inventory/transfers", transfer_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
