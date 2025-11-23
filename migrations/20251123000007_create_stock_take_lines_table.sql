@@ -61,6 +61,7 @@ CREATE TABLE stock_take_lines (
             (counted_by IS NULL AND counted_at IS NULL) OR
             (counted_by IS NOT NULL AND counted_at IS NOT NULL)
         )
+);
 
 -- ==================================
 -- INDEXES for Performance
