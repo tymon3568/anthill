@@ -35,7 +35,7 @@ Create the `stock_take_lines` table to record the details of a stock take.
 
 ## AI Agent Log:
 ---
-*   2025-11-23 01:48: Task claimed by Grok
+* 2025-11-23 01:48: Task claimed by Grok
   - Verified all dependencies are Done (task_04.04.14_create_stock_takes_table.md)
   - Updated Status to InProgress_By_Grok
   - Beginning work on creating stock_take_lines migration
@@ -60,10 +60,10 @@ Create the `stock_take_lines` table to record the details of a stock take.
   - All critical, warning, and style issues resolved
   - Committed fixes and ready for re-review
 * 2025-11-23 02:10: Starting additional PR review fixes by Grok
-  - Identified new critical issue: FK to stock_takes fails due to missing unique constraint on (tenant_id, stock_take_id)
-  - Need to add UNIQUE constraint to stock_takes table migration
-  - Updating task status to InProgress_By_Grok for fixes
+    - Identified new critical issue: FK to stock_takes fails due to missing unique constraint on (tenant_id, stock_take_id)
+    - Need to add UNIQUE constraint to stock_takes table migration
+    - Updating task status to InProgress_By_Grok for fixes
 * 2025-11-23 02:15: Applied additional PR review fixes by Grok
-  - Created migrations/20251123000006_add_unique_constraint_to_stock_takes.sql to add UNIQUE (tenant_id, stock_take_id) for FK
-  - Fixed markdown list indentation and capitalized "Markdown"
-  - Critical FK issue resolved, PR ready for final review
+    - Created migrations/20251123000006_add_unique_constraint_to_stock_takes.sql to add UNIQUE (tenant_id, stock_take_id) for FK
+    - Fixed Markdown list indentation
+    - Critical FK issue resolved, PR ready for final review
