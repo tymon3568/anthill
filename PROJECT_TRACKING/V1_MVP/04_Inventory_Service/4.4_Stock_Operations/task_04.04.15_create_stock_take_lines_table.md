@@ -64,6 +64,12 @@ Create the `stock_take_lines` table to record the details of a stock take.
 - Need to add UNIQUE constraint to stock_takes table migration
 - Updating task status to InProgress_By_Grok for fixes
 * 2025-11-23 02:15: Applied additional PR review fixes by Grok
-- Created migrations/20251123000006_add_unique_constraint_to_stock_takes.sql to add UNIQUE (tenant_id, stock_take_id) for FK
+- Added UNIQUE (tenant_id, stock_take_id) DEFERRABLE INITIALLY DEFERRED constraint to stock_takes table migration (20250121000006)
+- Removed separate migration file 20251123000006_add_unique_constraint_to_stock_takes.sql as constraint is now in stock_takes migration
 - Fixed Markdown list indentation
 - Critical FK issue resolved, PR ready for final review
+* 2025-11-23 02:20: Consolidated unique constraint by Grok
+- Moved UNIQUE constraint from separate migration into stock_takes table creation migration for better ordering
+- Deleted redundant migration file
+- Ensured FK in stock_take_lines can reference the unique pair
+- All PR review issues addressed, task remains in NeedsReview
