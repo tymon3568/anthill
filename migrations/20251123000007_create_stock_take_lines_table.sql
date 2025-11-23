@@ -14,7 +14,7 @@ CREATE TABLE stock_take_lines (
     line_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
 
     -- Multi-tenancy: All queries must filter by tenant_id
-    tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
+    tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
 
     -- Stock take relationship
     stock_take_id UUID NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE stock_take_lines (
     -- Quantity counts
     expected_quantity INTEGER NOT NULL DEFAULT 0,  -- Expected quantity from system
     actual_quantity INTEGER,                        -- Actual counted quantity (NULL if not counted yet)
-    difference_quantity INTEGER,                    -- Calculated: actual - expected (NULL if actual is NULL)
+    difference_quantity INTEGER GENERATED ALWAYS AS (actual_quantity - expected_quantity) STORED,  -- Auto-calculated: actual - expected
 
     -- Counting details
     counted_by UUID,                                -- User who performed the count
@@ -38,34 +38,41 @@ CREATE TABLE stock_take_lines (
     deleted_at TIMESTAMPTZ,  -- Soft delete
 
     -- Constraints
-    CONSTRAINT stock_take_lines_unique_per_stock_take_product
-        UNIQUE (tenant_id, stock_take_id, product_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT stock_take_lines_tenant_stock_take_fk
         FOREIGN KEY (tenant_id, stock_take_id)
-        REFERENCES stock_takes (tenant_id, stock_take_id),
+        REFERENCES stock_takes (tenant_id, stock_take_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT stock_take_lines_tenant_product_fk
         FOREIGN KEY (tenant_id, product_id)
-        REFERENCES products (tenant_id, product_id),
+        REFERENCES products (tenant_id, product_id)
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
     CONSTRAINT stock_take_lines_tenant_counted_by_fk
         FOREIGN KEY (tenant_id, counted_by)
         REFERENCES users (tenant_id, user_id)
+        ON DELETE SET NULL ON UPDATE RESTRICT
         DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT stock_take_lines_positive_expected
         CHECK (expected_quantity >= 0),
     CONSTRAINT stock_take_lines_positive_actual
         CHECK (actual_quantity IS NULL OR actual_quantity >= 0),
-    CONSTRAINT stock_take_lines_difference_calculation
-        CHECK (actual_quantity IS NULL AND difference_quantity IS NULL OR
-               actual_quantity IS NOT NULL AND difference_quantity = actual_quantity - expected_quantity),
+
     CONSTRAINT stock_take_lines_counted_at_required
-        CHECK (counted_by IS NULL AND counted_at IS NULL OR
-               counted_by IS NOT NULL AND counted_at IS NOT NULL)
+        CHECK (
+            (counted_by IS NULL AND counted_at IS NULL) OR
+            (counted_by IS NOT NULL AND counted_at IS NOT NULL)
+        )
 );
 
 -- ==================================
 -- INDEXES for Performance
 -- ==================================
 -- Critical indexes for multi-tenant queries
+
+-- Unique constraint (partial for soft delete)
+CREATE UNIQUE INDEX idx_stock_take_lines_unique_per_stock_take_product
+    ON stock_take_lines(tenant_id, stock_take_id, product_id)
+    WHERE deleted_at IS NULL
+    DEFERRABLE INITIALLY DEFERRED;
 
 -- Primary lookup indexes
 CREATE INDEX idx_stock_take_lines_tenant_stock_take
@@ -121,7 +128,7 @@ COMMENT ON COLUMN stock_take_lines.stock_take_id IS 'Reference to parent stock t
 COMMENT ON COLUMN stock_take_lines.product_id IS 'Product being counted';
 COMMENT ON COLUMN stock_take_lines.expected_quantity IS 'Expected quantity from inventory system';
 COMMENT ON COLUMN stock_take_lines.actual_quantity IS 'Actual counted quantity (NULL if not counted)';
-COMMENT ON COLUMN stock_take_lines.difference_quantity IS 'Calculated difference: actual - expected';
+COMMENT ON COLUMN stock_take_lines.difference_quantity IS 'Auto-calculated difference: actual - expected';
 COMMENT ON COLUMN stock_take_lines.counted_by IS 'User ID who performed the count';
 COMMENT ON COLUMN stock_take_lines.counted_at IS 'Timestamp when the count was performed';
 COMMENT ON COLUMN stock_take_lines.notes IS 'Additional notes about the count';
@@ -138,8 +145,8 @@ COMMENT ON COLUMN stock_take_lines.notes IS 'Additional notes about the count';
 -- 5. Progress tracking during counting
 
 -- Key design decisions:
--- - One line per product per stock take (unique constraint)
--- - Difference calculated automatically
+-- - One line per product per stock take (partial unique index for soft delete)
+-- - Difference auto-calculated via generated column
 -- - Optional counting (actual_quantity can be NULL)
 -- - User tracking for accountability
 -- - Comprehensive indexing for reporting
