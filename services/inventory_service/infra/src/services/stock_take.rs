@@ -316,18 +316,13 @@ impl StockTakeService for PgStockTakeService {
         tenant_id: Uuid,
         query: StockTakeListQuery,
     ) -> Result<StockTakeListResponse, AppError> {
-        let limit_i64 = query.limit.unwrap_or(50).min(100) as i64;
-        let offset_i64 = (query.page.unwrap_or(1) as i64).saturating_sub(1) * limit_i64;
+        let limit = query.limit.unwrap_or(50).clamp(1, 100) as i64;
+        let page = query.page.unwrap_or(1).max(1) as i64;
+        let offset = (page - 1) * limit;
 
         let stock_takes = self
             .stock_take_repo
-            .list(
-                tenant_id,
-                query.warehouse_id,
-                query.status.clone(),
-                Some(limit_i64),
-                Some(offset_i64),
-            )
+            .list(tenant_id, query.warehouse_id, query.status.clone(), Some(limit), Some(offset))
             .await?;
 
         let total = self
@@ -335,13 +330,13 @@ impl StockTakeService for PgStockTakeService {
             .count(tenant_id, query.warehouse_id, query.status)
             .await?;
 
-        let total_pages = ((total + limit_i64 - 1) / limit_i64).max(1) as u32;
+        let total_pages = ((total + limit - 1) / limit).max(1) as u32;
 
         Ok(StockTakeListResponse {
             stock_takes,
             pagination: PaginationInfo {
-                page: query.page.unwrap_or(1),
-                limit: limit_i64 as u32,
+                page: page as u32,
+                limit: limit as u32,
                 total: total as u64,
                 total_pages,
             },

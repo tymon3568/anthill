@@ -25,11 +25,11 @@ impl PgStockTakeRepository {
     /// Convert database string to StockTakeStatus enum
     fn string_to_stock_take_status(s: &str) -> Result<StockTakeStatus, AppError> {
         match s {
-            "draft" => Ok(StockTakeStatus::Draft),
-            "scheduled" => Ok(StockTakeStatus::Scheduled),
-            "in_progress" => Ok(StockTakeStatus::InProgress),
-            "completed" => Ok(StockTakeStatus::Completed),
-            "cancelled" => Ok(StockTakeStatus::Cancelled),
+            "Draft" => Ok(StockTakeStatus::Draft),
+            "Scheduled" => Ok(StockTakeStatus::Scheduled),
+            "InProgress" => Ok(StockTakeStatus::InProgress),
+            "Completed" => Ok(StockTakeStatus::Completed),
+            "Cancelled" => Ok(StockTakeStatus::Cancelled),
             _ => Err(AppError::DataCorruption(format!("Unknown stock take status: {}", s))),
         }
     }
@@ -54,11 +54,11 @@ impl StockTakeRepository for PgStockTakeRepository {
             stock_take.stock_take_number,
             stock_take.warehouse_id,
             match stock_take.status {
-                StockTakeStatus::Draft => "draft",
-                StockTakeStatus::Scheduled => "scheduled",
-                StockTakeStatus::InProgress => "in_progress",
-                StockTakeStatus::Completed => "completed",
-                StockTakeStatus::Cancelled => "cancelled",
+                StockTakeStatus::Draft => "Draft",
+                StockTakeStatus::Scheduled => "Scheduled",
+                StockTakeStatus::InProgress => "InProgress",
+                StockTakeStatus::Completed => "Completed",
+                StockTakeStatus::Cancelled => "Cancelled",
             },
             stock_take.started_at,
             stock_take.created_by,
@@ -109,11 +109,11 @@ impl StockTakeRepository for PgStockTakeRepository {
             stock_take.stock_take_number,
             stock_take.warehouse_id,
             match stock_take.status {
-                StockTakeStatus::Draft => "draft",
-                StockTakeStatus::Scheduled => "scheduled",
-                StockTakeStatus::InProgress => "in_progress",
-                StockTakeStatus::Completed => "completed",
-                StockTakeStatus::Cancelled => "cancelled",
+                StockTakeStatus::Draft => "Draft",
+                StockTakeStatus::Scheduled => "Scheduled",
+                StockTakeStatus::InProgress => "InProgress",
+                StockTakeStatus::Completed => "Completed",
+                StockTakeStatus::Cancelled => "Cancelled",
             },
             stock_take.started_at,
             stock_take.created_by,
@@ -197,11 +197,11 @@ impl StockTakeRepository for PgStockTakeRepository {
             WHERE tenant_id = $3 AND stock_take_id = $4 AND deleted_at IS NULL
             "#,
             match status {
-                StockTakeStatus::Draft => "draft",
-                StockTakeStatus::Scheduled => "scheduled",
-                StockTakeStatus::InProgress => "in_progress",
-                StockTakeStatus::Completed => "completed",
-                StockTakeStatus::Cancelled => "cancelled",
+                StockTakeStatus::Draft => "Draft",
+                StockTakeStatus::Scheduled => "Scheduled",
+                StockTakeStatus::InProgress => "InProgress",
+                StockTakeStatus::Completed => "Completed",
+                StockTakeStatus::Cancelled => "Cancelled",
             },
             updated_by,
             tenant_id,
@@ -229,7 +229,7 @@ impl StockTakeRepository for PgStockTakeRepository {
             SET status = $1, completed_at = $2, assigned_to = $3, updated_at = NOW()
             WHERE tenant_id = $4 AND stock_take_id = $5 AND deleted_at IS NULL
             "#,
-            "completed",
+            "Completed",
             completed_at,
             updated_by,
             tenant_id,
@@ -256,7 +256,7 @@ impl StockTakeRepository for PgStockTakeRepository {
             SET status = $1, completed_at = $2, assigned_to = $3, updated_at = NOW()
             WHERE tenant_id = $4 AND stock_take_id = $5 AND deleted_at IS NULL
             "#,
-            "completed",
+            "Completed",
             completed_at,
             updated_by,
             tenant_id,
