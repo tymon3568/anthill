@@ -155,18 +155,16 @@ Updated `docs/database-erd.dbml` to include all Stock Operations tables from mod
 - **Key Fields:**
   - Stock take number, reference number
   - Warehouse reference
-  - Status (draft/scheduled/in_progress/completed/cancelled)
-  - Count type (full/partial/cycle/spot)
-  - Priority, scheduled/started/completed dates
-  - User assignments (initiated_by, assigned_to, approved_by)
-  - Variance threshold, total items counted
+  - Status (Draft/Scheduled/InProgress/Completed/Cancelled)
+  - Scheduled/started/completed dates
+  - User assignments (created_by, assigned_to)
 - **Indexes:**
   - Tenant + stock take number unique
   - Tenant + warehouse, status, type
   - User assignments
 - **Foreign Keys:**
   - `(tenant_id, warehouse_id)` → warehouses
-  - `(tenant_id, initiated_by/assigned_to/approved_by)` → users
+  - `(tenant_id, created_by/assigned_to)` → users
 
 #### 11. `stock_take_lines` - STK Line Items
 - **Primary Key:** `line_id` (UUID v7)
@@ -259,7 +257,7 @@ All line item tables → unit_of_measures (quantity UOM)
 ```
 All header tables → users (created_by)
 stock_transfers → users (created_by, updated_by, approved_by)
-stock_takes → users (initiated_by, assigned_to, approved_by)
+stock_takes → users (created_by, assigned_to)
 stock_take_lines → users (counted_by)
 ```
 

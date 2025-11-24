@@ -42,11 +42,11 @@ impl StockTakeRepository for PgStockTakeRepository {
             r#"
             INSERT INTO stock_takes (
                 stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                started_at, initiated_by, assigned_to, notes
+                started_at, created_by, assigned_to, notes
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                      started_at, completed_at, initiated_by as created_by, assigned_to as updated_by, notes,
+                      started_at, completed_at, created_by as created_by, assigned_to as updated_by, notes,
                       created_at, updated_at, deleted_at, deleted_by
             "#,
             stock_take.stock_take_id,
@@ -97,11 +97,11 @@ impl StockTakeRepository for PgStockTakeRepository {
             r#"
             INSERT INTO stock_takes (
                 stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                started_at, initiated_by, assigned_to, notes
+                started_at, created_by, assigned_to, notes
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                      started_at, completed_at, initiated_by as created_by, assigned_to as updated_by, notes,
+                      started_at, completed_at, created_by as created_by, assigned_to as updated_by, notes,
                       created_at, updated_at, deleted_at, deleted_by
             "#,
             stock_take.stock_take_id,
@@ -150,7 +150,7 @@ impl StockTakeRepository for PgStockTakeRepository {
         let row = sqlx::query!(
             r#"
             SELECT stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                   started_at, completed_at, initiated_by as created_by, assigned_to as updated_by, notes,
+                   started_at, completed_at, created_by as created_by, assigned_to as updated_by, notes,
                    created_at, updated_at, deleted_at, deleted_by
             FROM stock_takes
             WHERE tenant_id = $1 AND stock_take_id = $2 AND deleted_at IS NULL
@@ -277,7 +277,7 @@ impl StockTakeRepository for PgStockTakeRepository {
         let rows = sqlx::query!(
             r#"
             SELECT stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                   started_at, completed_at, initiated_by as created_by, assigned_to as updated_by, notes,
+                   started_at, completed_at, created_by as created_by, assigned_to as updated_by, notes,
                    created_at, updated_at, deleted_at, deleted_by
             FROM stock_takes
             WHERE tenant_id = $1 AND deleted_at IS NULL

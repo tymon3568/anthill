@@ -450,21 +450,14 @@ Table stock_takes {
   stock_take_number VARCHAR(50) [not null, note: 'Auto-generated: STK-YYYY-XXXXX']
   reference_number VARCHAR(100)
   warehouse_id UUID [not null]
-  status VARCHAR(20) [not null, default: 'draft', note: 'draft/scheduled/in_progress/completed/cancelled']
-  count_type VARCHAR(20) [not null, default: 'full', note: 'full/partial/cycle/spot']
-  priority VARCHAR(10) [not null, default: 'normal', note: 'low/normal/high/urgent']
+  status VARCHAR(20) [not null, default: 'Draft', note: 'Draft/Scheduled/InProgress/Completed/Cancelled']
   scheduled_date TIMESTAMPTZ
   started_at TIMESTAMPTZ
   completed_at TIMESTAMPTZ
   created_by UUID [not null]
   assigned_to UUID
-  approved_by UUID
-  approved_at TIMESTAMPTZ
   notes TEXT
   reason TEXT
-  variance_threshold DECIMAL(5,2) [note: 'Acceptable variance percentage (0-100)']
-  total_items_counted INTEGER [not null, default: 0]
-  total_variance BIGINT [not null, default: 0]
   created_at TIMESTAMPTZ [not null, default: `NOW()`]
   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
   deleted_at TIMESTAMPTZ
@@ -474,7 +467,6 @@ Table stock_takes {
     (tenant_id, stock_take_id) [unique, name: 'stock_takes_tenant_id_unique']
     (tenant_id, warehouse_id) [name: 'idx_stock_takes_tenant_warehouse', where: 'deleted_at IS NULL']
     (tenant_id, status) [name: 'idx_stock_takes_tenant_status', where: 'deleted_at IS NULL']
-    (tenant_id, count_type) [name: 'idx_stock_takes_tenant_type', where: 'deleted_at IS NULL']
   }
 
   Note: 'Stock Takes (STK) - physical inventory counting sessions'
