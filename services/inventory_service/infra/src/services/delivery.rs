@@ -113,8 +113,7 @@ impl DeliveryService for DeliveryServiceImpl {
                 )));
             }
 
-            let remaining = delivery_item.ordered_quantity.unwrap_or(0)
-                - delivery_item.picked_quantity.unwrap_or(0);
+            let remaining = delivery_item.ordered_quantity - delivery_item.picked_quantity;
             if pick_item.picked_quantity > remaining {
                 return Err(AppError::ValidationError(format!(
                     "Cannot pick {} units for item {}. Only {} units remaining to pick.",
@@ -124,7 +123,7 @@ impl DeliveryService for DeliveryServiceImpl {
 
             // Update the picked quantity
             delivery_item.picked_quantity =
-                Some(delivery_item.picked_quantity.unwrap_or(0) + pick_item.picked_quantity);
+                delivery_item.picked_quantity + pick_item.picked_quantity;
             delivery_item.updated_at = Utc::now();
 
             // Save the updated item within transaction
@@ -143,7 +142,7 @@ impl DeliveryService for DeliveryServiceImpl {
             .await?;
         let all_fully_picked = all_items
             .iter()
-            .all(|item| item.picked_quantity.unwrap_or(0) >= item.ordered_quantity.unwrap_or(0));
+            .all(|item| item.picked_quantity >= item.ordered_quantity);
 
         // Update the delivery order status based on full pick
         delivery_order.status = if all_fully_picked {
@@ -262,11 +261,11 @@ impl DeliveryService for DeliveryServiceImpl {
         // Process each delivery item
         for item in &delivery_items {
             // Skip items that weren't picked (shouldn't happen in Packed status, but safety check)
-            if item.picked_quantity.is_none_or(|q| q <= 0) {
+            if item.picked_quantity <= 0 {
                 continue;
             }
 
-            let picked_qty = item.picked_quantity.unwrap_or(0);
+            let picked_qty = item.picked_quantity;
 
             // Create stock move (warehouse -> customer virtual location)
             let idempotency_key = format!("do-{}-item-{}", delivery_id, item.delivery_item_id);

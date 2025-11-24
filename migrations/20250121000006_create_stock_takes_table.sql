@@ -127,11 +127,11 @@ CREATE INDEX idx_stock_takes_tenant_assigned_to
 -- Query optimization indexes
 CREATE INDEX idx_stock_takes_tenant_active
     ON stock_takes(tenant_id, stock_take_id)
-    WHERE deleted_at IS NULL AND status IN ('Scheduled', 'InProgress');
+    WHERE deleted_at IS NULL AND status IN ('scheduled', 'in_progress');
 
 CREATE INDEX idx_stock_takes_tenant_completed
     ON stock_takes(tenant_id, stock_take_id)
-    WHERE deleted_at IS NULL AND status = 'Completed';
+    WHERE deleted_at IS NULL AND status = 'completed';
 
 CREATE INDEX idx_stock_takes_tenant_dates
     ON stock_takes(tenant_id, scheduled_date, started_at, completed_at)
@@ -163,7 +163,7 @@ COMMENT ON COLUMN stock_takes.tenant_id IS 'Multi-tenant isolation field';
 COMMENT ON COLUMN stock_takes.stock_take_number IS 'Auto-generated stock take number (STK-YYYY-XXXXX)';
 COMMENT ON COLUMN stock_takes.reference_number IS 'External reference number (optional)';
 COMMENT ON COLUMN stock_takes.warehouse_id IS 'Warehouse where the stock take is performed';
-COMMENT ON COLUMN stock_takes.status IS 'Stock take status: Draft/Scheduled/InProgress/Completed/Cancelled';
+COMMENT ON COLUMN stock_takes.status IS 'Stock take status: draft/scheduled/in_progress/completed/cancelled';
 COMMENT ON COLUMN stock_takes.scheduled_date IS 'Date when the stock take is scheduled';
 COMMENT ON COLUMN stock_takes.started_at IS 'Timestamp when counting started';
 COMMENT ON COLUMN stock_takes.completed_at IS 'Timestamp when counting completed';

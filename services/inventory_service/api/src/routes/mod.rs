@@ -189,6 +189,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(Arc::new(pool.clone())));
 
     let stock_take_service = Arc::new(PgStockTakeService::new(
+        Arc::new(pool.clone()),
         stock_take_repo,
         stock_take_line_repo,
         stock_move_repo.clone(),

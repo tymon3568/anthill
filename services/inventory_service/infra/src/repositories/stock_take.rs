@@ -242,6 +242,33 @@ impl StockTakeRepository for PgStockTakeRepository {
         Ok(())
     }
 
+    async fn finalize_with_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        stock_take_id: Uuid,
+        completed_at: chrono::DateTime<chrono::Utc>,
+        updated_by: Uuid,
+    ) -> Result<(), AppError> {
+        sqlx::query!(
+            r#"
+            UPDATE stock_takes
+            SET status = $1, completed_at = $2, assigned_to = $3, updated_at = NOW()
+            WHERE tenant_id = $4 AND stock_take_id = $5 AND deleted_at IS NULL
+            "#,
+            "completed",
+            completed_at,
+            updated_by,
+            tenant_id,
+            stock_take_id
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to finalize stock take: {}", e)))?;
+
+        Ok(())
+    }
+
     async fn delete(
         &self,
         tenant_id: Uuid,
@@ -366,20 +393,21 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
         &self,
         tenant_id: Uuid,
         stock_take_id: Uuid,
-        _warehouse_id: Uuid,
+        warehouse_id: Uuid,
     ) -> Result<Vec<StockTakeLine>, AppError> {
         let rows = sqlx::query!(
             r#"
             INSERT INTO stock_take_lines (line_id, tenant_id, stock_take_id, product_id, expected_quantity)
             SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity
             FROM inventory_levels il
-            WHERE il.tenant_id = $1 AND il.deleted_at IS NULL
+            WHERE il.tenant_id = $1 AND il.warehouse_id = $3 AND il.deleted_at IS NULL
             RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity,
                       actual_quantity, difference_quantity, counted_by, counted_at, notes,
                       created_at, updated_at, deleted_at, deleted_by
             "#,
             tenant_id,
-            stock_take_id
+            stock_take_id,
+            warehouse_id
         )
         .fetch_all(&*self.pool)
         .await
@@ -413,20 +441,21 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
         stock_take_id: Uuid,
-        _warehouse_id: Uuid,
+        warehouse_id: Uuid,
     ) -> Result<Vec<StockTakeLine>, AppError> {
         let rows = sqlx::query!(
             r#"
             INSERT INTO stock_take_lines (line_id, tenant_id, stock_take_id, product_id, expected_quantity)
             SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity
             FROM inventory_levels il
-            WHERE il.tenant_id = $1 AND il.deleted_at IS NULL
+            WHERE il.tenant_id = $1 AND il.warehouse_id = $3 AND il.deleted_at IS NULL
             RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity::BIGINT,
                       actual_quantity::BIGINT, difference_quantity::BIGINT, counted_by, counted_at, notes,
                       created_at, updated_at, deleted_at, deleted_by
             "#,
             tenant_id,
-            stock_take_id
+            stock_take_id,
+            warehouse_id
         )
         .fetch_all(&mut **tx)
         .await
@@ -599,11 +628,14 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
             r#"
             ) AS data(line_id, actual_quantity, counted_by, notes)
             WHERE stock_take_lines.line_id = data.line_id
-            AND stock_take_lines.tenant_id =
+            AND stock_take_lines.tenant_id = "#,
+        );
+        query_builder.push_bind(tenant_id);
+        query_builder.push(
+            r#"
             AND stock_take_lines.deleted_at IS NULL
             "#,
         );
-        query_builder.push_bind(tenant_id);
 
         let query = query_builder.build();
         query.execute(&*self.pool).await.map_err(|e| {

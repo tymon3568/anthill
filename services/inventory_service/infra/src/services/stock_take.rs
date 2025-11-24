@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use chrono::Utc;
+use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -19,6 +20,7 @@ use shared_error::AppError;
 
 /// PostgreSQL implementation of StockTakeService
 pub struct PgStockTakeService {
+    pool: Arc<PgPool>,
     stock_take_repo: Arc<dyn StockTakeRepository>,
     stock_take_line_repo: Arc<dyn StockTakeLineRepository>,
     stock_move_repo: Arc<dyn StockMoveRepository>,
@@ -28,12 +30,14 @@ pub struct PgStockTakeService {
 impl PgStockTakeService {
     /// Create a new service instance
     pub fn new(
+        pool: Arc<PgPool>,
         stock_take_repo: Arc<dyn StockTakeRepository>,
         stock_take_line_repo: Arc<dyn StockTakeLineRepository>,
         stock_move_repo: Arc<dyn StockMoveRepository>,
         inventory_repo: Arc<dyn InventoryLevelRepository>,
     ) -> Self {
         Self {
+            pool,
             stock_take_repo,
             stock_take_line_repo,
             stock_move_repo,
@@ -168,7 +172,12 @@ impl StockTakeService for PgStockTakeService {
         user_id: Uuid,
         _request: FinalizeStockTakeRequest,
     ) -> Result<FinalizeStockTakeResponse, AppError> {
-        // TODO: Wrap entire finalization in a single DB transaction to prevent partial failures
+        // Wrap entire finalization in a single DB transaction to prevent partial failures
+        let mut tx =
+            self.pool.begin().await.map_err(|e| {
+                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
+            })?;
+
         // Verify stock take exists and is in correct status
         let stock_take = self
             .stock_take_repo
@@ -226,11 +235,14 @@ impl StockTakeService for PgStockTakeService {
                     batch_info: None,
                     metadata: None,
                 };
-                self.stock_move_repo.create(&stock_move, tenant_id).await?;
+                self.stock_move_repo
+                    .create_with_tx(&mut tx, &stock_move, tenant_id)
+                    .await?;
 
                 // Update inventory level
                 self.inventory_repo
-                    .update_available_quantity(
+                    .update_available_quantity_with_tx(
+                        &mut tx,
                         tenant_id,
                         stock_take.warehouse_id,
                         line.product_id,
@@ -252,10 +264,15 @@ impl StockTakeService for PgStockTakeService {
         // Finalize stock take
         let completed_at = Utc::now();
         self.stock_take_repo
-            .finalize(tenant_id, stock_take_id, completed_at, user_id)
+            .finalize_with_tx(&mut tx, tenant_id, stock_take_id, completed_at, user_id)
             .await?;
 
-        // Get updated stock take
+        // Commit transaction
+        tx.commit()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
+
+        // Get updated stock take (after commit)
         let finalized_stock_take = self
             .stock_take_repo
             .find_by_id(tenant_id, stock_take_id)
@@ -294,8 +311,8 @@ impl StockTakeService for PgStockTakeService {
         tenant_id: Uuid,
         query: StockTakeListQuery,
     ) -> Result<StockTakeListResponse, AppError> {
-        let limit = query.limit.unwrap_or(50).min(100);
-        let offset = query.page.unwrap_or(1).saturating_sub(1) * limit;
+        let limit_i64 = query.limit.unwrap_or(50).min(100) as i64;
+        let offset_i64 = (query.page.unwrap_or(1) as i64).saturating_sub(1) * limit_i64;
 
         let stock_takes = self
             .stock_take_repo
@@ -303,8 +320,8 @@ impl StockTakeService for PgStockTakeService {
                 tenant_id,
                 query.warehouse_id,
                 query.status.clone(),
-                Some(limit as i64),
-                Some(offset as i64),
+                Some(limit_i64),
+                Some(offset_i64),
             )
             .await?;
 
@@ -313,13 +330,13 @@ impl StockTakeService for PgStockTakeService {
             .count(tenant_id, query.warehouse_id, query.status)
             .await?;
 
-        let total_pages = ((total + limit as i64 - 1) / limit as i64).max(1) as u32;
+        let total_pages = ((total + limit_i64 - 1) / limit_i64).max(1) as u32;
 
         Ok(StockTakeListResponse {
             stock_takes,
             pagination: PaginationInfo {
                 page: query.page.unwrap_or(1),
-                limit,
+                limit: limit_i64 as u32,
                 total: total as u64,
                 total_pages,
             },

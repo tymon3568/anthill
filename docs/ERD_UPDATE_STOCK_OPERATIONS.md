@@ -219,7 +219,7 @@ Updated `docs/database-erd.dbml` to include all Stock Operations tables from mod
 - **GRN:** draft → confirmed → partially_received → received | cancelled
 - **DO:** draft → confirmed → partially_picked → picked → partially_shipped → shipped | cancelled
 - **ST:** draft → confirmed → picked → shipped → received | cancelled
-- **STK:** draft → scheduled → in_progress → completed | cancelled
+- **STK:** Draft → Scheduled → InProgress → Completed | Cancelled
 
 ### 7. Audit Fields
 - `created_at`, `updated_at` (auto-managed via triggers)

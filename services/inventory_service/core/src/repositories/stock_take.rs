@@ -48,6 +48,16 @@ pub trait StockTakeRepository: Send + Sync {
         updated_by: Uuid,
     ) -> Result<(), AppError>;
 
+    /// Finalize stock take within transaction
+    async fn finalize_with_tx(
+        &self,
+        tx: &mut Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        stock_take_id: Uuid,
+        completed_at: chrono::DateTime<chrono::Utc>,
+        updated_by: Uuid,
+    ) -> Result<(), AppError>;
+
     /// Delete stock take (soft delete)
     async fn delete(
         &self,

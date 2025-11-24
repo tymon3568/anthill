@@ -11,16 +11,6 @@
 ALTER TABLE stock_moves ALTER COLUMN quantity TYPE BIGINT;
 
 -- ==================================
--- RECOMPUTE TOTAL_COST FOR EXISTING ROWS
--- ==================================
-
--- Recompute total_cost using BIGINT arithmetic to match the new constraint
--- This ensures existing rows comply with the CHECK constraint before it's added
-UPDATE stock_moves
-SET total_cost = quantity::BIGINT * unit_cost::BIGINT
-WHERE unit_cost IS NOT NULL;
-
--- ==================================
 -- UPDATE CONSTRAINTS
 -- ==================================
 
@@ -28,9 +18,28 @@ WHERE unit_cost IS NOT NULL;
 -- Drop the old constraint
 ALTER TABLE stock_moves DROP CONSTRAINT stock_moves_total_cost_consistency;
 
--- Add the updated constraint
+-- Add the updated constraint with NOT VALID to avoid immediate validation
+-- This prevents full-table scan and potential locking during migration
 ALTER TABLE stock_moves ADD CONSTRAINT stock_moves_total_cost_consistency
-    CHECK (total_cost IS NULL OR total_cost = quantity::BIGINT * unit_cost::BIGINT);
+    CHECK (total_cost IS NULL OR total_cost = quantity::BIGINT * unit_cost::BIGINT) NOT VALID;
+
+-- ==================================
+-- RECOMPUTE TOTAL_COST FOR EXISTING ROWS
+-- ==================================
+
+-- Recompute total_cost using BIGINT arithmetic to match the new constraint
+-- This ensures existing rows comply with the CHECK constraint
+UPDATE stock_moves
+SET total_cost = quantity::BIGINT * unit_cost::BIGINT
+WHERE unit_cost IS NOT NULL;
+
+-- ==================================
+-- VALIDATE CONSTRAINT
+-- ==================================
+
+-- Validate the constraint after updating existing rows
+-- This performs validation in a separate step to avoid blocking other operations
+ALTER TABLE stock_moves VALIDATE CONSTRAINT stock_moves_total_cost_consistency;
 
 -- ==================================
 -- UPDATE TRIGGER
