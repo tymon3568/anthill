@@ -226,7 +226,7 @@ Table unit_of_measures {
 }
 
 Table warehouses {
-  warehouse_id UUID [pk, default: `gen_random_uuid()`]
+  warehouse_id UUID [pk, default: `uuid_generate_v7()`]
   tenant_id UUID [not null, ref: > tenants.tenant_id]
   warehouse_code VARCHAR(50) [not null]
   warehouse_name VARCHAR(255) [not null]
@@ -456,7 +456,7 @@ Table stock_takes {
   scheduled_date TIMESTAMPTZ
   started_at TIMESTAMPTZ
   completed_at TIMESTAMPTZ
-  initiated_by UUID [not null]
+  created_by UUID [not null]
   assigned_to UUID
   approved_by UUID
   approved_at TIMESTAMPTZ
@@ -485,9 +485,9 @@ Table stock_take_lines {
   tenant_id UUID [not null, ref: > tenants.tenant_id]
   stock_take_id UUID [not null]
   product_id UUID [not null]
-  expected_quantity INTEGER [not null, default: 0]
-  actual_quantity INTEGER [note: 'NULL if not counted yet']
-  difference_quantity INTEGER [note: 'Auto-calculated: actual - expected (GENERATED COLUMN)']
+  expected_quantity BIGINT [not null, default: 0]
+  actual_quantity BIGINT [note: 'NULL if not counted yet']
+  difference_quantity BIGINT [note: 'Auto-calculated: actual - expected (GENERATED COLUMN)']
   counted_by UUID
   counted_at TIMESTAMPTZ
   notes TEXT
@@ -537,7 +537,7 @@ Ref: stock_transfer_items.(tenant_id, uom_id) > unit_of_measures.(tenant_id, uom
 
 Ref: stock_takes.tenant_id > tenants.tenant_id
 Ref: stock_takes.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
-Ref: stock_takes.(tenant_id, initiated_by) > users.(tenant_id, user_id)
+Ref: stock_takes.(tenant_id, created_by) > users.(tenant_id, user_id)
 
 Ref: stock_take_lines.tenant_id > tenants.tenant_id
 Ref: stock_take_lines.(tenant_id, stock_take_id) > stock_takes.(tenant_id, stock_take_id)

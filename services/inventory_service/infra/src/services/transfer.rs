@@ -57,7 +57,7 @@ impl TransferService for PgTransferService {
         }
 
         // Parse dates
-        let _expected_ship_date = if let Some(date_str) = &request.expected_ship_date {
+        let expected_ship_date = if let Some(date_str) = &request.expected_ship_date {
             Some(
                 chrono::DateTime::parse_from_rfc3339(date_str)
                     .map_err(|_| {
@@ -69,7 +69,7 @@ impl TransferService for PgTransferService {
             None
         };
 
-        let _expected_receive_date = if let Some(date_str) = &request.expected_receive_date {
+        let expected_receive_date = if let Some(date_str) = &request.expected_receive_date {
             Some(
                 chrono::DateTime::parse_from_rfc3339(date_str)
                     .map_err(|_| {
@@ -140,9 +140,9 @@ impl TransferService for PgTransferService {
             transfer_type: request.transfer_type,
             priority: request.priority,
             transfer_date: Utc::now(),
-            expected_ship_date: None, // TODO: parse from request if needed
+            expected_ship_date,
             actual_ship_date: None,
-            expected_receive_date: None, // TODO: parse from request if needed
+            expected_receive_date,
             actual_receive_date: None,
             shipping_method: request.shipping_method,
             carrier: None,
@@ -154,8 +154,8 @@ impl TransferService for PgTransferService {
             updated_by: Some(user_id),
             approved_by: None,
             approved_at: None,
-            total_quantity: 0,
-            total_value: 0,
+            total_quantity,
+            total_value,
             currency_code: "VND".to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),

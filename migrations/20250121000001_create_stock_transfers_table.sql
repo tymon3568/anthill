@@ -17,7 +17,7 @@ CREATE TABLE stock_transfers (
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
 
     -- Transfer identifiers
-    transfer_number VARCHAR(50) NOT NULL,  -- Auto-generated: ST-2025-00001
+    transfer_number VARCHAR(50) NOT NULL DEFAULT generate_stock_transfer_number(),  -- Auto-generated: ST-2025-00001
     reference_number VARCHAR(100),         -- External reference (optional)
 
     -- Warehouse relationships (both required for transfers)

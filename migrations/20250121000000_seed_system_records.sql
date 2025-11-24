@@ -30,6 +30,7 @@ INSERT INTO users (
     user_id,
     tenant_id,
     email,
+    password_hash,
     status,
     created_at,
     updated_at
@@ -37,6 +38,7 @@ INSERT INTO users (
     '00000000-0000-0000-0000-000000000002'::uuid,
     '00000000-0000-0000-0000-000000000000'::uuid, -- Default tenant ID
     'system@anthill.local',
+    '$2b$12$SYSTEM_USER_NO_LOGIN_PLACEHOLDER_HASH',
     'active',
     NOW(),
     NOW()

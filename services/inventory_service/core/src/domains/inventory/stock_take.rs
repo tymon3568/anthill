@@ -4,6 +4,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -51,6 +52,18 @@ pub enum StockTakeStatus {
     Cancelled,
 }
 
+impl fmt::Display for StockTakeStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StockTakeStatus::Draft => write!(f, "draft"),
+            StockTakeStatus::Scheduled => write!(f, "scheduled"),
+            StockTakeStatus::InProgress => write!(f, "in_progress"),
+            StockTakeStatus::Completed => write!(f, "completed"),
+            StockTakeStatus::Cancelled => write!(f, "cancelled"),
+        }
+    }
+}
+
 /// Represents a line item in a stock take
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StockTakeLine {
@@ -63,11 +76,11 @@ pub struct StockTakeLine {
     /// Product being counted
     pub product_id: Uuid,
     /// Expected quantity from system
-    pub expected_quantity: i32,
+    pub expected_quantity: i64,
     /// Actual counted quantity
-    pub actual_quantity: Option<i32>,
+    pub actual_quantity: Option<i64>,
     /// Difference (actual - expected)
-    pub difference_quantity: Option<i32>,
+    pub difference_quantity: Option<i64>,
     /// User who performed the count
     pub counted_by: Option<Uuid>,
     /// When the count was performed

@@ -23,9 +23,9 @@ CREATE TABLE stock_take_lines (
     product_id UUID NOT NULL,
 
     -- Quantity counts
-    expected_quantity INTEGER NOT NULL DEFAULT 0,  -- Expected quantity from system
-    actual_quantity INTEGER,                        -- Actual counted quantity (NULL if not counted yet)
-    difference_quantity INTEGER GENERATED ALWAYS AS (actual_quantity - expected_quantity) STORED,  -- Auto-calculated: actual - expected
+    expected_quantity BIGINT NOT NULL DEFAULT 0,  -- Expected quantity from system
+    actual_quantity BIGINT,                        -- Actual counted quantity (NULL if not counted yet)
+    difference_quantity BIGINT GENERATED ALWAYS AS (actual_quantity - expected_quantity) STORED,  -- Auto-calculated: actual - expected
 
     -- Counting details
     counted_by UUID,                                -- User who performed the count

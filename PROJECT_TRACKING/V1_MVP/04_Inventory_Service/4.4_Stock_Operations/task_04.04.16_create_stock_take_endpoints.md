@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.4_Stock_Operations
 **Priority:** High
-**Status:** Done
+**Status:** InProgress_By_Grok
 **Assignee:** Grok
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-11-24
@@ -51,3 +51,27 @@ Implement the API endpoints for the physical inventory counting workflow.
     - Database migrations applied successfully
     - Code compiles with workspace (minor schema alignment needed for full functionality)
     - Task fully implemented and ready for use
+*   2025-11-24 15:00: PR review issues identified by Grok
+    - Multiple critical and warning issues found in PR #70 reviews
+    - Updating status to InProgress_By_Grok to address auto-fixable issues
+    - Prioritizing critical fixes: tenant filter bug, missing defaults, type mismatches
+*   2025-11-24 16:00: Critical fixes applied by Grok
+    - Fixed missing password_hash in system user seed migration
+    - Restored DEFAULT clause for transfer_number auto-generation
+    - Corrected tenant filter in stock_take batch_update_counts (removed hardcoded $1)
+    - Changed CountItem DTO to use line_id instead of product_id for accurate updates
+    - Fixed transfer creation to persist parsed dates and computed totals
+    - Removed Json extractor from finalize_stock_take to allow empty body
+    - Enabled status filter in stock_take list/count queries
+    - Filtered out soft-deleted inventory in create_from_inventory
+    - Changed stock_take_lines quantity columns to BIGINT in migration and ERD
+    - Updated domain models to use i64 for quantities
+    - Added Display implementation for StockTakeStatus
+    - Added DEFERRABLE INITIALLY DEFERRED to goods_receipts constraint
+    - Changed warehouses primary key to uuid_generate_v7()
+    - Corrected stock_takes schema to use created_by
+    - Added TODO for production sequence generator
+    - Restored sqlx macros feature in user_service
+    - Removed unnecessary i64 casts in finalize_stock_take
+    - Code now compiles without errors, clippy warnings resolved
+    - Ready for final review and testing

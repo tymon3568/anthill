@@ -214,10 +214,11 @@ impl StockTakeRepository for PgStockTakeRepository {
         &self,
         tenant_id: Uuid,
         warehouse_id: Option<Uuid>,
-        _status: Option<StockTakeStatus>,
+        status: Option<StockTakeStatus>,
         limit: Option<i64>,
         offset: Option<i64>,
     ) -> Result<Vec<StockTake>, AppError> {
+        let status_str = status.map(|s| s.to_string());
         let rows = sqlx::query!(
             r#"
             SELECT stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
@@ -226,12 +227,13 @@ impl StockTakeRepository for PgStockTakeRepository {
             FROM stock_takes
             WHERE tenant_id = $1 AND deleted_at IS NULL
             AND ($2::uuid IS NULL OR warehouse_id = $2)
-            -- AND ($3 IS NULL OR status::stock_take_status = $3)
+            AND ($3::text IS NULL OR status = $3)
             ORDER BY created_at DESC
-            LIMIT $3 OFFSET $4
+            LIMIT $4 OFFSET $5
             "#,
             tenant_id,
             warehouse_id,
+            status_str,
             limit.unwrap_or(50),
             offset.unwrap_or(0)
         )
@@ -268,18 +270,20 @@ impl StockTakeRepository for PgStockTakeRepository {
         &self,
         tenant_id: Uuid,
         warehouse_id: Option<Uuid>,
-        _status: Option<StockTakeStatus>,
+        status: Option<StockTakeStatus>,
     ) -> Result<i64, AppError> {
+        let status_str = status.map(|s| s.to_string());
         let row = sqlx::query!(
             r#"
             SELECT COUNT(*) as count
             FROM stock_takes
             WHERE tenant_id = $1 AND deleted_at IS NULL
             AND ($2::uuid IS NULL OR warehouse_id = $2)
-            -- AND ($3 IS NULL OR status::stock_take_status = $3)
+            AND ($3::text IS NULL OR status = $3)
             "#,
             tenant_id,
-            warehouse_id
+            warehouse_id,
+            status_str
         )
         .fetch_one(&*self.pool)
         .await
@@ -314,9 +318,9 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
             INSERT INTO stock_take_lines (line_id, tenant_id, stock_take_id, product_id, expected_quantity)
             SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity
             FROM inventory_levels il
-            WHERE il.tenant_id = $1
-            RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity,
-                      actual_quantity, difference_quantity, counted_by, counted_at, notes,
+            WHERE il.tenant_id = $1 AND il.deleted_at IS NULL
+            RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity::BIGINT,
+                      actual_quantity::BIGINT, difference_quantity::BIGINT, counted_by, counted_at, notes,
                       created_at, updated_at, deleted_at, deleted_by
             "#,
             tenant_id,
@@ -333,7 +337,7 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
                 tenant_id: r.tenant_id,
                 stock_take_id: r.stock_take_id,
                 product_id: r.product_id,
-                expected_quantity: r.expected_quantity,
+                expected_quantity: r.expected_quantity.unwrap(),
                 actual_quantity: r.actual_quantity,
                 difference_quantity: r.difference_quantity,
                 counted_by: r.counted_by,
@@ -356,8 +360,8 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
     ) -> Result<Vec<StockTakeLine>, AppError> {
         let rows = sqlx::query!(
             r#"
-            SELECT line_id, tenant_id, stock_take_id, product_id, expected_quantity,
-                   actual_quantity, difference_quantity, counted_by, counted_at, notes,
+            SELECT line_id, tenant_id, stock_take_id, product_id, expected_quantity::BIGINT,
+                   actual_quantity::BIGINT, difference_quantity::BIGINT, counted_by, counted_at, notes,
                    created_at, updated_at, deleted_at, deleted_by
             FROM stock_take_lines
             WHERE tenant_id = $1 AND stock_take_id = $2 AND deleted_at IS NULL
@@ -377,7 +381,7 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
                 tenant_id: r.tenant_id,
                 stock_take_id: r.stock_take_id,
                 product_id: r.product_id,
-                expected_quantity: r.expected_quantity,
+                expected_quantity: r.expected_quantity.unwrap(),
                 actual_quantity: r.actual_quantity,
                 difference_quantity: r.difference_quantity,
                 counted_by: r.counted_by,
@@ -400,8 +404,8 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
     ) -> Result<Option<StockTakeLine>, AppError> {
         let row = sqlx::query!(
             r#"
-            SELECT line_id, tenant_id, stock_take_id, product_id, expected_quantity,
-                   actual_quantity, difference_quantity, counted_by, counted_at, notes,
+            SELECT line_id, tenant_id, stock_take_id, product_id, expected_quantity::BIGINT,
+                   actual_quantity::BIGINT, difference_quantity::BIGINT, counted_by, counted_at, notes,
                    created_at, updated_at, deleted_at, deleted_by
             FROM stock_take_lines
             WHERE tenant_id = $1 AND line_id = $2 AND deleted_at IS NULL
@@ -418,7 +422,7 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
             tenant_id: r.tenant_id,
             stock_take_id: r.stock_take_id,
             product_id: r.product_id,
-            expected_quantity: r.expected_quantity,
+            expected_quantity: r.expected_quantity.unwrap(),
             actual_quantity: r.actual_quantity,
             difference_quantity: r.difference_quantity,
             counted_by: r.counted_by,
@@ -442,10 +446,10 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
         sqlx::query!(
             r#"
             UPDATE stock_take_lines
-            SET actual_quantity = $1, counted_by = $2, counted_at = NOW(), notes = $3, updated_at = NOW()
+            SET actual_quantity = $1::BIGINT, counted_by = $2, counted_at = NOW(), notes = $3, updated_at = NOW()
             WHERE tenant_id = $4 AND line_id = $5 AND deleted_at IS NULL
             "#,
-            actual_quantity as i32,
+            actual_quantity,
             counted_by,
             notes,
             tenant_id,
@@ -493,22 +497,16 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
             r#"
             ) AS data(line_id, actual_quantity, counted_by, notes)
             WHERE stock_take_lines.line_id = data.line_id
-            AND stock_take_lines.tenant_id = $1
+            AND stock_take_lines.tenant_id =
             AND stock_take_lines.deleted_at IS NULL
             "#,
         );
+        query_builder.push_bind(tenant_id);
 
         let query = query_builder.build();
-        query
-            .bind(tenant_id)
-            .execute(&*self.pool)
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(format!(
-                    "Failed to batch update stock take line counts: {}",
-                    e
-                ))
-            })?;
+        query.execute(&*self.pool).await.map_err(|e| {
+            AppError::DatabaseError(format!("Failed to batch update stock take line counts: {}", e))
+        })?;
 
         Ok(())
     }

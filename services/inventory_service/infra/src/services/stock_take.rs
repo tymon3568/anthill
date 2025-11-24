@@ -50,7 +50,7 @@ impl StockTakeService for PgStockTakeService {
         user_id: Uuid,
         request: CreateStockTakeRequest,
     ) -> Result<CreateStockTakeResponse, AppError> {
-        // Generate stock take number (simple increment, in production use sequence)
+        // TODO: Replace with sequence-based generator in production to prevent collisions under concurrent load
         let stock_take_number = format!("ST-{}", Utc::now().format("%Y%m%d-%H%M%S"));
 
         let stock_take = StockTake {
@@ -120,7 +120,7 @@ impl StockTakeService for PgStockTakeService {
         let counts: Vec<(Uuid, i64, Uuid, Option<String>)> = request
             .items
             .into_iter()
-            .map(|item| (item.product_id, item.actual_quantity, user_id, item.notes))
+            .map(|item| (item.line_id, item.actual_quantity, user_id, item.notes))
             .collect();
 
         self.stock_take_line_repo
@@ -188,7 +188,7 @@ impl StockTakeService for PgStockTakeService {
                     source_location_id: Some(stock_take.warehouse_id),
                     destination_location_id: Some(stock_take.warehouse_id), // Same warehouse for adjustment
                     move_type: "adjustment".to_string(),
-                    quantity: difference as i64,
+                    quantity: difference,
                     unit_cost: None,
                     reference_type: "stock_take".to_string(),
                     reference_id: stock_take_id,
@@ -204,14 +204,14 @@ impl StockTakeService for PgStockTakeService {
 
                 // Update inventory level
                 self.inventory_repo
-                    .update_available_quantity(tenant_id, line.product_id, difference as i64)
+                    .update_available_quantity(tenant_id, line.product_id, difference)
                     .await?;
 
                 adjustments.push(StockAdjustment {
                     adjustment_id: Uuid::now_v7(),
                     product_id: line.product_id,
                     warehouse_id: stock_take.warehouse_id,
-                    quantity: difference as i64,
+                    quantity: difference,
                     reason: "Stock take discrepancy".to_string(),
                     adjusted_at: Utc::now(),
                 });

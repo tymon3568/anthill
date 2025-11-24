@@ -245,11 +245,15 @@ pub async fn finalize_stock_take(
     auth_user: AuthUser,
     State(state): State<AppState>,
     Path(stock_take_id): Path<Uuid>,
-    Json(request): Json<FinalizeStockTakeRequest>,
 ) -> Result<Json<FinalizeStockTakeResponse>, AppError> {
     let response = state
         .stock_take_service
-        .finalize_stock_take(auth_user.tenant_id, stock_take_id, auth_user.user_id, request)
+        .finalize_stock_take(
+            auth_user.tenant_id,
+            stock_take_id,
+            auth_user.user_id,
+            FinalizeStockTakeRequest {},
+        )
         .await?;
 
     Ok(Json(response))

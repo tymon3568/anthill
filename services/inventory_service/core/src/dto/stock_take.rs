@@ -37,8 +37,8 @@ pub struct CountStockTakeRequest {
 /// Individual count item
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct CountItem {
-    /// Product being counted
-    pub product_id: Uuid,
+    /// Stock take line being counted
+    pub line_id: Uuid,
     /// Actual counted quantity
     #[validate(range(min = 0, message = "Quantity cannot be negative"))]
     pub actual_quantity: i64,
