@@ -11,6 +11,16 @@
 ALTER TABLE stock_moves ALTER COLUMN quantity TYPE BIGINT;
 
 -- ==================================
+-- RECOMPUTE TOTAL_COST FOR EXISTING ROWS
+-- ==================================
+
+-- Recompute total_cost using BIGINT arithmetic to match the new constraint
+-- This ensures existing rows comply with the CHECK constraint before it's added
+UPDATE stock_moves
+SET total_cost = quantity::BIGINT * unit_cost::BIGINT
+WHERE unit_cost IS NOT NULL;
+
+-- ==================================
 -- UPDATE CONSTRAINTS
 -- ==================================
 
