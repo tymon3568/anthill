@@ -4,6 +4,33 @@
 -- Created: 2025-11-22
 
 -- ==================================
+-- SEQUENCE FOR TRANSFER NUMBER GENERATION
+-- ==================================
+-- Global sequence for transfer numbers (ST-YYYY-XXXXX)
+-- Note: For production multi-tenant systems, consider per-tenant sequences
+
+CREATE SEQUENCE IF NOT EXISTS stock_transfer_number_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- ==================================
+-- FUNCTION FOR TRANSFER NUMBER GENERATION
+-- ==================================
+
+CREATE OR REPLACE FUNCTION generate_stock_transfer_number()
+RETURNS TEXT AS $$
+DECLARE
+    current_year TEXT := EXTRACT(YEAR FROM NOW())::TEXT;
+    next_seq TEXT := LPAD(nextval('stock_transfer_number_seq')::TEXT, 5, '0');
+BEGIN
+    RETURN 'ST-' || current_year || '-' || next_seq;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ==================================
 -- STOCK_TRANSFERS TABLE (Internal Warehouse Transfers)
 -- ==================================
 -- This table manages Stock Transfers (ST) which record the movement of goods between warehouses
@@ -101,33 +128,6 @@ CREATE TABLE stock_transfers (
 
 -- Add unique constraint for composite foreign keys
 ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_transfer_unique UNIQUE (tenant_id, transfer_id);
-
--- ==================================
--- SEQUENCE FOR TRANSFER NUMBER GENERATION
--- ==================================
--- Global sequence for transfer numbers (ST-YYYY-XXXXX)
--- Note: For production multi-tenant systems, consider per-tenant sequences
-
-CREATE SEQUENCE IF NOT EXISTS stock_transfer_number_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
--- ==================================
--- FUNCTION FOR TRANSFER NUMBER GENERATION
--- ==================================
-
-CREATE OR REPLACE FUNCTION generate_stock_transfer_number()
-RETURNS TEXT AS $$
-DECLARE
-    current_year TEXT := EXTRACT(YEAR FROM NOW())::TEXT;
-    next_seq TEXT := LPAD(nextval('stock_transfer_number_seq')::TEXT, 5, '0');
-BEGIN
-    RETURN 'ST-' || current_year || '-' || next_seq;
-END;
-$$ LANGUAGE plpgsql;
 
 -- ==================================
 -- INDEXES for Performance
