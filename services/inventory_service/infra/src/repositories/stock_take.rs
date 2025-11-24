@@ -7,7 +7,7 @@ use inventory_service_core::domains::inventory::stock_take::{
     StockTake, StockTakeLine, StockTakeStatus,
 };
 use inventory_service_core::repositories::stock_take::{
-    StockTakeLineRepository, StockTakeRepository,
+    StockTakeLineCountUpdate, StockTakeLineRepository, StockTakeRepository,
 };
 use shared_error::AppError;
 
@@ -596,7 +596,7 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
     async fn batch_update_counts(
         &self,
         tenant_id: Uuid,
-        counts: &[(Uuid, i64, Uuid, Option<String>)],
+        counts: &[StockTakeLineCountUpdate],
     ) -> Result<(), AppError> {
         if counts.is_empty() {
             return Ok(());
@@ -615,12 +615,12 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
         );
 
         let mut separated = query_builder.separated(", ");
-        for (line_id, actual_quantity, counted_by, notes) in counts {
+        for count in counts {
             separated.push("(");
-            separated.push_bind_unseparated(line_id);
-            separated.push_bind_unseparated(actual_quantity);
-            separated.push_bind_unseparated(counted_by);
-            separated.push_bind_unseparated(notes);
+            separated.push_bind_unseparated(count.line_id);
+            separated.push_bind_unseparated(count.actual_quantity);
+            separated.push_bind_unseparated(count.counted_by);
+            separated.push_bind_unseparated(&count.notes);
             separated.push_unseparated(")");
         }
 

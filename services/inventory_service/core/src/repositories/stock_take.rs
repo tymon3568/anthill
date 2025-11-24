@@ -1,4 +1,4 @@
-//! Stock Take repository traits
+//! Stock take repository traits
 //!
 //! This module defines the repository traits for stock take operations.
 
@@ -8,6 +8,15 @@ use uuid::Uuid;
 
 use crate::domains::inventory::stock_take::{StockTake, StockTakeLine, StockTakeStatus};
 use shared_error::AppError;
+
+/// Represents a count update for a stock take line
+#[derive(Debug, Clone)]
+pub struct StockTakeLineCountUpdate {
+    pub line_id: Uuid,
+    pub actual_quantity: i64,
+    pub counted_by: Uuid,
+    pub notes: Option<String>,
+}
 
 /// Repository trait for stock take operations
 #[async_trait]
@@ -133,7 +142,7 @@ pub trait StockTakeLineRepository: Send + Sync {
     async fn batch_update_counts(
         &self,
         tenant_id: Uuid,
-        counts: &[(Uuid, i64, Uuid, Option<String>)],
+        counts: &[StockTakeLineCountUpdate],
     ) -> Result<(), AppError>;
 
     /// Delete line (soft delete)

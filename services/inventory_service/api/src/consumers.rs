@@ -118,9 +118,9 @@ async fn handle_order_confirmed(
         notes: order_data.notes,
         created_by: system_user_id,
         updated_by: None,
-        total_quantity: Some(order_data.items.iter().map(|item| item.quantity).sum()),
-        total_value: Some(order_data.items.iter().map(|item| item.line_total).sum()),
-        currency_code: Some("VND".to_string()), // TODO: Get from config
+        total_quantity: order_data.items.iter().map(|item| item.quantity).sum(),
+        total_value: order_data.items.iter().map(|item| item.line_total).sum(),
+        currency_code: "VND".to_string(), // TODO: Get from config
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
         deleted_at: None,

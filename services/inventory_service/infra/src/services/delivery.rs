@@ -80,6 +80,18 @@ impl DeliveryService for DeliveryServiceImpl {
             )));
         }
 
+        // Validate required totals for non-draft transitions
+        if delivery_order.total_quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pick items: total_quantity must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.total_value <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pick items: total_value must be set and positive".to_string(),
+            ));
+        }
+
         let mut total_picked_quantity = 0;
         let mut updated_items_count = 0;
 
@@ -195,6 +207,23 @@ impl DeliveryService for DeliveryServiceImpl {
             )));
         }
 
+        // Validate required totals for non-draft transitions
+        if delivery_order.total_quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pack items: total_quantity must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.total_value <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pack items: total_value must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.currency_code.is_empty() {
+            return Err(AppError::ValidationError(
+                "Cannot pack items: currency_code must be set".to_string(),
+            ));
+        }
+
         let packed_at = Utc::now();
 
         // Update the delivery order status to Packed
@@ -245,6 +274,23 @@ impl DeliveryService for DeliveryServiceImpl {
                 "Cannot ship items for delivery order with status '{}'. Only 'Packed' orders can be shipped.",
                 delivery_order.status
             )));
+        }
+
+        // Validate required totals for non-draft transitions
+        if delivery_order.total_quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot ship items: total_quantity must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.total_value <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot ship items: total_value must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.currency_code.is_empty() {
+            return Err(AppError::ValidationError(
+                "Cannot ship items: currency_code must be set".to_string(),
+            ));
         }
 
         // Get all delivery items

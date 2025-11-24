@@ -13,7 +13,7 @@ use inventory_service_core::dto::stock_take::{
 use inventory_service_core::models::CreateStockMoveRequest;
 use inventory_service_core::repositories::stock::{InventoryLevelRepository, StockMoveRepository};
 use inventory_service_core::repositories::stock_take::{
-    StockTakeLineRepository, StockTakeRepository,
+    StockTakeLineCountUpdate, StockTakeLineRepository, StockTakeRepository,
 };
 use inventory_service_core::services::stock_take::StockTakeService;
 use shared_error::AppError;
@@ -139,11 +139,16 @@ impl StockTakeService for PgStockTakeService {
             existing_lines.iter().map(|l| l.line_id).collect();
 
         // Build batch only for lines belonging to this stock_take
-        let counts: Vec<(Uuid, i64, Uuid, Option<String>)> = request
+        let counts: Vec<StockTakeLineCountUpdate> = request
             .items
             .into_iter()
-            .map(|item| (item.line_id, item.actual_quantity, user_id, item.notes))
-            .filter(|(line_id, _, _, _)| valid_ids.contains(line_id))
+            .map(|item| StockTakeLineCountUpdate {
+                line_id: item.line_id,
+                actual_quantity: item.actual_quantity,
+                counted_by: user_id,
+                notes: item.notes,
+            })
+            .filter(|count| valid_ids.contains(&count.line_id))
             .collect();
 
         if counts.is_empty() {
