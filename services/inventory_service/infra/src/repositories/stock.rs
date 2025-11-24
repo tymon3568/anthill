@@ -201,18 +201,20 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
     async fn find_by_product(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
     ) -> Result<Option<InventoryLevel>, AppError> {
         let inventory_level = sqlx::query_as!(
             InventoryLevel,
             r#"
             SELECT
-                inventory_id, tenant_id, product_id, available_quantity, reserved_quantity,
+                inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity,
                 created_at, updated_at, deleted_at
             FROM inventory_levels
-            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
             "#,
             tenant_id,
+            warehouse_id,
             product_id
         )
         .fetch_optional(&*self.pool)
@@ -225,17 +227,19 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
     async fn update_available_quantity(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError> {
         sqlx::query!(
             r#"
             UPDATE inventory_levels
-            SET available_quantity = available_quantity + $3,
+            SET available_quantity = available_quantity + $4,
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
             "#,
             tenant_id,
+            warehouse_id,
             product_id,
             quantity_change
         )
@@ -250,17 +254,19 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         &self,
         tx: &mut Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError> {
         sqlx::query!(
             r#"
             UPDATE inventory_levels
-            SET available_quantity = available_quantity + $3,
+            SET available_quantity = available_quantity + $4,
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
             "#,
             tenant_id,
+            warehouse_id,
             product_id,
             quantity_change
         )
@@ -274,21 +280,23 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
     async fn upsert(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         available_quantity: i64,
         reserved_quantity: i64,
     ) -> Result<(), AppError> {
         sqlx::query!(
             r#"
-            INSERT INTO inventory_levels (tenant_id, product_id, available_quantity, reserved_quantity)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (tenant_id, product_id)
+            INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (tenant_id, warehouse_id, product_id)
             DO UPDATE SET
                 available_quantity = inventory_levels.available_quantity + EXCLUDED.available_quantity,
                 reserved_quantity = inventory_levels.reserved_quantity + EXCLUDED.reserved_quantity,
                 updated_at = NOW()
             "#,
             tenant_id,
+            warehouse_id,
             product_id,
             available_quantity,
             reserved_quantity

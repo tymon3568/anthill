@@ -191,6 +191,7 @@ pub struct StockMove {
 pub struct InventoryLevel {
     pub inventory_id: Uuid,
     pub tenant_id: Uuid,
+    pub warehouse_id: Uuid,
     pub product_id: Uuid,
     pub available_quantity: i64,
     pub reserved_quantity: i64,

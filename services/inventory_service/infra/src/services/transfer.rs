@@ -235,7 +235,12 @@ impl TransferService for PgTransferService {
         // Update inventory levels (decrement source)
         for item in &items {
             self.inventory_repo
-                .update_available_quantity(tenant_id, item.product_id, -item.quantity)
+                .update_available_quantity(
+                    tenant_id,
+                    transfer.source_warehouse_id,
+                    item.product_id,
+                    -item.quantity,
+                )
                 .await?;
         }
 
@@ -304,7 +309,12 @@ impl TransferService for PgTransferService {
         // Update inventory levels (increment destination)
         for item in &items {
             self.inventory_repo
-                .update_available_quantity(tenant_id, item.product_id, item.quantity)
+                .update_available_quantity(
+                    tenant_id,
+                    transfer.destination_warehouse_id,
+                    item.product_id,
+                    item.quantity,
+                )
                 .await?;
         }
 

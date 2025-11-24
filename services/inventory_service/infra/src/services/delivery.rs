@@ -273,7 +273,7 @@ impl DeliveryService for DeliveryServiceImpl {
 
             // Validate inventory level exists (needed regardless for idempotency)
             self.inventory_level_repo
-                .find_by_product(tenant_id, item.product_id)
+                .find_by_product(tenant_id, delivery_order.warehouse_id, item.product_id)
                 .await?
                 .ok_or_else(|| {
                     AppError::ValidationError(format!(
@@ -320,6 +320,7 @@ impl DeliveryService for DeliveryServiceImpl {
                     .update_available_quantity_with_tx(
                         &mut tx,
                         tenant_id,
+                        delivery_order.warehouse_id,
                         item.product_id,
                         -picked_qty,
                     )

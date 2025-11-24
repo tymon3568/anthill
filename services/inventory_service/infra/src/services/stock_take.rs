@@ -220,7 +220,12 @@ impl StockTakeService for PgStockTakeService {
 
                 // Update inventory level
                 self.inventory_repo
-                    .update_available_quantity(tenant_id, line.product_id, difference)
+                    .update_available_quantity(
+                        tenant_id,
+                        stock_take.warehouse_id,
+                        line.product_id,
+                        difference,
+                    )
                     .await?;
 
                 adjustments.push(StockAdjustment {
