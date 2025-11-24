@@ -6,23 +6,38 @@
 -- Note: In a real deployment, these would be created per-tenant or through
 -- configuration. For now, we create them for a default tenant.
 
--- Insert system user first (referenced by warehouse created_by)
+-- Insert default tenant first
+INSERT INTO tenants (
+    tenant_id,
+    name,
+    slug,
+    plan,
+    status,
+    created_at,
+    updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    'Default Tenant',
+    'default',
+    'free',
+    'active',
+    NOW(),
+    NOW()
+) ON CONFLICT (slug) DO NOTHING;
+
+-- Insert system user (referenced by warehouse created_by)
 INSERT INTO users (
     user_id,
     tenant_id,
     email,
-    first_name,
-    last_name,
-    is_active,
+    status,
     created_at,
     updated_at
 ) VALUES (
     '00000000-0000-0000-0000-000000000002'::uuid,
     '00000000-0000-0000-0000-000000000000'::uuid, -- Default tenant ID
     'system@anthill.local',
-    'System',
-    'User',
-    true,
+    'active',
     NOW(),
     NOW()
 ) ON CONFLICT (tenant_id, user_id) DO NOTHING;
@@ -33,13 +48,7 @@ INSERT INTO warehouses (
     tenant_id,
     warehouse_code,
     warehouse_name,
-    address_line1,
-    city,
-    state,
-    postal_code,
-    country,
     is_active,
-    created_by,
     created_at,
     updated_at
 ) VALUES (
@@ -47,13 +56,7 @@ INSERT INTO warehouses (
     '00000000-0000-0000-0000-000000000000'::uuid, -- Default tenant ID
     'SYS-WH',
     'System Warehouse',
-    'System Address',
-    'System City',
-    'System State',
-    '00000',
-    'System Country',
     true,
-    '00000000-0000-0000-0000-000000000002'::uuid,
     NOW(),
     NOW()
 ) ON CONFLICT (tenant_id, warehouse_id) DO NOTHING;

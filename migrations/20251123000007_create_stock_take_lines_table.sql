@@ -49,8 +49,7 @@ CREATE TABLE stock_take_lines (
     CONSTRAINT stock_take_lines_tenant_counted_by_fk
         FOREIGN KEY (tenant_id, counted_by)
         REFERENCES users (tenant_id, user_id)
-        ON DELETE SET NULL ON UPDATE RESTRICT
-        DEFERRABLE INITIALLY DEFERRED,
+        ON DELETE SET NULL ON UPDATE RESTRICT,
     CONSTRAINT stock_take_lines_positive_expected
         CHECK (expected_quantity >= 0),
     CONSTRAINT stock_take_lines_positive_actual

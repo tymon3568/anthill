@@ -9,7 +9,7 @@ shared_error = {workspace = true}
 shared_jwt = {workspace = true}
 shared_kanidm_client = {workspace = true}
 # External deps
-sqlx = {workspace = true}
+sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"]}
 tracing = {workspace = true}
 # Internal crates
 user_service_core = {workspace = true}

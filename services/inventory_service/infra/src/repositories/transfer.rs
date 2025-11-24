@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{PgPool, Postgres, QueryBuilder, Row};
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -18,6 +18,43 @@ impl PgTransferRepository {
     /// Create a new repository instance
     pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
+    }
+
+    /// Convert database string to TransferStatus enum
+    fn string_to_transfer_status(s: &str) -> Result<TransferStatus, AppError> {
+        match s {
+            "draft" => Ok(TransferStatus::Draft),
+            "confirmed" => Ok(TransferStatus::Confirmed),
+            "partially_picked" => Ok(TransferStatus::PartiallyPicked),
+            "picked" => Ok(TransferStatus::Picked),
+            "partially_shipped" => Ok(TransferStatus::PartiallyShipped),
+            "shipped" => Ok(TransferStatus::Shipped),
+            "received" => Ok(TransferStatus::Received),
+            "cancelled" => Ok(TransferStatus::Cancelled),
+            _ => Err(AppError::DataCorruption(format!("Unknown transfer status: {}", s))),
+        }
+    }
+
+    /// Convert database string to TransferType enum
+    fn string_to_transfer_type(s: &str) -> Result<TransferType, AppError> {
+        match s {
+            "manual" => Ok(TransferType::Manual),
+            "auto_replenishment" => Ok(TransferType::AutoReplenishment),
+            "emergency" => Ok(TransferType::Emergency),
+            "consolidation" => Ok(TransferType::Consolidation),
+            _ => Err(AppError::DataCorruption(format!("Unknown transfer type: {}", s))),
+        }
+    }
+
+    /// Convert database string to TransferPriority enum
+    fn string_to_transfer_priority(s: &str) -> Result<TransferPriority, AppError> {
+        match s {
+            "low" => Ok(TransferPriority::Low),
+            "normal" => Ok(TransferPriority::Normal),
+            "high" => Ok(TransferPriority::High),
+            "urgent" => Ok(TransferPriority::Urgent),
+            _ => Err(AppError::DataCorruption(format!("Unknown transfer priority: {}", s))),
+        }
     }
 }
 
@@ -49,9 +86,28 @@ impl TransferRepository for PgTransferRepository {
             transfer.reference_number,
             transfer.source_warehouse_id,
             transfer.destination_warehouse_id,
-            transfer.status as TransferStatus,
-            transfer.transfer_type as TransferType,
-            transfer.priority as TransferPriority,
+            match transfer.status {
+                TransferStatus::Draft => "draft",
+                TransferStatus::Confirmed => "confirmed",
+                TransferStatus::PartiallyPicked => "partially_picked",
+                TransferStatus::Picked => "picked",
+                TransferStatus::PartiallyShipped => "partially_shipped",
+                TransferStatus::Shipped => "shipped",
+                TransferStatus::Received => "received",
+                TransferStatus::Cancelled => "cancelled",
+            },
+            match transfer.transfer_type {
+                TransferType::Manual => "manual",
+                TransferType::AutoReplenishment => "auto_replenishment",
+                TransferType::Emergency => "emergency",
+                TransferType::Consolidation => "consolidation",
+            },
+            match transfer.priority {
+                TransferPriority::Low => "low",
+                TransferPriority::Normal => "normal",
+                TransferPriority::High => "high",
+                TransferPriority::Urgent => "urgent",
+            },
             transfer.transfer_date,
             transfer.expected_ship_date,
             transfer.expected_receive_date,
@@ -75,9 +131,9 @@ impl TransferRepository for PgTransferRepository {
             reference_number: row.reference_number,
             source_warehouse_id: row.source_warehouse_id,
             destination_warehouse_id: row.destination_warehouse_id,
-            status: row.status,
-            transfer_type: row.transfer_type,
-            priority: row.priority,
+            status: Self::string_to_transfer_status(&row.status)?,
+            transfer_type: Self::string_to_transfer_type(&row.transfer_type)?,
+            priority: Self::string_to_transfer_priority(&row.priority)?,
             transfer_date: row.transfer_date,
             expected_ship_date: row.expected_ship_date,
             actual_ship_date: row.actual_ship_date,
@@ -93,9 +149,9 @@ impl TransferRepository for PgTransferRepository {
             updated_by: row.updated_by,
             approved_by: row.approved_by,
             approved_at: row.approved_at,
-            total_quantity: row.total_quantity,
-            total_value: row.total_value,
-            currency_code: row.currency_code,
+            total_quantity: row.total_quantity.unwrap_or(0),
+            total_value: row.total_value.unwrap_or(0),
+            currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
             created_at: row.created_at,
             updated_at: row.updated_at,
             deleted_at: row.deleted_at,
@@ -128,39 +184,42 @@ impl TransferRepository for PgTransferRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to find transfer: {}", e)))?;
 
-        Ok(row.map(|r| Transfer {
-            transfer_id: r.transfer_id,
-            tenant_id: r.tenant_id,
-            transfer_number: r.transfer_number,
-            reference_number: r.reference_number,
-            source_warehouse_id: r.source_warehouse_id,
-            destination_warehouse_id: r.destination_warehouse_id,
-            status: r.status,
-            transfer_type: r.transfer_type,
-            priority: r.priority,
-            transfer_date: r.transfer_date,
-            expected_ship_date: r.expected_ship_date,
-            actual_ship_date: r.actual_ship_date,
-            expected_receive_date: r.expected_receive_date,
-            actual_receive_date: r.actual_receive_date,
-            shipping_method: r.shipping_method,
-            carrier: r.carrier,
-            tracking_number: r.tracking_number,
-            shipping_cost: r.shipping_cost,
-            notes: r.notes,
-            reason: r.reason,
-            created_by: r.created_by,
-            updated_by: r.updated_by,
-            approved_by: r.approved_by,
-            approved_at: r.approved_at,
-            total_quantity: r.total_quantity,
-            total_value: r.total_value,
-            currency_code: r.currency_code,
-            created_at: r.created_at,
-            updated_at: r.updated_at,
-            deleted_at: r.deleted_at,
-            deleted_by: r.deleted_by,
-        }))
+        row.map(|r| -> Result<Transfer, AppError> {
+            Ok(Transfer {
+                transfer_id: r.transfer_id,
+                tenant_id: r.tenant_id,
+                transfer_number: r.transfer_number,
+                reference_number: r.reference_number,
+                source_warehouse_id: r.source_warehouse_id,
+                destination_warehouse_id: r.destination_warehouse_id,
+                status: Self::string_to_transfer_status(&r.status)?,
+                transfer_type: Self::string_to_transfer_type(&r.transfer_type)?,
+                priority: Self::string_to_transfer_priority(&r.priority)?,
+                transfer_date: r.transfer_date,
+                expected_ship_date: r.expected_ship_date,
+                actual_ship_date: r.actual_ship_date,
+                expected_receive_date: r.expected_receive_date,
+                actual_receive_date: r.actual_receive_date,
+                shipping_method: r.shipping_method,
+                carrier: r.carrier,
+                tracking_number: r.tracking_number,
+                shipping_cost: r.shipping_cost,
+                notes: r.notes,
+                reason: r.reason,
+                created_by: r.created_by,
+                updated_by: r.updated_by,
+                approved_by: r.approved_by,
+                approved_at: r.approved_at,
+                total_quantity: r.total_quantity.unwrap_or(0),
+                total_value: r.total_value.unwrap_or(0),
+                currency_code: r.currency_code.unwrap_or_else(|| "VND".to_string()),
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+                deleted_at: r.deleted_at,
+                deleted_by: r.deleted_by,
+            })
+        })
+        .transpose()
     }
 
     async fn update_status(
@@ -176,7 +235,16 @@ impl TransferRepository for PgTransferRepository {
             SET status = $1, updated_by = $2, updated_at = NOW()
             WHERE tenant_id = $3 AND transfer_id = $4 AND deleted_at IS NULL
             "#,
-            status as TransferStatus,
+            match status {
+                TransferStatus::Draft => "draft",
+                TransferStatus::Confirmed => "confirmed",
+                TransferStatus::PartiallyPicked => "partially_picked",
+                TransferStatus::Picked => "picked",
+                TransferStatus::PartiallyShipped => "partially_shipped",
+                TransferStatus::Shipped => "shipped",
+                TransferStatus::Received => "received",
+                TransferStatus::Cancelled => "cancelled",
+            },
             updated_by,
             tenant_id,
             transfer_id
@@ -202,7 +270,7 @@ impl TransferRepository for PgTransferRepository {
                 updated_by = $3, updated_at = NOW()
             WHERE tenant_id = $4 AND transfer_id = $5 AND deleted_at IS NULL
             "#,
-            TransferStatus::Shipped as TransferStatus,
+            "shipped",
             approved_by,
             updated_by,
             tenant_id,
@@ -228,7 +296,7 @@ impl TransferRepository for PgTransferRepository {
                 updated_by = $2, updated_at = NOW()
             WHERE tenant_id = $3 AND transfer_id = $4 AND deleted_at IS NULL
             "#,
-            TransferStatus::Received as TransferStatus,
+            "received",
             updated_by,
             tenant_id,
             transfer_id
@@ -307,7 +375,7 @@ impl TransferItemRepository for PgTransferItemRepository {
                 .push_bind(item.uom_id)
                 .push_bind(item.unit_cost)
                 .push_bind(item.line_total)
-                .push_bind(item.line_number as i32)
+                .push_bind(item.line_number)
                 .push_bind(&item.notes);
         });
 
@@ -359,7 +427,7 @@ impl TransferItemRepository for PgTransferItemRepository {
                 uom_id: r.uom_id,
                 unit_cost: r.unit_cost,
                 line_total: r.line_total,
-                line_number: r.line_number as i32,
+                line_number: r.line_number,
                 notes: r.notes,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
@@ -401,7 +469,7 @@ impl TransferItemRepository for PgTransferItemRepository {
             uom_id: r.uom_id,
             unit_cost: r.unit_cost,
             line_total: r.line_total,
-            line_number: r.line_number as i32,
+            line_number: r.line_number,
             notes: r.notes,
             created_at: r.created_at,
             updated_at: r.updated_at,

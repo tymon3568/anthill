@@ -3,11 +3,15 @@ name = "inventory-service"
 path = "src/main.rs"
 
 [dependencies]
+# NATS messaging
+async-nats = "0.35"
 # Async traits
 async-trait = {workspace = true}
 # Axum & web
 axum = {workspace = true}
 chrono = {workspace = true}
+# Futures
+futures = {workspace = true}
 # Internal crates
 inventory_service_core = {workspace = true, features = ["openapi"]}
 inventory_service_infra = {workspace = true}

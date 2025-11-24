@@ -43,7 +43,7 @@ impl StockMoveRepository for PgStockMoveRepository {
             stock_move.source_location_id,
             stock_move.destination_location_id,
             stock_move.move_type,
-            stock_move.quantity,
+            stock_move.quantity as i32,
             stock_move.unit_cost,
             stock_move.reference_type,
             stock_move.reference_id,
@@ -54,7 +54,7 @@ impl StockMoveRepository for PgStockMoveRepository {
         )
         .execute(&*self.pool)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
@@ -82,7 +82,7 @@ impl StockMoveRepository for PgStockMoveRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(stock_moves)
     }
@@ -104,7 +104,7 @@ impl StockMoveRepository for PgStockMoveRepository {
         )
         .fetch_one(&*self.pool)
         .await
-        .map_err(AppError::DatabaseError)?
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?
         .exists
         .unwrap_or(false);
 
@@ -130,7 +130,7 @@ impl StockMoveRepository for PgStockMoveRepository {
             stock_move.source_location_id,
             stock_move.destination_location_id,
             stock_move.move_type,
-            stock_move.quantity,
+            stock_move.quantity as i32,
             stock_move.unit_cost,
             stock_move.reference_type,
             stock_move.reference_id,
@@ -141,7 +141,7 @@ impl StockMoveRepository for PgStockMoveRepository {
         )
         .execute(&mut **tx)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
@@ -166,7 +166,7 @@ impl StockMoveRepository for PgStockMoveRepository {
             stock_move.source_location_id,
             stock_move.destination_location_id,
             stock_move.move_type,
-            stock_move.quantity,
+            stock_move.quantity as i32,
             stock_move.unit_cost,
             stock_move.reference_type,
             stock_move.reference_id,
@@ -177,7 +177,7 @@ impl StockMoveRepository for PgStockMoveRepository {
         )
         .execute(&mut **tx)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         // Return true if a row was inserted, false if it was a no-op due to conflict
         Ok(result.rows_affected() > 0)
@@ -217,7 +217,7 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         )
         .fetch_optional(&*self.pool)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(inventory_level)
     }
@@ -241,7 +241,7 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         )
         .execute(&*self.pool)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
@@ -266,7 +266,7 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         )
         .execute(&mut **tx)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
@@ -295,7 +295,7 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         )
         .execute(&*self.pool)
         .await
-        .map_err(AppError::DatabaseError)?;
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }

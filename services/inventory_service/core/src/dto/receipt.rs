@@ -41,12 +41,12 @@ pub struct ReceiptItemCreateRequest {
     /// Product being received
     pub product_id: Uuid,
 
-    /// Expected quantity from purchase order/supplier
+    /// Expected quantity from purchase order
     #[validate(range(min = 0, message = "Expected quantity must be non-negative"))]
     pub expected_quantity: i64,
 
-    /// Actual quantity received and accepted
-    #[validate(range(min = 1, message = "Received quantity must be positive"))]
+    /// Actual quantity received
+    #[validate(range(min = 0, message = "Received quantity must be non-negative"))]
     pub received_quantity: i64,
 
     /// Cost per unit in smallest currency unit (cents/xu)
@@ -111,10 +111,10 @@ pub struct ReceiptResponse {
     pub created_by: Uuid,
 
     /// Total quantity of all items
-    pub total_quantity: i64,
+    pub total_quantity: Option<i64>,
 
     /// Total value in smallest currency unit
-    pub total_value: i64,
+    pub total_value: Option<i64>,
 
     /// ISO 4217 currency code
     pub currency_code: String,
@@ -154,7 +154,7 @@ pub struct ReceiptItemResponse {
     pub unit_cost: Option<i64>,
 
     /// Calculated total cost for this line
-    pub line_total: i64,
+    pub line_total: Option<i64>,
 
     /// Unit of measure
     pub uom_id: Option<Uuid>,
@@ -245,10 +245,10 @@ pub struct ReceiptSummaryResponse {
     pub receipt_date: chrono::DateTime<chrono::Utc>,
 
     /// Total quantity
-    pub total_quantity: i64,
+    pub total_quantity: Option<i64>,
 
     /// Total value
-    pub total_value: i64,
+    pub total_value: Option<i64>,
 
     /// Currency code
     pub currency_code: String,

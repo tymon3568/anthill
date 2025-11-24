@@ -4,10 +4,11 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Represents a stock take session
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StockTake {
     /// Primary key
     pub stock_take_id: Uuid,
@@ -20,7 +21,7 @@ pub struct StockTake {
     /// Stock take status
     pub status: StockTakeStatus,
     /// When counting started
-    pub started_at: DateTime<Utc>,
+    pub started_at: Option<DateTime<Utc>>,
     /// When counting completed
     pub completed_at: Option<DateTime<Utc>>,
     /// User who created the stock take
@@ -39,17 +40,19 @@ pub struct StockTake {
 }
 
 /// Stock take status enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type, ToSchema)]
 #[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum StockTakeStatus {
     Draft,
+    Scheduled,
     InProgress,
     Completed,
     Cancelled,
 }
 
 /// Represents a line item in a stock take
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StockTakeLine {
     /// Primary key
     pub line_id: Uuid,
@@ -60,11 +63,11 @@ pub struct StockTakeLine {
     /// Product being counted
     pub product_id: Uuid,
     /// Expected quantity from system
-    pub expected_quantity: i64,
+    pub expected_quantity: i32,
     /// Actual counted quantity
-    pub actual_quantity: Option<i64>,
+    pub actual_quantity: Option<i32>,
     /// Difference (actual - expected)
-    pub difference_quantity: Option<i64>,
+    pub difference_quantity: Option<i32>,
     /// User who performed the count
     pub counted_by: Option<Uuid>,
     /// When the count was performed

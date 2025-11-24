@@ -6,6 +6,7 @@ pub mod category;
 pub mod delivery;
 pub mod receipt;
 pub mod stock_take;
+pub mod transfer;
 
 // Re-export main types for convenience
 pub use category::{
@@ -22,4 +23,8 @@ pub use stock_take::{
     CountItem, CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest,
     CreateStockTakeResponse, FinalizeStockTakeRequest, FinalizeStockTakeResponse, StockAdjustment,
     StockTakeDetailResponse, StockTakeListQuery, StockTakeListResponse,
+};
+pub use transfer::{
+    CreateTransferItemRequest, CreateTransferRequest, TransferItemResponse, TransferResponse,
+    UpdateTransferItemRequest, UpdateTransferRequest,
 };

@@ -4,8 +4,12 @@ async-trait = {workspace = true}
 chrono = {workspace = true}
 # Internal crates
 inventory_service_core = {workspace = true}
+# BigDecimal casting
+num-traits = "0.2"
 # JSON serialization
 serde_json = {workspace = true}
+# Hashing for idempotency keys
+sha2 = "0.10"
 # Shared crates
 shared_db = {workspace = true}
 shared_error = {workspace = true}
@@ -13,12 +17,12 @@ shared_error = {workspace = true}
 slug = "0.1"
 # Database
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
+# Tracing
+tracing = "0.1"
 # Other
 uuid = {workspace = true}
 # Validation
 validator = {workspace = true}
-# Hashing for idempotency keys
-sha2 = "0.10"
 
 [dev-dependencies]
 # Test dependencies

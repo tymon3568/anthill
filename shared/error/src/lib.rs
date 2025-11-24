@@ -24,9 +24,11 @@ pub enum AppError {
     UserAlreadyExists,
     UserNotFound,
     TenantNotFound,
-    NotFound(String),  // Generic not found with custom message
-    Forbidden(String), // Forbidden access with custom message
-    Conflict(String),  // Resource conflict with custom message
+    NotFound(String),       // Generic not found with custom message
+    Forbidden(String),      // Forbidden access with custom message
+    Conflict(String),       // Resource conflict with custom message
+    DataCorruption(String), // Data integrity issues
+    BusinessError(String),  // Business logic errors
 
     // File upload errors
     PayloadTooLarge(String),      // File size exceeds limit
@@ -58,6 +60,8 @@ impl fmt::Display for AppError {
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
             AppError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
             AppError::Conflict(msg) => write!(f, "Conflict: {}", msg),
+            AppError::DataCorruption(msg) => write!(f, "Data corruption: {}", msg),
+            AppError::BusinessError(msg) => write!(f, "Business error: {}", msg),
             AppError::PayloadTooLarge(msg) => write!(f, "Payload too large: {}", msg),
             AppError::UnsupportedMediaType(msg) => write!(f, "Unsupported media type: {}", msg),
             AppError::Casbin(e) => write!(f, "Casbin error: {}", e),
@@ -102,6 +106,18 @@ impl IntoResponse for AppError {
             AppError::NotFound(ref msg) => (StatusCode::NOT_FOUND, msg.clone(), "NOT_FOUND"),
             AppError::Forbidden(ref msg) => (StatusCode::FORBIDDEN, msg.clone(), "FORBIDDEN"),
             AppError::Conflict(ref msg) => (StatusCode::CONFLICT, msg.clone(), "CONFLICT"),
+            AppError::DataCorruption(ref msg) => {
+                tracing::error!("Data corruption: {}", msg);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Data corruption detected".to_string(),
+                    "DATA_CORRUPTION",
+                )
+            },
+            AppError::BusinessError(ref msg) => {
+                tracing::error!("Business error: {}", msg);
+                (StatusCode::BAD_REQUEST, msg.clone(), "BUSINESS_ERROR")
+            },
             AppError::PayloadTooLarge(ref msg) => {
                 (StatusCode::PAYLOAD_TOO_LARGE, msg.clone(), "PAYLOAD_TOO_LARGE")
             },

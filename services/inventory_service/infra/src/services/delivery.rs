@@ -11,9 +11,7 @@ use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
-use inventory_service_core::models::{
-    CreateStockMoveRequest, DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus,
-};
+use inventory_service_core::models::{CreateStockMoveRequest, DeliveryOrderStatus};
 use inventory_service_core::repositories::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryLevelRepository,
     StockMoveRepository,
@@ -115,19 +113,18 @@ impl DeliveryService for DeliveryServiceImpl {
                 )));
             }
 
-            if pick_item.picked_quantity
-                > delivery_item.ordered_quantity - delivery_item.picked_quantity
-            {
+            let remaining = delivery_item.ordered_quantity.unwrap_or(0)
+                - delivery_item.picked_quantity.unwrap_or(0);
+            if pick_item.picked_quantity > remaining {
                 return Err(AppError::ValidationError(format!(
                     "Cannot pick {} units for item {}. Only {} units remaining to pick.",
-                    pick_item.picked_quantity,
-                    pick_item.delivery_item_id,
-                    delivery_item.ordered_quantity - delivery_item.picked_quantity
+                    pick_item.picked_quantity, pick_item.delivery_item_id, remaining
                 )));
             }
 
             // Update the picked quantity
-            delivery_item.picked_quantity += pick_item.picked_quantity;
+            delivery_item.picked_quantity =
+                Some(delivery_item.picked_quantity.unwrap_or(0) + pick_item.picked_quantity);
             delivery_item.updated_at = Utc::now();
 
             // Save the updated item within transaction
@@ -146,7 +143,7 @@ impl DeliveryService for DeliveryServiceImpl {
             .await?;
         let all_fully_picked = all_items
             .iter()
-            .all(|item| item.picked_quantity >= item.ordered_quantity);
+            .all(|item| item.picked_quantity.unwrap_or(0) >= item.ordered_quantity.unwrap_or(0));
 
         // Update the delivery order status based on full pick
         delivery_order.status = if all_fully_picked {
@@ -265,9 +262,11 @@ impl DeliveryService for DeliveryServiceImpl {
         // Process each delivery item
         for item in &delivery_items {
             // Skip items that weren't picked (shouldn't happen in Packed status, but safety check)
-            if item.picked_quantity <= 0 {
+            if item.picked_quantity.is_none_or(|q| q <= 0) {
                 continue;
             }
+
+            let picked_qty = item.picked_quantity.unwrap_or(0);
 
             // Create stock move (warehouse -> customer virtual location)
             let idempotency_key = format!("do-{}-item-{}", delivery_id, item.delivery_item_id);
@@ -286,15 +285,15 @@ impl DeliveryService for DeliveryServiceImpl {
             // For deliveries, we use the item's unit_price as COGS
             // In a real system, this might come from inventory valuation
             let unit_cost = Some(item.unit_price);
-            let total_cost = unit_cost.map(|cost| cost * item.picked_quantity);
+            let total_cost = unit_cost.flatten().map(|cost| cost * picked_qty);
 
             let stock_move = CreateStockMoveRequest {
                 product_id: item.product_id,
                 source_location_id: Some(delivery_order.warehouse_id), // From warehouse
                 destination_location_id: None, // To customer (virtual location)
                 move_type: "delivery".to_string(),
-                quantity: -item.picked_quantity, // Negative for outgoing
-                unit_cost,
+                quantity: -picked_qty, // Negative for outgoing
+                unit_cost: unit_cost.flatten(),
                 reference_type: "do".to_string(),
                 reference_id: delivery_id,
                 idempotency_key: idempotency_key.clone(),
@@ -322,7 +321,7 @@ impl DeliveryService for DeliveryServiceImpl {
                         &mut tx,
                         tenant_id,
                         item.product_id,
-                        -item.picked_quantity,
+                        -picked_qty,
                     )
                     .await?;
 

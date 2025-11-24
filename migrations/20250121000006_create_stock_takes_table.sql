@@ -87,9 +87,9 @@ CREATE TABLE stock_takes (
 
     -- Constraints
     CONSTRAINT stock_takes_number_unique_per_tenant
-        UNIQUE (tenant_id, stock_take_number) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, stock_take_number),
     CONSTRAINT stock_takes_tenant_id_unique
-        UNIQUE (tenant_id, stock_take_id) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, stock_take_id),
     CONSTRAINT stock_takes_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouses (tenant_id, warehouse_id),
@@ -98,12 +98,10 @@ CREATE TABLE stock_takes (
         REFERENCES users (tenant_id, user_id),
     CONSTRAINT stock_takes_tenant_assigned_to_fk
         FOREIGN KEY (tenant_id, assigned_to)
-        REFERENCES users (tenant_id, user_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES users (tenant_id, user_id),
     CONSTRAINT stock_takes_tenant_approved_by_fk
         FOREIGN KEY (tenant_id, approved_by)
-        REFERENCES users (tenant_id, user_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES users (tenant_id, user_id),
     CONSTRAINT stock_takes_positive_items_counted
         CHECK (total_items_counted >= 0),
     CONSTRAINT stock_takes_variance_threshold_range

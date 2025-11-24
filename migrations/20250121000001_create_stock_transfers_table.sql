@@ -17,7 +17,7 @@ CREATE TABLE stock_transfers (
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
 
     -- Transfer identifiers
-    transfer_number VARCHAR(50) NOT NULL DEFAULT generate_stock_transfer_number(),  -- Auto-generated: ST-2025-00001
+    transfer_number VARCHAR(50) NOT NULL,  -- Auto-generated: ST-2025-00001
     reference_number VARCHAR(100),         -- External reference (optional)
 
     -- Warehouse relationships (both required for transfers)
@@ -98,6 +98,9 @@ CREATE TABLE stock_transfers (
     CONSTRAINT stock_transfers_ship_dates
         CHECK (actual_ship_date IS NULL OR expected_ship_date IS NULL OR actual_ship_date >= expected_ship_date)
 );
+
+-- Add unique constraint for composite foreign keys
+ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_transfer_unique UNIQUE (tenant_id, transfer_id);
 
 -- ==================================
 -- SEQUENCE FOR TRANSFER NUMBER GENERATION

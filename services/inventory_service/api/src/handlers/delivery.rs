@@ -2,11 +2,8 @@
 //!
 //! This module contains the Axum handlers for Delivery Order operations.
 
-use std::sync::Arc;
-
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
     response::Json,
     routing::post,
     Router,
@@ -17,23 +14,10 @@ use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
-use inventory_service_core::services::delivery::DeliveryService;
 
+use crate::handlers::category::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
-
-/// Application state for delivery operations
-#[derive(Clone)]
-pub struct AppState {
-    pub delivery_service: Arc<dyn DeliveryService>,
-}
-
-impl AppState {
-    /// Create a new AppState with the given delivery service
-    pub fn new(delivery_service: Arc<dyn DeliveryService>) -> Self {
-        Self { delivery_service }
-    }
-}
 
 /// Create the delivery routes with state
 pub fn create_delivery_routes(state: AppState) -> Router {

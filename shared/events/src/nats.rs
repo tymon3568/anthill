@@ -32,6 +32,10 @@ impl NatsClient {
         Ok(())
     }
 
+    pub fn connection_state(&self) -> async_nats::connection::State {
+        self.client.connection_state()
+    }
+
     pub async fn subscribe_event<T: DeserializeOwned + Send + 'static>(
         &self,
         subject: String,

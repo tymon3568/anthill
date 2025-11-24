@@ -63,7 +63,7 @@ CREATE TABLE goods_receipts (
 );
 
 -- Add unique constraint for composite foreign keys
-ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_receipt_unique UNIQUE (tenant_id, receipt_id) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_receipt_unique UNIQUE (tenant_id, receipt_id);
 
 -- ==================================
 -- SEQUENCE FOR RECEIPT NUMBER GENERATION

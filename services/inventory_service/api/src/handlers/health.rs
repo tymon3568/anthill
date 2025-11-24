@@ -1,12 +1,17 @@
-use axum::{http::StatusCode, response::Response, Json};
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use shared_config::Config;
 use sqlx::PgPool;
+use utoipa::ToSchema;
 
 use shared_error::AppError;
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct HealthResp {
     pub status: String,
     pub version: String,
@@ -43,7 +48,7 @@ pub async fn health_check(
         match shared_events::get_nats_client() {
             Ok(client) => {
                 // Try to check if NATS is responsive by attempting a simple operation
-                match client.client.connection_state().await {
+                match client.connection_state() {
                     async_nats::connection::State::Connected => "healthy".to_string(),
                     _ => {
                         tracing::warn!("NATS connection is not in connected state");

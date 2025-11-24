@@ -154,8 +154,8 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         }
 
         // Compute totals from items
-        let total_quantity: i64 = items.iter().map(|item| item.received_quantity as i64).sum();
-        let total_value: i64 = items.iter().map(|item| item.line_total as i64).sum();
+        let total_quantity: i64 = items.iter().map(|item| item.received_quantity).sum();
+        let total_value: i64 = items.iter().map(|item| item.line_total.unwrap_or(0)).sum();
 
         // Update receipt with computed totals
         sqlx::query!(
@@ -188,7 +188,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                 move_id,
                 tenant_id,
                 item_request.product_id,
-                item_request.received_quantity,
+                item_request.received_quantity as i32,
                 item_request.unit_cost,
                 receipt_id,
                 item_idempotency_key
@@ -214,9 +214,9 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             actual_delivery_date: receipt.actual_delivery_date,
             notes: receipt.notes,
             created_by: receipt.created_by,
-            total_quantity,
-            total_value,
-            currency_code: receipt.currency_code,
+            total_quantity: Some(total_quantity),
+            total_value: Some(total_value),
+            currency_code: receipt.currency_code.unwrap_or_else(|| "VND".to_string()),
             items,
             created_at: receipt.created_at,
             updated_at: receipt.updated_at,
@@ -248,7 +248,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .ok_or_else(|| AppError::NotFound("Receipt not found".to_string()))?;
 
         // Get receipt items
-        let items = sqlx::query!(
+        let items: Vec<ReceiptItemResponse> = sqlx::query!(
             r#"
             SELECT receipt_item_id, product_id, expected_quantity,
                    received_quantity, unit_cost, line_total, uom_id,
@@ -284,8 +284,8 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .collect();
 
         // Compute totals from items
-        let total_quantity: i64 = items.iter().map(|item| item.received_quantity as i64).sum();
-        let total_value: i64 = items.iter().map(|item| item.line_total as i64).sum();
+        let total_quantity: i64 = items.iter().map(|item| item.received_quantity).sum();
+        let total_value: i64 = items.iter().map(|item| item.line_total.unwrap_or(0)).sum();
 
         Ok(ReceiptResponse {
             receipt_id,
@@ -300,9 +300,9 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             actual_delivery_date: receipt.actual_delivery_date,
             notes: receipt.notes,
             created_by: receipt.created_by,
-            total_quantity,
-            total_value,
-            currency_code: receipt.currency_code,
+            total_quantity: Some(total_quantity),
+            total_value: Some(total_value),
+            currency_code: receipt.currency_code.unwrap_or_else(|| "VND".to_string()),
             items,
             created_at: receipt.created_at,
             updated_at: receipt.updated_at,
@@ -387,15 +387,15 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             reference_number: row.reference_number,
             status: row.status,
             receipt_date: row.receipt_date,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
-            currency_code: row.currency_code,
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
+            currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
             item_count: row.item_count.unwrap_or(0),
             created_at: row.created_at,
         })
         .collect();
 
-        let total_pages = ((count as f64) / (query.page_size as f64)).ceil() as i32;
+        let total_pages = (count as i32).div_ceil(query.page_size);
 
         Ok(ReceiptListResponse {
             receipts,
@@ -472,7 +472,15 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .await?;
 
         // Get receipt items for valuation updates
-        let items = sqlx::query!(
+        #[derive(sqlx::FromRow)]
+        struct ReceiptItemForValidation {
+            product_id: Uuid,
+            received_quantity: i64,
+            unit_cost: Option<i64>,
+        }
+
+        let items = sqlx::query_as!(
+            ReceiptItemForValidation,
             r#"
             SELECT product_id, received_quantity, unit_cost
             FROM goods_receipt_items
@@ -497,14 +505,15 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                     "#,
                     tenant_id,
                     item.product_id,
-                    item.received_quantity as i64,
+                    item.received_quantity,
                     unit_cost,
-                    (item.received_quantity as i64) * unit_cost
+                    item.received_quantity * unit_cost
                 )
                 .execute(&mut *tx)
                 .await?;
 
                 // Update or insert inventory valuation
+                // Update inventory valuation
                 sqlx::query!(
                     r#"
                     INSERT INTO inventory_valuations (
@@ -526,8 +535,8 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                     tenant_id,
                     item.product_id,
                     unit_cost,
-                    item.received_quantity as i64,
-                    (item.received_quantity as i64) * unit_cost,
+                    item.received_quantity,
+                    item.received_quantity * unit_cost,
                     user_id
                 )
                 .execute(&mut *tx)

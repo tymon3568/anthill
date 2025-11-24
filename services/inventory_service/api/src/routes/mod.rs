@@ -26,7 +26,7 @@ use inventory_service_infra::repositories::delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
 };
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-use inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl;
+
 use inventory_service_infra::repositories::stock::{
     PgInventoryLevelRepository, PgStockMoveRepository,
 };
@@ -41,7 +41,7 @@ use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
-use inventory_service_infra::services::receipt::ReceiptServiceImpl;
+
 use inventory_service_infra::services::stock_take::PgStockTakeService;
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
@@ -164,8 +164,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
 
     // Initialize stock repositories
-    let stock_move_repo = Arc::new(PgStockMoveRepository::new(pool.clone()));
-    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(pool.clone()));
+    let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
+    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
 
     let delivery_service = Arc::new(DeliveryServiceImpl::new(
         delivery_repo,
@@ -175,19 +175,19 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     ));
 
     // Initialize transfer repositories and services
-    let transfer_repo = Arc::new(PgTransferRepository::new(pool.clone()));
-    let transfer_item_repo = Arc::new(PgTransferItemRepository::new(pool.clone()));
+    let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool.clone())));
+    let transfer_item_repo = Arc::new(PgTransferItemRepository::new(Arc::new(pool.clone())));
 
     let transfer_service = Arc::new(PgTransferService::new(
         transfer_repo,
         transfer_item_repo,
-        stock_move_repo,
-        inventory_level_repo,
+        stock_move_repo.clone(),
+        inventory_level_repo.clone(),
     ));
 
     // Initialize stock take repositories and services
-    let stock_take_repo = Arc::new(PgStockTakeRepository::new(pool.clone()));
-    let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(pool.clone()));
+    let stock_take_repo = Arc::new(PgStockTakeRepository::new(Arc::new(pool.clone())));
+    let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(Arc::new(pool.clone())));
 
     let stock_take_service = Arc::new(PgStockTakeService::new(
         stock_take_repo,
@@ -210,6 +210,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
         receipt_service: Arc::new(receipt_service),
+        delivery_service,
+        transfer_service,
+        stock_take_service,
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -223,16 +226,11 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Create routes with state
     let category_routes = create_category_routes(state.clone());
-    let delivery_routes =
-        create_delivery_routes(crate::handlers::delivery::AppState::new(delivery_service));
-    let receipt_routes = create_receipt_routes(crate::handlers::receipt::AppState::new(
-        state.receipt_service.clone(),
-    ));
+    let delivery_routes = create_delivery_routes(state.clone());
+    let receipt_routes = create_receipt_routes(state.clone());
     let search_routes = create_search_routes(state.clone());
-    let transfer_routes =
-        create_transfer_routes(crate::handlers::transfer::AppState::new(transfer_service));
-    let stock_take_routes =
-        create_stock_take_routes(crate::handlers::stock_take::AppState::new(stock_take_service));
+    let transfer_routes = create_transfer_routes(state.clone());
+    let stock_take_routes = create_stock_take_routes(state.clone());
     let valuation_routes = create_valuation_routes(state.clone());
     let warehouse_routes = create_warehouse_routes(state.clone());
 

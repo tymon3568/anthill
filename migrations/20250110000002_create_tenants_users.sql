@@ -95,7 +95,7 @@ CREATE TABLE users (
 
     -- Constraints
     CONSTRAINT users_email_tenant_unique UNIQUE (tenant_id, email),
-    CONSTRAINT users_tenant_user_unique UNIQUE (tenant_id, user_id) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT users_tenant_user_unique UNIQUE (tenant_id, user_id),
     CONSTRAINT users_role_check CHECK (role IN ('super_admin', 'admin', 'manager', 'user', 'viewer')),
     CONSTRAINT users_status_check CHECK (status IN ('active', 'inactive', 'suspended'))
 );

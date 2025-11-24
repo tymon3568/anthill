@@ -283,7 +283,7 @@ impl ProductRepository for ProductRepositoryImpl {
             .await?;
 
         // Build pagination info
-        let total_pages = ((total_count as u32 + limit - 1) / limit).max(1);
+        let total_pages = (total_count as u32).div_ceil(limit);
         let pagination = PaginationInfo {
             page,
             limit,

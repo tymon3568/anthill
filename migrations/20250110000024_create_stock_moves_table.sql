@@ -62,19 +62,16 @@ CREATE TABLE stock_moves (
     CONSTRAINT stock_moves_total_cost_consistency
         CHECK (total_cost IS NULL OR total_cost = quantity::BIGINT * unit_cost::BIGINT),
     CONSTRAINT stock_moves_idempotency_unique_per_tenant
-        UNIQUE (tenant_id, idempotency_key) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, idempotency_key),
     CONSTRAINT stock_moves_product_fk
         FOREIGN KEY (product_id)
-        REFERENCES products (product_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES products (product_id),
     CONSTRAINT stock_moves_source_location_fk
         FOREIGN KEY (source_location_id)
-        REFERENCES warehouse_locations (location_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES warehouse_locations (location_id),
     CONSTRAINT stock_moves_destination_location_fk
         FOREIGN KEY (destination_location_id)
-        REFERENCES warehouse_locations (location_id)
-        DEFERRABLE INITIALLY DEFERRED,
+        REFERENCES warehouse_locations (location_id),
     CONSTRAINT stock_moves_locations_different
         CHECK (source_location_id IS NULL OR destination_location_id IS NULL OR
                source_location_id != destination_location_id),

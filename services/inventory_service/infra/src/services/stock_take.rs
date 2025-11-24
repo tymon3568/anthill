@@ -5,10 +5,11 @@ use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::stock_take::{StockTake, StockTakeStatus};
 use inventory_service_core::dto::stock_take::{
-    CountItem, CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest,
-    CreateStockTakeResponse, FinalizeStockTakeRequest, FinalizeStockTakeResponse, PaginationInfo,
-    StockAdjustment, StockTakeDetailResponse, StockTakeListQuery, StockTakeListResponse,
+    CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest, CreateStockTakeResponse,
+    FinalizeStockTakeRequest, FinalizeStockTakeResponse, PaginationInfo, StockAdjustment,
+    StockTakeDetailResponse, StockTakeListQuery, StockTakeListResponse,
 };
+use inventory_service_core::models::CreateStockMoveRequest;
 use inventory_service_core::repositories::stock::{InventoryLevelRepository, StockMoveRepository};
 use inventory_service_core::repositories::stock_take::{
     StockTakeLineRepository, StockTakeRepository,
@@ -58,7 +59,7 @@ impl StockTakeService for PgStockTakeService {
             stock_take_number,
             warehouse_id: request.warehouse_id,
             status: StockTakeStatus::Draft,
-            started_at: Utc::now(),
+            started_at: Some(Utc::now()),
             completed_at: None,
             created_by: user_id,
             updated_by: Some(user_id),
@@ -182,33 +183,35 @@ impl StockTakeService for PgStockTakeService {
 
             if difference != 0 {
                 // Create stock move for adjustment
-                self.stock_move_repo
-                    .create_stock_move(
-                        tenant_id,
-                        stock_take.warehouse_id,
-                        stock_take.warehouse_id, // Same warehouse for adjustment
-                        line.product_id,
-                        difference,
-                        Some(format!("Stock take {} adjustment", stock_take.stock_take_number)),
-                        Some(stock_take_id),
-                    )
-                    .await?;
+                let stock_move = CreateStockMoveRequest {
+                    product_id: line.product_id,
+                    source_location_id: Some(stock_take.warehouse_id),
+                    destination_location_id: Some(stock_take.warehouse_id), // Same warehouse for adjustment
+                    move_type: "adjustment".to_string(),
+                    quantity: difference as i64,
+                    unit_cost: None,
+                    reference_type: "stock_take".to_string(),
+                    reference_id: stock_take_id,
+                    idempotency_key: format!("st-{}-line-{}", stock_take_id, line.line_id),
+                    move_reason: Some(format!(
+                        "Stock take {} adjustment",
+                        stock_take.stock_take_number
+                    )),
+                    batch_info: None,
+                    metadata: None,
+                };
+                self.stock_move_repo.create(&stock_move, tenant_id).await?;
 
                 // Update inventory level
                 self.inventory_repo
-                    .update_inventory_level(
-                        tenant_id,
-                        stock_take.warehouse_id,
-                        line.product_id,
-                        difference,
-                    )
+                    .update_available_quantity(tenant_id, line.product_id, difference as i64)
                     .await?;
 
                 adjustments.push(StockAdjustment {
                     adjustment_id: Uuid::now_v7(),
                     product_id: line.product_id,
                     warehouse_id: stock_take.warehouse_id,
-                    quantity: difference,
+                    quantity: difference as i64,
                     reason: "Stock take discrepancy".to_string(),
                     adjusted_at: Utc::now(),
                 });
@@ -261,14 +264,14 @@ impl StockTakeService for PgStockTakeService {
         query: StockTakeListQuery,
     ) -> Result<StockTakeListResponse, AppError> {
         let limit = query.limit.unwrap_or(50).min(100);
-        let offset = query.page.unwrap_or(1).saturating_sub(1) * limit as u32;
+        let offset = query.page.unwrap_or(1).saturating_sub(1) * limit;
 
         let stock_takes = self
             .stock_take_repo
             .list(
                 tenant_id,
                 query.warehouse_id,
-                query.status,
+                query.status.clone(),
                 Some(limit as i64),
                 Some(offset as i64),
             )
@@ -279,13 +282,13 @@ impl StockTakeService for PgStockTakeService {
             .count(tenant_id, query.warehouse_id, query.status)
             .await?;
 
-        let total_pages = ((total as f64) / (limit as f64)).ceil() as u32;
+        let total_pages = (total as u32).div_ceil(limit);
 
         Ok(StockTakeListResponse {
             stock_takes,
             pagination: PaginationInfo {
                 page: query.page.unwrap_or(1),
-                limit: limit as u32,
+                limit,
                 total: total as u64,
                 total_pages,
             },

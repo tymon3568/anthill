@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -14,23 +12,11 @@ use inventory_service_core::dto::stock_take::{
     FinalizeStockTakeRequest, FinalizeStockTakeResponse, StockTakeDetailResponse,
     StockTakeListQuery, StockTakeListResponse,
 };
-use inventory_service_core::services::stock_take::StockTakeService;
 
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-/// Application state for stock take operations
-#[derive(Clone)]
-pub struct AppState {
-    pub stock_take_service: Arc<dyn StockTakeService>,
-}
-
-impl AppState {
-    /// Create a new AppState with the given stock take service
-    pub fn new(stock_take_service: Arc<dyn StockTakeService>) -> Self {
-        Self { stock_take_service }
-    }
-}
+use crate::handlers::category::AppState;
 
 /// Create the stock take routes with state
 pub fn create_stock_take_routes(state: AppState) -> Router {

@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use futures::StreamExt;
-use inventory_service_core::models::{DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus};
-use inventory_service_core::repositories::{
-    DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
-};
+use futures::stream::StreamExt;
+
 use inventory_service_infra::repositories::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository, PgInventoryRepository,
 };
@@ -34,7 +31,7 @@ async fn start_order_confirmed_consumer(
 
     tokio::spawn(async move {
         while let Some(message) = subscriber.next().await {
-            match message {
+            match serde_json::from_slice::<EventEnvelope<OrderConfirmedEvent>>(&message.payload) {
                 Ok(event) => {
                     if let Err(e) = handle_order_confirmed(
                         event,
@@ -49,7 +46,7 @@ async fn start_order_confirmed_consumer(
                     }
                 },
                 Err(e) => {
-                    tracing::error!("Error receiving order.confirmed event: {}", e);
+                    tracing::error!("Error deserializing order.confirmed event: {}", e);
                 },
             }
         }
@@ -60,9 +57,9 @@ async fn start_order_confirmed_consumer(
 
 async fn handle_order_confirmed(
     event: EventEnvelope<OrderConfirmedEvent>,
-    delivery_repo: Arc<PgDeliveryOrderRepository>,
-    delivery_item_repo: Arc<PgDeliveryOrderItemRepository>,
-    inventory_repo: Arc<PgInventoryRepository>,
+    _delivery_repo: Arc<PgDeliveryOrderRepository>,
+    _delivery_item_repo: Arc<PgDeliveryOrderItemRepository>,
+    _inventory_repo: Arc<PgInventoryRepository>,
     pool: &sqlx::PgPool,
 ) -> Result<(), AppError> {
     let order_data = event.data;
@@ -105,11 +102,11 @@ async fn handle_order_confirmed(
     let delivery_order = inventory_service_core::models::DeliveryOrder {
         delivery_id,
         tenant_id,
-        delivery_number,
+        delivery_number: delivery_number.clone(),
         reference_number: Some(format!("ORDER-{}", order_data.order_id)),
         warehouse_id: system_warehouse_id,
         order_id: Some(order_data.order_id),
-        customer_id: order_data.customer_id,
+        customer_id: Some(order_data.customer_id),
         status: inventory_service_core::models::DeliveryOrderStatus::Confirmed,
         delivery_date: chrono::Utc::now(),
         expected_ship_date: order_data.expected_delivery_date,
@@ -120,13 +117,16 @@ async fn handle_order_confirmed(
         shipping_cost: None,
         notes: order_data.notes,
         created_by: system_user_id,
-        total_quantity: order_data
-            .items
-            .iter()
-            .map(|item| item.quantity as i64)
-            .sum(),
-        total_value: order_data.items.iter().map(|item| item.line_total).sum(),
-        currency_code: "VND".to_string(), // TODO: Get from config
+        updated_by: None,
+        total_quantity: Some(
+            order_data
+                .items
+                .iter()
+                .map(|item| item.quantity as i64)
+                .sum(),
+        ),
+        total_value: Some(order_data.items.iter().map(|item| item.line_total).sum()),
+        currency_code: Some("VND".to_string()), // TODO: Get from config
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
         deleted_at: None,
@@ -183,11 +183,14 @@ async fn handle_order_confirmed(
             delivery_id,
             tenant_id,
             product_id: item.product_id,
-            ordered_quantity: item.quantity as i64,
-            picked_quantity: 0,
-            delivered_quantity: 0,
-            unit_price: item.unit_price,
-            line_total: item.line_total,
+            ordered_quantity: Some(item.quantity as i64),
+            picked_quantity: Some(0),
+            delivered_quantity: Some(0),
+            uom_id: None,
+            batch_number: None,
+            expiry_date: None,
+            unit_price: Some(item.unit_price),
+            line_total: Some(item.line_total),
             notes: None,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -252,7 +255,7 @@ async fn handle_order_confirmed(
 
     tracing::info!(
         "Successfully created delivery order {} for order {}",
-        delivery_number,
+        delivery_number.clone(),
         order_data.order_id
     );
 
