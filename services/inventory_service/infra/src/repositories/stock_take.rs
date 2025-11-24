@@ -398,7 +398,7 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
         let rows = sqlx::query!(
             r#"
             INSERT INTO stock_take_lines (line_id, tenant_id, stock_take_id, product_id, expected_quantity)
-            SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity
+            SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity::BIGINT
             FROM inventory_levels il
             WHERE il.tenant_id = $1 AND il.warehouse_id = $3 AND il.deleted_at IS NULL
             RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity,
@@ -446,7 +446,7 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
         let rows = sqlx::query!(
             r#"
             INSERT INTO stock_take_lines (line_id, tenant_id, stock_take_id, product_id, expected_quantity)
-            SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity
+            SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity::BIGINT
             FROM inventory_levels il
             WHERE il.tenant_id = $1 AND il.warehouse_id = $3 AND il.deleted_at IS NULL
             RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity::BIGINT,
