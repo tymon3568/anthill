@@ -106,7 +106,7 @@ async fn handle_order_confirmed(
         reference_number: Some(format!("ORDER-{}", order_data.order_id)),
         warehouse_id: system_warehouse_id,
         order_id: Some(order_data.order_id),
-        customer_id: Some(order_data.customer_id),
+        customer_id: order_data.customer_id,
         status: inventory_service_core::models::DeliveryOrderStatus::Confirmed,
         delivery_date: chrono::Utc::now(),
         expected_ship_date: order_data.expected_delivery_date,
