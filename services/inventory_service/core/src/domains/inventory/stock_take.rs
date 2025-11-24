@@ -42,7 +42,6 @@ pub struct StockTake {
 
 /// Stock take status enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type, ToSchema)]
-#[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "TEXT", rename_all = "PascalCase")]
 pub enum StockTakeStatus {
     Draft,
