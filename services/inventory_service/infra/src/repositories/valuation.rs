@@ -980,10 +980,17 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(row
-            .total_quantity
-            .map(|bd| bd.to_i64().unwrap_or(0))
-            .unwrap_or(0))
+        let total_quantity = if let Some(bd) = row.total_quantity {
+            bd.to_i64().ok_or_else(|| {
+                shared_error::AppError::DataCorruption(format!(
+                    "Could not convert total_quantity {} to i64",
+                    bd
+                ))
+            })?
+        } else {
+            0
+        };
+        Ok(total_quantity)
     }
 
     /// Remove layers with zero quantity
