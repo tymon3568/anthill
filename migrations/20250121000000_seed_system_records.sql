@@ -23,7 +23,7 @@ INSERT INTO tenants (
     'active',
     NOW(),
     NOW()
-) ON CONFLICT (slug) DO NOTHING;
+) ON CONFLICT (tenant_id) DO NOTHING;
 
 -- Insert system user (referenced by warehouse created_by)
 INSERT INTO users (

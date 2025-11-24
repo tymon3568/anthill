@@ -116,12 +116,27 @@ impl StockTakeService for PgStockTakeService {
                 .await?;
         }
 
-        // Batch update counts
+        // Load valid line_ids for this stock_take
+        let existing_lines = self
+            .stock_take_line_repo
+            .find_by_stock_take_id(tenant_id, stock_take_id)
+            .await?;
+        let valid_ids: std::collections::HashSet<Uuid> =
+            existing_lines.iter().map(|l| l.line_id).collect();
+
+        // Build batch only for lines belonging to this stock_take
         let counts: Vec<(Uuid, i64, Uuid, Option<String>)> = request
             .items
             .into_iter()
             .map(|item| (item.line_id, item.actual_quantity, user_id, item.notes))
+            .filter(|(line_id, _, _, _)| valid_ids.contains(line_id))
             .collect();
+
+        if counts.is_empty() {
+            return Err(AppError::ValidationError(
+                "No valid lines to update for this stock take".to_string(),
+            ));
+        }
 
         self.stock_take_line_repo
             .batch_update_counts(tenant_id, &counts)
@@ -143,6 +158,7 @@ impl StockTakeService for PgStockTakeService {
         user_id: Uuid,
         _request: FinalizeStockTakeRequest,
     ) -> Result<FinalizeStockTakeResponse, AppError> {
+        // TODO: Wrap entire finalization in a single DB transaction to prevent partial failures
         // Verify stock take exists and is in correct status
         let stock_take = self
             .stock_take_repo

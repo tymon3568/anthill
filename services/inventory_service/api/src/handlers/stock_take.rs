@@ -232,7 +232,6 @@ pub async fn count_stock_take(
     params(
         ("stock_take_id" = Uuid, Path, description = "Stock take ID")
     ),
-    request_body = FinalizeStockTakeRequest,
     responses(
         (status = 200, description = "Stock take finalized successfully", body = FinalizeStockTakeResponse),
         (status = 400, description = "Invalid request or business rule violation"),
