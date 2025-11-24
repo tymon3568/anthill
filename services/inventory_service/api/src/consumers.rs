@@ -225,13 +225,14 @@ async fn handle_order_confirmed(
             SET available_quantity = available_quantity - $3,
                 reserved_quantity = reserved_quantity + $3,
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2
+            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $4
               AND available_quantity >= $3
               AND deleted_at IS NULL
             "#,
             tenant_id,
             item.product_id,
             item.quantity,
+            system_warehouse_id,
         )
         .execute(&mut *tx)
         .await?;
