@@ -122,8 +122,7 @@ impl DeliveryService for DeliveryServiceImpl {
             }
 
             // Update the picked quantity
-            delivery_item.picked_quantity =
-                delivery_item.picked_quantity + pick_item.picked_quantity;
+            delivery_item.picked_quantity += pick_item.picked_quantity;
             delivery_item.updated_at = Utc::now();
 
             // Save the updated item within transaction
