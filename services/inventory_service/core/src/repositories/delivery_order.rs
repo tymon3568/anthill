@@ -81,15 +81,21 @@ pub trait InventoryRepository: Send + Sync {
     async fn reserve_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError>;
     async fn release_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError>;
-    async fn get_available_stock(&self, tenant_id: Uuid, product_id: Uuid)
-        -> Result<i64, AppError>;
+    async fn get_available_stock(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+    ) -> Result<i64, AppError>;
 }

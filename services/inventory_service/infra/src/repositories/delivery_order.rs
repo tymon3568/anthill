@@ -520,6 +520,7 @@ impl InventoryRepository for PgInventoryRepository {
     async fn reserve_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError> {
@@ -532,15 +533,16 @@ impl InventoryRepository for PgInventoryRepository {
         let res = sqlx::query!(
             r#"
             UPDATE inventory_levels
-            SET available_quantity = available_quantity - $3,
-                reserved_quantity = reserved_quantity + $3,
+            SET available_quantity = available_quantity - $4,
+                reserved_quantity = reserved_quantity + $4,
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2
-              AND available_quantity >= $3
+            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
+              AND available_quantity >= $4
               AND deleted_at IS NULL
             "#,
             tenant_id,
             product_id,
+            warehouse_id,
             quantity,
         )
         .execute(&self.pool)
@@ -558,6 +560,7 @@ impl InventoryRepository for PgInventoryRepository {
     async fn release_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError> {
@@ -570,15 +573,16 @@ impl InventoryRepository for PgInventoryRepository {
         let res = sqlx::query!(
             r#"
             UPDATE inventory_levels
-            SET available_quantity = available_quantity + $3,
-                reserved_quantity = reserved_quantity - $3,
+            SET available_quantity = available_quantity + $4,
+                reserved_quantity = reserved_quantity - $4,
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2
-              AND reserved_quantity >= $3
+            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
+              AND reserved_quantity >= $4
               AND deleted_at IS NULL
             "#,
             tenant_id,
             product_id,
+            warehouse_id,
             quantity,
         )
         .execute(&self.pool)
@@ -596,16 +600,18 @@ impl InventoryRepository for PgInventoryRepository {
     async fn get_available_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
     ) -> Result<i64, AppError> {
         let result = sqlx::query!(
             r#"
             SELECT available_quantity
             FROM inventory_levels
-            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3 AND deleted_at IS NULL
             "#,
             tenant_id,
             product_id,
+            warehouse_id,
         )
         .fetch_optional(&self.pool)
         .await?;
