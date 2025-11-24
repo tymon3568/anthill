@@ -72,15 +72,25 @@ impl StockTakeService for PgStockTakeService {
 
         let created_stock_take = self.stock_take_repo.create(tenant_id, &stock_take).await?;
 
-        // Create stock take lines from current inventory
-        let _lines = self
+        // Create stock take lines from current inventory; on failure, clean up the stock_take
+        let _lines = match self
             .stock_take_line_repo
             .create_from_inventory(
                 tenant_id,
                 created_stock_take.stock_take_id,
                 request.warehouse_id,
             )
-            .await?;
+            .await
+        {
+            Ok(lines) => lines,
+            Err(e) => {
+                let _ = self
+                    .stock_take_repo
+                    .delete(tenant_id, created_stock_take.stock_take_id, user_id)
+                    .await;
+                return Err(e);
+            },
+        };
 
         Ok(CreateStockTakeResponse {
             stock_take: created_stock_take,
