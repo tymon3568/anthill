@@ -54,18 +54,17 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
         .unwrap_or(true);
 
     // In production, require full Kanidm configuration
-    if !is_dev {
-        if config.kanidm_url.is_none()
+    if !is_dev
+        && (config.kanidm_url.is_none()
             || config.kanidm_client_id.is_none()
             || config.kanidm_client_secret.is_none()
-            || config.kanidm_redirect_url.is_none()
-        {
-            panic!(
-                "Kanidm configuration is required in production environment. \
-                 Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
-                 and KANIDM_REDIRECT_URL environment variables."
-            );
-        }
+            || config.kanidm_redirect_url.is_none())
+    {
+        panic!(
+            "Kanidm configuration is required in production environment. \
+             Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
+             and KANIDM_REDIRECT_URL environment variables."
+        );
     }
 
     let kanidm_config = KanidmConfig {

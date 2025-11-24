@@ -395,7 +395,8 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         })
         .collect();
 
-        let total_pages = (count as i32).div_ceil(query.page_size);
+        #[allow(clippy::manual_div_ceil)]
+        let total_pages = ((count as i32 + query.page_size - 1) / query.page_size).max(1);
 
         Ok(ReceiptListResponse {
             receipts,

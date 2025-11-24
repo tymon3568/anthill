@@ -282,7 +282,8 @@ impl StockTakeService for PgStockTakeService {
             .count(tenant_id, query.warehouse_id, query.status)
             .await?;
 
-        let total_pages = (total as u32).div_ceil(limit);
+        #[allow(clippy::manual_div_ceil)]
+        let total_pages = ((total as u32 + limit - 1) / limit).max(1);
 
         Ok(StockTakeListResponse {
             stock_takes,

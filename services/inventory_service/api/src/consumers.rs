@@ -118,13 +118,7 @@ async fn handle_order_confirmed(
         notes: order_data.notes,
         created_by: system_user_id,
         updated_by: None,
-        total_quantity: Some(
-            order_data
-                .items
-                .iter()
-                .map(|item| item.quantity as i64)
-                .sum(),
-        ),
+        total_quantity: Some(order_data.items.iter().map(|item| item.quantity).sum()),
         total_value: Some(order_data.items.iter().map(|item| item.line_total).sum()),
         currency_code: Some("VND".to_string()), // TODO: Get from config
         created_at: chrono::Utc::now(),
@@ -183,7 +177,7 @@ async fn handle_order_confirmed(
             delivery_id,
             tenant_id,
             product_id: item.product_id,
-            ordered_quantity: Some(item.quantity as i64),
+            ordered_quantity: Some(item.quantity),
             picked_quantity: Some(0),
             delivered_quantity: Some(0),
             uom_id: None,
@@ -237,7 +231,7 @@ async fn handle_order_confirmed(
             "#,
             tenant_id,
             item.product_id,
-            item.quantity as i64,
+            item.quantity,
         )
         .execute(&mut *tx)
         .await?;
