@@ -8,7 +8,7 @@
 **Status:** Done
 **Assignee:** Grok
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-11-24
+**Last Updated:** 2025-11-25
 
 ## Detailed Description:
 Implement the API endpoints for the physical inventory counting workflow.
@@ -75,3 +75,9 @@ Implement the API endpoints for the physical inventory counting workflow.
     - Removed unnecessary i64 casts in finalize_stock_take
     - Code now compiles without errors, clippy warnings resolved
     - Ready for final review and testing
+*   2025-11-25 16:00: Fixed remaining PR review nitpicks by Grok
+    - Corrected partial index WHERE clause in tenants table to properly quote 'active' string literal
+    - Updated conventions note to clarify UUID v7 for domain primary keys (Casbin rules use SERIAL)
+    - Added missing Refs for default_uom_id, base_uom_id, parent_warehouse_id relationships
+    - Added missing Refs for updated_by, approved_by, assigned_to user references
+    - All documentation inconsistencies resolved, DBML now fully consistent with schema

@@ -32,7 +32,7 @@ Project inventory_saas {
     - Repository pattern enforces tenant isolation
 
     ## Key Conventions
-    - UUID v7 for all primary keys (timestamp-based)
+    - UUID v7 for all domain primary keys (Casbin rules use SERIAL, timestamp-based)
     - BIGINT for money (cents/xu)
     - TIMESTAMPTZ for all timestamps
     - Soft delete with deleted_at
@@ -71,7 +71,7 @@ Table tenants {
   Indexes {
     (slug) [name: 'idx_tenants_slug', where: 'deleted_at IS NULL']
     (status) [name: 'idx_tenants_status', where: 'deleted_at IS NULL']
-    (tenant_id) [name: 'idx_tenants_active', where: 'deleted_at IS NULL AND status = active']
+    (tenant_id) [name: 'idx_tenants_active', where: 'deleted_at IS NULL AND status = ''active''']
   }
 
   Note: 'Tenant organizations in multi-tenant system'
@@ -535,6 +535,15 @@ Ref: stock_take_lines.tenant_id > tenants.tenant_id
 Ref: stock_take_lines.(tenant_id, stock_take_id) > stock_takes.(tenant_id, stock_take_id)
 Ref: stock_take_lines.(tenant_id, product_id) > products.(tenant_id, product_id)
 Ref: stock_take_lines.(tenant_id, counted_by) > users.(tenant_id, user_id)
+
+Ref: products.(tenant_id, default_uom_id) > unit_of_measures.(tenant_id, uom_id)
+Ref: unit_of_measures.(tenant_id, base_uom_id) > unit_of_measures.(tenant_id, uom_id)
+Ref: warehouses.(tenant_id, parent_warehouse_id) > warehouses.(tenant_id, warehouse_id)
+
+Ref: delivery_orders.(tenant_id, updated_by) > users.(tenant_id, user_id)
+Ref: stock_transfers.(tenant_id, updated_by) > users.(tenant_id, user_id)
+Ref: stock_transfers.(tenant_id, approved_by) > users.(tenant_id, user_id)
+Ref: stock_takes.(tenant_id, assigned_to) > users.(tenant_id, user_id)
 
 // ==================================
 // FUTURE TABLES (To be added)
