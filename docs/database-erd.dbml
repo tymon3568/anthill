@@ -102,7 +102,7 @@ Table users {
     (tenant_id, email) [unique, name: 'idx_users_email', where: 'deleted_at IS NULL']
     (tenant_id, role) [name: 'idx_users_role', where: 'deleted_at IS NULL']
     (tenant_id, status) [name: 'idx_users_status', where: 'deleted_at IS NULL']
-    (tenant_id, user_id) [name: 'idx_users_active', where: 'deleted_at IS NULL AND status = active']
+    (tenant_id, user_id) [unique, name: 'idx_users_tenant_user_unique']
   }
 
   Note: 'User accounts with multi-tenant isolation'
