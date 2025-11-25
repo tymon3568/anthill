@@ -2,6 +2,8 @@
 # Async traits
 async-trait = {workspace = true}
 chrono = {workspace = true}
+# Database
+sqlx = {workspace = true}
 regex = {workspace = true}
 # Decimal numbers
 rust_decimal = {workspace = true}
@@ -10,18 +12,13 @@ serde = {workspace = true}
 serde_json = {workspace = true}
 # Error handling
 shared_error = {workspace = true}
-# Database
-sqlx = {workspace = true}
-# OpenAPI documentation (optional feature)
-utoipa = {workspace = true, optional = true}
+
+# OpenAPI documentation
+utoipa = {workspace = true}
 # UUID
 uuid = {workspace = true}
 # Validation
 validator = {workspace = true}
-
-[features]
-default = []
-openapi = ["utoipa"]
 
 [lib]
 name = "inventory_service_core"

@@ -25,8 +25,7 @@ pub use reconciliation::{
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
     FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
     ReconciliationCountItem, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, StockAdjustment as ReconciliationStockAdjustment,
-    VarianceAnalysisResponse,
+    ReconciliationListResponse, VarianceAnalysisResponse,
 };
 pub use stock_take::{
     CountItem, CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest,

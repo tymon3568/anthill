@@ -3,13 +3,14 @@
 //! This module defines the domain entities for stock reconciliations and reconciliation items.
 
 use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use utoipa::ToSchema;
+
 use uuid::Uuid;
 
 /// Represents a stock reconciliation session
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StockReconciliation {
     /// Primary key
     pub reconciliation_id: Uuid,
@@ -56,9 +57,9 @@ pub struct StockReconciliation {
 }
 
 /// Reconciliation status enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ReconciliationStatus {
     Draft,
     InProgress,
@@ -78,9 +79,9 @@ impl fmt::Display for ReconciliationStatus {
 }
 
 /// Cycle counting type enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum CycleType {
     Full,
     AbcA,
@@ -104,7 +105,7 @@ impl fmt::Display for CycleType {
 }
 
 /// Represents an item in a stock reconciliation
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StockReconciliationItem {
     /// Tenant isolation
     pub tenant_id: Uuid,
@@ -123,11 +124,11 @@ pub struct StockReconciliationItem {
     /// Variance (counted - expected)
     pub variance: Option<i64>,
     /// Variance percentage
-    pub variance_percentage: Option<f64>,
+    pub variance_percentage: Option<Decimal>,
     /// Unit cost for valuation
-    pub unit_cost: Option<f64>,
+    pub unit_cost: Option<Decimal>,
     /// Variance value (variance * unit_cost)
-    pub variance_value: Option<f64>,
+    pub variance_value: Option<Decimal>,
     /// Notes for this item
     pub notes: Option<String>,
     /// User who performed the count

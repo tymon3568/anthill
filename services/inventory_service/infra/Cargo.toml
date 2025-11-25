@@ -3,7 +3,7 @@
 async-trait = {workspace = true}
 chrono = {workspace = true}
 # Internal crates
-inventory_service_core = {workspace = true, features = ["openapi"]}
+inventory_service_core = {workspace = true}
 # BigDecimal casting
 num-traits = "0.2"
 # JSON serialization

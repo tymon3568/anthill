@@ -2,11 +2,12 @@
 //!
 //! This module contains request and response structures for reconciliation operations.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
+
+use super::stock_take::StockAdjustment;
 
 use crate::domains::inventory::reconciliation::{
     CycleType, ReconciliationStatus, StockReconciliation, StockReconciliationItem,
@@ -90,22 +91,7 @@ pub struct FinalizeReconciliationResponse {
     pub adjustments: Vec<StockAdjustment>,
 }
 
-/// Stock adjustment generated from reconciliation discrepancies
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct StockAdjustment {
-    /// Adjustment ID
-    pub adjustment_id: Uuid,
-    /// Product adjusted
-    pub product_id: Uuid,
-    /// Warehouse
-    pub warehouse_id: Uuid,
-    /// Adjustment quantity (positive or negative)
-    pub quantity: i64,
-    /// Reason
-    pub reason: String,
-    /// Adjustment timestamp
-    pub adjusted_at: DateTime<Utc>,
-}
+// StockAdjustment is imported from stock_take module for consistency
 
 /// Request to approve a reconciliation
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -122,7 +108,7 @@ pub struct ApproveReconciliationResponse {
 }
 
 /// Query parameters for listing reconciliations
-#[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[derive(Debug, Clone, Serialize, Deserialize, IntoParams, Validate)]
 pub struct ReconciliationListQuery {
     /// Filter by warehouse
     pub warehouse_id: Option<Uuid>,
@@ -131,8 +117,10 @@ pub struct ReconciliationListQuery {
     /// Filter by cycle type
     pub cycle_type: Option<CycleType>,
     /// Page number (1-based)
+    #[validate(range(min = 1, message = "Page must be at least 1"))]
     pub page: Option<u32>,
     /// Items per page
+    #[validate(range(min = 1, max = 100, message = "Limit must be between 1 and 100"))]
     pub limit: Option<u32>,
 }
 

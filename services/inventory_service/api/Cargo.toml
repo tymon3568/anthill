@@ -13,7 +13,7 @@ chrono = {workspace = true}
 # Futures
 futures = {workspace = true}
 # Internal crates
-inventory_service_core = {workspace = true, features = ["openapi"]}
+inventory_service_core = {workspace = true}
 inventory_service_infra = {workspace = true}
 # Serialization
 serde = {workspace = true}

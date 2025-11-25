@@ -3,13 +3,20 @@
 //! This module defines the repository traits for reconciliation operations.
 
 use async_trait::async_trait;
-use sqlx::Transaction;
 use uuid::Uuid;
 
 use crate::domains::inventory::reconciliation::{
     CycleType, ReconciliationStatus, StockReconciliation, StockReconciliationItem,
 };
 use shared_error::AppError;
+
+/// Variance analysis result from repository
+#[derive(Debug, Clone)]
+pub struct VarianceAnalysisResult {
+    pub items: Vec<StockReconciliationItem>,
+    pub total_items: i64,
+    pub counted_items: i64,
+}
 
 /// Represents a count update for a reconciliation item
 #[derive(Debug, Clone)]
@@ -33,14 +40,6 @@ pub trait StockReconciliationRepository: Send + Sync {
         reconciliation: &StockReconciliation,
     ) -> Result<StockReconciliation, AppError>;
 
-    /// Create a new reconciliation within transaction
-    async fn create_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        reconciliation: &StockReconciliation,
-    ) -> Result<StockReconciliation, AppError>;
-
     /// Find reconciliation by ID
     async fn find_by_id(
         &self,
@@ -60,16 +59,6 @@ pub trait StockReconciliationRepository: Send + Sync {
     /// Finalize reconciliation
     async fn finalize(
         &self,
-        tenant_id: Uuid,
-        reconciliation_id: Uuid,
-        completed_at: chrono::DateTime<chrono::Utc>,
-        updated_by: Uuid,
-    ) -> Result<(), AppError>;
-
-    /// Finalize reconciliation within transaction
-    async fn finalize_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
         reconciliation_id: Uuid,
         completed_at: chrono::DateTime<chrono::Utc>,
@@ -100,8 +89,8 @@ pub trait StockReconciliationRepository: Send + Sync {
         warehouse_id: Option<Uuid>,
         status: Option<ReconciliationStatus>,
         cycle_type: Option<CycleType>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<StockReconciliation>, AppError>;
 
     /// Count reconciliations with filtering
@@ -120,18 +109,6 @@ pub trait StockReconciliationItemRepository: Send + Sync {
     /// Create reconciliation items from current inventory levels based on cycle type and filters
     async fn create_from_inventory(
         &self,
-        tenant_id: Uuid,
-        reconciliation_id: Uuid,
-        cycle_type: CycleType,
-        warehouse_id: Option<Uuid>,
-        location_filter: Option<serde_json::Value>,
-        product_filter: Option<serde_json::Value>,
-    ) -> Result<Vec<StockReconciliationItem>, AppError>;
-
-    /// Create reconciliation items from current inventory levels within transaction
-    async fn create_from_inventory_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
         reconciliation_id: Uuid,
         cycle_type: CycleType,
@@ -173,6 +150,7 @@ pub trait StockReconciliationItemRepository: Send + Sync {
     async fn batch_update_counts(
         &self,
         tenant_id: Uuid,
+        reconciliation_id: Uuid,
         counts: &[ReconciliationItemCountUpdate],
     ) -> Result<(), AppError>;
 
@@ -181,7 +159,7 @@ pub trait StockReconciliationItemRepository: Send + Sync {
         &self,
         tenant_id: Uuid,
         reconciliation_id: Uuid,
-    ) -> Result<(Vec<StockReconciliationItem>, i64, i64), AppError>;
+    ) -> Result<VarianceAnalysisResult, AppError>;
 
     /// Delete item
     async fn delete(
