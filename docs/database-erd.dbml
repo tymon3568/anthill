@@ -450,7 +450,7 @@ Table stock_takes {
   stock_take_number VARCHAR(50) [not null, note: 'Auto-generated: STK-YYYY-XXXXX']
   reference_number VARCHAR(100)
   warehouse_id UUID [not null]
-  status VARCHAR(20) [not null, default: 'Draft', note: 'Draft/Scheduled/InProgress/Completed/Cancelled']
+  status VARCHAR(20) [not null, default: 'draft', note: 'draft/scheduled/in_progress/completed/cancelled']
   scheduled_date TIMESTAMPTZ
   started_at TIMESTAMPTZ
   completed_at TIMESTAMPTZ

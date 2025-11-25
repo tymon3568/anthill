@@ -5,6 +5,8 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum DeliveryOrderStatus {
     Draft,
     Confirmed,
@@ -19,14 +21,14 @@ pub enum DeliveryOrderStatus {
 impl fmt::Display for DeliveryOrderStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            DeliveryOrderStatus::Draft => "Draft",
-            DeliveryOrderStatus::Confirmed => "Confirmed",
-            DeliveryOrderStatus::PartiallyPicked => "PartiallyPicked",
-            DeliveryOrderStatus::Picked => "Picked",
-            DeliveryOrderStatus::Packed => "Packed",
-            DeliveryOrderStatus::PartiallyShipped => "PartiallyShipped",
-            DeliveryOrderStatus::Shipped => "Shipped",
-            DeliveryOrderStatus::Cancelled => "Cancelled",
+            DeliveryOrderStatus::Draft => "draft",
+            DeliveryOrderStatus::Confirmed => "confirmed",
+            DeliveryOrderStatus::PartiallyPicked => "partially_picked",
+            DeliveryOrderStatus::Picked => "picked",
+            DeliveryOrderStatus::Packed => "packed",
+            DeliveryOrderStatus::PartiallyShipped => "partially_shipped",
+            DeliveryOrderStatus::Shipped => "shipped",
+            DeliveryOrderStatus::Cancelled => "cancelled",
         };
         f.write_str(s)
     }
@@ -37,14 +39,14 @@ impl FromStr for DeliveryOrderStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Draft" => Ok(DeliveryOrderStatus::Draft),
-            "Confirmed" => Ok(DeliveryOrderStatus::Confirmed),
-            "PartiallyPicked" => Ok(DeliveryOrderStatus::PartiallyPicked),
-            "Picked" => Ok(DeliveryOrderStatus::Picked),
-            "Packed" => Ok(DeliveryOrderStatus::Packed),
-            "PartiallyShipped" => Ok(DeliveryOrderStatus::PartiallyShipped),
-            "Shipped" => Ok(DeliveryOrderStatus::Shipped),
-            "Cancelled" => Ok(DeliveryOrderStatus::Cancelled),
+            "draft" => Ok(DeliveryOrderStatus::Draft),
+            "confirmed" => Ok(DeliveryOrderStatus::Confirmed),
+            "partially_picked" => Ok(DeliveryOrderStatus::PartiallyPicked),
+            "picked" => Ok(DeliveryOrderStatus::Picked),
+            "packed" => Ok(DeliveryOrderStatus::Packed),
+            "partially_shipped" => Ok(DeliveryOrderStatus::PartiallyShipped),
+            "shipped" => Ok(DeliveryOrderStatus::Shipped),
+            "cancelled" => Ok(DeliveryOrderStatus::Cancelled),
             _ => Err(format!("Unknown status: {}", s)),
         }
     }
