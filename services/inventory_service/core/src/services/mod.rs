@@ -7,6 +7,7 @@ pub mod category;
 pub mod delivery;
 pub mod product;
 pub mod receipt;
+pub mod stock_take;
 pub mod transfer;
 pub mod valuation;
 
@@ -15,5 +16,6 @@ pub use category::CategoryService;
 pub use delivery::DeliveryService;
 pub use product::ProductService;
 pub use receipt::ReceiptService;
+pub use stock_take::StockTakeService;
 pub use transfer::TransferService;
 pub use valuation::ValuationService;

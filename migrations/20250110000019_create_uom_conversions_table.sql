@@ -40,7 +40,7 @@ CREATE TABLE uom_conversions (
     CONSTRAINT uom_conversions_different_uoms
         CHECK (from_uom_id != to_uom_id),
     CONSTRAINT uom_conversions_unique_per_product_uom_pair
-        UNIQUE (tenant_id, product_id, from_uom_id, to_uom_id) DEFERRABLE INITIALLY DEFERRED
+        UNIQUE (tenant_id, product_id, from_uom_id, to_uom_id)
 );
 
 -- ==================================

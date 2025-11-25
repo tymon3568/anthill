@@ -5,6 +5,8 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum DeliveryOrderStatus {
     Draft,
     Confirmed,
@@ -19,14 +21,14 @@ pub enum DeliveryOrderStatus {
 impl fmt::Display for DeliveryOrderStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            DeliveryOrderStatus::Draft => "Draft",
-            DeliveryOrderStatus::Confirmed => "Confirmed",
-            DeliveryOrderStatus::PartiallyPicked => "PartiallyPicked",
-            DeliveryOrderStatus::Picked => "Picked",
-            DeliveryOrderStatus::Packed => "Packed",
-            DeliveryOrderStatus::PartiallyShipped => "PartiallyShipped",
-            DeliveryOrderStatus::Shipped => "Shipped",
-            DeliveryOrderStatus::Cancelled => "Cancelled",
+            DeliveryOrderStatus::Draft => "draft",
+            DeliveryOrderStatus::Confirmed => "confirmed",
+            DeliveryOrderStatus::PartiallyPicked => "partially_picked",
+            DeliveryOrderStatus::Picked => "picked",
+            DeliveryOrderStatus::Packed => "packed",
+            DeliveryOrderStatus::PartiallyShipped => "partially_shipped",
+            DeliveryOrderStatus::Shipped => "shipped",
+            DeliveryOrderStatus::Cancelled => "cancelled",
         };
         f.write_str(s)
     }
@@ -37,14 +39,14 @@ impl FromStr for DeliveryOrderStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Draft" => Ok(DeliveryOrderStatus::Draft),
-            "Confirmed" => Ok(DeliveryOrderStatus::Confirmed),
-            "PartiallyPicked" => Ok(DeliveryOrderStatus::PartiallyPicked),
-            "Picked" => Ok(DeliveryOrderStatus::Picked),
-            "Packed" => Ok(DeliveryOrderStatus::Packed),
-            "PartiallyShipped" => Ok(DeliveryOrderStatus::PartiallyShipped),
-            "Shipped" => Ok(DeliveryOrderStatus::Shipped),
-            "Cancelled" => Ok(DeliveryOrderStatus::Cancelled),
+            "draft" => Ok(DeliveryOrderStatus::Draft),
+            "confirmed" => Ok(DeliveryOrderStatus::Confirmed),
+            "partially_picked" => Ok(DeliveryOrderStatus::PartiallyPicked),
+            "picked" => Ok(DeliveryOrderStatus::Picked),
+            "packed" => Ok(DeliveryOrderStatus::Packed),
+            "partially_shipped" => Ok(DeliveryOrderStatus::PartiallyShipped),
+            "shipped" => Ok(DeliveryOrderStatus::Shipped),
+            "cancelled" => Ok(DeliveryOrderStatus::Cancelled),
             _ => Err(format!("Unknown status: {}", s)),
         }
     }
@@ -87,8 +89,11 @@ pub struct DeliveryOrderItem {
     pub ordered_quantity: i64,
     pub picked_quantity: i64,
     pub delivered_quantity: i64,
-    pub unit_price: i64,
-    pub line_total: i64,
+    pub uom_id: Option<Uuid>,
+    pub batch_number: Option<String>,
+    pub expiry_date: Option<chrono::NaiveDate>,
+    pub unit_price: Option<i64>,
+    pub line_total: Option<i64>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -153,11 +158,14 @@ pub struct DeliveryOrderItemResponse {
     pub ordered_quantity: i64,
     pub picked_quantity: i64,
     pub delivered_quantity: i64,
-    pub unit_price: i64,
-    pub line_total: i64,
+    pub uom_id: Option<Uuid>,
+    pub batch_number: Option<String>,
+    pub expiry_date: Option<chrono::DateTime<chrono::Utc>>,
+    pub unit_price: Option<i64>,
+    pub line_total: Option<i64>,
     pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,6 +193,7 @@ pub struct StockMove {
 pub struct InventoryLevel {
     pub inventory_id: Uuid,
     pub tenant_id: Uuid,
+    pub warehouse_id: Uuid,
     pub product_id: Uuid,
     pub available_quantity: i64,
     pub reserved_quantity: i64,

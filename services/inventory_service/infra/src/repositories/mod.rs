@@ -7,6 +7,7 @@ pub mod delivery_order;
 pub mod product;
 pub mod receipt;
 pub mod stock;
+pub mod stock_take;
 pub mod transfer;
 pub mod valuation;
 pub mod warehouse;
@@ -19,6 +20,7 @@ pub use delivery_order::{
 pub use product::ProductRepositoryImpl;
 pub use receipt::ReceiptRepositoryImpl;
 pub use stock::{PgInventoryLevelRepository, PgStockMoveRepository};
+pub use stock_take::{PgStockTakeLineRepository, PgStockTakeRepository};
 pub use transfer::{PgTransferItemRepository, PgTransferRepository};
 pub use valuation::ValuationRepositoryImpl;
 pub use warehouse::WarehouseRepositoryImpl;

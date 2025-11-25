@@ -171,18 +171,18 @@ impl ProductSearchQuery {
         });
 
         // Parse sort options
-        let sort_by = self.sort_by.as_ref().and_then(|s| match s.as_str() {
-            "name" => Some(ProductSortBy::Name),
-            "price" => Some(ProductSortBy::Price),
-            "popularity" => Some(ProductSortBy::Popularity),
-            "createdAt" => Some(ProductSortBy::CreatedAt),
-            "updatedAt" => Some(ProductSortBy::UpdatedAt),
-            _ => Some(ProductSortBy::Relevance),
+        let sort_by = self.sort_by.as_ref().map(|s| match s.as_str() {
+            "name" => ProductSortBy::Name,
+            "price" => ProductSortBy::Price,
+            "popularity" => ProductSortBy::Popularity,
+            "createdAt" => ProductSortBy::CreatedAt,
+            "updatedAt" => ProductSortBy::UpdatedAt,
+            _ => ProductSortBy::Relevance,
         });
 
-        let sort_order = self.sort_order.as_ref().and_then(|s| match s.as_str() {
-            "asc" => Some(SortOrder::Asc),
-            _ => Some(SortOrder::Desc),
+        let sort_order = self.sort_order.as_ref().map(|s| match s.as_str() {
+            "asc" => SortOrder::Asc,
+            _ => SortOrder::Desc,
         });
 
         let request = ProductSearchRequest {

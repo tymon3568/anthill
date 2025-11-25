@@ -1,6 +1,25 @@
-// Database ERD for Inventory SaaS Platform
+// ============================================================
+// DATABASE ERD FOR ANTHILL INVENTORY SAAS PLATFORM
+// ============================================================
+//
 // Tool: https://dbdiagram.io/d (paste this code to visualize)
+// Last Updated: 2025-11-23
 // Multi-tenant architecture with application-level filtering
+//
+// HOW TO USE:
+// 1. Copy the entire content of this file
+// 2. Go to https://dbdiagram.io/d
+// 3. Paste the code into the editor
+// 4. View interactive database diagram with relationships
+// 5. Export as PNG/PDF/SQL if needed
+//
+// TABLES INCLUDED:
+// - Core: tenants, users, sessions, casbin_rule
+// - Inventory: products, unit_of_measures, warehouses
+// - Stock Operations: goods_receipts, delivery_orders, stock_transfers, stock_takes
+//   (and their respective line item tables)
+//
+// ============================================================
 
 Project inventory_saas {
   database_type: 'PostgreSQL'
@@ -13,11 +32,23 @@ Project inventory_saas {
     - Repository pattern enforces tenant isolation
 
     ## Key Conventions
-    - UUID v7 for all primary keys (timestamp-based)
+    - UUID v7 for all domain primary keys (Casbin rules use SERIAL, timestamp-based)
     - BIGINT for money (cents/xu)
     - TIMESTAMPTZ for all timestamps
     - Soft delete with deleted_at
     - Composite indexes: (tenant_id, other_columns)
+
+    ## Stock Operations (Module 4.4)
+    - GRN (Goods Receipt Note): Incoming goods from suppliers
+    - DO (Delivery Order): Outbound shipments to customers
+    - ST (Stock Transfer): Internal transfers between warehouses
+    - STK (Stock Take): Physical inventory counting sessions
+
+    ## Auto-generated Numbers
+    - GRN-YYYY-XXXXX: Goods Receipt Notes
+    - DO-YYYY-XXXXX: Delivery Orders
+    - ST-YYYY-XXXXX: Stock Transfers
+    - STK-YYYY-XXXXX: Stock Takes
   '''
 }
 
@@ -40,7 +71,7 @@ Table tenants {
   Indexes {
     (slug) [name: 'idx_tenants_slug', where: 'deleted_at IS NULL']
     (status) [name: 'idx_tenants_status', where: 'deleted_at IS NULL']
-    (tenant_id) [name: 'idx_tenants_active', where: 'deleted_at IS NULL AND status = active']
+    (tenant_id) [name: 'idx_tenants_active', where: 'deleted_at IS NULL AND status = ''active''']
   }
 
   Note: 'Tenant organizations in multi-tenant system'
@@ -71,7 +102,7 @@ Table users {
     (tenant_id, email) [unique, name: 'idx_users_email', where: 'deleted_at IS NULL']
     (tenant_id, role) [name: 'idx_users_role', where: 'deleted_at IS NULL']
     (tenant_id, status) [name: 'idx_users_status', where: 'deleted_at IS NULL']
-    (tenant_id, user_id) [name: 'idx_users_active', where: 'deleted_at IS NULL AND status = active']
+    (tenant_id, user_id) [unique, name: 'idx_users_tenant_user_unique']
   }
 
   Note: 'User accounts with multi-tenant isolation'
@@ -134,37 +165,390 @@ Table casbin_rule {
 }
 
 // ==================================
-// FUTURE TABLES (To be added)
+// INVENTORY MANAGEMENT TABLES
 // ==================================
 
-// Table products {
-//   product_id UUID [pk]
-//   tenant_id UUID [not null, ref: > tenants.tenant_id]
-//   sku VARCHAR(100) [not null]
-//   name VARCHAR(255) [not null]
-//   description TEXT
-//   variants JSONB [note: 'Product variations']
-//   price BIGINT [not null, note: 'Price in smallest unit (cents/xu)']
-//   cost BIGINT [note: 'Cost price in smallest unit']
-//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
-//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
-//   deleted_at TIMESTAMPTZ
-//
-//   Indexes {
-//     (tenant_id, sku) [unique, where: 'deleted_at IS NULL']
-//     (tenant_id, product_id) [where: 'deleted_at IS NULL']
-//   }
-// }
+Table products {
+  product_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  sku VARCHAR(100) [not null]
+  name VARCHAR(255) [not null]
+  description TEXT
+  product_type VARCHAR(50) [not null, default: 'goods', note: 'goods/service/consumable']
+  item_group_id UUID
+  track_inventory BOOLEAN [not null, default: true]
+  tracking_method VARCHAR(20) [default: 'none', note: 'none/lot/serial']
+  default_uom_id UUID
+  sale_price BIGINT [note: 'Price in cents/xu']
+  cost_price BIGINT [note: 'Cost in cents/xu']
+  currency_code VARCHAR(3) [default: 'VND']
+  weight_grams INTEGER
+  dimensions JSONB [note: 'Length, width, height in mm']
+  attributes JSONB [note: 'Flexible product attributes']
+  is_active BOOLEAN [not null, default: true]
+  is_sellable BOOLEAN [not null, default: true]
+  is_purchaseable BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ [note: 'Soft delete']
 
-// Table warehouses {
-//   warehouse_id UUID [pk]
-//   tenant_id UUID [not null, ref: > tenants.tenant_id]
-//   name VARCHAR(255) [not null]
-//   location JSONB [note: 'Address, coordinates']
-//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
-//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
-//   deleted_at TIMESTAMPTZ
-// }
+  Indexes {
+    (tenant_id, sku) [unique, name: 'products_sku_unique_per_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, product_id) [unique, name: 'products_tenant_product_unique']
+    (tenant_id) [name: 'idx_products_tenant_sku', where: 'deleted_at IS NULL']
+    (tenant_id, is_active) [name: 'idx_products_tenant_active', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Product master data - single source of truth for all inventory items'
+}
+
+Table unit_of_measures {
+  uom_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  uom_code VARCHAR(20) [not null, note: 'Unit code: PC, KG, M, etc.']
+  uom_name VARCHAR(100) [not null]
+  uom_type VARCHAR(20) [not null, note: 'unit/weight/length/volume/time']
+  is_base_unit BOOLEAN [not null, default: false]
+  base_uom_id UUID [note: 'Reference to base UOM for conversions']
+  conversion_factor DECIMAL(20,6) [note: 'Multiplier to convert to base unit']
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, uom_code) [unique, name: 'uom_code_unique_per_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, uom_id) [unique, name: 'uom_tenant_uom_unique']
+    (tenant_id) [name: 'idx_uom_tenant', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Units of measure for quantity tracking and conversions'
+}
+
+Table warehouses {
+  warehouse_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  warehouse_code VARCHAR(50) [not null]
+  warehouse_name VARCHAR(255) [not null]
+  description TEXT
+  warehouse_type VARCHAR(50) [not null, default: 'main', note: 'main/transit/quarantine/distribution/retail/satellite']
+  parent_warehouse_id UUID [note: 'Supports unlimited warehouse hierarchy']
+  address JSONB [note: 'Street, city, state, postal_code, country, coordinates']
+  contact_info JSONB [note: 'Phone, email, manager details']
+  capacity_info JSONB [note: 'Max volume, weight, pallets, operating hours']
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, warehouse_code) [unique, name: 'warehouses_code_unique_per_tenant']
+    (tenant_id, warehouse_id) [unique, name: 'warehouses_tenant_warehouse_unique']
+    (tenant_id) [name: 'idx_warehouses_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, is_active) [name: 'idx_warehouses_active', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Warehouse locations with hierarchical support'
+}
+
+// ==================================
+// STOCK OPERATIONS TABLES (4.4)
+// ==================================
+
+Table goods_receipts {
+  receipt_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  receipt_number VARCHAR(50) [not null, note: 'Auto-generated: GRN-YYYY-XXXXX']
+  reference_number VARCHAR(100) [note: 'External reference (PO number, etc.)']
+  warehouse_id UUID [not null]
+  supplier_id UUID [note: 'References future suppliers table']
+  status VARCHAR(20) [not null, default: 'draft', note: 'draft/confirmed/partially_received/received/cancelled']
+  receipt_date TIMESTAMPTZ [not null, default: `NOW()`]
+  expected_delivery_date TIMESTAMPTZ
+  actual_delivery_date TIMESTAMPTZ
+  notes TEXT
+  created_by UUID [not null]
+  total_quantity BIGINT [default: 0]
+  total_value BIGINT [default: 0, note: 'Total value in cents/xu']
+  currency_code VARCHAR(3) [default: 'VND']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, receipt_number) [unique, name: 'goods_receipts_number_unique_per_tenant']
+    (tenant_id, receipt_id) [unique, name: 'goods_receipts_tenant_receipt_unique']
+    (tenant_id, warehouse_id) [name: 'idx_goods_receipts_tenant_warehouse', where: 'deleted_at IS NULL']
+    (tenant_id, status) [name: 'idx_goods_receipts_tenant_status', where: 'deleted_at IS NULL']
+    (tenant_id, receipt_date) [name: 'idx_goods_receipts_tenant_date', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Goods Receipt Notes (GRN) - recording incoming goods into warehouses'
+}
+
+Table goods_receipt_items {
+  receipt_item_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  receipt_id UUID [not null]
+  product_id UUID [not null]
+  expected_quantity BIGINT [not null, default: 0]
+  received_quantity BIGINT [not null, default: 0]
+  unit_cost BIGINT [note: 'Cost per unit in cents/xu']
+  line_total BIGINT [not null, default: 0, note: 'Calculated: quantity * unit_cost']
+  uom_id UUID [not null]
+  lot_number VARCHAR(100)
+  serial_numbers JSONB [note: 'Array of serial numbers if tracked']
+  expiry_date DATE
+  notes TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, receipt_id) [name: 'idx_goods_receipt_items_tenant_receipt', where: 'deleted_at IS NULL']
+    (tenant_id, product_id) [name: 'idx_goods_receipt_items_tenant_product', where: 'deleted_at IS NULL']
+    (tenant_id, lot_number) [name: 'idx_goods_receipt_items_lot', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Line items for Goods Receipts - individual products received'
+}
+
+Table delivery_orders {
+  delivery_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  delivery_number VARCHAR(50) [not null, note: 'Auto-generated: DO-YYYY-XXXXX']
+  reference_number VARCHAR(100) [note: 'External order number, etc.']
+  warehouse_id UUID [not null]
+  order_id UUID [note: 'References future orders table']
+  customer_id UUID [note: 'References future customers table']
+  status VARCHAR(20) [not null, default: 'draft', note: 'draft/confirmed/partially_picked/picked/partially_shipped/shipped/cancelled']
+  delivery_date TIMESTAMPTZ [not null, default: `NOW()`]
+  expected_ship_date TIMESTAMPTZ
+  actual_ship_date TIMESTAMPTZ
+  shipping_method VARCHAR(100)
+  carrier VARCHAR(100)
+  tracking_number VARCHAR(100)
+  shipping_cost BIGINT [note: 'Shipping cost in cents/xu']
+  notes TEXT
+  created_by UUID [not null]
+  updated_by UUID
+  total_quantity BIGINT [default: 0]
+  total_value BIGINT [default: 0, note: 'Total value in cents/xu']
+  currency_code VARCHAR(3) [default: 'VND']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, delivery_number) [unique, name: 'delivery_orders_number_unique_per_tenant']
+    (tenant_id, delivery_id) [unique, name: 'delivery_orders_tenant_delivery_unique']
+    (tenant_id, warehouse_id) [name: 'idx_delivery_orders_tenant_warehouse', where: 'deleted_at IS NULL']
+    (tenant_id, status) [name: 'idx_delivery_orders_tenant_status', where: 'deleted_at IS NULL']
+    (tenant_id, tracking_number) [name: 'idx_delivery_orders_tracking', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Delivery Orders (DO) - outbound shipments from warehouses to customers'
+}
+
+Table delivery_order_items {
+  delivery_item_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  delivery_id UUID [not null]
+  product_id UUID [not null]
+  ordered_quantity BIGINT [not null, default: 0]
+  picked_quantity BIGINT [not null, default: 0]
+  delivered_quantity BIGINT [not null, default: 0]
+  unit_price BIGINT [note: 'Price per unit in cents/xu']
+  line_total BIGINT [not null, default: 0]
+  uom_id UUID [not null]
+  lot_number VARCHAR(100)
+  serial_numbers JSONB
+  notes TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, delivery_id) [name: 'idx_delivery_order_items_tenant_delivery', where: 'deleted_at IS NULL']
+    (tenant_id, product_id) [name: 'idx_delivery_order_items_tenant_product', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Line items for Delivery Orders - individual products shipped'
+}
+
+Table stock_transfers {
+  transfer_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  transfer_number VARCHAR(50) [not null, note: 'Auto-generated: ST-YYYY-XXXXX']
+  reference_number VARCHAR(100)
+  source_warehouse_id UUID [not null]
+  destination_warehouse_id UUID [not null]
+  status VARCHAR(20) [not null, default: 'draft', note: 'draft/confirmed/partially_picked/picked/partially_shipped/shipped/received/cancelled']
+  transfer_type VARCHAR(20) [not null, default: 'manual', note: 'manual/auto_replenishment/emergency/consolidation']
+  priority VARCHAR(10) [not null, default: 'normal', note: 'low/normal/high/urgent']
+  transfer_date TIMESTAMPTZ [not null, default: `NOW()`]
+  expected_ship_date TIMESTAMPTZ
+  actual_ship_date TIMESTAMPTZ
+  expected_receive_date TIMESTAMPTZ
+  actual_receive_date TIMESTAMPTZ
+  shipping_method VARCHAR(100)
+  carrier VARCHAR(100)
+  tracking_number VARCHAR(100)
+  shipping_cost BIGINT [note: 'Shipping cost in cents/xu']
+  notes TEXT
+  reason TEXT
+  created_by UUID [not null]
+  updated_by UUID
+  approved_by UUID
+  approved_at TIMESTAMPTZ
+  total_quantity BIGINT [default: 0]
+  total_value BIGINT [default: 0, note: 'Total value in cents/xu']
+  currency_code VARCHAR(3) [default: 'VND']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, transfer_number) [unique, name: 'stock_transfers_number_unique_per_tenant']
+    (tenant_id, transfer_id) [unique, name: 'stock_transfers_tenant_transfer_unique']
+    (tenant_id, source_warehouse_id) [name: 'idx_stock_transfers_source', where: 'deleted_at IS NULL']
+    (tenant_id, destination_warehouse_id) [name: 'idx_stock_transfers_destination', where: 'deleted_at IS NULL']
+    (tenant_id, status) [name: 'idx_stock_transfers_status', where: 'deleted_at IS NULL']
+    (tenant_id, transfer_type) [name: 'idx_stock_transfers_type', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Stock Transfers (ST) - internal transfers between warehouses'
+}
+
+Table stock_transfer_items {
+  transfer_item_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  transfer_id UUID [not null]
+  product_id UUID [not null]
+  quantity BIGINT [not null, default: 0]
+  uom_id UUID [not null]
+  unit_cost BIGINT [note: 'Cost per unit in cents/xu']
+  line_total BIGINT [not null, default: 0, note: 'Calculated: quantity * unit_cost']
+  line_number INTEGER [not null, default: 1]
+  notes TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, transfer_id, line_number) [unique, name: 'stock_transfer_items_unique_line_number']
+    (tenant_id, transfer_id) [name: 'idx_stock_transfer_items_tenant_transfer', where: 'deleted_at IS NULL']
+    (tenant_id, product_id) [name: 'idx_stock_transfer_items_tenant_product', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Line items for Stock Transfers - individual products transferred'
+}
+
+Table stock_takes {
+  stock_take_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  stock_take_number VARCHAR(50) [not null, note: 'Auto-generated: STK-YYYY-XXXXX']
+  reference_number VARCHAR(100)
+  warehouse_id UUID [not null]
+  status VARCHAR(20) [not null, default: 'draft', note: 'draft/scheduled/in_progress/completed/cancelled']
+  scheduled_date TIMESTAMPTZ
+  started_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ
+  created_by UUID [not null]
+  assigned_to UUID
+  notes TEXT
+  reason TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, stock_take_number) [unique, name: 'stock_takes_number_unique_per_tenant']
+    (tenant_id, stock_take_id) [unique, name: 'stock_takes_tenant_id_unique']
+    (tenant_id, warehouse_id) [name: 'idx_stock_takes_tenant_warehouse', where: 'deleted_at IS NULL']
+    (tenant_id, status) [name: 'idx_stock_takes_tenant_status', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Stock Takes (STK) - physical inventory counting sessions'
+}
+
+Table stock_take_lines {
+  line_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  stock_take_id UUID [not null]
+  product_id UUID [not null]
+  expected_quantity BIGINT [not null, default: 0]
+  actual_quantity BIGINT [note: 'NULL if not counted yet']
+  difference_quantity BIGINT [note: 'Auto-calculated: actual - expected (GENERATED COLUMN)']
+  counted_by UUID
+  counted_at TIMESTAMPTZ
+  notes TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, stock_take_id, product_id) [unique, name: 'idx_stock_take_lines_unique_per_stock_take_product', where: 'deleted_at IS NULL']
+    (tenant_id, stock_take_id) [name: 'idx_stock_take_lines_tenant_stock_take', where: 'deleted_at IS NULL']
+    (tenant_id, product_id) [name: 'idx_stock_take_lines_tenant_product', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Stock take lines - individual product counts within stock take sessions'
+}
+
+// ==================================
+// RELATIONSHIPS (Stock Operations)
+// ==================================
+
+Ref: goods_receipts.tenant_id > tenants.tenant_id
+Ref: goods_receipts.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: goods_receipts.(tenant_id, created_by) > users.(tenant_id, user_id)
+
+Ref: goods_receipt_items.tenant_id > tenants.tenant_id
+Ref: goods_receipt_items.(tenant_id, receipt_id) > goods_receipts.(tenant_id, receipt_id)
+Ref: goods_receipt_items.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: goods_receipt_items.(tenant_id, uom_id) > unit_of_measures.(tenant_id, uom_id)
+
+Ref: delivery_orders.tenant_id > tenants.tenant_id
+Ref: delivery_orders.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: delivery_orders.(tenant_id, created_by) > users.(tenant_id, user_id)
+
+Ref: delivery_order_items.tenant_id > tenants.tenant_id
+Ref: delivery_order_items.(tenant_id, delivery_id) > delivery_orders.(tenant_id, delivery_id)
+Ref: delivery_order_items.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: delivery_order_items.(tenant_id, uom_id) > unit_of_measures.(tenant_id, uom_id)
+
+Ref: stock_transfers.tenant_id > tenants.tenant_id
+Ref: stock_transfers.(tenant_id, source_warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: stock_transfers.(tenant_id, destination_warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: stock_transfers.(tenant_id, created_by) > users.(tenant_id, user_id)
+
+Ref: stock_transfer_items.tenant_id > tenants.tenant_id
+Ref: stock_transfer_items.(tenant_id, transfer_id) > stock_transfers.(tenant_id, transfer_id)
+Ref: stock_transfer_items.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: stock_transfer_items.(tenant_id, uom_id) > unit_of_measures.(tenant_id, uom_id)
+
+Ref: stock_takes.tenant_id > tenants.tenant_id
+Ref: stock_takes.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: stock_takes.(tenant_id, created_by) > users.(tenant_id, user_id)
+
+Ref: stock_take_lines.tenant_id > tenants.tenant_id
+Ref: stock_take_lines.(tenant_id, stock_take_id) > stock_takes.(tenant_id, stock_take_id)
+Ref: stock_take_lines.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: stock_take_lines.(tenant_id, counted_by) > users.(tenant_id, user_id)
+
+Ref: products.(tenant_id, default_uom_id) > unit_of_measures.(tenant_id, uom_id)
+Ref: unit_of_measures.(tenant_id, base_uom_id) > unit_of_measures.(tenant_id, uom_id)
+Ref: warehouses.(tenant_id, parent_warehouse_id) > warehouses.(tenant_id, warehouse_id)
+
+Ref: delivery_orders.(tenant_id, updated_by) > users.(tenant_id, user_id)
+Ref: stock_transfers.(tenant_id, updated_by) > users.(tenant_id, user_id)
+Ref: stock_transfers.(tenant_id, approved_by) > users.(tenant_id, user_id)
+Ref: stock_takes.(tenant_id, assigned_to) > users.(tenant_id, user_id)
+
+// ==================================
+// FUTURE TABLES (To be added)
+// ==================================
 
 // Table inventory_levels {
 //   tenant_id UUID [not null, ref: > tenants.tenant_id]
@@ -192,16 +576,6 @@ Table casbin_rule {
 //   deleted_at TIMESTAMPTZ
 // }
 
-// Table order_items {
-//   order_item_id UUID [pk]
-//   order_id UUID [not null, ref: > orders.order_id]
-//   product_id UUID [not null, ref: > products.product_id]
-//   tenant_id UUID [not null, ref: > tenants.tenant_id]
-//   quantity INTEGER [not null]
-//   unit_price BIGINT [not null]
-//   total_price BIGINT [not null]
-// }
-
 // Table integrations {
 //   integration_id UUID [pk]
 //   tenant_id UUID [not null, ref: > tenants.tenant_id]
@@ -213,16 +587,4 @@ Table casbin_rule {
 //   created_at TIMESTAMPTZ [not null, default: `NOW()`]
 //   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
 //   deleted_at TIMESTAMPTZ
-// }
-
-// Table payments {
-//   payment_id UUID [pk]
-//   tenant_id UUID [not null, ref: > tenants.tenant_id]
-//   order_id UUID [not null, ref: > orders.order_id]
-//   gateway VARCHAR(50) [not null, note: 'stripe/momo/vnpay']
-//   amount BIGINT [not null]
-//   status VARCHAR(50) [not null]
-//   transaction_id VARCHAR(255)
-//   created_at TIMESTAMPTZ [not null, default: `NOW()`]
-//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
 // }

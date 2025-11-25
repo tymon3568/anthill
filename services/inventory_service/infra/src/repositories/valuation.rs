@@ -1,10 +1,11 @@
-//! Valuation repository implementations
-//!
-//! PostgreSQL implementations of the ValuationRepository, ValuationLayerRepository,
-//! and ValuationHistoryRepository traits.
+// Valuation repository implementations
+use num_traits::cast::ToPrimitive;
+//
+// PostgreSQL implementations of the ValuationRepository, ValuationLayerRepository,
+// and ValuationHistoryRepository traits.
 
 use async_trait::async_trait;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::valuation::{
@@ -44,7 +45,7 @@ impl ValuationRepositoryImpl {
     ///
     /// # Returns
     /// Corresponding ValuationMethod enum value or error for unknown values
-    fn string_to_valuation_method(s: &str) -> Result<ValuationMethod, shared_error::AppError> {
+    fn string_to_valuation_method(s: &str) -> Result<ValuationMethod> {
         match s {
             "fifo" => Ok(ValuationMethod::Fifo),
             "avco" => Ok(ValuationMethod::Avco),
@@ -97,8 +98,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
                         r.valuation_method.as_str(),
                     )?,
                     current_unit_cost: r.current_unit_cost,
-                    total_quantity: r.total_quantity.unwrap_or(0),
-                    total_value: r.total_value.unwrap_or(0),
+                    total_quantity: r.total_quantity,
+                    total_value: r.total_value,
                     standard_cost: r.standard_cost,
                     last_updated: r.last_updated,
                     updated_by: r.updated_by,
@@ -153,8 +154,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             current_unit_cost: row.current_unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             last_updated: row.last_updated,
             updated_by: row.updated_by,
@@ -211,8 +212,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             current_unit_cost: row.current_unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             last_updated: row.last_updated,
             updated_by: row.updated_by,
@@ -266,8 +267,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             current_unit_cost: row.current_unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             last_updated: row.last_updated,
             updated_by: row.updated_by,
@@ -315,8 +316,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             current_unit_cost: row.current_unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             last_updated: row.last_updated,
             updated_by: row.updated_by,
@@ -590,8 +591,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             current_unit_cost: row.current_unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             last_updated: row.last_updated,
             updated_by: row.updated_by,
@@ -621,8 +622,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
         updated_by: Option<Uuid>,
     ) -> Result<Valuation> {
         // Capture pre-change state
-        let before = self
-            .find_by_product_id(tenant_id, product_id)
+        let before = ValuationRepository::find_by_product_id(self, tenant_id, product_id)
             .await?
             .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
 
@@ -679,8 +679,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             current_unit_cost: row.current_unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             last_updated: row.last_updated,
             updated_by: row.updated_by,
@@ -710,8 +710,7 @@ impl ValuationRepository for ValuationRepositoryImpl {
         updated_by: Option<Uuid>,
     ) -> Result<Valuation> {
         // Get current valuation
-        let current = self
-            .find_by_product_id(tenant_id, product_id)
+        let current = ValuationRepository::find_by_product_id(self, tenant_id, product_id)
             .await?
             .ok_or_else(|| shared_error::AppError::NotFound("Valuation not found".to_string()))?;
 
@@ -778,8 +777,8 @@ impl ValuationRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             current_unit_cost: row.current_unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             last_updated: row.last_updated,
             updated_by: row.updated_by,
@@ -824,9 +823,9 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
                 layer_id: r.layer_id,
                 tenant_id: r.tenant_id,
                 product_id: r.product_id,
-                quantity: r.quantity.unwrap_or(0),
-                unit_cost: r.unit_cost.unwrap_or(0),
-                total_value: r.total_value.unwrap_or(0),
+                quantity: r.quantity,
+                unit_cost: r.unit_cost,
+                total_value: r.total_value,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
             })
@@ -866,9 +865,9 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
             layer_id: row.layer_id,
             tenant_id: row.tenant_id,
             product_id: row.product_id,
-            quantity: row.quantity.unwrap_or(0),
-            unit_cost: row.unit_cost.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            quantity: row.quantity,
+            unit_cost: row.unit_cost,
+            total_value: row.total_value,
             created_at: row.created_at,
             updated_at: row.updated_at,
         })
@@ -981,7 +980,17 @@ impl ValuationLayerRepository for ValuationRepositoryImpl {
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(row.total_quantity.unwrap_or(0))
+        let total_quantity = if let Some(bd) = row.total_quantity {
+            bd.to_i64().ok_or_else(|| {
+                shared_error::AppError::DataCorruption(format!(
+                    "Could not convert total_quantity {} to i64",
+                    bd
+                ))
+            })?
+        } else {
+            0
+        };
+        Ok(total_quantity)
     }
 
     /// Remove layers with zero quantity
@@ -1062,8 +1071,8 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
                         r.valuation_method.as_str(),
                     )?,
                     unit_cost: r.unit_cost,
-                    total_quantity: r.total_quantity.unwrap_or(0),
-                    total_value: r.total_value.unwrap_or(0),
+                    total_quantity: r.total_quantity,
+                    total_value: r.total_value,
                     standard_cost: r.standard_cost,
                     changed_at: r.changed_at,
                     changed_by: r.changed_by,
@@ -1122,8 +1131,8 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
             product_id: row.product_id,
             valuation_method,
             unit_cost: row.unit_cost,
-            total_quantity: row.total_quantity.unwrap_or(0),
-            total_value: row.total_value.unwrap_or(0),
+            total_quantity: row.total_quantity,
+            total_value: row.total_value,
             standard_cost: row.standard_cost,
             changed_at: row.changed_at,
             changed_by: row.changed_by,

@@ -55,7 +55,7 @@ CREATE TABLE unit_of_measures (
 );
 
 -- Add unique constraint for composite foreign keys
-ALTER TABLE unit_of_measures ADD CONSTRAINT unit_of_measures_tenant_uom_unique UNIQUE (tenant_id, uom_id) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE unit_of_measures ADD CONSTRAINT unit_of_measures_tenant_uom_unique UNIQUE (tenant_id, uom_id);
 
 -- ==================================
 -- INDEXES for Performance

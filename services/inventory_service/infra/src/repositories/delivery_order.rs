@@ -206,7 +206,10 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
     }
 
     async fn begin_transaction(&self) -> Result<sqlx::Transaction<'_, sqlx::Postgres>, AppError> {
-        self.pool.begin().await.map_err(AppError::DatabaseError)
+        self.pool
+            .begin()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to begin transaction: {}", e)))
     }
 
     async fn find_by_id_with_tx(
@@ -299,9 +302,10 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             INSERT INTO delivery_order_items (
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
+                uom_id, batch_number, expiry_date,
                 unit_price, line_total, notes, created_at, updated_at
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
             )
             "#,
             delivery_item.delivery_item_id,
@@ -311,6 +315,9 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             delivery_item.ordered_quantity,
             delivery_item.picked_quantity,
             delivery_item.delivered_quantity,
+            delivery_item.uom_id,
+            delivery_item.batch_number,
+            delivery_item.expiry_date,
             delivery_item.unit_price,
             delivery_item.line_total,
             delivery_item.notes,
@@ -333,6 +340,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
+                uom_id, batch_number, expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND deleted_at IS NULL
@@ -356,6 +364,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
+                uom_id, batch_number, expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
@@ -374,7 +383,8 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             r#"
             UPDATE delivery_order_items SET
                 ordered_quantity = $4, picked_quantity = $5, delivered_quantity = $6,
-                unit_price = $7, line_total = $8, notes = $9, updated_at = $10
+                uom_id = $7, batch_number = $8, expiry_date = $9,
+                unit_price = $10, line_total = $11, notes = $12, updated_at = $13
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND delivery_id = $3 AND deleted_at IS NULL
             "#,
             delivery_item.tenant_id,
@@ -383,6 +393,9 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             delivery_item.ordered_quantity,
             delivery_item.picked_quantity,
             delivery_item.delivered_quantity,
+            delivery_item.uom_id,
+            delivery_item.batch_number,
+            delivery_item.expiry_date,
             delivery_item.unit_price,
             delivery_item.line_total,
             delivery_item.notes,
@@ -419,6 +432,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
+                uom_id, batch_number, expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND deleted_at IS NULL
@@ -443,6 +457,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
+                uom_id, batch_number, expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
@@ -465,7 +480,8 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             r#"
             UPDATE delivery_order_items SET
                 ordered_quantity = $4, picked_quantity = $5, delivered_quantity = $6,
-                unit_price = $7, line_total = $8, notes = $9, updated_at = $10
+                uom_id = $7, batch_number = $8, expiry_date = $9,
+                unit_price = $10, line_total = $11, notes = $12, updated_at = $13
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND delivery_id = $3 AND deleted_at IS NULL
             "#,
             delivery_item.tenant_id,
@@ -474,6 +490,9 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             delivery_item.ordered_quantity,
             delivery_item.picked_quantity,
             delivery_item.delivered_quantity,
+            delivery_item.uom_id,
+            delivery_item.batch_number,
+            delivery_item.expiry_date,
             delivery_item.unit_price,
             delivery_item.line_total,
             delivery_item.notes,
@@ -501,6 +520,7 @@ impl InventoryRepository for PgInventoryRepository {
     async fn reserve_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError> {
@@ -513,15 +533,16 @@ impl InventoryRepository for PgInventoryRepository {
         let res = sqlx::query!(
             r#"
             UPDATE inventory_levels
-            SET available_quantity = available_quantity - $3,
-                reserved_quantity = reserved_quantity + $3,
+            SET available_quantity = available_quantity - $4,
+                reserved_quantity = reserved_quantity + $4,
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2
-              AND available_quantity >= $3
+            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
+              AND available_quantity >= $4
               AND deleted_at IS NULL
             "#,
             tenant_id,
             product_id,
+            warehouse_id,
             quantity,
         )
         .execute(&self.pool)
@@ -539,6 +560,7 @@ impl InventoryRepository for PgInventoryRepository {
     async fn release_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity: i64,
     ) -> Result<(), AppError> {
@@ -551,15 +573,16 @@ impl InventoryRepository for PgInventoryRepository {
         let res = sqlx::query!(
             r#"
             UPDATE inventory_levels
-            SET available_quantity = available_quantity + $3,
-                reserved_quantity = reserved_quantity - $3,
+            SET available_quantity = available_quantity + $4,
+                reserved_quantity = reserved_quantity - $4,
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2
-              AND reserved_quantity >= $3
+            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
+              AND reserved_quantity >= $4
               AND deleted_at IS NULL
             "#,
             tenant_id,
             product_id,
+            warehouse_id,
             quantity,
         )
         .execute(&self.pool)
@@ -577,16 +600,18 @@ impl InventoryRepository for PgInventoryRepository {
     async fn get_available_stock(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
     ) -> Result<i64, AppError> {
         let result = sqlx::query!(
             r#"
             SELECT available_quantity
             FROM inventory_levels
-            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3 AND deleted_at IS NULL
             "#,
             tenant_id,
             product_id,
+            warehouse_id,
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -599,6 +624,8 @@ impl InventoryRepository for PgInventoryRepository {
 }
 
 // sqlx implementations for DeliveryOrderStatus (moved from core to avoid infra deps)
+// TODO: Move these impls to core crate or use newtype pattern to avoid orphan rules
+/*
 impl sqlx::Type<sqlx::Postgres> for inventory_service_core::models::DeliveryOrderStatus {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
         <String as sqlx::Type<sqlx::Postgres>>::type_info()
@@ -632,3 +659,4 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for inventory_service_core::models::De
         <String as sqlx::Encode<sqlx::Postgres>>::encode_by_ref(&self.to_string(), buf)
     }
 }
+*/

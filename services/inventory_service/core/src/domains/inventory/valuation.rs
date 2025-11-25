@@ -8,13 +8,25 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Supported inventory valuation methods
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ValuationMethod {
     Fifo,
     Avco,
     Standard,
+}
+
+impl From<String> for ValuationMethod {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "fifo" => ValuationMethod::Fifo,
+            "avco" => ValuationMethod::Avco,
+            "standard" => ValuationMethod::Standard,
+            _ => ValuationMethod::Fifo, // Default to Fifo
+        }
+    }
 }
 
 /// Inventory valuation entity representing current valuation for a product

@@ -17,6 +17,7 @@ use crate::handlers::category::{create_category_routes, AppState};
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::search::create_search_routes;
+use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
@@ -25,8 +26,12 @@ use inventory_service_infra::repositories::delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
 };
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+
 use inventory_service_infra::repositories::stock::{
     PgInventoryLevelRepository, PgStockMoveRepository,
+};
+use inventory_service_infra::repositories::stock_take::{
+    PgStockTakeLineRepository, PgStockTakeRepository,
 };
 use inventory_service_infra::repositories::transfer::{
     PgTransferItemRepository, PgTransferRepository,
@@ -36,7 +41,8 @@ use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
-use inventory_service_infra::services::receipt::ReceiptServiceImpl;
+
+use inventory_service_infra::services::stock_take::PgStockTakeService;
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
 
@@ -48,18 +54,17 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
         .unwrap_or(true);
 
     // In production, require full Kanidm configuration
-    if !is_dev {
-        if config.kanidm_url.is_none()
+    if !is_dev
+        && (config.kanidm_url.is_none()
             || config.kanidm_client_id.is_none()
             || config.kanidm_client_secret.is_none()
-            || config.kanidm_redirect_url.is_none()
-        {
-            panic!(
-                "Kanidm configuration is required in production environment. \
-                 Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
-                 and KANIDM_REDIRECT_URL environment variables."
-            );
-        }
+            || config.kanidm_redirect_url.is_none())
+    {
+        panic!(
+            "Kanidm configuration is required in production environment. \
+             Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
+             and KANIDM_REDIRECT_URL environment variables."
+        );
     }
 
     let kanidm_config = KanidmConfig {
@@ -158,8 +163,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
 
     // Initialize stock repositories
-    let stock_move_repo = Arc::new(PgStockMoveRepository::new(pool.clone()));
-    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(pool.clone()));
+    let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
+    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
 
     let delivery_service = Arc::new(DeliveryServiceImpl::new(
         delivery_repo,
@@ -169,14 +174,26 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     ));
 
     // Initialize transfer repositories and services
-    let transfer_repo = Arc::new(PgTransferRepository::new(pool.clone()));
-    let transfer_item_repo = Arc::new(PgTransferItemRepository::new(pool.clone()));
+    let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool.clone())));
+    let transfer_item_repo = Arc::new(PgTransferItemRepository::new(Arc::new(pool.clone())));
 
     let transfer_service = Arc::new(PgTransferService::new(
         transfer_repo,
         transfer_item_repo,
-        stock_move_repo,
-        inventory_level_repo,
+        stock_move_repo.clone(),
+        inventory_level_repo.clone(),
+    ));
+
+    // Initialize stock take repositories and services
+    let stock_take_repo = Arc::new(PgStockTakeRepository::new(Arc::new(pool.clone())));
+    let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(Arc::new(pool.clone())));
+
+    let stock_take_service = Arc::new(PgStockTakeService::new(
+        Arc::new(pool.clone()),
+        stock_take_repo,
+        stock_take_line_repo,
+        stock_move_repo.clone(),
+        inventory_level_repo.clone(),
     ));
 
     // Initialize receipt repositories and services
@@ -193,6 +210,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
         receipt_service: Arc::new(receipt_service),
+        delivery_service,
+        transfer_service,
+        stock_take_service,
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -206,14 +226,11 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Create routes with state
     let category_routes = create_category_routes(state.clone());
-    let delivery_routes =
-        create_delivery_routes(crate::handlers::delivery::AppState::new(delivery_service));
-    let receipt_routes = create_receipt_routes(crate::handlers::receipt::AppState::new(
-        state.receipt_service.clone(),
-    ));
+    let delivery_routes = create_delivery_routes(state.clone());
+    let receipt_routes = create_receipt_routes(state.clone());
     let search_routes = create_search_routes(state.clone());
-    let transfer_routes =
-        create_transfer_routes(crate::handlers::transfer::AppState::new(transfer_service));
+    let transfer_routes = create_transfer_routes(state.clone());
+    let stock_take_routes = create_stock_take_routes(state.clone());
     let valuation_routes = create_valuation_routes(state.clone());
     let warehouse_routes = create_warehouse_routes(state.clone());
 
@@ -261,6 +278,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/deliveries", delivery_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
         .nest("/api/v1/inventory/products", search_routes)
+        .nest("/api/v1/inventory/stock-takes", stock_take_routes)
         .nest("/api/v1/inventory/transfers", transfer_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)

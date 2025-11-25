@@ -57,9 +57,9 @@ CREATE TABLE delivery_orders (
 
     -- Constraints
     CONSTRAINT delivery_orders_number_unique_per_tenant
-        UNIQUE (tenant_id, delivery_number) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, delivery_number),
     CONSTRAINT delivery_orders_tenant_delivery_unique
-        UNIQUE (tenant_id, delivery_id) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, delivery_id),
     CONSTRAINT delivery_orders_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouses (tenant_id, warehouse_id),

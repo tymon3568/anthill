@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -9,27 +7,15 @@ use axum::{
 };
 use uuid::Uuid;
 
-use inventory_service_core::dto::transfer::{
+use inventory_service_core::domains::inventory::dto::transfer_dto::{
     ConfirmTransferRequest, ConfirmTransferResponse, CreateTransferRequest, CreateTransferResponse,
     ReceiveTransferRequest, ReceiveTransferResponse,
 };
-use inventory_service_core::services::transfer::TransferService;
 
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-/// Application state for transfer operations
-#[derive(Clone)]
-pub struct AppState {
-    pub transfer_service: Arc<dyn TransferService>,
-}
-
-impl AppState {
-    /// Create a new AppState with the given transfer service
-    pub fn new(transfer_service: Arc<dyn TransferService>) -> Self {
-        Self { transfer_service }
-    }
-}
+use crate::handlers::category::AppState;
 
 /// Create the transfer routes with state
 pub fn create_transfer_routes(state: AppState) -> Router {

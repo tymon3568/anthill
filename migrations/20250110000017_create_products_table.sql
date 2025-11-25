@@ -58,7 +58,7 @@ CREATE TABLE products (
     CONSTRAINT products_sku_unique_per_tenant
         UNIQUE (tenant_id, sku) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT products_tenant_product_unique
-        UNIQUE (tenant_id, product_id) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, product_id),
     CONSTRAINT products_positive_prices
         CHECK (sale_price IS NULL OR sale_price >= 0),
     CONSTRAINT products_positive_cost

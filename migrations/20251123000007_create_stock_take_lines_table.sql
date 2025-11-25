@@ -23,9 +23,9 @@ CREATE TABLE stock_take_lines (
     product_id UUID NOT NULL,
 
     -- Quantity counts
-    expected_quantity INTEGER NOT NULL DEFAULT 0,  -- Expected quantity from system
-    actual_quantity INTEGER,                        -- Actual counted quantity (NULL if not counted yet)
-    difference_quantity INTEGER GENERATED ALWAYS AS (actual_quantity - expected_quantity) STORED,  -- Auto-calculated: actual - expected
+    expected_quantity BIGINT NOT NULL DEFAULT 0,  -- Expected quantity from system
+    actual_quantity BIGINT,                        -- Actual counted quantity (NULL if not counted yet)
+    difference_quantity BIGINT GENERATED ALWAYS AS (actual_quantity - expected_quantity) STORED,  -- Auto-calculated: actual - expected
 
     -- Counting details
     counted_by UUID,                                -- User who performed the count
@@ -49,8 +49,7 @@ CREATE TABLE stock_take_lines (
     CONSTRAINT stock_take_lines_tenant_counted_by_fk
         FOREIGN KEY (tenant_id, counted_by)
         REFERENCES users (tenant_id, user_id)
-        ON DELETE SET NULL ON UPDATE RESTRICT
-        DEFERRABLE INITIALLY DEFERRED,
+        ON DELETE SET NULL ON UPDATE RESTRICT,
     CONSTRAINT stock_take_lines_positive_expected
         CHECK (expected_quantity >= 0),
     CONSTRAINT stock_take_lines_positive_actual

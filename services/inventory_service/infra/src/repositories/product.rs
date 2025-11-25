@@ -283,6 +283,7 @@ impl ProductRepository for ProductRepositoryImpl {
             .await?;
 
         // Build pagination info
+        #[allow(clippy::manual_div_ceil)]
         let total_pages = ((total_count as u32 + limit - 1) / limit).max(1);
         let pagination = PaginationInfo {
             page,

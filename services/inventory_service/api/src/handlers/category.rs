@@ -21,7 +21,11 @@ use inventory_service_core::dto::category::{
 };
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
+use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::product::ProductService;
+use inventory_service_core::services::receipt::ReceiptService;
+use inventory_service_core::services::stock_take::StockTakeService;
+use inventory_service_core::services::transfer::TransferService;
 use inventory_service_core::services::valuation::ValuationService;
 
 use shared_auth::enforcer::SharedEnforcer;
@@ -36,6 +40,10 @@ pub struct AppState {
     pub product_service: Arc<dyn ProductService>,
     pub valuation_service: Arc<dyn ValuationService>,
     pub warehouse_repository: Arc<dyn WarehouseRepository>,
+    pub receipt_service: Arc<dyn ReceiptService>,
+    pub delivery_service: Arc<dyn DeliveryService>,
+    pub transfer_service: Arc<dyn TransferService>,
+    pub stock_take_service: Arc<dyn StockTakeService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,

@@ -2,8 +2,6 @@
 //!
 //! This module contains the Axum handlers for Goods Receipt Note (GRN) operations.
 
-use std::sync::Arc;
-
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -17,23 +15,10 @@ use validator::Validate;
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
-use inventory_service_core::services::receipt::ReceiptService;
-
-use shared_auth::extractors::{AuthUser, RequireAdmin};
+use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-/// Application state for receipt operations
-#[derive(Clone)]
-pub struct AppState {
-    pub receipt_service: Arc<dyn ReceiptService>,
-}
-
-impl AppState {
-    /// Create a new AppState with the given receipt service
-    pub fn new(receipt_service: Arc<dyn ReceiptService>) -> Self {
-        Self { receipt_service }
-    }
-}
+use crate::handlers::category::AppState;
 
 /// Create the receipt routes with state
 pub fn create_receipt_routes(state: AppState) -> Router {

@@ -11,9 +11,7 @@ use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
-use inventory_service_core::models::{
-    CreateStockMoveRequest, DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus,
-};
+use inventory_service_core::models::{CreateStockMoveRequest, DeliveryOrderStatus};
 use inventory_service_core::repositories::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryLevelRepository,
     StockMoveRepository,
@@ -82,6 +80,18 @@ impl DeliveryService for DeliveryServiceImpl {
             )));
         }
 
+        // Validate required totals for non-draft transitions
+        if delivery_order.total_quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pick items: total_quantity must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.total_value <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pick items: total_value must be set and positive".to_string(),
+            ));
+        }
+
         let mut total_picked_quantity = 0;
         let mut updated_items_count = 0;
 
@@ -115,14 +125,11 @@ impl DeliveryService for DeliveryServiceImpl {
                 )));
             }
 
-            if pick_item.picked_quantity
-                > delivery_item.ordered_quantity - delivery_item.picked_quantity
-            {
+            let remaining = delivery_item.ordered_quantity - delivery_item.picked_quantity;
+            if pick_item.picked_quantity > remaining {
                 return Err(AppError::ValidationError(format!(
                     "Cannot pick {} units for item {}. Only {} units remaining to pick.",
-                    pick_item.picked_quantity,
-                    pick_item.delivery_item_id,
-                    delivery_item.ordered_quantity - delivery_item.picked_quantity
+                    pick_item.picked_quantity, pick_item.delivery_item_id, remaining
                 )));
             }
 
@@ -200,6 +207,23 @@ impl DeliveryService for DeliveryServiceImpl {
             )));
         }
 
+        // Validate required totals for non-draft transitions
+        if delivery_order.total_quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pack items: total_quantity must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.total_value <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot pack items: total_value must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.currency_code.is_empty() {
+            return Err(AppError::ValidationError(
+                "Cannot pack items: currency_code must be set".to_string(),
+            ));
+        }
+
         let packed_at = Utc::now();
 
         // Update the delivery order status to Packed
@@ -252,6 +276,23 @@ impl DeliveryService for DeliveryServiceImpl {
             )));
         }
 
+        // Validate required totals for non-draft transitions
+        if delivery_order.total_quantity <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot ship items: total_quantity must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.total_value <= 0 {
+            return Err(AppError::ValidationError(
+                "Cannot ship items: total_value must be set and positive".to_string(),
+            ));
+        }
+        if delivery_order.currency_code.is_empty() {
+            return Err(AppError::ValidationError(
+                "Cannot ship items: currency_code must be set".to_string(),
+            ));
+        }
+
         // Get all delivery items
         let delivery_items = self
             .delivery_item_repo
@@ -269,12 +310,14 @@ impl DeliveryService for DeliveryServiceImpl {
                 continue;
             }
 
+            let picked_qty = item.picked_quantity;
+
             // Create stock move (warehouse -> customer virtual location)
             let idempotency_key = format!("do-{}-item-{}", delivery_id, item.delivery_item_id);
 
             // Validate inventory level exists (needed regardless for idempotency)
             self.inventory_level_repo
-                .find_by_product(tenant_id, item.product_id)
+                .find_by_product(tenant_id, delivery_order.warehouse_id, item.product_id)
                 .await?
                 .ok_or_else(|| {
                     AppError::ValidationError(format!(
@@ -286,15 +329,15 @@ impl DeliveryService for DeliveryServiceImpl {
             // For deliveries, we use the item's unit_price as COGS
             // In a real system, this might come from inventory valuation
             let unit_cost = Some(item.unit_price);
-            let total_cost = unit_cost.map(|cost| cost * item.picked_quantity);
+            let total_cost = unit_cost.flatten().map(|cost| cost * picked_qty);
 
             let stock_move = CreateStockMoveRequest {
                 product_id: item.product_id,
                 source_location_id: Some(delivery_order.warehouse_id), // From warehouse
                 destination_location_id: None, // To customer (virtual location)
                 move_type: "delivery".to_string(),
-                quantity: -item.picked_quantity, // Negative for outgoing
-                unit_cost,
+                quantity: -picked_qty, // Negative for outgoing
+                unit_cost: unit_cost.flatten(),
                 reference_type: "do".to_string(),
                 reference_id: delivery_id,
                 idempotency_key: idempotency_key.clone(),
@@ -321,8 +364,9 @@ impl DeliveryService for DeliveryServiceImpl {
                     .update_available_quantity_with_tx(
                         &mut tx,
                         tenant_id,
+                        delivery_order.warehouse_id,
                         item.product_id,
-                        -item.picked_quantity,
+                        -picked_qty,
                     )
                     .await?;
 

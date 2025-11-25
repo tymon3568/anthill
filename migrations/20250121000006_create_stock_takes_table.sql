@@ -51,14 +51,8 @@ CREATE TABLE stock_takes (
     warehouse_id UUID NOT NULL,
 
     -- Stock take status
-    status VARCHAR(20) NOT NULL DEFAULT 'draft'
-        CHECK (status IN ('draft', 'scheduled', 'in_progress', 'completed', 'cancelled')),
-
-    -- Count type and priority
-    count_type VARCHAR(20) NOT NULL DEFAULT 'full'
-        CHECK (count_type IN ('full', 'partial', 'cycle', 'spot')),
-    priority VARCHAR(10) NOT NULL DEFAULT 'normal'
-        CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    status VARCHAR(20) NOT NULL DEFAULT 'Draft'
+        CHECK (status IN ('Draft', 'Scheduled', 'InProgress', 'Completed', 'Cancelled')),
 
     -- Dates
     scheduled_date TIMESTAMPTZ,                          -- When the stock take is scheduled
@@ -66,19 +60,12 @@ CREATE TABLE stock_takes (
     completed_at TIMESTAMPTZ,                            -- When counting was completed
 
     -- User assignments
-    initiated_by UUID NOT NULL,                          -- User who initiated the stock take
+    created_by UUID NOT NULL,                            -- User who created the stock take
     assigned_to UUID,                                    -- User assigned to perform the count
-    approved_by UUID,                                    -- User who approved the results
-    approved_at TIMESTAMPTZ,                             -- When results were approved
 
     -- Stock take details
     notes TEXT,                                          -- Additional notes
     reason TEXT,                                         -- Reason for stock take
-    variance_threshold DECIMAL(5,2),                     -- Acceptable variance percentage (e.g., 2.5 for 2.5%)
-
-    -- Summary fields (calculated from stock take lines)
-    total_items_counted INTEGER NOT NULL DEFAULT 0,      -- Number of items counted
-    total_variance BIGINT NOT NULL DEFAULT 0,            -- Total variance in base units
 
     -- Audit fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -87,31 +74,20 @@ CREATE TABLE stock_takes (
 
     -- Constraints
     CONSTRAINT stock_takes_number_unique_per_tenant
-        UNIQUE (tenant_id, stock_take_number) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, stock_take_number),
     CONSTRAINT stock_takes_tenant_id_unique
-        UNIQUE (tenant_id, stock_take_id) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, stock_take_id),
     CONSTRAINT stock_takes_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouses (tenant_id, warehouse_id),
-    CONSTRAINT stock_takes_tenant_initiated_by_fk
-        FOREIGN KEY (tenant_id, initiated_by)
+    CONSTRAINT stock_takes_tenant_created_by_fk
+        FOREIGN KEY (tenant_id, created_by)
         REFERENCES users (tenant_id, user_id),
     CONSTRAINT stock_takes_tenant_assigned_to_fk
         FOREIGN KEY (tenant_id, assigned_to)
-        REFERENCES users (tenant_id, user_id)
-        DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT stock_takes_tenant_approved_by_fk
-        FOREIGN KEY (tenant_id, approved_by)
-        REFERENCES users (tenant_id, user_id)
-        DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT stock_takes_positive_items_counted
-        CHECK (total_items_counted >= 0),
-    CONSTRAINT stock_takes_variance_threshold_range
-        CHECK (variance_threshold IS NULL OR (variance_threshold >= 0 AND variance_threshold <= 100)),
+        REFERENCES users (tenant_id, user_id),
     CONSTRAINT stock_takes_completion_dates
-        CHECK (completed_at IS NULL OR (started_at IS NOT NULL AND completed_at >= started_at)),
-    CONSTRAINT stock_takes_approval_dates
-        CHECK (approved_at IS NULL OR approved_by IS NOT NULL)
+        CHECK (completed_at IS NULL OR (started_at IS NOT NULL AND completed_at >= started_at))
 );
 
 
@@ -134,20 +110,14 @@ CREATE INDEX idx_stock_takes_tenant_warehouse
     ON stock_takes(tenant_id, warehouse_id)
     WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_stock_takes_tenant_type
-    ON stock_takes(tenant_id, count_type)
-    WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_stock_takes_tenant_priority
-    ON stock_takes(tenant_id, priority)
-    WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_stock_takes_tenant_scheduled_date
     ON stock_takes(tenant_id, scheduled_date)
     WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_stock_takes_tenant_initiated_by
-    ON stock_takes(tenant_id, initiated_by)
+CREATE INDEX idx_stock_takes_tenant_created_by
+    ON stock_takes(tenant_id, created_by)
     WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_stock_takes_tenant_assigned_to
@@ -194,20 +164,13 @@ COMMENT ON COLUMN stock_takes.stock_take_number IS 'Auto-generated stock take nu
 COMMENT ON COLUMN stock_takes.reference_number IS 'External reference number (optional)';
 COMMENT ON COLUMN stock_takes.warehouse_id IS 'Warehouse where the stock take is performed';
 COMMENT ON COLUMN stock_takes.status IS 'Stock take status: draft/scheduled/in_progress/completed/cancelled';
-COMMENT ON COLUMN stock_takes.count_type IS 'Type of count: full/partial/cycle/spot';
-COMMENT ON COLUMN stock_takes.priority IS 'Stock take priority: low/normal/high/urgent';
 COMMENT ON COLUMN stock_takes.scheduled_date IS 'Date when the stock take is scheduled';
 COMMENT ON COLUMN stock_takes.started_at IS 'Timestamp when counting started';
 COMMENT ON COLUMN stock_takes.completed_at IS 'Timestamp when counting completed';
-COMMENT ON COLUMN stock_takes.initiated_by IS 'User ID who initiated the stock take';
+COMMENT ON COLUMN stock_takes.created_by IS 'User ID who created the stock take';
 COMMENT ON COLUMN stock_takes.assigned_to IS 'User ID assigned to perform the count';
-COMMENT ON COLUMN stock_takes.approved_by IS 'User ID who approved the results';
-COMMENT ON COLUMN stock_takes.approved_at IS 'Timestamp when results were approved';
 COMMENT ON COLUMN stock_takes.notes IS 'Additional notes about the stock take';
 COMMENT ON COLUMN stock_takes.reason IS 'Reason for performing the stock take';
-COMMENT ON COLUMN stock_takes.variance_threshold IS 'Acceptable variance percentage (0-100)';
-COMMENT ON COLUMN stock_takes.total_items_counted IS 'Number of items that were counted';
-COMMENT ON COLUMN stock_takes.total_variance IS 'Total variance in base units';
 
 COMMENT ON FUNCTION generate_stock_take_number() IS 'Generates auto-incrementing stock take numbers in format STK-YYYY-XXXXX';
 
@@ -225,13 +188,9 @@ COMMENT ON FUNCTION generate_stock_take_number() IS 'Generates auto-incrementing
 -- Key design decisions:
 -- - Single warehouse per stock take (unlike transfers which have source/destination)
 -- - User assignment for counting responsibility
--- - Approval workflow for count results
--- - Variance tracking for accuracy analysis
--- - Different count types for operational flexibility
+-- - Basic status tracking for operational workflow
 
 -- Future migrations will add:
--- - stock_take_items table (individual item counts in stock takes)
--- - Stock take approval workflows
--- - Automated variance calculations
+-- - stock_take_lines table (individual item counts in stock takes)
 -- - Integration with inventory adjustments
 -- - Stock take analytics and reporting

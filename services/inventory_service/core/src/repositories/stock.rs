@@ -57,6 +57,7 @@ pub trait InventoryLevelRepository: Send + Sync {
     async fn find_by_product(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
     ) -> Result<Option<InventoryLevel>, AppError>;
 
@@ -64,6 +65,7 @@ pub trait InventoryLevelRepository: Send + Sync {
     async fn update_available_quantity(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError>;
@@ -73,6 +75,7 @@ pub trait InventoryLevelRepository: Send + Sync {
         &self,
         tx: &mut Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError>;
@@ -81,6 +84,7 @@ pub trait InventoryLevelRepository: Send + Sync {
     async fn upsert(
         &self,
         tenant_id: Uuid,
+        warehouse_id: Uuid,
         product_id: Uuid,
         available_quantity: i64,
         reserved_quantity: i64,

@@ -56,11 +56,11 @@ CREATE TABLE product_categories (
 
     -- Constraints
     CONSTRAINT product_categories_name_unique_per_parent
-        UNIQUE (tenant_id, parent_category_id, name) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, parent_category_id, name),
     CONSTRAINT product_categories_code_unique_per_tenant
-        UNIQUE (tenant_id, code) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, code),
     CONSTRAINT product_categories_slug_unique_per_tenant
-        UNIQUE (tenant_id, slug) DEFERRABLE INITIALLY DEFERRED,
+        UNIQUE (tenant_id, slug),
     CONSTRAINT product_categories_positive_level
         CHECK (level >= 0),
     CONSTRAINT product_categories_positive_order

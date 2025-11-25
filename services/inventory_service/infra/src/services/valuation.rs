@@ -13,7 +13,7 @@ use inventory_service_core::domains::inventory::dto::valuation_dto::{
     ValuationDto, ValuationHistoryDto, ValuationHistoryResponse, ValuationLayersResponse,
 };
 use inventory_service_core::domains::inventory::valuation::{
-    Valuation, ValuationHistory, ValuationLayer, ValuationMethod,
+    Valuation, ValuationHistory, ValuationMethod,
 };
 use inventory_service_core::repositories::valuation::{
     ValuationHistoryRepository, ValuationLayerRepository, ValuationRepository,
@@ -112,7 +112,7 @@ impl ValuationService for ValuationServiceImpl {
             }
         }
 
-        let valuation = if let Some(val) = existing {
+        let valuation = if let Some(_val) = existing {
             // Update existing
             self.valuation_repo
                 .set_valuation_method(
@@ -179,7 +179,7 @@ impl ValuationService for ValuationServiceImpl {
             pre_change_valuation.total_value,
             pre_change_valuation.standard_cost,
             None, // TODO: get from auth context
-            &format!("Standard cost updated to {}", request.standard_cost),
+            Some(format!("Standard cost updated to {}", request.standard_cost)),
         );
         self.history_repo.create(&history).await?;
 
@@ -405,7 +405,7 @@ impl ValuationService for ValuationServiceImpl {
         };
 
         // Create history record with pre-change state
-        if let Ok(dto) = &result {
+        if let Ok(_dto) = &result {
             let history = ValuationHistory::new(
                 pre_change_valuation.valuation_id,
                 pre_change_valuation.tenant_id,
@@ -416,7 +416,7 @@ impl ValuationService for ValuationServiceImpl {
                 pre_change_valuation.total_value,
                 pre_change_valuation.standard_cost,
                 user_id,
-                &format!("Stock movement: {} units", quantity_change),
+                Some(format!("Stock movement: {} units", quantity_change)),
             );
             // Log history creation failures for audit trail monitoring
             if let Err(e) = self.history_repo.create(&history).await {

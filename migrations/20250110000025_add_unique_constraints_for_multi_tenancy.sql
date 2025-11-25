@@ -11,27 +11,63 @@
 
 -- stock_moves: Ensure (tenant_id, move_id) is unique for FK reference
 -- Note: move_id is already PK, but we add explicit constraint for clarity
-ALTER TABLE stock_moves
-ADD CONSTRAINT stock_moves_tenant_move_unique
-UNIQUE (tenant_id, move_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'stock_moves_tenant_move_unique'
+        AND conrelid = 'stock_moves'::regclass
+    ) THEN
+        ALTER TABLE stock_moves
+        ADD CONSTRAINT stock_moves_tenant_move_unique
+        UNIQUE (tenant_id, move_id);
+    END IF;
+END $$;
 
 -- products: Ensure (tenant_id, product_id) is unique for FK reference
 -- Note: product_id is already PK, but we add explicit constraint for clarity
-ALTER TABLE products
-ADD CONSTRAINT products_tenant_product_unique
-UNIQUE (tenant_id, product_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'products_tenant_product_unique'
+        AND conrelid = 'products'::regclass
+    ) THEN
+        ALTER TABLE products
+        ADD CONSTRAINT products_tenant_product_unique
+        UNIQUE (tenant_id, product_id);
+    END IF;
+END $$;
 
 -- warehouse_locations: Ensure (tenant_id, location_id) is unique for FK reference
 -- Note: location_id is already PK, but we add explicit constraint for clarity
-ALTER TABLE warehouse_locations
-ADD CONSTRAINT warehouse_locations_tenant_location_unique
-UNIQUE (tenant_id, location_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'warehouse_locations_tenant_location_unique'
+        AND conrelid = 'warehouse_locations'::regclass
+    ) THEN
+        ALTER TABLE warehouse_locations
+        ADD CONSTRAINT warehouse_locations_tenant_location_unique
+        UNIQUE (tenant_id, location_id);
+    END IF;
+END $$;
 
 -- users: Ensure (tenant_id, user_id) is unique for FK reference
 -- Note: user_id is already PK, but we add explicit constraint for clarity
-ALTER TABLE users
-ADD CONSTRAINT users_tenant_user_unique
-UNIQUE (tenant_id, user_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'users_tenant_user_unique'
+        AND conrelid = 'users'::regclass
+    ) THEN
+        ALTER TABLE users
+        ADD CONSTRAINT users_tenant_user_unique
+        UNIQUE (tenant_id, user_id);
+    END IF;
+END $$;
 
 -- ==================================
 -- COMMENTS for Documentation

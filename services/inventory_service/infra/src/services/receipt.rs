@@ -180,7 +180,7 @@ fn generate_idempotency_key(request: &ReceiptCreateRequest) -> String {
     // Hash the items
     for item in &sorted_items {
         hasher.update(item.product_id.as_bytes());
-        hasher.update(&item.received_quantity.to_le_bytes());
+        hasher.update(item.received_quantity.to_le_bytes());
     }
 
     format!("receipt-{:x}", hasher.finalize())
