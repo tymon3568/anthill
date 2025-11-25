@@ -4,6 +4,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
@@ -11,7 +12,8 @@ use validator::Validate;
 use crate::domains::inventory::stock_take::{StockTake, StockTakeLine, StockTakeStatus};
 
 /// Request to create a new stock take session
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateStockTakeRequest {
     /// Warehouse to perform stock take on
     pub warehouse_id: Uuid,
@@ -20,14 +22,16 @@ pub struct CreateStockTakeRequest {
 }
 
 /// Response for stock take creation
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateStockTakeResponse {
     /// The created stock take
     pub stock_take: StockTake,
 }
 
 /// Request to submit counted quantities for stock take lines
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CountStockTakeRequest {
     /// List of counted items
     #[validate(length(min = 1, message = "At least one item must be counted"))]
@@ -35,7 +39,8 @@ pub struct CountStockTakeRequest {
 }
 
 /// Individual count item
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CountItem {
     /// Stock take line being counted
     pub line_id: Uuid,
@@ -47,18 +52,21 @@ pub struct CountItem {
 }
 
 /// Response for count submission
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CountStockTakeResponse {
     /// Updated stock take lines
     pub lines: Vec<StockTakeLine>,
 }
 
 /// Request to finalize a stock take (no body needed, just the ID in path)
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct FinalizeStockTakeRequest {}
 
 /// Response for stock take finalization
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct FinalizeStockTakeResponse {
     /// The finalized stock take
     pub stock_take: StockTake,
@@ -67,7 +75,8 @@ pub struct FinalizeStockTakeResponse {
 }
 
 /// Stock adjustment generated from stock take discrepancies
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct StockAdjustment {
     /// Adjustment ID
     pub adjustment_id: Uuid,
@@ -84,7 +93,8 @@ pub struct StockAdjustment {
 }
 
 /// Query parameters for listing stock takes
-#[derive(Debug, Clone, Serialize, Deserialize, IntoParams)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(IntoParams))]
 pub struct StockTakeListQuery {
     /// Filter by warehouse
     pub warehouse_id: Option<Uuid>,
@@ -97,7 +107,8 @@ pub struct StockTakeListQuery {
 }
 
 /// Response for stock take list
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct StockTakeListResponse {
     /// List of stock takes
     pub stock_takes: Vec<StockTake>,
@@ -106,7 +117,8 @@ pub struct StockTakeListResponse {
 }
 
 /// Pagination information
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct PaginationInfo {
     /// Current page
     pub page: u32,
@@ -119,7 +131,8 @@ pub struct PaginationInfo {
 }
 
 /// Response for getting a single stock take with lines
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct StockTakeDetailResponse {
     /// The stock take
     pub stock_take: StockTake,

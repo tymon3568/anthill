@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rust_decimal::Decimal;
+use num_traits::ToPrimitive;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -48,29 +48,15 @@ impl PgStockReconciliationRepository {
         }
     }
 
-    /// Convert BIGINT cents to Decimal
-    fn cents_to_decimal(cents: i64) -> Decimal {
-        Decimal::new(cents, 2) // 2 decimal places
+    /// Convert BIGINT cents to f64
+    fn cents_to_f64(cents: i64) -> f64 {
+        cents as f64 / 100.0
     }
 
-    /// Convert Decimal to BIGINT cents
-    fn decimal_to_cents(decimal: Decimal) -> Result<i64, AppError> {
-        (decimal * Decimal::new(100, 0))
-            .round()
-            .to_i64()
-            .ok_or_else(|| {
-                AppError::DataCorruption(format!(
-                    "Decimal value {} cannot be converted to cents",
-                    decimal
-                ))
-            })
-    }
-
-    /// Convert f64 to Decimal
-    fn f64_to_decimal(f: f64) -> Result<Decimal, AppError> {
-        Decimal::from_f64(f).ok_or_else(|| {
-            AppError::DataCorruption(format!("f64 value {} cannot be converted to Decimal", f))
-        })
+    /// Convert f64 to BIGINT cents
+    fn f64_to_cents(f: f64) -> Result<i64, AppError> {
+        let cents = (f * 100.0).round() as i64;
+        Ok(cents)
     }
 }
 
@@ -141,13 +127,13 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
             name: row.name,
             description: row.description,
             status: Self::string_to_reconciliation_status(&row.status)?,
-            cycle_type: Self::string_to_cycle_type(&row.cycle_type)?,
+            cycle_type: Self::string_to_cycle_type(row.cycle_type.as_deref().unwrap_or("full"))?,
             warehouse_id: row.warehouse_id,
             location_filter: row.location_filter,
             product_filter: row.product_filter,
-            total_items: row.total_items,
-            counted_items: row.counted_items,
-            total_variance: row.total_variance,
+            total_items: row.total_items.unwrap_or(0),
+            counted_items: row.counted_items.unwrap_or(0),
+            total_variance: row.total_variance.unwrap_or(0),
             created_by: row.created_by,
             created_at: row.created_at,
             updated_at: row.updated_at,
@@ -180,32 +166,30 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to find reconciliation: {}", e)))?;
 
-        row.map(|r| -> Result<StockReconciliation, AppError> {
-            Ok(StockReconciliation {
-                reconciliation_id: r.reconciliation_id,
-                tenant_id: r.tenant_id,
-                reconciliation_number: r.reconciliation_number,
-                name: r.name,
-                description: r.description,
-                status: Self::string_to_reconciliation_status(&r.status)?,
-                cycle_type: Self::string_to_cycle_type(&r.cycle_type)?,
-                warehouse_id: r.warehouse_id,
-                location_filter: r.location_filter,
-                product_filter: r.product_filter,
-                total_items: r.total_items,
-                counted_items: r.counted_items,
-                total_variance: r.total_variance,
-                created_by: r.created_by,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
-                started_at: r.started_at,
-                completed_at: r.completed_at,
-                approved_by: r.approved_by,
-                approved_at: r.approved_at,
-                notes: r.notes,
-            })
-        })
-        .transpose()
+        Ok(row.map(|row| StockReconciliation {
+            reconciliation_id: row.reconciliation_id,
+            tenant_id: row.tenant_id,
+            reconciliation_number: row.reconciliation_number,
+            name: row.name,
+            description: row.description,
+            status: Self::string_to_reconciliation_status(&row.status).unwrap(),
+            cycle_type: Self::string_to_cycle_type(row.cycle_type.as_deref().unwrap_or("full"))
+                .unwrap(),
+            warehouse_id: row.warehouse_id,
+            location_filter: row.location_filter,
+            product_filter: row.product_filter,
+            total_items: row.total_items.unwrap_or(0),
+            counted_items: row.counted_items.unwrap_or(0),
+            total_variance: row.total_variance.unwrap_or(0),
+            created_by: row.created_by,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            started_at: row.started_at,
+            completed_at: row.completed_at,
+            approved_by: row.approved_by,
+            approved_at: row.approved_at,
+            notes: row.notes,
+        }))
     }
 
     async fn update_status(
@@ -213,12 +197,12 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
         tenant_id: Uuid,
         reconciliation_id: Uuid,
         status: ReconciliationStatus,
-        updated_by: Uuid,
+        _updated_by: Uuid,
     ) -> Result<(), AppError> {
         sqlx::query!(
             r#"
             UPDATE stock_reconciliations
-            SET status = $1, updated_at = NOW(), updated_by = $4
+            SET status = $1, updated_at = NOW()
             WHERE tenant_id = $2 AND reconciliation_id = $3 AND deleted_at IS NULL
             "#,
             match status {
@@ -228,8 +212,7 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
                 ReconciliationStatus::Cancelled => "cancelled",
             },
             tenant_id,
-            reconciliation_id,
-            updated_by
+            reconciliation_id
         )
         .execute(&*self.pool)
         .await
@@ -245,19 +228,18 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
         tenant_id: Uuid,
         reconciliation_id: Uuid,
         completed_at: chrono::DateTime<chrono::Utc>,
-        updated_by: Uuid,
+        _updated_by: Uuid,
     ) -> Result<(), AppError> {
         sqlx::query!(
             r#"
             UPDATE stock_reconciliations
-            SET status = $1, completed_at = $2, updated_at = NOW(), updated_by = $5
+            SET status = $1, completed_at = $2, updated_at = NOW()
             WHERE tenant_id = $3 AND reconciliation_id = $4 AND deleted_at IS NULL
             "#,
             "completed",
             completed_at,
             tenant_id,
-            reconciliation_id,
-            updated_by
+            reconciliation_id
         )
         .execute(&*self.pool)
         .await
@@ -375,13 +357,15 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
                     name: r.name,
                     description: r.description,
                     status: Self::string_to_reconciliation_status(&r.status)?,
-                    cycle_type: Self::string_to_cycle_type(&r.cycle_type)?,
+                    cycle_type: Self::string_to_cycle_type(
+                        r.cycle_type.as_deref().unwrap_or("full"),
+                    )?,
                     warehouse_id: r.warehouse_id,
                     location_filter: r.location_filter,
                     product_filter: r.product_filter,
-                    total_items: r.total_items,
-                    counted_items: r.counted_items,
-                    total_variance: r.total_variance,
+                    total_items: r.total_items.unwrap_or(0),
+                    counted_items: r.counted_items.unwrap_or(0),
+                    total_variance: r.total_variance.unwrap_or(0),
                     created_by: r.created_by,
                     created_at: r.created_at,
                     updated_at: r.updated_at,
@@ -459,10 +443,10 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
         &self,
         tenant_id: Uuid,
         reconciliation_id: Uuid,
-        cycle_type: CycleType,
+        _cycle_type: CycleType,
         warehouse_id: Option<Uuid>,
-        location_filter: Option<serde_json::Value>,
-        product_filter: Option<serde_json::Value>,
+        _location_filter: Option<serde_json::Value>,
+        _product_filter: Option<serde_json::Value>,
     ) -> Result<Vec<StockReconciliationItem>, AppError> {
         // This is a simplified implementation - in practice, you'd need to implement
         // the cycle counting logic based on ABC analysis, location filters, etc.
@@ -497,7 +481,7 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
             ))
         })?;
 
-        let items = rows
+        let items: Vec<StockReconciliationItem> = rows
             .into_iter()
             .map(|r| StockReconciliationItem {
                 tenant_id: r.tenant_id,
@@ -508,13 +492,11 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
                 expected_quantity: r.expected_quantity,
                 counted_quantity: r.counted_quantity,
                 variance: r.variance,
-                variance_percentage: r
-                    .variance_percentage
-                    .map(|p| Decimal::new(p.mantissa(), p.scale() as u32)),
-                unit_cost: Some(PgStockReconciliationRepository::cents_to_decimal(r.unit_cost)),
+                variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
+                unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
                 variance_value: r
                     .variance_value
-                    .map(PgStockReconciliationRepository::cents_to_decimal),
+                    .map(PgStockReconciliationRepository::cents_to_f64),
                 notes: r.notes,
                 counted_by: r.counted_by,
                 counted_at: r.counted_at,
@@ -561,13 +543,11 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
                 expected_quantity: r.expected_quantity,
                 counted_quantity: r.counted_quantity,
                 variance: r.variance,
-                variance_percentage: r
-                    .variance_percentage
-                    .map(|p| Decimal::new(p.mantissa(), p.scale() as u32)),
-                unit_cost: Some(PgStockReconciliationRepository::cents_to_decimal(r.unit_cost)),
+                variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
+                unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
                 variance_value: r
                     .variance_value
-                    .map(PgStockReconciliationRepository::cents_to_decimal),
+                    .map(PgStockReconciliationRepository::cents_to_f64),
                 notes: r.notes,
                 counted_by: r.counted_by,
                 counted_at: r.counted_at,
@@ -613,13 +593,11 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
             expected_quantity: r.expected_quantity,
             counted_quantity: r.counted_quantity,
             variance: r.variance,
-            variance_percentage: r
-                .variance_percentage
-                .map(|p| Decimal::new(p.mantissa(), p.scale() as u32)),
-            unit_cost: Some(PgStockReconciliationRepository::cents_to_decimal(r.unit_cost)),
+            variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
+            unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
             variance_value: r
                 .variance_value
-                .map(PgStockReconciliationRepository::cents_to_decimal),
+                .map(PgStockReconciliationRepository::cents_to_f64),
             notes: r.notes,
             counted_by: r.counted_by,
             counted_at: r.counted_at,
@@ -640,9 +618,7 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
         notes: Option<String>,
     ) -> Result<(), AppError> {
         let unit_cost_cents = match unit_cost {
-            Some(c) => PgStockReconciliationRepository::decimal_to_cents(
-                PgStockReconciliationRepository::f64_to_decimal(c)?,
-            )?,
+            Some(c) => PgStockReconciliationRepository::f64_to_cents(c)?,
             None => 0,
         };
 
@@ -694,9 +670,7 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
         let mut separated = query_builder.separated(", ");
         for count in counts {
             let unit_cost_cents = match count.unit_cost {
-                Some(c) => PgStockReconciliationRepository::decimal_to_cents(
-                    PgStockReconciliationRepository::f64_to_decimal(c)?,
-                )?,
+                Some(c) => PgStockReconciliationRepository::f64_to_cents(c)?,
                 None => 0,
             };
             separated.push_unseparated("(");
@@ -768,7 +742,7 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to get variance analysis: {}", e)))?;
 
-        let items = rows
+        let items: Vec<StockReconciliationItem> = rows
             .into_iter()
             .map(|r| StockReconciliationItem {
                 tenant_id: r.tenant_id,
@@ -779,13 +753,11 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
                 expected_quantity: r.expected_quantity,
                 counted_quantity: r.counted_quantity,
                 variance: r.variance,
-                variance_percentage: r
-                    .variance_percentage
-                    .map(|p| Decimal::new(p.mantissa(), p.scale() as u32)),
-                unit_cost: Some(PgStockReconciliationRepository::cents_to_decimal(r.unit_cost)),
+                variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
+                unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
                 variance_value: r
                     .variance_value
-                    .map(PgStockReconciliationRepository::cents_to_decimal),
+                    .map(PgStockReconciliationRepository::cents_to_f64),
                 notes: r.notes,
                 counted_by: r.counted_by,
                 counted_at: r.counted_at,

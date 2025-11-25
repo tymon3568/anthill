@@ -4,11 +4,13 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Represents a stock transfer between warehouses
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct Transfer {
     /// Primary key
     pub transfer_id: Uuid,
@@ -74,9 +76,10 @@ pub struct Transfer {
 }
 
 /// Transfer status enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub enum TransferStatus {
     Draft,
     Confirmed,
@@ -89,9 +92,10 @@ pub enum TransferStatus {
 }
 
 /// Transfer type enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub enum TransferType {
     #[default]
     Manual,
@@ -101,9 +105,10 @@ pub enum TransferType {
 }
 
 /// Transfer priority enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub enum TransferPriority {
     Low,
     #[default]
@@ -113,7 +118,8 @@ pub enum TransferPriority {
 }
 
 /// Represents an item in a stock transfer
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferItem {
     /// Primary key
     pub transfer_item_id: Uuid,

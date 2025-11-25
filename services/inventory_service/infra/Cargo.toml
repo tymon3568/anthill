@@ -6,6 +6,8 @@ chrono = {workspace = true}
 inventory_service_core = {workspace = true}
 # BigDecimal casting
 num-traits = "0.2"
+# Decimal numbers
+rust_decimal = {workspace = true}
 # JSON serialization
 serde_json = {workspace = true}
 # Hashing for idempotency keys

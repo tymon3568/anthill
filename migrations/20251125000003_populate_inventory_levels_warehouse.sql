@@ -26,7 +26,7 @@ END $$;
 -- Assign the system warehouse to all existing inventory_levels rows
 -- Dynamically lookup the system warehouse to avoid hardcoded UUIDs
 WITH system_warehouse AS (
-    SELECT id
+    SELECT warehouse_id
     FROM warehouses
     WHERE tenant_id = '00000000-0000-0000-0000-000000000000'::uuid
     AND warehouse_code = 'SYS-WH'
@@ -34,7 +34,7 @@ WITH system_warehouse AS (
     LIMIT 1
 )
 UPDATE inventory_levels
-SET warehouse_id = (SELECT id FROM system_warehouse)
+SET warehouse_id = (SELECT warehouse_id FROM system_warehouse)
 WHERE warehouse_id IS NULL;
 
 -- ==================================
