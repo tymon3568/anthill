@@ -3,6 +3,7 @@
 //! This module contains request and response structures for reconciliation operations.
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::Validate;
@@ -14,7 +15,8 @@ use crate::domains::inventory::reconciliation::{
 };
 
 /// Request to create a new reconciliation session
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateReconciliationRequest {
     /// Reconciliation name
     #[validate(length(
@@ -39,14 +41,16 @@ pub struct CreateReconciliationRequest {
 }
 
 /// Response for reconciliation creation
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateReconciliationResponse {
     /// The created reconciliation
     pub reconciliation: StockReconciliation,
 }
 
 /// Request to record counts for reconciliation items
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CountReconciliationRequest {
     /// List of counted items
     #[validate(length(min = 1, message = "At least one item must be counted"))]
@@ -54,7 +58,8 @@ pub struct CountReconciliationRequest {
 }
 
 /// Individual count item
-#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReconciliationCountItem {
     /// Product being counted
     pub product_id: Uuid,
@@ -72,18 +77,21 @@ pub struct ReconciliationCountItem {
 }
 
 /// Response for count submission
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CountReconciliationResponse {
     /// Updated reconciliation items
     pub items: Vec<StockReconciliationItem>,
 }
 
 /// Request to finalize a reconciliation (no body needed, just the ID in path)
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct FinalizeReconciliationRequest {}
 
 /// Response for reconciliation finalization
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct FinalizeReconciliationResponse {
     /// The finalized reconciliation
     pub reconciliation: StockReconciliation,
@@ -94,21 +102,24 @@ pub struct FinalizeReconciliationResponse {
 // StockAdjustment is imported from stock_take module for consistency
 
 /// Request to approve a reconciliation
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ApproveReconciliationRequest {
     /// Approval notes
     pub notes: Option<String>,
 }
 
 /// Response for reconciliation approval
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ApproveReconciliationResponse {
     /// The approved reconciliation
     pub reconciliation: StockReconciliation,
 }
 
 /// Query parameters for listing reconciliations
-#[derive(Debug, Clone, Serialize, Deserialize, IntoParams, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(IntoParams))]
 pub struct ReconciliationListQuery {
     /// Filter by warehouse
     pub warehouse_id: Option<Uuid>,
@@ -125,7 +136,8 @@ pub struct ReconciliationListQuery {
 }
 
 /// Response for reconciliation list
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReconciliationListResponse {
     /// List of reconciliations
     pub reconciliations: Vec<StockReconciliation>,
@@ -134,7 +146,8 @@ pub struct ReconciliationListResponse {
 }
 
 /// Pagination information
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct PaginationInfo {
     /// Current page
     pub page: u32,
@@ -147,7 +160,8 @@ pub struct PaginationInfo {
 }
 
 /// Response for getting a single reconciliation with items
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReconciliationDetailResponse {
     /// The reconciliation
     pub reconciliation: StockReconciliation,
@@ -156,7 +170,8 @@ pub struct ReconciliationDetailResponse {
 }
 
 /// Reconciliation analytics/summary response
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReconciliationAnalyticsResponse {
     /// Total reconciliations
     pub total_reconciliations: i64,
@@ -173,7 +188,8 @@ pub struct ReconciliationAnalyticsResponse {
 }
 
 /// Variance analysis for a specific reconciliation
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct VarianceAnalysisResponse {
     /// Reconciliation details
     pub reconciliation: StockReconciliation,
@@ -184,7 +200,8 @@ pub struct VarianceAnalysisResponse {
 }
 
 /// Variance range grouping
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct VarianceRange {
     /// Range description (e.g., "0-1%", "1-5%", ">5%")
     pub range: String,

@@ -13,11 +13,15 @@ shared_error = {workspace = true}
 # Database
 sqlx = {workspace = true}
 # OpenAPI documentation
-utoipa = {workspace = true}
+utoipa = {workspace = true, optional = true}
 # UUID
 uuid = {workspace = true}
 # Validation
 validator = {workspace = true}
+
+[features]
+default = []
+openapi = ["utoipa"]
 
 [lib]
 name = "inventory_service_core"
