@@ -48,6 +48,11 @@ ALTER TABLE stock_reconciliations
     ADD CONSTRAINT unique_tenant_reconciliation_number
     UNIQUE (tenant_id, reconciliation_number);
 
+-- Ensure (tenant_id, reconciliation_id) is uniquely identifiable for FKs
+ALTER TABLE stock_reconciliations
+    ADD CONSTRAINT unique_tenant_reconciliation_id
+    UNIQUE (tenant_id, reconciliation_id);
+
 -- Stock reconciliation items table (item-level counts)
 CREATE TABLE stock_reconciliation_items (
     tenant_id UUID NOT NULL,

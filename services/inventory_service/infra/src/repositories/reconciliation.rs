@@ -54,16 +54,23 @@ impl PgStockReconciliationRepository {
     }
 
     /// Convert Decimal to BIGINT cents
-    fn decimal_to_cents(decimal: Decimal) -> i64 {
+    fn decimal_to_cents(decimal: Decimal) -> Result<i64, AppError> {
         (decimal * Decimal::new(100, 0))
             .round()
             .to_i64()
-            .unwrap_or(0)
+            .ok_or_else(|| {
+                AppError::DataCorruption(format!(
+                    "Decimal value {} cannot be converted to cents",
+                    decimal
+                ))
+            })
     }
 
     /// Convert f64 to Decimal
-    fn f64_to_decimal(f: f64) -> Decimal {
-        Decimal::from_f64(f).unwrap_or(Decimal::ZERO)
+    fn f64_to_decimal(f: f64) -> Result<Decimal, AppError> {
+        Decimal::from_f64(f).ok_or_else(|| {
+            AppError::DataCorruption(format!("f64 value {} cannot be converted to Decimal", f))
+        })
     }
 }
 
@@ -211,7 +218,7 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
         sqlx::query!(
             r#"
             UPDATE stock_reconciliations
-            SET status = $1, updated_at = NOW()
+            SET status = $1, updated_at = NOW(), updated_by = $4
             WHERE tenant_id = $2 AND reconciliation_id = $3 AND deleted_at IS NULL
             "#,
             match status {
@@ -221,7 +228,8 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
                 ReconciliationStatus::Cancelled => "cancelled",
             },
             tenant_id,
-            reconciliation_id
+            reconciliation_id,
+            updated_by
         )
         .execute(&*self.pool)
         .await
@@ -242,13 +250,14 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
         sqlx::query!(
             r#"
             UPDATE stock_reconciliations
-            SET status = $1, completed_at = $2, updated_at = NOW()
+            SET status = $1, completed_at = $2, updated_at = NOW(), updated_by = $5
             WHERE tenant_id = $3 AND reconciliation_id = $4 AND deleted_at IS NULL
             "#,
             "completed",
             completed_at,
             tenant_id,
-            reconciliation_id
+            reconciliation_id,
+            updated_by
         )
         .execute(&*self.pool)
         .await
@@ -313,8 +322,8 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
         warehouse_id: Option<Uuid>,
         status: Option<ReconciliationStatus>,
         cycle_type: Option<CycleType>,
-        limit: Option<i64>,
-        offset: Option<i64>,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<StockReconciliation>, AppError> {
         let status_str = status.map(|s| match s {
             ReconciliationStatus::Draft => "draft",
@@ -349,8 +358,8 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
             warehouse_id,
             status_str,
             cycle_type_str,
-            limit.unwrap_or(50),
-            offset.unwrap_or(0)
+            limit.unwrap_or(50) as i64,
+            offset.unwrap_or(0) as i64
         )
         .fetch_all(&*self.pool)
         .await
@@ -630,13 +639,12 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
         counted_by: Uuid,
         notes: Option<String>,
     ) -> Result<(), AppError> {
-        let unit_cost_cents = unit_cost
-            .map(|c| {
-                PgStockReconciliationRepository::decimal_to_cents(
-                    PgStockReconciliationRepository::f64_to_decimal(c),
-                )
-            })
-            .unwrap_or(0);
+        let unit_cost_cents = match unit_cost {
+            Some(c) => PgStockReconciliationRepository::decimal_to_cents(
+                PgStockReconciliationRepository::f64_to_decimal(c)?,
+            )?,
+            None => 0,
+        };
 
         sqlx::query!(
             r#"
@@ -685,21 +693,25 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
 
         let mut separated = query_builder.separated(", ");
         for count in counts {
-            let unit_cost_cents = count
-                .unit_cost
-                .map(|c| {
-                    PgStockReconciliationRepository::decimal_to_cents(
-                        PgStockReconciliationRepository::f64_to_decimal(c),
-                    )
-                })
-                .unwrap_or(0);
-            separated.push("(");
+            let unit_cost_cents = match count.unit_cost {
+                Some(c) => PgStockReconciliationRepository::decimal_to_cents(
+                    PgStockReconciliationRepository::f64_to_decimal(c)?,
+                )?,
+                None => 0,
+            };
+            separated.push_unseparated("(");
             separated.push_bind_unseparated(count.product_id);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(count.warehouse_id);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(count.location_id);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(count.counted_quantity);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(unit_cost_cents);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(count.counted_by);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(&count.notes);
             separated.push_unseparated(")");
         }
