@@ -105,3 +105,13 @@ Implement comprehensive stock reconciliation system with cycle counting capabili
   - Resolved Cargo feature issues: made utoipa non-optional and removed conditional imports/derives
   - Status: All remaining critical/warning issues resolved, workspace compiles successfully
   - Files modified: PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.19_implement_stock_reconciliation_api.md, migrations/20251126000002_create_reconciliation_tables.sql, services/inventory_service/infra/src/repositories/reconciliation.rs, services/inventory_service/core/Cargo.toml, services/inventory_service/core/src/dto/reconciliation.rs
+*   2025-11-26 14:00: Final PR review fixes applied and committed by Claude
+  - Made utoipa ToSchema derives conditional on 'openapi' feature in core DTOs
+  - Switched monetary types to f64 for ToSchema compatibility, with cents conversions in infra
+  - Fixed Option handling for nullable DB columns in reconciliation repository
+  - Removed non-existent updated_by column from UPDATE queries
+  - Enabled openapi feature for core in API crate
+  - Fixed migration column reference bug (id → warehouse_id)
+  - Generated sqlx offline metadata for compile-time validation
+  - Committed changes with TaskID: 04.04.19 and pushed to branch
+  - Status: All compilation and review issues resolved, ready for human review
