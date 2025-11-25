@@ -43,7 +43,7 @@ pub struct StockTake {
 /// Stock take status enumeration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type, ToSchema)]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "TEXT", rename_all = "PascalCase")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum StockTakeStatus {
     Draft,
     Scheduled,
@@ -55,11 +55,11 @@ pub enum StockTakeStatus {
 impl fmt::Display for StockTakeStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StockTakeStatus::Draft => write!(f, "Draft"),
-            StockTakeStatus::Scheduled => write!(f, "Scheduled"),
-            StockTakeStatus::InProgress => write!(f, "InProgress"),
-            StockTakeStatus::Completed => write!(f, "Completed"),
-            StockTakeStatus::Cancelled => write!(f, "Cancelled"),
+            StockTakeStatus::Draft => write!(f, "draft"),
+            StockTakeStatus::Scheduled => write!(f, "scheduled"),
+            StockTakeStatus::InProgress => write!(f, "in_progress"),
+            StockTakeStatus::Completed => write!(f, "completed"),
+            StockTakeStatus::Cancelled => write!(f, "cancelled"),
         }
     }
 }
