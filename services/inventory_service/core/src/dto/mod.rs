@@ -5,6 +5,7 @@
 pub mod category;
 pub mod delivery;
 pub mod receipt;
+pub mod reconciliation;
 pub mod stock_take;
 pub mod transfer;
 
@@ -18,6 +19,14 @@ pub use delivery::{PickItemRequest, PickItemsRequest, PickItemsResponse};
 pub use receipt::{
     ReceiptCreateRequest, ReceiptItemCreateRequest, ReceiptItemResponse, ReceiptListQuery,
     ReceiptListResponse, ReceiptResponse, ReceiptSummaryResponse,
+};
+pub use reconciliation::{
+    ApproveReconciliationRequest, ApproveReconciliationResponse, CountReconciliationRequest,
+    CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
+    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
+    ReconciliationCountItem, ReconciliationDetailResponse, ReconciliationListQuery,
+    ReconciliationListResponse, StockAdjustment as ReconciliationStockAdjustment,
+    VarianceAnalysisResponse,
 };
 pub use stock_take::{
     CountItem, CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest,
