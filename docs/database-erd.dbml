@@ -516,6 +516,7 @@ Ref: delivery_orders.(tenant_id, created_by) > users.(tenant_id, user_id)
 Ref: delivery_order_items.tenant_id > tenants.tenant_id
 Ref: delivery_order_items.(tenant_id, delivery_id) > delivery_orders.(tenant_id, delivery_id)
 Ref: delivery_order_items.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: delivery_order_items.(tenant_id, uom_id) > unit_of_measures.(tenant_id, uom_id)
 
 Ref: stock_transfers.tenant_id > tenants.tenant_id
 Ref: stock_transfers.(tenant_id, source_warehouse_id) > warehouses.(tenant_id, warehouse_id)
