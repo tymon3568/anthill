@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+
 use num_traits::ToPrimitive;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::sync::Arc;
@@ -166,30 +167,44 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to find reconciliation: {}", e)))?;
 
-        Ok(row.map(|row| StockReconciliation {
-            reconciliation_id: row.reconciliation_id,
-            tenant_id: row.tenant_id,
-            reconciliation_number: row.reconciliation_number,
-            name: row.name,
-            description: row.description,
-            status: Self::string_to_reconciliation_status(&row.status).unwrap(),
-            cycle_type: Self::string_to_cycle_type(row.cycle_type.as_deref().unwrap_or("full"))
-                .unwrap(),
-            warehouse_id: row.warehouse_id,
-            location_filter: row.location_filter,
-            product_filter: row.product_filter,
-            total_items: row.total_items.unwrap_or(0),
-            counted_items: row.counted_items.unwrap_or(0),
-            total_variance: row.total_variance.unwrap_or(0),
-            created_by: row.created_by,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-            started_at: row.started_at,
-            completed_at: row.completed_at,
-            approved_by: row.approved_by,
-            approved_at: row.approved_at,
-            notes: row.notes,
-        }))
+        match row {
+            Some(row) => {
+                let status = Self::string_to_reconciliation_status(&row.status).map_err(|_| {
+                    AppError::DataCorruption(
+                        "Invalid reconciliation status in database".to_string(),
+                    )
+                })?;
+                let cycle_type =
+                    Self::string_to_cycle_type(row.cycle_type.as_deref().unwrap_or("full"))
+                        .map_err(|_| {
+                            AppError::DataCorruption("Invalid cycle type in database".to_string())
+                        })?;
+                Ok(Some(StockReconciliation {
+                    reconciliation_id: row.reconciliation_id,
+                    tenant_id: row.tenant_id,
+                    reconciliation_number: row.reconciliation_number,
+                    name: row.name,
+                    description: row.description,
+                    status,
+                    cycle_type,
+                    warehouse_id: row.warehouse_id,
+                    location_filter: row.location_filter,
+                    product_filter: row.product_filter,
+                    total_items: row.total_items.unwrap_or(0),
+                    counted_items: row.counted_items.unwrap_or(0),
+                    total_variance: row.total_variance.unwrap_or(0),
+                    created_by: row.created_by,
+                    created_at: row.created_at,
+                    updated_at: row.updated_at,
+                    started_at: row.started_at,
+                    completed_at: row.completed_at,
+                    approved_by: row.approved_by,
+                    approved_at: row.approved_at,
+                    notes: row.notes,
+                }))
+            },
+            None => Ok(None),
+        }
     }
 
     async fn update_status(
@@ -483,27 +498,39 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
 
         let items: Vec<StockReconciliationItem> = rows
             .into_iter()
-            .map(|r| StockReconciliationItem {
-                tenant_id: r.tenant_id,
-                reconciliation_id: r.reconciliation_id,
-                product_id: r.product_id,
-                warehouse_id: r.warehouse_id,
-                location_id: r.location_id,
-                expected_quantity: r.expected_quantity,
-                counted_quantity: r.counted_quantity,
-                variance: r.variance,
-                variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
-                unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
-                variance_value: r
-                    .variance_value
-                    .map(PgStockReconciliationRepository::cents_to_f64),
-                notes: r.notes,
-                counted_by: r.counted_by,
-                counted_at: r.counted_at,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
+            .map(|r| -> Result<StockReconciliationItem, AppError> {
+                let variance_percentage = r
+                    .variance_percentage
+                    .map(|p| {
+                        p.to_f64().ok_or_else(|| {
+                            AppError::DataCorruption(
+                                "Invalid variance percentage in database".to_string(),
+                            )
+                        })
+                    })
+                    .transpose()?;
+                Ok(StockReconciliationItem {
+                    tenant_id: r.tenant_id,
+                    reconciliation_id: r.reconciliation_id,
+                    product_id: r.product_id,
+                    warehouse_id: r.warehouse_id,
+                    location_id: r.location_id,
+                    expected_quantity: r.expected_quantity,
+                    counted_quantity: r.counted_quantity,
+                    variance: r.variance,
+                    variance_percentage,
+                    unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
+                    variance_value: r
+                        .variance_value
+                        .map(PgStockReconciliationRepository::cents_to_f64),
+                    notes: r.notes,
+                    counted_by: r.counted_by,
+                    counted_at: r.counted_at,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(items)
     }
@@ -534,27 +561,39 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
 
         let items = rows
             .into_iter()
-            .map(|r| StockReconciliationItem {
-                tenant_id: r.tenant_id,
-                reconciliation_id: r.reconciliation_id,
-                product_id: r.product_id,
-                warehouse_id: r.warehouse_id,
-                location_id: r.location_id,
-                expected_quantity: r.expected_quantity,
-                counted_quantity: r.counted_quantity,
-                variance: r.variance,
-                variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
-                unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
-                variance_value: r
-                    .variance_value
-                    .map(PgStockReconciliationRepository::cents_to_f64),
-                notes: r.notes,
-                counted_by: r.counted_by,
-                counted_at: r.counted_at,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
+            .map(|r| -> Result<StockReconciliationItem, AppError> {
+                let variance_percentage = r
+                    .variance_percentage
+                    .map(|p| {
+                        p.to_f64().ok_or_else(|| {
+                            AppError::DataCorruption(
+                                "Invalid variance percentage in database".to_string(),
+                            )
+                        })
+                    })
+                    .transpose()?;
+                Ok(StockReconciliationItem {
+                    tenant_id: r.tenant_id,
+                    reconciliation_id: r.reconciliation_id,
+                    product_id: r.product_id,
+                    warehouse_id: r.warehouse_id,
+                    location_id: r.location_id,
+                    expected_quantity: r.expected_quantity,
+                    counted_quantity: r.counted_quantity,
+                    variance: r.variance,
+                    variance_percentage,
+                    unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
+                    variance_value: r
+                        .variance_value
+                        .map(PgStockReconciliationRepository::cents_to_f64),
+                    notes: r.notes,
+                    counted_by: r.counted_by,
+                    counted_at: r.counted_at,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(items)
     }
@@ -584,26 +623,41 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to find reconciliation item: {}", e)))?;
 
-        Ok(row.map(|r| StockReconciliationItem {
-            tenant_id: r.tenant_id,
-            reconciliation_id: r.reconciliation_id,
-            product_id: r.product_id,
-            warehouse_id: r.warehouse_id,
-            location_id: r.location_id,
-            expected_quantity: r.expected_quantity,
-            counted_quantity: r.counted_quantity,
-            variance: r.variance,
-            variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
-            unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
-            variance_value: r
-                .variance_value
-                .map(PgStockReconciliationRepository::cents_to_f64),
-            notes: r.notes,
-            counted_by: r.counted_by,
-            counted_at: r.counted_at,
-            created_at: r.created_at,
-            updated_at: r.updated_at,
-        }))
+        match row {
+            Some(r) => {
+                let variance_percentage = r
+                    .variance_percentage
+                    .map(|p| {
+                        p.to_f64().ok_or_else(|| {
+                            AppError::DataCorruption(
+                                "Invalid variance percentage in database".to_string(),
+                            )
+                        })
+                    })
+                    .transpose()?;
+                Ok(Some(StockReconciliationItem {
+                    tenant_id: r.tenant_id,
+                    reconciliation_id: r.reconciliation_id,
+                    product_id: r.product_id,
+                    warehouse_id: r.warehouse_id,
+                    location_id: r.location_id,
+                    expected_quantity: r.expected_quantity,
+                    counted_quantity: r.counted_quantity,
+                    variance: r.variance,
+                    variance_percentage,
+                    unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
+                    variance_value: r
+                        .variance_value
+                        .map(PgStockReconciliationRepository::cents_to_f64),
+                    notes: r.notes,
+                    counted_by: r.counted_by,
+                    counted_at: r.counted_at,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                }))
+            },
+            None => Ok(None),
+        }
     }
 
     async fn update_count(
@@ -695,6 +749,7 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
             ) AS data(product_id, warehouse_id, location_id, counted_quantity, unit_cost, counted_by, notes)
             WHERE stock_reconciliation_items.product_id = data.product_id
             AND stock_reconciliation_items.warehouse_id = data.warehouse_id
+            AND stock_reconciliation_items.location_id IS NOT DISTINCT FROM data.location_id
             AND stock_reconciliation_items.tenant_id = "#,
         );
         query_builder.push_bind(tenant_id);
@@ -744,27 +799,39 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
 
         let items: Vec<StockReconciliationItem> = rows
             .into_iter()
-            .map(|r| StockReconciliationItem {
-                tenant_id: r.tenant_id,
-                reconciliation_id: r.reconciliation_id,
-                product_id: r.product_id,
-                warehouse_id: r.warehouse_id,
-                location_id: r.location_id,
-                expected_quantity: r.expected_quantity,
-                counted_quantity: r.counted_quantity,
-                variance: r.variance,
-                variance_percentage: r.variance_percentage.map(|p| p.to_f64().unwrap()),
-                unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
-                variance_value: r
-                    .variance_value
-                    .map(PgStockReconciliationRepository::cents_to_f64),
-                notes: r.notes,
-                counted_by: r.counted_by,
-                counted_at: r.counted_at,
-                created_at: r.created_at,
-                updated_at: r.updated_at,
+            .map(|r| -> Result<StockReconciliationItem, AppError> {
+                let variance_percentage = r
+                    .variance_percentage
+                    .map(|p| {
+                        p.to_f64().ok_or_else(|| {
+                            AppError::DataCorruption(
+                                "Invalid variance percentage in database".to_string(),
+                            )
+                        })
+                    })
+                    .transpose()?;
+                Ok(StockReconciliationItem {
+                    tenant_id: r.tenant_id,
+                    reconciliation_id: r.reconciliation_id,
+                    product_id: r.product_id,
+                    warehouse_id: r.warehouse_id,
+                    location_id: r.location_id,
+                    expected_quantity: r.expected_quantity,
+                    counted_quantity: r.counted_quantity,
+                    variance: r.variance,
+                    variance_percentage,
+                    unit_cost: Some(PgStockReconciliationRepository::cents_to_f64(r.unit_cost)),
+                    variance_value: r
+                        .variance_value
+                        .map(PgStockReconciliationRepository::cents_to_f64),
+                    notes: r.notes,
+                    counted_by: r.counted_by,
+                    counted_at: r.counted_at,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
 
         // Calculate total items and counted items
         let total_items = items.len() as i64;

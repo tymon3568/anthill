@@ -179,6 +179,12 @@ BEGIN
         NEW.variance_percentage := NULL;
         NEW.variance_value := NULL;
     END IF;
+
+    -- Reset derived fields when expected_quantity is zero to avoid division by zero
+    IF NEW.expected_quantity = 0 THEN
+        NEW.variance_percentage := NULL;
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
