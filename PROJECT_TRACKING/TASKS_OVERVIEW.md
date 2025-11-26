@@ -75,7 +75,7 @@
           → [View folder](./V1_MVP/03_User_Service/3.4_Testing/)
           → Progress: 0/4 tasks completed
 
-### [⏳] Phase 4: Inventory Service - `Todo 0%` *(Optimized Structure)*
+### [🔄] Phase 4: Inventory Service - `In Progress 85%` *(Optimized Structure)*
     - [⏳] 4.1 Product Master - `Todo`
           → [View folder](./V1_MVP/04_Inventory_Service/4.1_Product_Master/)
           → Progress: 0/6 tasks completed
@@ -84,13 +84,13 @@
           → [View folder](./V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/)
           → Progress: 0/1 tasks completed
 
-    - [⏳] 4.3 Stock Operations Core - `Todo`
+    - [🔄] 4.3 Stock Operations Core - `In Progress`
           → [View folder](./V1_MVP/04_Inventory_Service/4.3_Stock_Operations/)
-          → Progress: 0/3 tasks completed
+          → Progress: 2/3 tasks completed (Updated: 2025-11-26)
 
-    - [⏳] 4.4 Stock Transactions - `Todo`
+    - [🔄] 4.4 Stock Transactions - `In Progress`
           → [View folder](./V1_MVP/04_Inventory_Service/4.4_Stock_Operations/)
-          → Progress: 0/19 tasks completed
+          → Progress: 18/19 tasks completed (Updated: 2025-11-26)
           → **Note**: Consolidates GRN, DO, Transfers, Adjustments, RMA into unified workflow
 
     - [⏳] 4.5 Lot & Serial Tracking - `Todo`
@@ -288,13 +288,13 @@
 
 ## 📊 Project Metrics
 
-### Overall Progress: ~35% Complete (Updated: 2025-11-12)
+### Overall Progress: ~40% Complete (Updated: 2025-11-26)
 
 #### By Phase:
 - **Phase 1** (Infrastructure): ✅ 95% - Production ready
 - **Phase 2** (Database): ✅ 100% - Foundation complete
 - **Phase 3** (User Service): 🔄 52% - Kanidm integration mostly complete, Casbin authorization nearly done (Updated: 2025-11-05)
-- **Phase 4** (Inventory): ⏳ 0% - Optimized structure with 42 tasks (Updated: 2025-10-29)
+- **Phase 4** (Inventory): 🔄 85% - Optimized structure with 42 tasks (Updated: 2025-11-26)
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
