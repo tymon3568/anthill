@@ -3,6 +3,7 @@
 //! This module defines the data transfer objects for stock transfer operations.
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -11,7 +12,8 @@ use crate::domains::inventory::transfer::{
 };
 
 /// Request to create a new transfer
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferRequest {
     /// Optional external reference number
     pub reference_number: Option<String>,
@@ -40,7 +42,8 @@ pub struct CreateTransferRequest {
 }
 
 /// Request to create a transfer item
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferItemRequest {
     /// Product ID
     pub product_id: Uuid,
@@ -57,7 +60,8 @@ pub struct CreateTransferItemRequest {
 }
 
 /// Response for transfer creation
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferResponse {
     /// Created transfer ID
     pub transfer_id: Uuid,
@@ -70,14 +74,16 @@ pub struct CreateTransferResponse {
 }
 
 /// Request to confirm a transfer
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ConfirmTransferRequest {
     /// Optional notes for confirmation
     pub notes: Option<String>,
 }
 
 /// Response for transfer confirmation
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ConfirmTransferResponse {
     /// Transfer ID
     pub transfer_id: Uuid,
@@ -88,14 +94,16 @@ pub struct ConfirmTransferResponse {
 }
 
 /// Request to receive a transfer
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiveTransferRequest {
     /// Optional notes for receipt
     pub notes: Option<String>,
 }
 
 /// Response for transfer receipt
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiveTransferResponse {
     /// Transfer ID
     pub transfer_id: Uuid,
@@ -108,7 +116,8 @@ pub struct ReceiveTransferResponse {
 }
 
 /// Full transfer response with items
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferResponse {
     /// Transfer details
     #[serde(flatten)]
@@ -118,7 +127,8 @@ pub struct TransferResponse {
 }
 
 /// Transfer summary for listings
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferSummary {
     /// Transfer ID
     pub transfer_id: Uuid,

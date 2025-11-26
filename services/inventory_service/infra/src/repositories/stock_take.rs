@@ -596,6 +596,7 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
     async fn batch_update_counts(
         &self,
         tenant_id: Uuid,
+        stock_take_id: Uuid,
         counts: &[StockTakeLineCountUpdate],
     ) -> Result<(), AppError> {
         if counts.is_empty() {
@@ -631,6 +632,11 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
             AND stock_take_lines.tenant_id = "#,
         );
         query_builder.push_bind(tenant_id);
+        query_builder.push(
+            r#"
+            AND stock_take_lines.stock_take_id = "#,
+        );
+        query_builder.push_bind(stock_take_id);
         query_builder.push(
             r#"
             AND stock_take_lines.deleted_at IS NULL

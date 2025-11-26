@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 # Integration Testing Environment
 # Isolated test environment with dedicated PostgreSQL, Redis, and NATS instances
@@ -13,7 +13,7 @@ services:
       POSTGRES_PASSWORD: anthill
       POSTGRES_DB: anthill_test
     ports:
-      - "5433:5432" # Use different port to avoid conflicts with dev DB
+      - "5434:5432" # Use different port to avoid conflicts with dev DB
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
       # Mount migrations for easy testing
@@ -49,7 +49,11 @@ services:
       - "4223:4222" # Use different port to avoid conflicts
       - "8223:8222" # HTTP monitoring port
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8222/healthz || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --spider -q http://localhost:8222/healthz || exit 1",
+        ]
       interval: 5s
       timeout: 3s
       retries: 5

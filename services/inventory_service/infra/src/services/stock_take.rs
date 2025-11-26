@@ -158,7 +158,7 @@ impl StockTakeService for PgStockTakeService {
         }
 
         self.stock_take_line_repo
-            .batch_update_counts(tenant_id, &counts)
+            .batch_update_counts(tenant_id, stock_take_id, &counts)
             .await?;
 
         // Get updated lines

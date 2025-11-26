@@ -3,17 +3,19 @@
 async-trait = {workspace = true}
 chrono = {workspace = true}
 regex = {workspace = true}
+# Decimal numbers
+rust_decimal = {workspace = true}
 # Serialization
 serde = {workspace = true}
 serde_json = {workspace = true}
 # Error handling
 shared_error = {workspace = true}
-# OpenAPI documentation (optional feature)
+# Database
+sqlx = {workspace = true}
+# OpenAPI documentation
 utoipa = {workspace = true, optional = true}
 # UUID
 uuid = {workspace = true}
-# Database
-sqlx = {workspace = true}
 # Validation
 validator = {workspace = true}
 

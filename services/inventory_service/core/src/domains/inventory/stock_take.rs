@@ -5,11 +5,13 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
+#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Represents a stock take session
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct StockTake {
     /// Primary key
     pub stock_take_id: Uuid,
@@ -41,9 +43,10 @@ pub struct StockTake {
 }
 
 /// Stock take status enumeration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub enum StockTakeStatus {
     Draft,
     Scheduled,
@@ -65,7 +68,8 @@ impl fmt::Display for StockTakeStatus {
 }
 
 /// Represents a line item in a stock take
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct StockTakeLine {
     /// Primary key
     pub line_id: Uuid,
