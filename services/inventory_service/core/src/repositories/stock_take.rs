@@ -142,6 +142,7 @@ pub trait StockTakeLineRepository: Send + Sync {
     async fn batch_update_counts(
         &self,
         tenant_id: Uuid,
+        stock_take_id: Uuid,
         counts: &[StockTakeLineCountUpdate],
     ) -> Result<(), AppError>;
 
