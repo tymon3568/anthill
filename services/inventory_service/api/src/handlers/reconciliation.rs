@@ -10,9 +10,9 @@ use uuid::Uuid;
 use inventory_service_core::dto::reconciliation::{
     ApproveReconciliationRequest, ApproveReconciliationResponse, CountReconciliationRequest,
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
-    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
-    ReconciliationDetailResponse, ReconciliationListQuery, ReconciliationListResponse,
-    VarianceAnalysisResponse,
+    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsQuery,
+    ReconciliationAnalyticsResponse, ReconciliationDetailResponse, ReconciliationListQuery,
+    ReconciliationListResponse, VarianceAnalysisResponse,
 };
 
 use shared_auth::extractors::AuthUser;
