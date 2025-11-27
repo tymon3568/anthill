@@ -15,6 +15,7 @@ pub mod handlers;
 pub mod middleware;
 pub mod models;
 pub mod routes;
+pub mod state;
 
 // Re-export main components for convenience
 pub use routes::create_router;

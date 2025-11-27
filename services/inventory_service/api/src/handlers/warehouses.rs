@@ -8,7 +8,7 @@ use axum::{
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 use inventory_service_core::domains::inventory::dto::warehouse_dto::{
     CreateWarehouseLocationRequest, CreateWarehouseRequest, CreateWarehouseZoneRequest,
     WarehouseLocationResponse, WarehouseResponse, WarehouseTreeResponse, WarehouseZoneResponse,

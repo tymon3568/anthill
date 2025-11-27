@@ -15,7 +15,7 @@ use inventory_service_core::domains::inventory::dto::transfer_dto::{
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 
 /// Create the transfer routes with state
 pub fn create_transfer_routes(state: AppState) -> Router {

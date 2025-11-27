@@ -1,6 +1,10 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool, Transaction};
+use std::sync::Arc;
 use uuid::Uuid;
+
+/// Helper type for infra-internal transaction operations
+pub type InfraTx<'a> = &'a mut Transaction<'a, sqlx::Postgres>;
 
 use inventory_service_core::models::{DeliveryOrder, DeliveryOrderItem};
 use inventory_service_core::repositories::{
@@ -9,11 +13,11 @@ use inventory_service_core::repositories::{
 use shared_error::AppError;
 
 pub struct PgDeliveryOrderRepository {
-    pool: PgPool,
+    pool: Arc<PgPool>,
 }
 
 impl PgDeliveryOrderRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
 }
@@ -204,92 +208,14 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
         .await?;
         Ok(result)
     }
-
-    async fn begin_transaction(&self) -> Result<sqlx::Transaction<'_, sqlx::Postgres>, AppError> {
-        self.pool
-            .begin()
-            .await
-            .map_err(|e| AppError::DatabaseError(format!("Failed to begin transaction: {}", e)))
-    }
-
-    async fn find_by_id_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        delivery_id: Uuid,
-    ) -> Result<Option<DeliveryOrder>, AppError> {
-        let result = sqlx::query_as!(
-            DeliveryOrder,
-            r#"
-            SELECT
-                delivery_id, tenant_id, delivery_number, reference_number,
-                warehouse_id, order_id, customer_id,
-                status as "status: _",
-                delivery_date, expected_ship_date, actual_ship_date,
-                shipping_method, carrier, tracking_number, shipping_cost,
-                notes, created_by, updated_by, total_quantity, total_value, currency_code,
-                created_at, updated_at, deleted_at
-            FROM delivery_orders
-            WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
-            "#,
-            tenant_id,
-            delivery_id,
-        )
-        .fetch_optional(&mut **tx)
-        .await?;
-        Ok(result)
-    }
-
-    async fn update_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        delivery_order: &DeliveryOrder,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            UPDATE delivery_orders SET
-                delivery_number = $3, reference_number = $4,
-                warehouse_id = $5, order_id = $6, customer_id = $7, status = $8,
-                delivery_date = $9, expected_ship_date = $10, actual_ship_date = $11,
-                shipping_method = $12, carrier = $13, tracking_number = $14, shipping_cost = $15,
-                notes = $16, updated_by = $17, total_quantity = $18, total_value = $19, currency_code = $20,
-                updated_at = $21
-            WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
-            "#,
-            delivery_order.tenant_id,
-            delivery_order.delivery_id,
-            delivery_order.delivery_number,
-            delivery_order.reference_number,
-            delivery_order.warehouse_id,
-            delivery_order.order_id,
-            delivery_order.customer_id,
-            delivery_order.status.to_string(),
-            delivery_order.delivery_date,
-            delivery_order.expected_ship_date,
-            delivery_order.actual_ship_date,
-            delivery_order.shipping_method,
-            delivery_order.carrier,
-            delivery_order.tracking_number,
-            delivery_order.shipping_cost,
-            delivery_order.notes,
-            delivery_order.updated_by,
-            delivery_order.total_quantity,
-            delivery_order.total_value,
-            delivery_order.currency_code,
-            delivery_order.updated_at,
-        )
-        .execute(&mut **tx)
-        .await?;
-        Ok(())
-    }
 }
 
 pub struct PgDeliveryOrderItemRepository {
-    pool: PgPool,
+    pool: Arc<PgPool>,
 }
 
 impl PgDeliveryOrderItemRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
 }
@@ -419,98 +345,15 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
         .await?;
         Ok(())
     }
-
-    async fn find_by_id_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        delivery_item_id: Uuid,
-    ) -> Result<Option<DeliveryOrderItem>, AppError> {
-        let result = sqlx::query_as!(
-            DeliveryOrderItem,
-            r#"
-            SELECT
-                delivery_item_id, delivery_id, tenant_id, product_id,
-                ordered_quantity, picked_quantity, delivered_quantity,
-                uom_id, batch_number, expiry_date,
-                unit_price, line_total, notes, created_at, updated_at, deleted_at
-            FROM delivery_order_items
-            WHERE tenant_id = $1 AND delivery_item_id = $2 AND deleted_at IS NULL
-            "#,
-            tenant_id,
-            delivery_item_id,
-        )
-        .fetch_optional(&mut **tx)
-        .await?;
-        Ok(result)
-    }
-
-    async fn find_by_delivery_id_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        delivery_id: Uuid,
-    ) -> Result<Vec<DeliveryOrderItem>, AppError> {
-        let result = sqlx::query_as!(
-            DeliveryOrderItem,
-            r#"
-            SELECT
-                delivery_item_id, delivery_id, tenant_id, product_id,
-                ordered_quantity, picked_quantity, delivered_quantity,
-                uom_id, batch_number, expiry_date,
-                unit_price, line_total, notes, created_at, updated_at, deleted_at
-            FROM delivery_order_items
-            WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
-            ORDER BY created_at
-            "#,
-            tenant_id,
-            delivery_id,
-        )
-        .fetch_all(&mut **tx)
-        .await?;
-        Ok(result)
-    }
-
-    async fn update_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        delivery_item: &DeliveryOrderItem,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            UPDATE delivery_order_items SET
-                ordered_quantity = $4, picked_quantity = $5, delivered_quantity = $6,
-                uom_id = $7, batch_number = $8, expiry_date = $9,
-                unit_price = $10, line_total = $11, notes = $12, updated_at = $13
-            WHERE tenant_id = $1 AND delivery_item_id = $2 AND delivery_id = $3 AND deleted_at IS NULL
-            "#,
-            delivery_item.tenant_id,
-            delivery_item.delivery_item_id,
-            delivery_item.delivery_id,
-            delivery_item.ordered_quantity,
-            delivery_item.picked_quantity,
-            delivery_item.delivered_quantity,
-            delivery_item.uom_id,
-            delivery_item.batch_number,
-            delivery_item.expiry_date,
-            delivery_item.unit_price,
-            delivery_item.line_total,
-            delivery_item.notes,
-            delivery_item.updated_at,
-        )
-        .execute(&mut **tx)
-        .await?;
-        Ok(())
-    }
 }
 
 // sqlx implementations for DeliveryOrderStatus (moved from core to avoid infra deps)
 pub struct PgInventoryRepository {
-    pool: PgPool,
+    pool: Arc<PgPool>,
 }
 
 impl PgInventoryRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
 }

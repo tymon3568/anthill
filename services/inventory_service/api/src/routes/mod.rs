@@ -13,20 +13,25 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::handlers::category::{create_category_routes, AppState};
+use crate::handlers::category::create_category_routes;
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::receipt::create_receipt_routes;
+use crate::handlers::reconciliation::create_reconciliation_routes;
 use crate::handlers::search::create_search_routes;
 use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
+use crate::state::AppState;
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
 use inventory_service_infra::repositories::delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
 };
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 
+use inventory_service_infra::repositories::reconciliation::{
+    PgStockReconciliationItemRepository, PgStockReconciliationRepository,
+};
 use inventory_service_infra::repositories::stock::{
     PgInventoryLevelRepository, PgStockMoveRepository,
 };
@@ -42,6 +47,7 @@ use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
 
+use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
 use inventory_service_infra::services::stock_take::PgStockTakeService;
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
@@ -196,6 +202,20 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         inventory_level_repo.clone(),
     ));
 
+    // Initialize reconciliation repositories and services
+    let reconciliation_repo =
+        Arc::new(PgStockReconciliationRepository::new(Arc::new(pool.clone())));
+    let reconciliation_item_repo =
+        Arc::new(PgStockReconciliationItemRepository::new(Arc::new(pool.clone())));
+
+    let reconciliation_service = Arc::new(PgStockReconciliationService::new(
+        Arc::new(pool.clone()),
+        reconciliation_repo,
+        reconciliation_item_repo,
+        stock_move_repo.clone(),
+        inventory_level_repo.clone(),
+    ));
+
     // Initialize receipt repositories and services
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
@@ -213,6 +233,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         delivery_service,
         transfer_service,
         stock_take_service,
+        reconciliation_service,
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -228,6 +249,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let category_routes = create_category_routes(state.clone());
     let delivery_routes = create_delivery_routes(state.clone());
     let receipt_routes = create_receipt_routes(state.clone());
+    let reconciliation_routes = create_reconciliation_routes(state.clone());
     let search_routes = create_search_routes(state.clone());
     let transfer_routes = create_transfer_routes(state.clone());
     let stock_take_routes = create_stock_take_routes(state.clone());
@@ -276,6 +298,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let protected_routes = Router::new()
         .nest("/api/v1/inventory", category_routes)
         .nest("/api/v1/inventory/deliveries", delivery_routes)
+        .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
         .nest("/api/v1/inventory/products", search_routes)
         .nest("/api/v1/inventory/stock-takes", stock_take_routes)

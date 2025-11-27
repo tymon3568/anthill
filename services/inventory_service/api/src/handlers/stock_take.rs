@@ -16,7 +16,7 @@ use inventory_service_core::dto::stock_take::{
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 
 /// Create the stock take routes with state
 pub fn create_stock_take_routes(state: AppState) -> Router {

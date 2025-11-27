@@ -14,7 +14,7 @@ use inventory_service_core::domains::inventory::dto::search_dto::{
     SearchSuggestionsResponse,
 };
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 

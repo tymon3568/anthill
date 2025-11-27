@@ -3,6 +3,19 @@
 //! This module contains PostgreSQL implementations of the repository traits.
 
 pub mod category;
+
+/// Transaction abstraction to avoid sqlx dependency in core
+pub mod transaction {
+    use async_trait::async_trait;
+    use shared_error::AppError;
+
+    /// Abstract transaction trait for database operations
+    #[async_trait]
+    pub trait Transaction: Send + Sync {
+        /// Commit the transaction
+        async fn commit(self) -> Result<(), AppError>;
+    }
+}
 pub mod delivery_order;
 pub mod product;
 pub mod receipt;

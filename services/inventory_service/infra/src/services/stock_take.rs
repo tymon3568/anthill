@@ -21,20 +21,20 @@ use shared_error::AppError;
 /// PostgreSQL implementation of StockTakeService
 pub struct PgStockTakeService {
     pool: Arc<PgPool>,
-    stock_take_repo: Arc<dyn StockTakeRepository>,
-    stock_take_line_repo: Arc<dyn StockTakeLineRepository>,
-    stock_move_repo: Arc<dyn StockMoveRepository>,
-    inventory_repo: Arc<dyn InventoryLevelRepository>,
+    stock_take_repo: Arc<crate::repositories::stock_take::PgStockTakeRepository>,
+    stock_take_line_repo: Arc<crate::repositories::stock_take::PgStockTakeLineRepository>,
+    stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
+    inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
 }
 
 impl PgStockTakeService {
     /// Create a new service instance
     pub fn new(
         pool: Arc<PgPool>,
-        stock_take_repo: Arc<dyn StockTakeRepository>,
-        stock_take_line_repo: Arc<dyn StockTakeLineRepository>,
-        stock_move_repo: Arc<dyn StockMoveRepository>,
-        inventory_repo: Arc<dyn InventoryLevelRepository>,
+        stock_take_repo: Arc<crate::repositories::stock_take::PgStockTakeRepository>,
+        stock_take_line_repo: Arc<crate::repositories::stock_take::PgStockTakeLineRepository>,
+        stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
+        inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
     ) -> Self {
         Self {
             pool,

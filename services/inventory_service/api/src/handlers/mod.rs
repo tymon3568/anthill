@@ -2,6 +2,7 @@ pub mod category;
 pub mod delivery;
 pub mod health;
 pub mod receipt;
+pub mod reconciliation;
 pub mod search;
 pub mod stock_take;
 pub mod transfer;
