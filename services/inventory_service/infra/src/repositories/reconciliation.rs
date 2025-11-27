@@ -2,6 +2,7 @@ use async_trait::async_trait;
 
 use num_traits::ToPrimitive;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
+use std::ops::DerefMut;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -73,33 +74,31 @@ impl PgStockReconciliationRepository {
 
     /// Internal helper: Finalize reconciliation within transaction
     /// This is used by services for transactional orchestration
-    pub async fn finalize_with_tx(
+    pub async fn finalize_with_tx<'a>(
         &self,
-        tx: InfraTx<'_>,
+        mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
         tenant_id: Uuid,
         reconciliation_id: Uuid,
         completed_at: chrono::DateTime<chrono::Utc>,
-        updated_by: Uuid,
-    ) -> Result<(), AppError> {
+    ) -> Result<sqlx::Transaction<'a, sqlx::Postgres>, AppError> {
         sqlx::query!(
             r#"
             UPDATE stock_reconciliations
-            SET status = $1, completed_at = $2, updated_by = $3, updated_at = NOW()
-            WHERE tenant_id = $4 AND reconciliation_id = $5 AND deleted_at IS NULL
+            SET status = $1, completed_at = $2, updated_at = NOW()
+            WHERE tenant_id = $3 AND reconciliation_id = $4 AND deleted_at IS NULL
             "#,
             "completed",
             completed_at,
-            updated_by,
             tenant_id,
             reconciliation_id
         )
-        .execute(&mut **tx)
+        .execute(tx.deref_mut())
         .await
         .map_err(|e| {
             AppError::DatabaseError(format!("Failed to finalize reconciliation: {}", e))
         })?;
 
-        Ok(())
+        Ok(tx)
     }
 }
 

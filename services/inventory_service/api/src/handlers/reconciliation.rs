@@ -26,6 +26,7 @@ pub fn create_reconciliation_routes(state: AppState) -> Router {
         .route("/", post(create_reconciliation))
         .route("/analytics", get(get_reconciliation_analytics))
         .route("/:reconciliation_id/count", post(count_reconciliation))
+        .route("/:reconciliation_id/scan", post(scan_barcode))
         .route("/:reconciliation_id/finalize", post(finalize_reconciliation))
         .route("/:reconciliation_id/approve", post(approve_reconciliation))
         .route("/:reconciliation_id/variance", get(get_variance_analysis))
@@ -557,6 +558,79 @@ pub async fn get_variance_analysis(
     let response = state
         .reconciliation_service
         .get_variance_analysis(auth_user.tenant_id, reconciliation_id)
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// POST /api/v1/inventory/reconciliations/{reconciliation_id}/scan - Scan barcode for counting
+///
+/// Scans a barcode to update reconciliation count for the corresponding product.
+/// Supports mobile counting workflows with barcode scanners.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Path Parameters
+/// * `reconciliation_id` - UUID of the reconciliation
+///
+/// # Request Body
+/// ```json
+/// {
+///   "barcode": "123e4567-e89b-12d3-a456-426614174000",
+///   "quantity": 50,
+///   "location_id": "123e4567-e89b-12d3-a456-426614174001",
+///   "notes": "Counted from shelf A"
+/// }
+/// ```
+///
+/// # Returns
+/// * `200` - Barcode scanned successfully
+/// * `400` - Invalid barcode or request
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+/// * `404` - Reconciliation or product not found
+///
+/// # Example Response
+/// ```json
+/// {
+///   "item": {
+///     "reconciliation_item_id": "123e4567-e89b-12d3-a456-426614174002",
+///     "product_id": "123e4567-e89b-12d3-a456-426614174000",
+///     "expected_quantity": 45,
+///     "counted_quantity": 50,
+///     "variance": 5,
+///     "counted_at": "2025-11-27T20:00:00Z"
+///   },
+///   "is_new_count": true
+/// }
+/// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/reconciliations/{reconciliation_id}/scan",
+    tag = "reconciliations",
+    operation_id = "scan_barcode",
+    params(
+        ("reconciliation_id" = Uuid, Path, description = "Reconciliation ID")
+    ),
+    request_body = ScanBarcodeRequest,
+    responses(
+        (status = 200, description = "Barcode scanned successfully", body = ScanBarcodeResponse),
+        (status = 400, description = "Invalid barcode or request"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Reconciliation or product not found")
+    )
+)]
+pub async fn scan_barcode(
+    auth_user: AuthUser,
+    State(state): State<AppState>,
+    Path(reconciliation_id): Path<Uuid>,
+    Json(request): Json<ScanBarcodeRequest>,
+) -> Result<Json<ScanBarcodeResponse>, AppError> {
+    let response = state
+        .reconciliation_service
+        .scan_barcode(auth_user.tenant_id, reconciliation_id, auth_user.user_id, request)
         .await?;
 
     Ok(Json(response))

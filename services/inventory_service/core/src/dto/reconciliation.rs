@@ -218,3 +218,33 @@ pub struct VarianceRange {
     /// Total variance value for items in this range
     pub total_variance_value: Option<f64>,
 }
+
+/// Request to scan barcode for reconciliation counting
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct ScanBarcodeRequest {
+    /// Scanned barcode value
+    #[validate(length(
+        min = 1,
+        max = 255,
+        message = "Barcode must be between 1 and 255 characters"
+    ))]
+    pub barcode: String,
+    /// Counted quantity for this barcode
+    #[validate(range(min = 0, message = "Quantity cannot be negative"))]
+    pub quantity: i64,
+    /// Optional location override (if different from item location)
+    pub location_id: Option<Uuid>,
+    /// Optional notes for this scan
+    pub notes: Option<String>,
+}
+
+/// Response for barcode scan
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct ScanBarcodeResponse {
+    /// The updated reconciliation item
+    pub item: StockReconciliationItem,
+    /// Whether this was a new count or update
+    pub is_new_count: bool,
+}

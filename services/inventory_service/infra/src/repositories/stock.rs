@@ -3,7 +3,7 @@
 //! This module contains PostgreSQL implementations of StockMoveRepository and InventoryLevelRepository.
 
 use async_trait::async_trait;
-use sqlx::{PgPool, Transaction};
+use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -12,7 +12,7 @@ use inventory_service_core::repositories::{InventoryLevelRepository, StockMoveRe
 use shared_error::AppError;
 
 /// Helper type for infra-internal transaction operations
-pub type InfraTx<'a> = &'a mut Transaction<'a, sqlx::Postgres>;
+pub type InfraTx<'a> = &'a mut sqlx::PgConnection;
 
 /// PostgreSQL implementation of StockMoveRepository
 pub struct PgStockMoveRepository {
@@ -55,7 +55,7 @@ impl PgStockMoveRepository {
             stock_move.batch_info,
             stock_move.metadata,
         )
-        .execute(&mut **tx)
+        .execute(tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
@@ -93,7 +93,7 @@ impl PgStockMoveRepository {
             stock_move.batch_info,
             stock_move.metadata,
         )
-        .execute(&mut **tx)
+        .execute(tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
@@ -224,7 +224,7 @@ impl PgInventoryLevelRepository {
             product_id,
             quantity_change
         )
-        .execute(&mut **tx)
+        .execute(tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 

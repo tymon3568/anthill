@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
+use std::ops::DerefMut;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -39,14 +40,14 @@ impl PgStockTakeRepository {
 
     /// Internal helper: Finalize stock take within transaction
     /// This is used by services for transactional orchestration
-    pub async fn finalize_with_tx(
+    pub async fn finalize_with_tx<'a>(
         &self,
-        tx: InfraTx<'_>,
+        mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
         tenant_id: Uuid,
         stock_take_id: Uuid,
         completed_at: chrono::DateTime<chrono::Utc>,
         updated_by: Uuid,
-    ) -> Result<(), AppError> {
+    ) -> Result<sqlx::Transaction<'a, sqlx::Postgres>, AppError> {
         sqlx::query!(
             r#"
             UPDATE stock_takes
@@ -59,11 +60,11 @@ impl PgStockTakeRepository {
             tenant_id,
             stock_take_id
         )
-        .execute(&mut **tx)
+        .execute(tx.deref_mut())
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to finalize stock take: {}", e)))?;
 
-        Ok(())
+        Ok(tx)
     }
 }
 

@@ -53,7 +53,7 @@ impl fmt::Display for AppError {
             AppError::InvalidCredentials => write!(f, "Invalid credentials"),
             AppError::TokenExpired => write!(f, "Token expired"),
             AppError::InvalidToken => write!(f, "Invalid token"),
-            AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
+            AppError::ValidationError(msg) => write!(f, "{}", msg),
             AppError::UserAlreadyExists => write!(f, "User already exists"),
             AppError::UserNotFound => write!(f, "User not found"),
             AppError::TenantNotFound => write!(f, "Tenant not found"),

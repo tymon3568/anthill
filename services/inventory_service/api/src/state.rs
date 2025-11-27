@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
-use inventory_service_core::services::delivery::DeliveryService;
+// use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::product::ProductService;
 use inventory_service_core::services::receipt::ReceiptService;
 use inventory_service_core::services::reconciliation::StockReconciliationService;
@@ -26,7 +26,7 @@ pub struct AppState {
     pub valuation_service: Arc<dyn ValuationService>,
     pub warehouse_repository: Arc<dyn WarehouseRepository>,
     pub receipt_service: Arc<dyn ReceiptService>,
-    pub delivery_service: Arc<dyn DeliveryService>,
+    // pub delivery_service: Arc<dyn DeliveryService>,
     pub transfer_service: Arc<dyn TransferService>,
     pub stock_take_service: Arc<dyn StockTakeService>,
     pub reconciliation_service: Arc<dyn StockReconciliationService>,

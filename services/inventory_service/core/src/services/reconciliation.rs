@@ -90,4 +90,16 @@ pub trait StockReconciliationService: Send + Sync {
         tenant_id: Uuid,
         reconciliation_id: Uuid,
     ) -> Result<VarianceAnalysisResponse, AppError>;
+
+    /// Scan barcode and update reconciliation count
+    ///
+    /// Looks up product by barcode, finds the corresponding reconciliation item,
+    /// and updates the counted quantity.
+    async fn scan_barcode(
+        &self,
+        tenant_id: Uuid,
+        reconciliation_id: Uuid,
+        user_id: Uuid,
+        request: crate::dto::reconciliation::ScanBarcodeRequest,
+    ) -> Result<crate::dto::reconciliation::ScanBarcodeResponse, AppError>;
 }

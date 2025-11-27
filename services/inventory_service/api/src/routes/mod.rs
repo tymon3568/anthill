@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 use crate::handlers::category::create_category_routes;
-use crate::handlers::delivery::create_delivery_routes;
+// use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
 use crate::handlers::search::create_search_routes;
@@ -44,13 +44,58 @@ use inventory_service_infra::repositories::transfer::{
 use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
-use inventory_service_infra::services::delivery::DeliveryServiceImpl;
+// use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
 
 use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
 use inventory_service_infra::services::stock_take::PgStockTakeService;
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
+
+// Dummy delivery service to avoid compile errors when delivery is disabled
+pub struct DummyDeliveryService;
+
+#[async_trait::async_trait]
+impl inventory_service_core::services::delivery::DeliveryService for DummyDeliveryService {
+    async fn pick_items(
+        &self,
+        _tenant_id: uuid::Uuid,
+        _delivery_id: uuid::Uuid,
+        _user_id: uuid::Uuid,
+        _request: inventory_service_core::dto::delivery::PickItemsRequest,
+    ) -> Result<inventory_service_core::dto::delivery::PickItemsResponse, shared_error::AppError>
+    {
+        Err(shared_error::AppError::ValidationError(
+            "Delivery service is temporarily disabled".to_string(),
+        ))
+    }
+
+    async fn pack_items(
+        &self,
+        _tenant_id: uuid::Uuid,
+        _delivery_id: uuid::Uuid,
+        _user_id: uuid::Uuid,
+        _request: inventory_service_core::dto::delivery::PackItemsRequest,
+    ) -> Result<inventory_service_core::dto::delivery::PackItemsResponse, shared_error::AppError>
+    {
+        Err(shared_error::AppError::ValidationError(
+            "Delivery service is temporarily disabled".to_string(),
+        ))
+    }
+
+    async fn ship_items(
+        &self,
+        _tenant_id: uuid::Uuid,
+        _delivery_id: uuid::Uuid,
+        _user_id: uuid::Uuid,
+        _request: inventory_service_core::dto::delivery::ShipItemsRequest,
+    ) -> Result<inventory_service_core::dto::delivery::ShipItemsResponse, shared_error::AppError>
+    {
+        Err(shared_error::AppError::ValidationError(
+            "Delivery service is temporarily disabled".to_string(),
+        ))
+    }
+}
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -165,19 +210,19 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
 
     // Initialize delivery repositories and services
-    let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
-    let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
+    // let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
+    // let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
 
     // Initialize stock repositories
     let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
     let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
 
-    let delivery_service = Arc::new(DeliveryServiceImpl::new(
-        delivery_repo,
-        delivery_item_repo,
-        stock_move_repo.clone(),
-        inventory_level_repo.clone(),
-    ));
+    // let delivery_service = Arc::new(DeliveryServiceImpl::new(
+    //     delivery_repo,
+    //     delivery_item_repo,
+    //     stock_move_repo.clone(),
+    //     inventory_level_repo.clone(),
+    // ));
 
     // Initialize transfer repositories and services
     let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool.clone())));
@@ -230,7 +275,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
         receipt_service: Arc::new(receipt_service),
-        delivery_service,
+        delivery_service: Arc::new(DummyDeliveryService {}),
         transfer_service,
         stock_take_service,
         reconciliation_service,
@@ -247,7 +292,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Create routes with state
     let category_routes = create_category_routes(state.clone());
-    let delivery_routes = create_delivery_routes(state.clone());
+    // let delivery_routes = create_delivery_routes(state.clone());
     let receipt_routes = create_receipt_routes(state.clone());
     let reconciliation_routes = create_reconciliation_routes(state.clone());
     let search_routes = create_search_routes(state.clone());
@@ -297,7 +342,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Protected routes (require authentication)
     let protected_routes = Router::new()
         .nest("/api/v1/inventory", category_routes)
-        .nest("/api/v1/inventory/deliveries", delivery_routes)
+        // .nest("/api/v1/inventory/deliveries", delivery_routes)
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
         .nest("/api/v1/inventory/products", search_routes)

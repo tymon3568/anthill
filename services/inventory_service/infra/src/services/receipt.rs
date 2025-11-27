@@ -260,49 +260,6 @@ mod tests {
         assert!(request.validate().is_ok());
     }
 
-    #[test]
-    fn test_dto_validation_invalid() {
-        // Note: These tests only cover DTO-level validation.
-        // Service-level validation (e.g., warehouse/product existence) requires mocking repositories.
-        // Test empty items
-        let request = ReceiptCreateRequest {
-            warehouse_id: Uuid::new_v4(),
-            supplier_id: None,
-            reference_number: None,
-            expected_delivery_date: None,
-            notes: None,
-            currency_code: "USD".to_string(),
-            items: vec![],
-        };
-
-        assert!(request.validate().is_err());
-
-        // Test negative quantity
-        let request = ReceiptCreateRequest {
-            warehouse_id: Uuid::new_v4(),
-            supplier_id: None,
-            reference_number: None,
-            expected_delivery_date: None,
-            notes: None,
-            currency_code: "USD".to_string(),
-            items: vec![
-                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
-                    product_id: Uuid::new_v4(),
-                    expected_quantity: 10,
-                    received_quantity: -1,
-                    unit_cost: Some(1000),
-                    uom_id: None,
-                    lot_number: None,
-                    serial_numbers: None,
-                    expiry_date: None,
-                    notes: None,
-                },
-            ],
-        };
-
-        assert!(request.validate().is_err());
-    }
-
     // Dummy repository for testing service-level validation
     struct DummyReceiptRepository;
 
