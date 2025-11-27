@@ -260,38 +260,49 @@ impl StockTakeService for PgStockTakeService {
         // Execute all operations within a single transaction scope
         let completed_at = Utc::now();
 
-        let mut tx =
+        let tx =
             self.pool.begin().await.map_err(|e| {
                 AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
             })?;
 
         // Create all stock moves in sequence
-        for stock_move in &stock_moves_to_create {
-            self.stock_move_repo
-                .create_with_tx(&mut tx, stock_move, tenant_id)
-                .await?;
-        }
+        let tx = {
+            let mut current_tx = tx;
+            for stock_move in &stock_moves_to_create {
+                current_tx = self
+                    .stock_move_repo
+                    .create_with_tx(current_tx, stock_move.clone(), tenant_id)
+                    .await?;
+            }
+            current_tx
+        };
 
         // Update all inventory levels in sequence
-        for (tenant_id_upd, warehouse_id, product_id, difference) in &inventory_updates {
-            self.inventory_repo
-                .update_available_quantity_with_tx(
-                    &mut tx,
-                    *tenant_id_upd,
-                    *warehouse_id,
-                    *product_id,
-                    *difference,
-                )
-                .await?;
-        }
+        let tx = {
+            let mut current_tx = tx;
+            for (tenant_id_upd, warehouse_id, product_id, difference) in &inventory_updates {
+                current_tx = self
+                    .inventory_repo
+                    .update_available_quantity_with_tx(
+                        current_tx,
+                        *tenant_id_upd,
+                        *warehouse_id,
+                        *product_id,
+                        *difference,
+                    )
+                    .await?;
+            }
+            current_tx
+        };
 
-        // Finalize stock take within transaction
-        tx = self
+        // All borrowing operations done - now finalize and commit
+        let finalized_tx = self
             .stock_take_repo
             .finalize_with_tx(tx, tenant_id, stock_take_id, completed_at, user_id)
             .await?;
 
-        tx.commit()
+        finalized_tx
+            .commit()
             .await
             .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
 

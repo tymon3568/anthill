@@ -75,6 +75,16 @@ pub trait ProductRepository: Send + Sync {
     /// Product if found
     async fn find_by_sku(&self, tenant_id: Uuid, sku: &str) -> Result<Option<Product>>;
 
+    /// Get product by barcode
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `barcode` - Product barcode
+    ///
+    /// # Returns
+    /// Product if found (searches both products.attributes and product_variants.barcode)
+    async fn find_by_barcode(&self, tenant_id: Uuid, barcode: &str) -> Result<Option<Product>>;
+
     /// Create new product
     ///
     /// # Arguments

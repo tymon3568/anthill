@@ -3,7 +3,7 @@ use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
 
-use crate::routes::DummyDeliveryService;
+use inventory_service_api::routes::DummyDeliveryService;
 
 use inventory_service_infra::repositories::category::PgCategoryRepository;
 use inventory_service_infra::repositories::delivery_order::PgDeliveryOrderItemRepository;
@@ -60,6 +60,10 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         Arc::new(PgStockReconciliationItemRepository::new(shared_pool.clone()));
     let stock_move_repo = Arc::new(PgStockMoveRepository::new(shared_pool.clone()));
     let inventory_repo = Arc::new(PgInventoryLevelRepository::new(shared_pool.clone()));
+    let product_repo =
+        Arc::new(inventory_service_infra::repositories::product::ProductRepositoryImpl::new(
+            shared_pool.clone(),
+        ));
 
     // Create service
     let reconciliation_service = Arc::new(PgStockReconciliationService::new(
@@ -67,6 +71,7 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         reconciliation_item_repo,
         stock_move_repo,
         inventory_repo,
+        product_repo,
         pool.clone(),
     ));
 
@@ -94,11 +99,17 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         reconciliation_service,
         // Add other services as needed for tests
         category_service,
-        // delivery_service: Arc::new(
-        //     inventory_service_infra::services::delivery::DeliveryServiceImpl::new(
-        //     // Mock or test implementations
-        // ),
-        // ),
+        #[cfg(feature = "delivery")]
+        delivery_service: Arc::new(
+            inventory_service_infra::services::delivery::DeliveryServiceImpl::new(
+                // Mock or test implementations
+                Arc::new(PgDeliveryOrderRepository::new(pool.clone())),
+                Arc::new(PgDeliveryOrderItemRepository::new(pool.clone())),
+                Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone()))),
+                Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone()))),
+            ),
+        ),
+        #[cfg(not(feature = "delivery"))]
         delivery_service: Arc::new(DummyDeliveryService {}),
         transfer_service,
         stock_take_service,

@@ -53,6 +53,7 @@ wiremock = {workspace = true}
 [features]
 default = []
 export-spec = []
+delivery = []
 
 # Library for integration tests
 [lib]

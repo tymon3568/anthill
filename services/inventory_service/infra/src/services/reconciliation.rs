@@ -29,6 +29,7 @@ pub struct PgStockReconciliationService {
     reconciliation_item_repo: Arc<dyn StockReconciliationItemRepository>,
     stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
     inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
+    product_repo: Arc<dyn inventory_service_core::repositories::product::ProductRepository>,
 }
 
 impl PgStockReconciliationService {
@@ -41,6 +42,7 @@ impl PgStockReconciliationService {
         reconciliation_item_repo: Arc<dyn StockReconciliationItemRepository>,
         stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
         inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
+        product_repo: Arc<dyn inventory_service_core::repositories::product::ProductRepository>,
     ) -> Self {
         Self {
             pool,
@@ -48,6 +50,7 @@ impl PgStockReconciliationService {
             reconciliation_item_repo,
             stock_move_repo,
             inventory_repo,
+            product_repo,
         }
     }
 
@@ -310,38 +313,49 @@ impl StockReconciliationService for PgStockReconciliationService {
         // Execute all operations within a single transaction scope
         let completed_at = Utc::now();
 
-        let mut tx =
+        let tx =
             self.pool.begin().await.map_err(|e| {
                 AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
             })?;
 
         // Create all stock moves in sequence
-        for stock_move in &stock_moves_to_create {
-            self.stock_move_repo
-                .create_with_tx(&mut tx, stock_move, tenant_id)
-                .await?;
-        }
+        let tx = {
+            let mut current_tx = tx;
+            for stock_move in &stock_moves_to_create {
+                current_tx = self
+                    .stock_move_repo
+                    .create_with_tx(current_tx, stock_move.clone(), tenant_id)
+                    .await?;
+            }
+            current_tx
+        };
 
         // Update all inventory levels in sequence
-        for (tenant_id_upd, warehouse_id, product_id, variance) in &inventory_updates {
-            self.inventory_repo
-                .update_available_quantity_with_tx(
-                    &mut tx,
-                    *tenant_id_upd,
-                    *warehouse_id,
-                    *product_id,
-                    *variance,
-                )
-                .await?;
-        }
+        let tx = {
+            let mut current_tx = tx;
+            for (tenant_id_upd, warehouse_id, product_id, variance) in &inventory_updates {
+                current_tx = self
+                    .inventory_repo
+                    .update_available_quantity_with_tx(
+                        current_tx,
+                        *tenant_id_upd,
+                        *warehouse_id,
+                        *product_id,
+                        *variance,
+                    )
+                    .await?;
+            }
+            current_tx
+        };
 
-        // Finalize reconciliation within transaction
-        tx = self
+        // All operations done - now finalize and commit
+        let finalized_tx = self
             .reconciliation_repo
             .finalize_with_tx(tx, tenant_id, reconciliation_id, completed_at)
             .await?;
 
-        tx.commit()
+        finalized_tx
+            .commit()
             .await
             .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
 
@@ -581,10 +595,13 @@ impl StockReconciliationService for PgStockReconciliationService {
         }
 
         // Look up product by barcode
-        // Note: This assumes a product repository method exists - in practice, you'd need to add this
-        // For now, we'll simulate by assuming barcode maps to product_id directly (simplified implementation)
-        let product_id = Uuid::parse_str(&request.barcode)
-            .map_err(|_| AppError::ValidationError("Invalid barcode format".to_string()))?;
+        let product = self
+            .product_repo
+            .find_by_barcode(tenant_id, &request.barcode)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Product not found for barcode".to_string()))?;
+
+        let product_id = product.product_id;
 
         // Find reconciliation item for this product
         let items = self
@@ -604,7 +621,7 @@ impl StockReconciliationService for PgStockReconciliationService {
         let update_request = vec![ReconciliationItemCountUpdate {
             product_id: item.product_id,
             warehouse_id: item.warehouse_id,
-            location_id: item.location_id,
+            location_id: request.location_id.or(item.location_id),
             counted_quantity: request.quantity,
             unit_cost: None, // Unit cost not provided in barcode scan
             counted_by: user_id,

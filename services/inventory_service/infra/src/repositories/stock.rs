@@ -4,6 +4,7 @@
 
 use async_trait::async_trait;
 use sqlx::PgPool;
+use std::ops::DerefMut;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -12,6 +13,7 @@ use inventory_service_core::repositories::{InventoryLevelRepository, StockMoveRe
 use shared_error::AppError;
 
 /// Helper type for infra-internal transaction operations
+pub type InfraTx<'a> = &'a mut sqlx::Transaction<'a, sqlx::Postgres>;
 
 /// PostgreSQL implementation of StockMoveRepository
 pub struct PgStockMoveRepository {
@@ -26,12 +28,12 @@ impl PgStockMoveRepository {
 
     /// Internal helper: Create a stock move within a transaction
     /// This is used by services for transactional orchestration
-    pub async fn create_with_tx(
+    pub async fn create_with_tx<'a>(
         &self,
-        tx: InfraTx<'_>,
+        mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
         stock_move: CreateStockMoveRequest,
         tenant_id: Uuid,
-    ) -> Result<(), AppError> {
+    ) -> Result<sqlx::Transaction<'a, sqlx::Postgres>, AppError> {
         sqlx::query!(
             r#"
             INSERT INTO stock_moves (
@@ -54,21 +56,21 @@ impl PgStockMoveRepository {
             stock_move.batch_info,
             stock_move.metadata,
         )
-        .execute(tx)
+        .execute(tx.deref_mut())
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
-        Ok(())
+        Ok(tx)
     }
 
     /// Internal helper: Create a stock move idempotently within a transaction
     /// Returns true if the row was created, false if it already existed (no-op)
-    pub async fn create_idempotent_with_tx(
+    pub async fn create_idempotent_with_tx<'a>(
         &self,
-        tx: InfraTx<'_>,
+        mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
         stock_move: &CreateStockMoveRequest,
         tenant_id: Uuid,
-    ) -> Result<bool, AppError> {
+    ) -> Result<(bool, sqlx::Transaction<'a, sqlx::Postgres>), AppError> {
         let result = sqlx::query!(
             r#"
             INSERT INTO stock_moves (
@@ -92,12 +94,12 @@ impl PgStockMoveRepository {
             stock_move.batch_info,
             stock_move.metadata,
         )
-        .execute(tx)
+        .execute(tx.deref_mut())
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         // Return true if a row was inserted, false if it was a no-op due to conflict
-        Ok(result.rows_affected() > 0)
+        Ok((result.rows_affected() > 0, tx))
     }
 }
 
@@ -203,14 +205,14 @@ impl PgInventoryLevelRepository {
 
     /// Internal helper: Update available quantity within a transaction
     /// This is used by services for transactional orchestration
-    pub async fn update_available_quantity_with_tx(
+    pub async fn update_available_quantity_with_tx<'a>(
         &self,
-        tx: InfraTx<'_>,
+        mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
         tenant_id: Uuid,
         warehouse_id: Uuid,
         product_id: Uuid,
         quantity_change: i64,
-    ) -> Result<(), AppError> {
+    ) -> Result<sqlx::Transaction<'a, sqlx::Postgres>, AppError> {
         let result = sqlx::query!(
             r#"
             UPDATE inventory_levels
@@ -223,7 +225,7 @@ impl PgInventoryLevelRepository {
             product_id,
             quantity_change
         )
-        .execute(tx)
+        .execute(tx.deref_mut())
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
@@ -234,7 +236,7 @@ impl PgInventoryLevelRepository {
             )));
         }
 
-        Ok(())
+        Ok(tx)
     }
 }
 
