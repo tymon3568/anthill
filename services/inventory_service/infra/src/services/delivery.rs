@@ -21,19 +21,19 @@ use shared_error::AppError;
 
 /// PostgreSQL implementation of the delivery service
 pub struct DeliveryServiceImpl {
-    delivery_repo: Arc<dyn DeliveryOrderRepository>,
-    delivery_item_repo: Arc<dyn DeliveryOrderItemRepository>,
-    stock_move_repo: Arc<dyn StockMoveRepository>,
-    inventory_level_repo: Arc<dyn InventoryLevelRepository>,
+    delivery_repo: Arc<crate::repositories::delivery_order::PgDeliveryOrderRepository>,
+    delivery_item_repo: Arc<crate::repositories::delivery_order::PgDeliveryOrderItemRepository>,
+    stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
+    inventory_level_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
 }
 
 impl DeliveryServiceImpl {
     /// Create a new delivery service with the given repositories
     pub fn new(
-        delivery_repo: Arc<dyn DeliveryOrderRepository>,
-        delivery_item_repo: Arc<dyn DeliveryOrderItemRepository>,
-        stock_move_repo: Arc<dyn StockMoveRepository>,
-        inventory_level_repo: Arc<dyn InventoryLevelRepository>,
+        delivery_repo: Arc<crate::repositories::delivery_order::PgDeliveryOrderRepository>,
+        delivery_item_repo: Arc<crate::repositories::delivery_order::PgDeliveryOrderItemRepository>,
+        stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
+        inventory_level_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
     ) -> Self {
         Self {
             delivery_repo,

@@ -1,9 +1,12 @@
 use async_trait::async_trait;
 
 use num_traits::ToPrimitive;
-use sqlx::{PgPool, Postgres, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::sync::Arc;
 use uuid::Uuid;
+
+/// Helper type for infra-internal transaction operations
+pub type InfraTx<'a> = &'a mut Transaction<'a, sqlx::Postgres>;
 
 use inventory_service_core::domains::inventory::reconciliation::{
     CycleType, ReconciliationStatus, StockReconciliation, StockReconciliationItem,
@@ -66,6 +69,37 @@ impl PgStockReconciliationRepository {
         }
         let cents = (f * 100.0).round() as i64;
         Ok(cents)
+    }
+
+    /// Internal helper: Finalize reconciliation within transaction
+    /// This is used by services for transactional orchestration
+    pub async fn finalize_with_tx(
+        &self,
+        tx: InfraTx<'_>,
+        tenant_id: Uuid,
+        reconciliation_id: Uuid,
+        completed_at: chrono::DateTime<chrono::Utc>,
+        updated_by: Uuid,
+    ) -> Result<(), AppError> {
+        sqlx::query!(
+            r#"
+            UPDATE stock_reconciliations
+            SET status = $1, completed_at = $2, updated_by = $3, updated_at = NOW()
+            WHERE tenant_id = $4 AND reconciliation_id = $5 AND deleted_at IS NULL
+            "#,
+            "completed",
+            completed_at,
+            updated_by,
+            tenant_id,
+            reconciliation_id
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| {
+            AppError::DatabaseError(format!("Failed to finalize reconciliation: {}", e))
+        })?;
+
+        Ok(())
     }
 }
 
@@ -265,34 +299,6 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
             reconciliation_id
         )
         .execute(&*self.pool)
-        .await
-        .map_err(|e| {
-            AppError::DatabaseError(format!("Failed to finalize reconciliation: {}", e))
-        })?;
-
-        Ok(())
-    }
-
-    async fn finalize_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        reconciliation_id: Uuid,
-        completed_at: chrono::DateTime<chrono::Utc>,
-        _updated_by: Uuid,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            UPDATE stock_reconciliations
-            SET status = $1, completed_at = $2, updated_at = NOW()
-            WHERE tenant_id = $3 AND reconciliation_id = $4 AND deleted_at IS NULL
-            "#,
-            "completed",
-            completed_at,
-            tenant_id,
-            reconciliation_id
-        )
-        .execute(&mut **tx)
         .await
         .map_err(|e| {
             AppError::DatabaseError(format!("Failed to finalize reconciliation: {}", e))

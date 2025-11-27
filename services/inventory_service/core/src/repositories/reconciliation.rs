@@ -65,16 +65,6 @@ pub trait StockReconciliationRepository: Send + Sync {
         updated_by: Uuid,
     ) -> Result<(), AppError>;
 
-    /// Finalize reconciliation within a transaction
-    async fn finalize_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        reconciliation_id: Uuid,
-        completed_at: chrono::DateTime<chrono::Utc>,
-        updated_by: Uuid,
-    ) -> Result<(), AppError>;
-
     /// Approve reconciliation
     async fn approve(
         &self,

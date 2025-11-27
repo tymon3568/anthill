@@ -3,7 +3,6 @@
 //! This module contains trait definitions for StockMove and InventoryLevel operations.
 
 use async_trait::async_trait;
-use sqlx::Transaction;
 use uuid::Uuid;
 
 use crate::models::{CreateStockMoveRequest, InventoryLevel, StockMove};
@@ -32,23 +31,6 @@ pub trait StockMoveRepository: Send + Sync {
         tenant_id: Uuid,
         idempotency_key: &str,
     ) -> Result<bool, AppError>;
-
-    /// Create stock move within transaction
-    async fn create_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
-        stock_move: &CreateStockMoveRequest,
-        tenant_id: Uuid,
-    ) -> Result<(), AppError>;
-
-    /// Create stock move idempotently within transaction
-    /// Returns true if the row was created, false if it already existed (no-op)
-    async fn create_idempotent_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
-        stock_move: &CreateStockMoveRequest,
-        tenant_id: Uuid,
-    ) -> Result<bool, AppError>;
 }
 
 #[async_trait]
@@ -64,16 +46,6 @@ pub trait InventoryLevelRepository: Send + Sync {
     /// Update available quantity (increment/decrement)
     async fn update_available_quantity(
         &self,
-        tenant_id: Uuid,
-        warehouse_id: Uuid,
-        product_id: Uuid,
-        quantity_change: i64,
-    ) -> Result<(), AppError>;
-
-    /// Update available quantity within transaction
-    async fn update_available_quantity_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
         warehouse_id: Uuid,
         product_id: Uuid,

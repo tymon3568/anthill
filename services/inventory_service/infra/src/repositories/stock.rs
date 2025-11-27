@@ -11,6 +11,9 @@ use inventory_service_core::models::{CreateStockMoveRequest, InventoryLevel, Sto
 use inventory_service_core::repositories::{InventoryLevelRepository, StockMoveRepository};
 use shared_error::AppError;
 
+/// Helper type for infra-internal transaction operations
+pub type InfraTx<'a> = &'a mut Transaction<'a, sqlx::Postgres>;
+
 /// PostgreSQL implementation of StockMoveRepository
 pub struct PgStockMoveRepository {
     pool: Arc<PgPool>,
@@ -20,6 +23,82 @@ impl PgStockMoveRepository {
     /// Create a new PostgreSQL stock move repository
     pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
+    }
+
+    /// Internal helper: Create a stock move within a transaction
+    /// This is used by services for transactional orchestration
+    pub async fn create_with_tx(
+        &self,
+        tx: InfraTx<'_>,
+        stock_move: &CreateStockMoveRequest,
+        tenant_id: Uuid,
+    ) -> Result<(), AppError> {
+        sqlx::query!(
+            r#"
+            INSERT INTO stock_moves (
+                tenant_id, product_id, source_location_id, destination_location_id,
+                move_type, quantity, unit_cost, reference_type, reference_id,
+                idempotency_key, move_reason, batch_info, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            "#,
+            tenant_id,
+            stock_move.product_id,
+            stock_move.source_location_id,
+            stock_move.destination_location_id,
+            stock_move.move_type,
+            stock_move.quantity,
+            stock_move.unit_cost,
+            stock_move.reference_type,
+            stock_move.reference_id,
+            stock_move.idempotency_key,
+            stock_move.move_reason,
+            stock_move.batch_info,
+            stock_move.metadata,
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Internal helper: Create a stock move idempotently within a transaction
+    /// Returns true if the row was created, false if it already existed (no-op)
+    pub async fn create_idempotent_with_tx(
+        &self,
+        tx: InfraTx<'_>,
+        stock_move: &CreateStockMoveRequest,
+        tenant_id: Uuid,
+    ) -> Result<bool, AppError> {
+        let result = sqlx::query!(
+            r#"
+            INSERT INTO stock_moves (
+                tenant_id, product_id, source_location_id, destination_location_id,
+                move_type, quantity, unit_cost, reference_type, reference_id,
+                idempotency_key, move_reason, batch_info, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            "#,
+            tenant_id,
+            stock_move.product_id,
+            stock_move.source_location_id,
+            stock_move.destination_location_id,
+            stock_move.move_type,
+            stock_move.quantity,
+            stock_move.unit_cost,
+            stock_move.reference_type,
+            stock_move.reference_id,
+            stock_move.idempotency_key,
+            stock_move.move_reason,
+            stock_move.batch_info,
+            stock_move.metadata,
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        // Return true if a row was inserted, false if it was a no-op due to conflict
+        Ok(result.rows_affected() > 0)
     }
 }
 
@@ -110,78 +189,6 @@ impl StockMoveRepository for PgStockMoveRepository {
 
         Ok(exists)
     }
-
-    async fn create_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
-        stock_move: &CreateStockMoveRequest,
-        tenant_id: Uuid,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            INSERT INTO stock_moves (
-                tenant_id, product_id, source_location_id, destination_location_id,
-                move_type, quantity, unit_cost, reference_type, reference_id,
-                idempotency_key, move_reason, batch_info, metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-            "#,
-            tenant_id,
-            stock_move.product_id,
-            stock_move.source_location_id,
-            stock_move.destination_location_id,
-            stock_move.move_type,
-            stock_move.quantity,
-            stock_move.unit_cost,
-            stock_move.reference_type,
-            stock_move.reference_id,
-            stock_move.idempotency_key,
-            stock_move.move_reason,
-            stock_move.batch_info,
-            stock_move.metadata,
-        )
-        .execute(&mut **tx)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-
-        Ok(())
-    }
-
-    async fn create_idempotent_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
-        stock_move: &CreateStockMoveRequest,
-        tenant_id: Uuid,
-    ) -> Result<bool, AppError> {
-        let result = sqlx::query!(
-            r#"
-            INSERT INTO stock_moves (
-                tenant_id, product_id, source_location_id, destination_location_id,
-                move_type, quantity, unit_cost, reference_type, reference_id,
-                idempotency_key, move_reason, batch_info, metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
-            "#,
-            tenant_id,
-            stock_move.product_id,
-            stock_move.source_location_id,
-            stock_move.destination_location_id,
-            stock_move.move_type,
-            stock_move.quantity,
-            stock_move.unit_cost,
-            stock_move.reference_type,
-            stock_move.reference_id,
-            stock_move.idempotency_key,
-            stock_move.move_reason,
-            stock_move.batch_info,
-            stock_move.metadata,
-        )
-        .execute(&mut **tx)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-
-        // Return true if a row was inserted, false if it was a no-op due to conflict
-        Ok(result.rows_affected() > 0)
-    }
 }
 
 /// PostgreSQL implementation of InventoryLevelRepository
@@ -193,6 +200,35 @@ impl PgInventoryLevelRepository {
     /// Create a new PostgreSQL inventory level repository
     pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
+    }
+
+    /// Internal helper: Update available quantity within a transaction
+    /// This is used by services for transactional orchestration
+    pub async fn update_available_quantity_with_tx(
+        &self,
+        tx: InfraTx<'_>,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+        quantity_change: i64,
+    ) -> Result<(), AppError> {
+        sqlx::query!(
+            r#"
+            UPDATE inventory_levels
+            SET available_quantity = available_quantity + $4,
+                updated_at = NOW()
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            warehouse_id,
+            product_id,
+            quantity_change
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        Ok(())
     }
 }
 
@@ -244,33 +280,6 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
             quantity_change
         )
         .execute(&*self.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-
-        Ok(())
-    }
-
-    async fn update_available_quantity_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        warehouse_id: Uuid,
-        product_id: Uuid,
-        quantity_change: i64,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            UPDATE inventory_levels
-            SET available_quantity = available_quantity + $4,
-                updated_at = NOW()
-            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
-            "#,
-            tenant_id,
-            warehouse_id,
-            product_id,
-            quantity_change
-        )
-        .execute(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 

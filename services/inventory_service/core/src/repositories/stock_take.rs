@@ -3,7 +3,6 @@
 //! This module defines the repository traits for stock take operations.
 
 use async_trait::async_trait;
-use sqlx::Transaction;
 use uuid::Uuid;
 
 use crate::domains::inventory::stock_take::{StockTake, StockTakeLine, StockTakeStatus};
@@ -24,14 +23,6 @@ pub trait StockTakeRepository: Send + Sync {
     /// Create a new stock take
     async fn create(&self, tenant_id: Uuid, stock_take: &StockTake) -> Result<StockTake, AppError>;
 
-    /// Create a new stock take within transaction
-    async fn create_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        stock_take: &StockTake,
-    ) -> Result<StockTake, AppError>;
-
     /// Find stock take by ID
     async fn find_by_id(
         &self,
@@ -51,16 +42,6 @@ pub trait StockTakeRepository: Send + Sync {
     /// Finalize stock take
     async fn finalize(
         &self,
-        tenant_id: Uuid,
-        stock_take_id: Uuid,
-        completed_at: chrono::DateTime<chrono::Utc>,
-        updated_by: Uuid,
-    ) -> Result<(), AppError>;
-
-    /// Finalize stock take within transaction
-    async fn finalize_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
         stock_take_id: Uuid,
         completed_at: chrono::DateTime<chrono::Utc>,
@@ -100,15 +81,6 @@ pub trait StockTakeLineRepository: Send + Sync {
     /// Create stock take lines from current inventory levels
     async fn create_from_inventory(
         &self,
-        tenant_id: Uuid,
-        stock_take_id: Uuid,
-        warehouse_id: Uuid,
-    ) -> Result<Vec<StockTakeLine>, AppError>;
-
-    /// Create stock take lines from current inventory levels within transaction
-    async fn create_from_inventory_with_tx(
-        &self,
-        tx: &mut Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
         stock_take_id: Uuid,
         warehouse_id: Uuid,

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{PgPool, Postgres, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -10,6 +10,9 @@ use inventory_service_core::repositories::stock_take::{
     StockTakeLineCountUpdate, StockTakeLineRepository, StockTakeRepository,
 };
 use shared_error::AppError;
+
+/// Helper type for infra-internal transaction operations
+pub type InfraTx<'a> = &'a mut Transaction<'a, sqlx::Postgres>;
 
 /// PostgreSQL implementation of StockTakeRepository
 pub struct PgStockTakeRepository {
@@ -32,6 +35,35 @@ impl PgStockTakeRepository {
             "cancelled" => Ok(StockTakeStatus::Cancelled),
             _ => Err(AppError::DataCorruption(format!("Unknown stock take status: {}", s))),
         }
+    }
+
+    /// Internal helper: Finalize stock take within transaction
+    /// This is used by services for transactional orchestration
+    pub async fn finalize_with_tx(
+        &self,
+        tx: InfraTx<'_>,
+        tenant_id: Uuid,
+        stock_take_id: Uuid,
+        completed_at: chrono::DateTime<chrono::Utc>,
+        updated_by: Uuid,
+    ) -> Result<(), AppError> {
+        sqlx::query!(
+            r#"
+            UPDATE stock_takes
+            SET status = $1, completed_at = $2, assigned_to = $3, updated_at = NOW()
+            WHERE tenant_id = $4 AND stock_take_id = $5 AND deleted_at IS NULL
+            "#,
+            "completed",
+            completed_at,
+            updated_by,
+            tenant_id,
+            stock_take_id
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to finalize stock take: {}", e)))?;
+
+        Ok(())
     }
 }
 
@@ -66,61 +98,6 @@ impl StockTakeRepository for PgStockTakeRepository {
             stock_take.notes
         )
         .fetch_one(&*self.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(format!("Failed to create stock take: {}", e)))?;
-
-        Ok(StockTake {
-            stock_take_id: row.stock_take_id,
-            tenant_id: row.tenant_id,
-            stock_take_number: row.stock_take_number,
-            warehouse_id: row.warehouse_id,
-            status: Self::string_to_stock_take_status(&row.status)?,
-            started_at: row.started_at,
-            completed_at: row.completed_at,
-            created_by: row.created_by,
-            updated_by: row.updated_by,
-            notes: row.notes,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-            deleted_at: row.deleted_at,
-            deleted_by: row.deleted_by,
-        })
-    }
-
-    async fn create_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        stock_take: &StockTake,
-    ) -> Result<StockTake, AppError> {
-        let row = sqlx::query!(
-            r#"
-            INSERT INTO stock_takes (
-                stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                started_at, created_by, assigned_to, notes
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
-                      started_at, completed_at, created_by as created_by, assigned_to as updated_by, notes,
-                      created_at, updated_at, deleted_at, deleted_by
-            "#,
-            stock_take.stock_take_id,
-            tenant_id,
-            stock_take.stock_take_number,
-            stock_take.warehouse_id,
-            match stock_take.status {
-                StockTakeStatus::Draft => "draft",
-                StockTakeStatus::Scheduled => "scheduled",
-                StockTakeStatus::InProgress => "in_progress",
-                StockTakeStatus::Completed => "completed",
-                StockTakeStatus::Cancelled => "cancelled",
-            },
-            stock_take.started_at,
-            stock_take.created_by,
-            stock_take.updated_by,
-            stock_take.notes
-        )
-        .fetch_one(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to create stock take: {}", e)))?;
 
@@ -236,33 +213,6 @@ impl StockTakeRepository for PgStockTakeRepository {
             stock_take_id
         )
         .execute(&*self.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(format!("Failed to finalize stock take: {}", e)))?;
-
-        Ok(())
-    }
-
-    async fn finalize_with_tx(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        tenant_id: Uuid,
-        stock_take_id: Uuid,
-        completed_at: chrono::DateTime<chrono::Utc>,
-        updated_by: Uuid,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            UPDATE stock_takes
-            SET status = $1, completed_at = $2, assigned_to = $3, updated_at = NOW()
-            WHERE tenant_id = $4 AND stock_take_id = $5 AND deleted_at IS NULL
-            "#,
-            "completed",
-            completed_at,
-            updated_by,
-            tenant_id,
-            stock_take_id
-        )
-        .execute(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to finalize stock take: {}", e)))?;
 
@@ -385,12 +335,12 @@ impl PgStockTakeLineRepository {
     pub fn new(pool: Arc<PgPool>) -> Self {
         Self { pool }
     }
-}
 
-#[async_trait]
-impl StockTakeLineRepository for PgStockTakeLineRepository {
-    async fn create_from_inventory(
+    /// Internal helper: Create stock take lines from inventory within transaction
+    /// This is used by services for transactional orchestration
+    pub async fn create_from_inventory_with_tx(
         &self,
+        tx: InfraTx<'_>,
         tenant_id: Uuid,
         stock_take_id: Uuid,
         warehouse_id: Uuid,
@@ -401,15 +351,15 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
             SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity::BIGINT
             FROM inventory_levels il
             WHERE il.tenant_id = $1 AND il.warehouse_id = $3 AND il.deleted_at IS NULL
-            RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity,
-                      actual_quantity, difference_quantity, counted_by, counted_at, notes,
+            RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity::BIGINT,
+                      actual_quantity::BIGINT, difference_quantity::BIGINT, counted_by, counted_at, notes,
                       created_at, updated_at, deleted_at, deleted_by
             "#,
             tenant_id,
             stock_take_id,
             warehouse_id
         )
-        .fetch_all(&*self.pool)
+        .fetch_all(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to create stock take lines from inventory: {}", e)))?;
 
@@ -435,10 +385,12 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
 
         Ok(lines)
     }
+}
 
-    async fn create_from_inventory_with_tx(
+#[async_trait]
+impl StockTakeLineRepository for PgStockTakeLineRepository {
+    async fn create_from_inventory(
         &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         tenant_id: Uuid,
         stock_take_id: Uuid,
         warehouse_id: Uuid,
@@ -449,15 +401,15 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
             SELECT gen_random_uuid(), $1, $2, il.product_id, il.available_quantity::BIGINT
             FROM inventory_levels il
             WHERE il.tenant_id = $1 AND il.warehouse_id = $3 AND il.deleted_at IS NULL
-            RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity::BIGINT,
-                      actual_quantity::BIGINT, difference_quantity::BIGINT, counted_by, counted_at, notes,
+            RETURNING line_id, tenant_id, stock_take_id, product_id, expected_quantity,
+                      actual_quantity, difference_quantity, counted_by, counted_at, notes,
                       created_at, updated_at, deleted_at, deleted_by
             "#,
             tenant_id,
             stock_take_id,
             warehouse_id
         )
-        .fetch_all(&mut **tx)
+        .fetch_all(&*self.pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to create stock take lines from inventory: {}", e)))?;
 

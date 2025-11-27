@@ -24,20 +24,22 @@ use shared_error::AppError;
 /// PostgreSQL implementation of ReconciliationService
 pub struct PgStockReconciliationService {
     pool: Arc<PgPool>,
-    reconciliation_repo: Arc<dyn StockReconciliationRepository>,
+    reconciliation_repo: Arc<crate::repositories::reconciliation::PgStockReconciliationRepository>,
     reconciliation_item_repo: Arc<dyn StockReconciliationItemRepository>,
-    stock_move_repo: Arc<dyn StockMoveRepository>,
-    inventory_repo: Arc<dyn InventoryLevelRepository>,
+    stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
+    inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
 }
 
 impl PgStockReconciliationService {
     /// Create a new service instance
     pub fn new(
         pool: Arc<PgPool>,
-        reconciliation_repo: Arc<dyn StockReconciliationRepository>,
+        reconciliation_repo: Arc<
+            crate::repositories::reconciliation::PgStockReconciliationRepository,
+        >,
         reconciliation_item_repo: Arc<dyn StockReconciliationItemRepository>,
-        stock_move_repo: Arc<dyn StockMoveRepository>,
-        inventory_repo: Arc<dyn InventoryLevelRepository>,
+        stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
+        inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
     ) -> Self {
         Self {
             pool,
