@@ -10,7 +10,7 @@ use inventory_service_core::dto::reconciliation::{
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
     FinalizeReconciliationRequest, FinalizeReconciliationResponse, PaginationInfo,
     ReconciliationAnalyticsResponse, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, VarianceAnalysisResponse,
+    ReconciliationListResponse, VarianceAnalysisResponse, VarianceRange,
 };
 use inventory_service_core::dto::stock_take::StockAdjustment;
 use inventory_service_core::models::CreateStockMoveRequest;
@@ -50,6 +50,14 @@ impl PgStockReconciliationService {
 
     /// Convert f64 to BIGINT cents
     fn f64_to_cents(f: f64) -> Result<i64, AppError> {
+        const MAX_SAFE: f64 = i64::MAX as f64 / 100.0;
+        const MIN_SAFE: f64 = i64::MIN as f64 / 100.0;
+        if f > MAX_SAFE || f < MIN_SAFE {
+            return Err(AppError::ValidationError(format!(
+                "Value {} is out of range for currency conversion",
+                f
+            )));
+        }
         let cents = (f * 100.0).round() as i64;
         Ok(cents)
     }
@@ -94,7 +102,7 @@ impl StockReconciliationService for PgStockReconciliationService {
             .await?;
 
         // Create reconciliation items from inventory based on cycle type
-        let _items = match self
+        let _items = self
             .reconciliation_item_repo
             .create_from_inventory(
                 tenant_id,
@@ -105,16 +113,20 @@ impl StockReconciliationService for PgStockReconciliationService {
                 request.product_filter,
             )
             .await
-        {
-            Ok(items) => items,
-            Err(e) => {
-                let _ = self
+            .map_err(|e| {
+                if let Err(delete_err) = self
                     .reconciliation_repo
                     .delete(tenant_id, created_reconciliation.reconciliation_id, user_id)
-                    .await;
-                return Err(e);
-            },
-        };
+                    .await
+                {
+                    tracing::warn!(
+                        reconciliation_id = %created_reconciliation.reconciliation_id,
+                        error = %delete_err,
+                        "Failed to cleanup reconciliation after item creation failure"
+                    );
+                }
+                e
+            })?;
 
         // Get updated reconciliation with correct counts
         let final_reconciliation = self
@@ -250,11 +262,12 @@ impl StockReconciliationService for PgStockReconciliationService {
             let variance = counted_quantity - item.expected_quantity;
 
             if variance != 0 {
-                // Create stock move for adjustment
-                let unit_cost_cents = match item.unit_cost {
-                    Some(c) => PgStockReconciliationService::f64_to_cents(c)?,
-                    None => 0,
+                // Skip adjustment if no unit cost available
+                let unit_cost = match item.unit_cost {
+                    Some(c) => c,
+                    None => continue,
                 };
+                let unit_cost_cents = PgStockReconciliationService::f64_to_cents(unit_cost)?;
                 let stock_move = CreateStockMoveRequest {
                     product_id: item.product_id,
                     source_location_id: Some(item.warehouse_id),
@@ -264,7 +277,10 @@ impl StockReconciliationService for PgStockReconciliationService {
                     unit_cost: Some(unit_cost_cents),
                     reference_type: "reconciliation".to_string(),
                     reference_id: reconciliation_id,
-                    idempotency_key: format!("rec-{}-item-{}", reconciliation_id, item.product_id),
+                    idempotency_key: format!(
+                        "rec-{}-item-{}-{}",
+                        reconciliation_id, item.product_id, item.warehouse_id
+                    ),
                     move_reason: Some(format!(
                         "Reconciliation {} adjustment",
                         reconciliation.reconciliation_number
@@ -298,10 +314,10 @@ impl StockReconciliationService for PgStockReconciliationService {
             }
         }
 
-        // Finalize reconciliation
+        // Finalize reconciliation within transaction
         let completed_at = Utc::now();
         self.reconciliation_repo
-            .finalize(tenant_id, reconciliation_id, completed_at, user_id)
+            .finalize_with_tx(&mut tx, tenant_id, reconciliation_id, completed_at, user_id)
             .await?;
 
         // Commit transaction
@@ -458,12 +474,54 @@ impl StockReconciliationService for PgStockReconciliationService {
             .await?;
         let items = variance_result.items;
 
-        // Simplified variance ranges - in practice, you'd calculate proper ranges
-        let variance_ranges = vec![inventory_service_core::dto::reconciliation::VarianceRange {
-            range: "0-5%".to_string(),
+        // Calculate actual variance ranges
+        let mut range_0_1 = VarianceRange {
+            range: "0-1%".to_string(),
             count: 0,
-            total_variance_value: None,
-        }];
+            total_variance_value: Some(0.0),
+        };
+        let mut range_1_5 = VarianceRange {
+            range: "1-5%".to_string(),
+            count: 0,
+            total_variance_value: Some(0.0),
+        };
+        let mut range_5_10 = VarianceRange {
+            range: "5-10%".to_string(),
+            count: 0,
+            total_variance_value: Some(0.0),
+        };
+        let mut range_over_10 = VarianceRange {
+            range: ">10%".to_string(),
+            count: 0,
+            total_variance_value: Some(0.0),
+        };
+
+        for item in &items {
+            if let Some(variance_pct) = item.variance_percentage {
+                let abs_pct = variance_pct.abs();
+                let variance_value = item.variance_value.unwrap_or(0.0);
+
+                if abs_pct <= 0.01 {
+                    range_0_1.count += 1;
+                    range_0_1.total_variance_value =
+                        Some(range_0_1.total_variance_value.unwrap() + variance_value);
+                } else if abs_pct <= 0.05 {
+                    range_1_5.count += 1;
+                    range_1_5.total_variance_value =
+                        Some(range_1_5.total_variance_value.unwrap() + variance_value);
+                } else if abs_pct <= 0.10 {
+                    range_5_10.count += 1;
+                    range_5_10.total_variance_value =
+                        Some(range_5_10.total_variance_value.unwrap() + variance_value);
+                } else {
+                    range_over_10.count += 1;
+                    range_over_10.total_variance_value =
+                        Some(range_over_10.total_variance_value.unwrap() + variance_value);
+                }
+            }
+        }
+
+        let variance_ranges = vec![range_0_1, range_1_5, range_5_10, range_over_10];
 
         let top_variance_items = items
             .into_iter()

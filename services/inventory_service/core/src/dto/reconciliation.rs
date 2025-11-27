@@ -135,6 +135,14 @@ pub struct ReconciliationListQuery {
     pub limit: Option<u32>,
 }
 
+/// Query parameters for reconciliation analytics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(IntoParams))]
+pub struct ReconciliationAnalyticsQuery {
+    /// Warehouse ID filter
+    pub warehouse_id: Option<Uuid>,
+}
+
 /// Response for reconciliation list
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]

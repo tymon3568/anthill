@@ -56,6 +56,14 @@ impl PgStockReconciliationRepository {
 
     /// Convert f64 to BIGINT cents
     fn f64_to_cents(f: f64) -> Result<i64, AppError> {
+        const MAX_SAFE: f64 = i64::MAX as f64 / 100.0;
+        const MIN_SAFE: f64 = i64::MIN as f64 / 100.0;
+        if f > MAX_SAFE || f < MIN_SAFE {
+            return Err(AppError::ValidationError(format!(
+                "Value {} is out of range for currency conversion",
+                f
+            )));
+        }
         let cents = (f * 100.0).round() as i64;
         Ok(cents)
     }
@@ -257,6 +265,34 @@ impl StockReconciliationRepository for PgStockReconciliationRepository {
             reconciliation_id
         )
         .execute(&*self.pool)
+        .await
+        .map_err(|e| {
+            AppError::DatabaseError(format!("Failed to finalize reconciliation: {}", e))
+        })?;
+
+        Ok(())
+    }
+
+    async fn finalize_with_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: Uuid,
+        reconciliation_id: Uuid,
+        completed_at: chrono::DateTime<chrono::Utc>,
+        _updated_by: Uuid,
+    ) -> Result<(), AppError> {
+        sqlx::query!(
+            r#"
+            UPDATE stock_reconciliations
+            SET status = $1, completed_at = $2, updated_at = NOW()
+            WHERE tenant_id = $3 AND reconciliation_id = $4 AND deleted_at IS NULL
+            "#,
+            "completed",
+            completed_at,
+            tenant_id,
+            reconciliation_id
+        )
+        .execute(&mut **tx)
         .await
         .map_err(|e| {
             AppError::DatabaseError(format!("Failed to finalize reconciliation: {}", e))
@@ -797,7 +833,7 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to get variance analysis: {}", e)))?;
 
-        let items: Vec<StockReconciliationItem> = rows
+        let mut items: Vec<StockReconciliationItem> = rows
             .into_iter()
             .map(|r| -> Result<StockReconciliationItem, AppError> {
                 let variance_percentage = r
@@ -832,6 +868,9 @@ impl StockReconciliationItemRepository for PgStockReconciliationItemRepository {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
+
+        // Sort by absolute variance descending for top variance items
+        items.sort_by_key(|item| std::cmp::Reverse(item.variance.map(|v| v.abs()).unwrap_or(0)));
 
         // Calculate total items and counted items
         let total_items = items.len() as i64;

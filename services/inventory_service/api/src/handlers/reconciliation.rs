@@ -487,9 +487,7 @@ pub async fn get_reconciliation(
     path = "/api/v1/inventory/reconciliations/analytics",
     tag = "reconciliations",
     operation_id = "get_reconciliation_analytics",
-    params(
-        ("warehouse_id" = Option<Uuid>, Query, description = "Warehouse ID filter")
-    ),
+    params(ReconciliationAnalyticsQuery),
     responses(
         (status = 200, description = "Analytics retrieved successfully", body = ReconciliationAnalyticsResponse),
         (status = 401, description = "Authentication required"),
@@ -499,11 +497,11 @@ pub async fn get_reconciliation(
 pub async fn get_reconciliation_analytics(
     auth_user: AuthUser,
     State(state): State<AppState>,
-    Query(warehouse_id): Query<Option<Uuid>>,
+    Query(query): Query<ReconciliationAnalyticsQuery>,
 ) -> Result<Json<ReconciliationAnalyticsResponse>, AppError> {
     let response = state
         .reconciliation_service
-        .get_analytics(auth_user.tenant_id, warehouse_id)
+        .get_analytics(auth_user.tenant_id, query.warehouse_id)
         .await?;
 
     Ok(Json(response))
