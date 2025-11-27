@@ -27,9 +27,6 @@ use inventory_service_core::dto::reconciliation::{
     CreateReconciliationRequest, ReconciliationListQuery,
 };
 use shared_auth::AuthUser;
-use shared_config::Config;
-use shared_db::init_pool;
-use shared_error::AppError;
 
 // Test utilities
 mod helpers;

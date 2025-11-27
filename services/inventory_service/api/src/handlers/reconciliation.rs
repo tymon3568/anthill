@@ -12,7 +12,7 @@ use inventory_service_core::dto::reconciliation::{
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
     FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsQuery,
     ReconciliationAnalyticsResponse, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, VarianceAnalysisResponse,
+    ReconciliationListResponse, ScanBarcodeRequest, ScanBarcodeResponse, VarianceAnalysisResponse,
 };
 
 use shared_auth::extractors::AuthUser;

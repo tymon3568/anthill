@@ -145,6 +145,7 @@ impl DeliveryOrderRepository for PgDeliveryOrderRepository {
             WHERE tenant_id = $1
               AND ($2::UUID IS NULL OR warehouse_id = $2)
               AND ($3::text IS NULL OR status = $3)
+              AND deleted_at IS NULL
             ORDER BY created_at DESC
             LIMIT $4 OFFSET $5
             "#,

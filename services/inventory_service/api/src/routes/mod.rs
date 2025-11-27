@@ -65,7 +65,7 @@ impl inventory_service_core::services::delivery::DeliveryService for DummyDelive
         _request: inventory_service_core::dto::delivery::PickItemsRequest,
     ) -> Result<inventory_service_core::dto::delivery::PickItemsResponse, shared_error::AppError>
     {
-        Err(shared_error::AppError::ValidationError(
+        Err(shared_error::AppError::ServiceUnavailable(
             "Delivery service is temporarily disabled".to_string(),
         ))
     }
@@ -78,7 +78,7 @@ impl inventory_service_core::services::delivery::DeliveryService for DummyDelive
         _request: inventory_service_core::dto::delivery::PackItemsRequest,
     ) -> Result<inventory_service_core::dto::delivery::PackItemsResponse, shared_error::AppError>
     {
-        Err(shared_error::AppError::ValidationError(
+        Err(shared_error::AppError::ServiceUnavailable(
             "Delivery service is temporarily disabled".to_string(),
         ))
     }
@@ -91,7 +91,7 @@ impl inventory_service_core::services::delivery::DeliveryService for DummyDelive
         _request: inventory_service_core::dto::delivery::ShipItemsRequest,
     ) -> Result<inventory_service_core::dto::delivery::ShipItemsResponse, shared_error::AppError>
     {
-        Err(shared_error::AppError::ValidationError(
+        Err(shared_error::AppError::ServiceUnavailable(
             "Delivery service is temporarily disabled".to_string(),
         ))
     }

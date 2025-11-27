@@ -26,7 +26,7 @@ pub struct AppState {
     pub valuation_service: Arc<dyn ValuationService>,
     pub warehouse_repository: Arc<dyn WarehouseRepository>,
     pub receipt_service: Arc<dyn ReceiptService>,
-    // pub delivery_service: Arc<dyn DeliveryService>,
+    pub delivery_service: Arc<dyn DeliveryService>,
     pub transfer_service: Arc<dyn TransferService>,
     pub stock_take_service: Arc<dyn StockTakeService>,
     pub reconciliation_service: Arc<dyn StockReconciliationService>,

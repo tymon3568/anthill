@@ -12,7 +12,6 @@ use inventory_service_core::repositories::{InventoryLevelRepository, StockMoveRe
 use shared_error::AppError;
 
 /// Helper type for infra-internal transaction operations
-pub type InfraTx<'a> = &'a mut sqlx::PgConnection;
 
 /// PostgreSQL implementation of StockMoveRepository
 pub struct PgStockMoveRepository {
@@ -30,7 +29,7 @@ impl PgStockMoveRepository {
     pub async fn create_with_tx(
         &self,
         tx: InfraTx<'_>,
-        stock_move: &CreateStockMoveRequest,
+        stock_move: CreateStockMoveRequest,
         tenant_id: Uuid,
     ) -> Result<(), AppError> {
         sqlx::query!(
