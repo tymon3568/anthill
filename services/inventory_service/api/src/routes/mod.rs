@@ -13,7 +13,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::handlers::category::{create_category_routes, AppState};
+use crate::handlers::category::create_category_routes;
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
@@ -22,6 +22,7 @@ use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
+use crate::state::AppState;
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
 use inventory_service_infra::repositories::delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,

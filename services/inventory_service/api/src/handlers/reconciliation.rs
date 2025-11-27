@@ -18,7 +18,7 @@ use inventory_service_core::dto::reconciliation::{
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 
 /// Create the reconciliation routes with state
 pub fn create_reconciliation_routes(state: AppState) -> Router {

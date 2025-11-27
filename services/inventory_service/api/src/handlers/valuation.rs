@@ -17,7 +17,7 @@ use inventory_service_core::domains::inventory::dto::valuation_dto::{
 };
 use inventory_service_core::domains::inventory::valuation::ValuationMethod;
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 

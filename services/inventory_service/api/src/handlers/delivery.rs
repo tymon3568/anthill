@@ -15,7 +15,7 @@ use inventory_service_core::dto::delivery::{
     ShipItemsResponse,
 };
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 

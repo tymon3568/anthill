@@ -18,7 +18,7 @@ use inventory_service_core::dto::receipt::{
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-use crate::handlers::category::AppState;
+use crate::state::AppState;
 
 /// Create the receipt routes with state
 pub fn create_receipt_routes(state: AppState) -> Router {
