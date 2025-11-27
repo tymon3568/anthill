@@ -212,7 +212,7 @@ impl PgInventoryLevelRepository {
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError> {
-        sqlx::query!(
+        let result = sqlx::query!(
             r#"
             UPDATE inventory_levels
             SET available_quantity = available_quantity + $4,
@@ -227,6 +227,13 @@ impl PgInventoryLevelRepository {
         .execute(&mut **tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Inventory level not found for product {} in warehouse {}",
+                product_id, warehouse_id
+            )));
+        }
 
         Ok(())
     }
