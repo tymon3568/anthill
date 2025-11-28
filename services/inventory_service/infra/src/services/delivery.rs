@@ -2,6 +2,8 @@
 //!
 //! This module contains the business logic implementation for Delivery Order operations.
 
+// Temporarily disabled delivery service to focus on reconciliation testing
+/*
 use async_trait::async_trait;
 use chrono::Utc;
 use std::sync::Arc;
@@ -417,3 +419,4 @@ impl DeliveryService for DeliveryServiceImpl {
         })
     }
 }
+*/

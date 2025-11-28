@@ -1001,6 +1001,7 @@ mod tests {
     use serde_json;
     use sqlx::PgPool;
     use uuid::Uuid;
+    use validator::Validate;
 
     // Note: These tests require a PostgreSQL database connection
     // In a real scenario, you would use a test database or mock

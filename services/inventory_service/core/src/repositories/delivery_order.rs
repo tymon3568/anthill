@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::models::{DeliveryOrder, DeliveryOrderItem};
+use crate::models::{DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus};
 use shared_error::AppError;
 
 #[async_trait]
@@ -12,11 +12,24 @@ pub trait DeliveryOrderRepository: Send + Sync {
         tenant_id: Uuid,
         delivery_id: Uuid,
     ) -> Result<Option<DeliveryOrder>, AppError>;
+    async fn find_by_number(
+        &self,
+        tenant_id: Uuid,
+        delivery_number: &str,
+    ) -> Result<Option<DeliveryOrder>, AppError>;
     async fn find_by_tenant(
         &self,
         tenant_id: Uuid,
         limit: Option<i64>,
         offset: Option<i64>,
+    ) -> Result<Vec<DeliveryOrder>, AppError>;
+    async fn list(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Option<Uuid>,
+        status: Option<DeliveryOrderStatus>,
+        limit: Option<u32>,
+        offset: Option<u32>,
     ) -> Result<Vec<DeliveryOrder>, AppError>;
     async fn update(&self, delivery_order: &DeliveryOrder) -> Result<(), AppError>;
     async fn delete(&self, tenant_id: Uuid, delivery_id: Uuid) -> Result<(), AppError>;

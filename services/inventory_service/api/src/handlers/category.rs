@@ -2,8 +2,6 @@
 //!
 //! This module contains the Axum handlers for category management endpoints.
 
-use std::sync::Arc;
-
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -19,20 +17,11 @@ use inventory_service_core::dto::category::{
     CategoryResponse, CategoryStatsResponse, CategoryTreeResponse, CategoryUpdateRequest,
     MoveToCategoryRequest,
 };
-use inventory_service_core::repositories::warehouse::WarehouseRepository;
-use inventory_service_core::services::category::CategoryService;
-use inventory_service_core::services::delivery::DeliveryService;
-use inventory_service_core::services::product::ProductService;
-use inventory_service_core::services::receipt::ReceiptService;
-use inventory_service_core::services::reconciliation::StockReconciliationService;
-use inventory_service_core::services::stock_take::StockTakeService;
-use inventory_service_core::services::transfer::TransferService;
-use inventory_service_core::services::valuation::ValuationService;
 
-use shared_auth::enforcer::SharedEnforcer;
-use shared_auth::extractors::{AuthUser, JwtSecretProvider, KanidmClientProvider, RequireAdmin};
+// use inventory_service_core::services::delivery::DeliveryService;
+
+use shared_auth::extractors::{AuthUser, RequireAdmin};
 use shared_error::AppError;
-use shared_kanidm_client::KanidmClient;
 
 use crate::state::AppState;
 

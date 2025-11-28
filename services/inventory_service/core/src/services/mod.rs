@@ -14,7 +14,7 @@ pub mod valuation;
 
 // Re-export main types for convenience
 pub use category::CategoryService;
-pub use delivery::DeliveryService;
+// pub use delivery::DeliveryService;
 pub use product::ProductService;
 pub use receipt::ReceiptService;
 pub use reconciliation::StockReconciliationService;

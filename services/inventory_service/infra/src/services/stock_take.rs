@@ -11,7 +11,7 @@ use inventory_service_core::dto::stock_take::{
     StockTakeDetailResponse, StockTakeListQuery, StockTakeListResponse,
 };
 use inventory_service_core::models::CreateStockMoveRequest;
-use inventory_service_core::repositories::stock::{InventoryLevelRepository, StockMoveRepository};
+
 use inventory_service_core::repositories::stock_take::{
     StockTakeLineCountUpdate, StockTakeLineRepository, StockTakeRepository,
 };
@@ -177,12 +177,6 @@ impl StockTakeService for PgStockTakeService {
         user_id: Uuid,
         _request: FinalizeStockTakeRequest,
     ) -> Result<FinalizeStockTakeResponse, AppError> {
-        // Wrap entire finalization in a single DB transaction to prevent partial failures
-        let mut tx =
-            self.pool.begin().await.map_err(|e| {
-                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
-            })?;
-
         // Verify stock take exists and is in correct status
         let stock_take = self
             .stock_take_repo
@@ -214,15 +208,17 @@ impl StockTakeService for PgStockTakeService {
             ));
         }
 
+        // Prepare adjustment data BEFORE transaction starts (to avoid borrow checker issues)
+        let mut stock_moves_to_create = Vec::new();
+        let mut inventory_updates: Vec<(Uuid, Uuid, Uuid, i64)> = Vec::new();
         let mut adjustments = Vec::new();
 
-        // Create adjustments for discrepancies
         for line in &lines {
             let actual_quantity = line.actual_quantity.unwrap();
             let difference = actual_quantity - line.expected_quantity;
 
             if difference != 0 {
-                // Create stock move for adjustment
+                // Prepare stock move for adjustment
                 let stock_move = CreateStockMoveRequest {
                     product_id: line.product_id,
                     source_location_id: Some(stock_take.warehouse_id),
@@ -240,20 +236,15 @@ impl StockTakeService for PgStockTakeService {
                     batch_info: None,
                     metadata: None,
                 };
-                self.stock_move_repo
-                    .create_with_tx(&mut tx, &stock_move, tenant_id)
-                    .await?;
+                stock_moves_to_create.push(stock_move);
 
-                // Update inventory level
-                self.inventory_repo
-                    .update_available_quantity_with_tx(
-                        &mut tx,
-                        tenant_id,
-                        stock_take.warehouse_id,
-                        line.product_id,
-                        difference,
-                    )
-                    .await?;
+                // Prepare inventory update
+                inventory_updates.push((
+                    tenant_id,
+                    stock_take.warehouse_id,
+                    line.product_id,
+                    difference,
+                ));
 
                 adjustments.push(StockAdjustment {
                     adjustment_id: Uuid::now_v7(),
@@ -266,14 +257,52 @@ impl StockTakeService for PgStockTakeService {
             }
         }
 
-        // Finalize stock take
+        // Execute all operations within a single transaction scope
         let completed_at = Utc::now();
-        self.stock_take_repo
-            .finalize_with_tx(&mut tx, tenant_id, stock_take_id, completed_at, user_id)
+
+        let tx =
+            self.pool.begin().await.map_err(|e| {
+                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
+            })?;
+
+        // Create all stock moves in sequence
+        let tx = {
+            let mut current_tx = tx;
+            for stock_move in &stock_moves_to_create {
+                current_tx = self
+                    .stock_move_repo
+                    .create_with_tx(current_tx, stock_move.clone(), tenant_id)
+                    .await?;
+            }
+            current_tx
+        };
+
+        // Update all inventory levels in sequence
+        let tx = {
+            let mut current_tx = tx;
+            for (tenant_id_upd, warehouse_id, product_id, difference) in &inventory_updates {
+                current_tx = self
+                    .inventory_repo
+                    .update_available_quantity_with_tx(
+                        current_tx,
+                        *tenant_id_upd,
+                        *warehouse_id,
+                        *product_id,
+                        *difference,
+                    )
+                    .await?;
+            }
+            current_tx
+        };
+
+        // All borrowing operations done - now finalize and commit
+        let finalized_tx = self
+            .stock_take_repo
+            .finalize_with_tx(tx, tenant_id, stock_take_id, completed_at, user_id)
             .await?;
 
-        // Commit transaction
-        tx.commit()
+        finalized_tx
+            .commit()
             .await
             .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
 

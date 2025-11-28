@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use sqlx::PgPool;
+
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -10,14 +11,14 @@ use inventory_service_core::dto::reconciliation::{
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
     FinalizeReconciliationRequest, FinalizeReconciliationResponse, PaginationInfo,
     ReconciliationAnalyticsResponse, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, VarianceAnalysisResponse, VarianceRange,
+    ReconciliationListResponse, ScanBarcodeRequest, ScanBarcodeResponse, VarianceAnalysisResponse,
+    VarianceRange,
 };
 use inventory_service_core::dto::stock_take::StockAdjustment;
 use inventory_service_core::models::CreateStockMoveRequest;
 use inventory_service_core::repositories::reconciliation::{
     ReconciliationItemCountUpdate, StockReconciliationItemRepository, StockReconciliationRepository,
 };
-use inventory_service_core::repositories::stock::{InventoryLevelRepository, StockMoveRepository};
 use inventory_service_core::services::reconciliation::StockReconciliationService;
 use shared_error::AppError;
 
@@ -28,6 +29,7 @@ pub struct PgStockReconciliationService {
     reconciliation_item_repo: Arc<dyn StockReconciliationItemRepository>,
     stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
     inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
+    product_repo: Arc<dyn inventory_service_core::repositories::product::ProductRepository>,
 }
 
 impl PgStockReconciliationService {
@@ -40,6 +42,7 @@ impl PgStockReconciliationService {
         reconciliation_item_repo: Arc<dyn StockReconciliationItemRepository>,
         stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
         inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
+        product_repo: Arc<dyn inventory_service_core::repositories::product::ProductRepository>,
     ) -> Self {
         Self {
             pool,
@@ -47,6 +50,7 @@ impl PgStockReconciliationService {
             reconciliation_item_repo,
             stock_move_repo,
             inventory_repo,
+            product_repo,
         }
     }
 
@@ -104,7 +108,7 @@ impl StockReconciliationService for PgStockReconciliationService {
             .await?;
 
         // Create reconciliation items from inventory based on cycle type
-        let _items = self
+        let _items = match self
             .reconciliation_item_repo
             .create_from_inventory(
                 tenant_id,
@@ -115,7 +119,9 @@ impl StockReconciliationService for PgStockReconciliationService {
                 request.product_filter,
             )
             .await
-            .map_err(|e| {
+        {
+            Ok(items) => items,
+            Err(e) => {
                 if let Err(delete_err) = self
                     .reconciliation_repo
                     .delete(tenant_id, created_reconciliation.reconciliation_id, user_id)
@@ -127,8 +133,9 @@ impl StockReconciliationService for PgStockReconciliationService {
                         "Failed to cleanup reconciliation after item creation failure"
                     );
                 }
-                e
-            })?;
+                return Err(e);
+            },
+        };
 
         // Get updated reconciliation with correct counts
         let final_reconciliation = self
@@ -215,15 +222,9 @@ impl StockReconciliationService for PgStockReconciliationService {
         &self,
         tenant_id: Uuid,
         reconciliation_id: Uuid,
-        user_id: Uuid,
+        _user_id: Uuid,
         _request: FinalizeReconciliationRequest,
     ) -> Result<FinalizeReconciliationResponse, AppError> {
-        // Wrap entire finalization in a single DB transaction
-        let mut tx =
-            self.pool.begin().await.map_err(|e| {
-                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
-            })?;
-
         // Verify reconciliation exists and is in correct status
         let reconciliation = self
             .reconciliation_repo
@@ -256,6 +257,9 @@ impl StockReconciliationService for PgStockReconciliationService {
             ));
         }
 
+        // Prepare all stock moves and inventory updates BEFORE transaction (to avoid borrow checker issues)
+        let mut stock_moves_to_create = Vec::new();
+        let mut inventory_updates: Vec<(Uuid, Uuid, Uuid, i64)> = Vec::new();
         let mut adjustments = Vec::new();
 
         // Create adjustments for variances
@@ -290,20 +294,10 @@ impl StockReconciliationService for PgStockReconciliationService {
                     batch_info: None,
                     metadata: None,
                 };
-                self.stock_move_repo
-                    .create_with_tx(&mut tx, &stock_move, tenant_id)
-                    .await?;
+                stock_moves_to_create.push(stock_move);
 
-                // Update inventory level
-                self.inventory_repo
-                    .update_available_quantity_with_tx(
-                        &mut tx,
-                        tenant_id,
-                        item.warehouse_id,
-                        item.product_id,
-                        variance,
-                    )
-                    .await?;
+                // Prepare inventory update
+                inventory_updates.push((tenant_id, item.warehouse_id, item.product_id, variance));
 
                 adjustments.push(StockAdjustment {
                     adjustment_id: Uuid::now_v7(),
@@ -316,16 +310,56 @@ impl StockReconciliationService for PgStockReconciliationService {
             }
         }
 
-        // Finalize reconciliation within transaction
+        // Execute all operations within a single transaction scope
         let completed_at = Utc::now();
-        self.reconciliation_repo
-            .finalize_with_tx(&mut tx, tenant_id, reconciliation_id, completed_at, user_id)
+
+        let tx =
+            self.pool.begin().await.map_err(|e| {
+                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
+            })?;
+
+        // Create all stock moves in sequence
+        let tx = {
+            let mut current_tx = tx;
+            for stock_move in &stock_moves_to_create {
+                current_tx = self
+                    .stock_move_repo
+                    .create_with_tx(current_tx, stock_move.clone(), tenant_id)
+                    .await?;
+            }
+            current_tx
+        };
+
+        // Update all inventory levels in sequence
+        let tx = {
+            let mut current_tx = tx;
+            for (tenant_id_upd, warehouse_id, product_id, variance) in &inventory_updates {
+                current_tx = self
+                    .inventory_repo
+                    .update_available_quantity_with_tx(
+                        current_tx,
+                        *tenant_id_upd,
+                        *warehouse_id,
+                        *product_id,
+                        *variance,
+                    )
+                    .await?;
+            }
+            current_tx
+        };
+
+        // All operations done - now finalize and commit
+        let finalized_tx = self
+            .reconciliation_repo
+            .finalize_with_tx(tx, tenant_id, reconciliation_id, completed_at)
             .await?;
 
-        // Commit transaction
-        tx.commit()
+        finalized_tx
+            .commit()
             .await
             .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
+
+        // Transaction committed successfully
 
         // Get updated reconciliation
         let finalized_reconciliation = self
@@ -535,6 +569,96 @@ impl StockReconciliationService for PgStockReconciliationService {
             reconciliation,
             variance_ranges,
             top_variance_items,
+        })
+    }
+
+    async fn scan_barcode(
+        &self,
+        tenant_id: Uuid,
+        reconciliation_id: Uuid,
+        user_id: Uuid,
+        request: ScanBarcodeRequest,
+    ) -> Result<ScanBarcodeResponse, AppError> {
+        // Validate reconciliation exists and is in correct status
+        let reconciliation = self
+            .reconciliation_repo
+            .find_by_id(tenant_id, reconciliation_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Reconciliation not found".to_string()))?;
+
+        if reconciliation.status != ReconciliationStatus::Draft
+            && reconciliation.status != ReconciliationStatus::InProgress
+        {
+            return Err(AppError::ValidationError(
+                "Reconciliation must be in Draft or InProgress status to scan barcodes".to_string(),
+            ));
+        }
+
+        // Look up product by barcode
+        let product = self
+            .product_repo
+            .find_by_barcode(tenant_id, &request.barcode)
+            .await?
+            .ok_or_else(|| AppError::NotFound("Product not found for barcode".to_string()))?;
+
+        let product_id = product.product_id;
+
+        // Find reconciliation item for this product
+        let items = self
+            .reconciliation_item_repo
+            .find_by_reconciliation_id(tenant_id, reconciliation_id)
+            .await?;
+
+        let item = items
+            .into_iter()
+            .find(|item| {
+                item.product_id == product_id
+                    && (request.location_id.is_none() || request.location_id == item.location_id)
+            })
+            .ok_or_else(|| AppError::NotFound("Product not found in reconciliation".to_string()))?;
+
+        // Check if this item already has a count
+        let is_new_count = item.counted_quantity.is_none();
+
+        // Update the count
+        let update_request = vec![ReconciliationItemCountUpdate {
+            product_id: item.product_id,
+            warehouse_id: item.warehouse_id,
+            location_id: request.location_id.or(item.location_id),
+            counted_quantity: request.quantity,
+            unit_cost: None, // Unit cost not provided in barcode scan
+            counted_by: user_id,
+            notes: request.notes.clone(),
+        }];
+
+        self.reconciliation_item_repo
+            .batch_update_counts(tenant_id, reconciliation_id, &update_request)
+            .await?;
+
+        // If reconciliation was in Draft status, transition to InProgress
+        if reconciliation.status == ReconciliationStatus::Draft {
+            self.reconciliation_repo
+                .update_status(
+                    tenant_id,
+                    reconciliation_id,
+                    ReconciliationStatus::InProgress,
+                    user_id,
+                )
+                .await?;
+        }
+
+        // Get the updated item
+        let updated_item = self
+            .reconciliation_item_repo
+            .find_by_key(tenant_id, reconciliation_id, item.product_id, item.warehouse_id)
+            .await?
+            .ok_or_else(|| {
+                AppError::InternalError("Failed to retrieve updated item".to_string())
+            })?;
+
+        Ok(ScanBarcodeResponse {
+            item: updated_item,
+            is_new_count,
         })
     }
 }

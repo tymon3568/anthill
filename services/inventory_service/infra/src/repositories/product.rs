@@ -427,6 +427,109 @@ impl ProductRepository for ProductRepositoryImpl {
         todo!("Implement find_by_sku")
     }
 
+    async fn find_by_barcode(&self, tenant_id: Uuid, barcode: &str) -> Result<Option<Product>> {
+        // First, try to find in product_variants table
+        let row = sqlx::query!(
+            r#"
+            SELECT
+                p.product_id, p.tenant_id, p.sku, p.name, p.description,
+                p.product_type, p.item_group_id, p.track_inventory, p.tracking_method,
+                p.default_uom_id, p.sale_price, p.cost_price, p.currency_code,
+                p.weight_grams, p.dimensions, p.attributes,
+                p.is_active, p.is_sellable, p.is_purchaseable,
+                p.created_at, p.updated_at, p.deleted_at
+            FROM product_variants pv
+            JOIN products p ON pv.parent_product_id = p.product_id
+            WHERE pv.tenant_id = $1 AND pv.barcode = $2 AND pv.deleted_at IS NULL
+              AND p.deleted_at IS NULL
+            LIMIT 1
+            "#,
+            tenant_id,
+            barcode
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some(row) = row {
+            let product = Product {
+                product_id: row.product_id,
+                tenant_id: row.tenant_id,
+                sku: row.sku,
+                name: row.name,
+                description: row.description,
+                product_type: row.product_type,
+                item_group_id: row.item_group_id,
+                track_inventory: row.track_inventory,
+                tracking_method: row.tracking_method.unwrap_or_else(|| "none".to_string()),
+                default_uom_id: row.default_uom_id,
+                sale_price: row.sale_price,
+                cost_price: row.cost_price,
+                currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
+                weight_grams: row.weight_grams,
+                dimensions: row.dimensions,
+                attributes: row.attributes,
+                is_active: row.is_active,
+                is_sellable: row.is_sellable,
+                is_purchaseable: row.is_purchaseable,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                deleted_at: row.deleted_at,
+            };
+            return Ok(Some(product));
+        }
+
+        // If not found in variants, try to find in products.attributes JSONB field
+        // Assume barcode is stored as {"barcode": "value"} in attributes
+        let row = sqlx::query!(
+            r#"
+            SELECT
+                product_id, tenant_id, sku, name, description,
+                product_type, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            FROM products
+            WHERE tenant_id = $1 AND attributes->>'barcode' = $2 AND deleted_at IS NULL
+            LIMIT 1
+            "#,
+            tenant_id,
+            barcode
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some(row) = row {
+            let product = Product {
+                product_id: row.product_id,
+                tenant_id: row.tenant_id,
+                sku: row.sku,
+                name: row.name,
+                description: row.description,
+                product_type: row.product_type,
+                item_group_id: row.item_group_id,
+                track_inventory: row.track_inventory,
+                tracking_method: row.tracking_method.unwrap_or_else(|| "none".to_string()),
+                default_uom_id: row.default_uom_id,
+                sale_price: row.sale_price,
+                cost_price: row.cost_price,
+                currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
+                weight_grams: row.weight_grams,
+                dimensions: row.dimensions,
+                attributes: row.attributes,
+                is_active: row.is_active,
+                is_sellable: row.is_sellable,
+                is_purchaseable: row.is_purchaseable,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                deleted_at: row.deleted_at,
+            };
+            return Ok(Some(product));
+        }
+
+        Ok(None)
+    }
+
     async fn create(&self, _product: &Product) -> Result<Product> {
         todo!("Implement create")
     }

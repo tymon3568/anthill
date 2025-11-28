@@ -1,12 +1,13 @@
-//! Delivery HTTP handlers
+//! Delivery order handlers
 //!
-//! This module contains the Axum handlers for Delivery Order operations.
+//! This module contains HTTP handlers for delivery order operations including
+//! picking, packing, and shipping items.
+//!
+//! NOTE: Delivery handlers are temporarily commented out as delivery service is disabled.
 
 use axum::{
     extract::{Path, State},
-    response::Json,
-    routing::post,
-    Router,
+    Json,
 };
 use uuid::Uuid;
 
@@ -14,70 +15,12 @@ use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
-
-use crate::state::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
-/// Create the delivery routes with state
-pub fn create_delivery_routes(state: AppState) -> Router {
-    Router::new()
-        .route("/{delivery_id}/pick", post(pick_items))
-        .route("/{delivery_id}/pack", post(pack_items))
-        .route("/{delivery_id}/ship", post(ship_items))
-        .with_state(state)
-}
+use crate::state::AppState;
 
-/// POST /api/v1/inventory/deliveries/{delivery_id}/pick - Pick items for a delivery order
-///
-/// Updates the picked quantities for specified delivery order items and changes
-/// the delivery order status to 'picked'. This operation is performed by warehouse
-/// staff when physically picking items from shelves for shipment.
-///
-/// # Authentication
-/// Requires authenticated user with appropriate tenant access
-///
-/// # Path Parameters
-/// * `delivery_id` - UUID of the delivery order to pick items for
-///
-/// # Request Body
-/// ```json
-/// {
-///   "items": [
-///     {
-///       "delivery_item_id": "550e8400-e29b-41d4-a716-446655440000",
-///       "picked_quantity": 50
-///     },
-///     {
-///       "delivery_item_id": "550e8400-e29b-41d4-a716-446655440001",
-///       "picked_quantity": 25
-///     }
-///   ]
-/// }
-/// ```
-///
-/// # Returns
-/// * `200` - Items picked successfully with summary
-/// * `400` - Invalid request data or business rule violations
-/// * `401` - Authentication required
-/// * `403` - Insufficient permissions
-/// * `404` - Delivery order or items not found
-///
-/// # Business Rules
-/// - Delivery order must be in 'Confirmed' status
-/// - Picked quantities cannot exceed remaining ordered quantities
-/// - All specified items must belong to the delivery order
-/// - Picked quantities must be positive
-///
-/// # Example Response
-/// ```json
-/// {
-///   "delivery_id": "550e8400-e29b-41d4-a716-446655440002",
-///   "status": "Picked",
-///   "picked_items_count": 2,
-///   "total_picked_quantity": 75
-/// }
-/// ```
+/*
 #[utoipa::path(
     post,
     path = "/api/v1/inventory/deliveries/{delivery_id}/pick",
@@ -92,7 +35,7 @@ pub fn create_delivery_routes(state: AppState) -> Router {
         (status = 400, description = "Invalid request or business rule violation"),
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Insufficient permissions"),
-        (status = 404, description = "Delivery order or items not found")
+        (status = 404, description = "Delivery order not found")
     )
 )]
 pub async fn pick_items(
@@ -252,3 +195,4 @@ pub async fn ship_items(
 
     Ok(Json(response))
 }
+*/

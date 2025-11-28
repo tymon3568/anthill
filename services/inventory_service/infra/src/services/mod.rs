@@ -16,7 +16,7 @@ mod category_tests;
 
 // Re-export services for convenience
 pub use category::CategoryServiceImpl;
-pub use delivery::DeliveryServiceImpl;
+// pub use delivery::DeliveryServiceImpl;
 pub use product::ProductServiceImpl;
 pub use receipt::ReceiptServiceImpl;
 pub use reconciliation::PgStockReconciliationService;
