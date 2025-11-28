@@ -14,11 +14,11 @@
 Modify the `products` table to add a `tracking_method` field. This will allow enabling lot or serial number tracking on a per-product basis.
 
 ## Specific Sub-tasks:
-- [ ] 1. Create a new SQL migration to add a `tracking_method` column (e.g., with values `none`, `lot`, `serial`) to the `products` table.
+- [x] 1. Create a new SQL migration to add a `tracking_method` column (e.g., with values `none`, `lot`, `serial`) to the `products` table.
 - [ ] 2. Update the business logic for Goods Receipt to enforce lot/serial number assignment for tracked products.
 
 ## Acceptance Criteria:
-- [ ] A new SQL migration is created to add the `tracking_method` column to the `products` table.
+- [x] A new SQL migration is created to add the `tracking_method` column to the `products` table.
 - [ ] The GRN process is updated to require lot/serial numbers for tracked products.
 - [ ] The migration runs successfully.
 
@@ -39,4 +39,8 @@ Modify the `products` table to add a `tracking_method` field. This will allow en
     - Verified dependencies: task_04.01.01 and task_04.05.01 are Done
     - Starting work on enabling lot/serial tracking per product
     - Status: In progress
-```
+*   2025-11-28 14:00: [Completed sub-task 1] by Grok_Code
+    - Verified that tracking_method column already exists in products table from initial migration
+    - Marked sub-task 1 as completed
+    - Starting work on sub-task 2: Update GRN business logic to enforce lot/serial tracking
+    - Status: In progress on sub-task 2
