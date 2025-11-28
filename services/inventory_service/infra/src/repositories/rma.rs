@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{PgPool, Transaction};
+use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -51,7 +51,11 @@ impl RmaRepository for PgRmaRepository {
         Ok(())
     }
 
-    async fn find_by_id(&self, tenant_id: Uuid, rma_id: Uuid) -> Result<Option<RmaRequest>, AppError> {
+    async fn find_by_id(
+        &self,
+        tenant_id: Uuid,
+        rma_id: Uuid,
+    ) -> Result<Option<RmaRequest>, AppError> {
         let result = sqlx::query_as!(
             RmaRequest,
             r#"
@@ -71,7 +75,11 @@ impl RmaRepository for PgRmaRepository {
         Ok(result)
     }
 
-    async fn find_by_number(&self, tenant_id: Uuid, rma_number: &str) -> Result<Option<RmaRequest>, AppError> {
+    async fn find_by_number(
+        &self,
+        tenant_id: Uuid,
+        rma_number: &str,
+    ) -> Result<Option<RmaRequest>, AppError> {
         let result = sqlx::query_as!(
             RmaRequest,
             r#"
@@ -119,7 +127,13 @@ impl RmaRepository for PgRmaRepository {
         Ok(())
     }
 
-    async fn update_status(&self, tenant_id: Uuid, rma_id: Uuid, status: RmaStatus, updated_by: Option<Uuid>) -> Result<(), AppError> {
+    async fn update_status(
+        &self,
+        tenant_id: Uuid,
+        rma_id: Uuid,
+        status: RmaStatus,
+        updated_by: Option<Uuid>,
+    ) -> Result<(), AppError> {
         sqlx::query!(
             r#"
             UPDATE rma_requests SET
@@ -136,7 +150,12 @@ impl RmaRepository for PgRmaRepository {
         Ok(())
     }
 
-    async fn list_by_tenant(&self, tenant_id: Uuid, limit: Option<i64>, offset: Option<i64>) -> Result<Vec<RmaRequest>, AppError> {
+    async fn list_by_tenant(
+        &self,
+        tenant_id: Uuid,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<RmaRequest>, AppError> {
         let rows = sqlx::query_as!(
             RmaRequest,
             r#"
@@ -204,7 +223,11 @@ impl RmaItemRepository for PgRmaItemRepository {
         Ok(())
     }
 
-    async fn find_by_id(&self, tenant_id: Uuid, rma_item_id: Uuid) -> Result<Option<RmaItem>, AppError> {
+    async fn find_by_id(
+        &self,
+        tenant_id: Uuid,
+        rma_item_id: Uuid,
+    ) -> Result<Option<RmaItem>, AppError> {
         let result = sqlx::query_as!(
             RmaItem,
             r#"
@@ -224,7 +247,11 @@ impl RmaItemRepository for PgRmaItemRepository {
         Ok(result)
     }
 
-    async fn find_by_rma_id(&self, tenant_id: Uuid, rma_id: Uuid) -> Result<Vec<RmaItem>, AppError> {
+    async fn find_by_rma_id(
+        &self,
+        tenant_id: Uuid,
+        rma_id: Uuid,
+    ) -> Result<Vec<RmaItem>, AppError> {
         let result = sqlx::query_as!(
             RmaItem,
             r#"

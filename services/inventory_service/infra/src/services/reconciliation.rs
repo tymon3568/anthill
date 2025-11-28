@@ -58,7 +58,7 @@ impl PgStockReconciliationService {
     fn f64_to_cents(f: f64) -> Result<i64, AppError> {
         const MAX_SAFE: f64 = i64::MAX as f64 / 100.0;
         const MIN_SAFE: f64 = i64::MIN as f64 / 100.0;
-        if f > MAX_SAFE || f < MIN_SAFE {
+        if !(MIN_SAFE..=MAX_SAFE).contains(&f) {
             return Err(AppError::ValidationError(format!(
                 "Value {} is out of range for currency conversion",
                 f
