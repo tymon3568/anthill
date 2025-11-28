@@ -37,20 +37,20 @@ Create the necessary tables to manage Returned Merchandise Authorization (RMA) r
 ## AI Agent Log:
 ---
 *   2025-11-29 10:00: Task claimed by Claude
-    - Verified dependencies: task_04.04.05_create_delivery_orders_table.md (Status: Done) ✓
-    - Starting work on sub-task 1: Create a new SQL migration file.
+  - Verified dependencies: task_04.04.05_create_delivery_orders_table.md (Status: Done) ✓
+  - Starting work on sub-task 1: Create a new SQL migration file.
 
 *   2025-11-29 10:30: Migration file created by Claude
-    - Created migrations/20251126000003_create_rma_tables.sql
-    - Implemented rma_requests table with auto-generated RMA numbers, multi-tenancy, and comprehensive fields
-    - Implemented rma_items table with foreign keys, condition/action enums, and auto-calculated line totals
-    - Added performance indexes, triggers for updated_at and line_total calculation
-    - Included comprehensive comments and documentation
-    - Files: migrations/20251126000003_create_rma_tables.sql
-    - Status: Migration file created successfully ✓
+  - Created migrations/20251126000003_create_rma_tables.sql
+  - Implemented rma_requests table with auto-generated RMA numbers, multi-tenancy, and comprehensive fields
+  - Implemented rma_items table with foreign keys, condition/action enums, and auto-calculated line totals
+  - Added performance indexes, triggers for updated_at and line_total calculation
+  - Included comprehensive comments and documentation
+  - Files: migrations/20251126000003_create_rma_tables.sql
+  - Status: Migration file created successfully ✓
 
 *   2025-11-29 11:00: All sub-tasks completed by Claude
-    - All table schemas defined with proper columns and constraints
-    - Foreign key constraints added for multi-tenancy isolation
-    - Migration syntax validated, ready for testing
-    - Status: Ready for review and testing
+  - All table schemas defined with proper columns and constraints
+  - Foreign key constraints added for multi-tenancy isolation
+  - Migration syntax validated, ready for testing
+  - Status: Ready for review and testing

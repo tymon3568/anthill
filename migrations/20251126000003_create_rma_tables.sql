@@ -7,6 +7,7 @@
 CREATE SEQUENCE IF NOT EXISTS rma_number_seq START 1;
 
 -- Function to generate RMA numbers (RMA-YYYY-XXXXX)
+-- Note: RMA numbers are globally unique across all tenants
 CREATE OR REPLACE FUNCTION generate_rma_number()
 RETURNS TEXT AS $$
 DECLARE
@@ -40,11 +41,14 @@ CREATE TABLE rma_requests (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
 
-    -- Foreign key constraint for original_delivery_id (assuming delivery_orders has tenant_id)
-    FOREIGN KEY (tenant_id, original_delivery_id) REFERENCES delivery_orders(tenant_id, delivery_id),
+    -- Foreign key constraint for original_delivery_id
+    FOREIGN KEY (original_delivery_id) REFERENCES delivery_orders(delivery_id),
 
     -- Soft delete constraint
-    CHECK (deleted_at IS NULL OR deleted_at > created_at)
+    CHECK (deleted_at IS NULL OR deleted_at > created_at),
+
+    -- Unique constraint for composite foreign key from rma_items
+    CONSTRAINT rma_requests_tenant_rma_unique UNIQUE (tenant_id, rma_id)
 );
 
 -- Create rma_items table
@@ -73,7 +77,7 @@ CREATE TABLE rma_items (
     FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id),
 
     -- Optional foreign key to product_variants
-    FOREIGN KEY (tenant_id, variant_id) REFERENCES product_variants(tenant_id, variant_id),
+    FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id),
 
     -- Soft delete constraint
     CHECK (deleted_at IS NULL OR deleted_at > created_at)
@@ -83,12 +87,12 @@ CREATE TABLE rma_items (
 CREATE INDEX idx_rma_requests_tenant_status ON rma_requests(tenant_id, status) WHERE deleted_at IS NULL;
 CREATE INDEX idx_rma_requests_tenant_customer ON rma_requests(tenant_id, customer_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_rma_requests_tenant_delivery ON rma_requests(tenant_id, original_delivery_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_rma_requests_created_at ON rma_requests(created_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_rma_requests_tenant_created_at ON rma_requests(tenant_id, created_at) WHERE deleted_at IS NULL;
 
 CREATE INDEX idx_rma_items_tenant_rma ON rma_items(tenant_id, rma_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_rma_items_tenant_product ON rma_items(tenant_id, product_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_rma_items_tenant_variant ON rma_items(tenant_id, variant_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_rma_items_condition_action ON rma_items(condition, action) WHERE deleted_at IS NULL;
+CREATE INDEX idx_rma_items_tenant_variant ON rma_items(tenant_id, variant_id) WHERE deleted_at IS NULL AND variant_id IS NOT NULL;
+CREATE INDEX idx_rma_items_tenant_condition_action ON rma_items(tenant_id, condition, action) WHERE deleted_at IS NULL;
 
 -- Triggers for updated_at
 CREATE TRIGGER update_rma_requests_updated_at
@@ -107,10 +111,41 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.unit_cost IS NOT NULL AND NEW.quantity_returned IS NOT NULL THEN
         NEW.line_total := NEW.unit_cost * NEW.quantity_returned;
+    ELSE
+        NEW.line_total := NULL;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to update rma_requests totals
+CREATE OR REPLACE FUNCTION update_rma_request_totals()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_rma_id UUID;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        v_rma_id := OLD.rma_id;
+    ELSE
+        v_rma_id := NEW.rma_id;
+    END IF;
+
+    IF v_rma_id IS NOT NULL THEN
+        UPDATE rma_requests
+        SET
+            total_items = (SELECT COALESCE(SUM(quantity_returned), 0) FROM rma_items WHERE rma_id = v_rma_id AND deleted_at IS NULL),
+            total_value = (SELECT COALESCE(SUM(line_total), 0) FROM rma_items WHERE rma_id = v_rma_id AND deleted_at IS NULL)
+        WHERE rma_id = v_rma_id;
+    END IF;
+
+    RETURN NULL; -- result is ignored since this is an AFTER trigger
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER rma_items_after_change_trigger
+    AFTER INSERT OR UPDATE OR DELETE ON rma_items
+    FOR EACH ROW
+    EXECUTE FUNCTION update_rma_request_totals();
 
 CREATE TRIGGER calculate_rma_item_total_trigger
     BEFORE INSERT OR UPDATE OF unit_cost, quantity_returned ON rma_items
