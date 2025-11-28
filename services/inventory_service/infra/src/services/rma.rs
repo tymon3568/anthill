@@ -12,11 +12,9 @@ use inventory_service_core::dto::rma::{
     ReceiveRmaResponse,
 };
 use inventory_service_core::models::{
-    CreateStockMoveRequest, RmaAction, RmaCondition, RmaItem, RmaRequest, RmaStatus,
+    CreateStockMoveRequest, RmaAction, RmaItem, RmaRequest, RmaStatus,
 };
-use inventory_service_core::repositories::{
-    RmaItemRepository, RmaRepository, StockMoveRepository,
-};
+use inventory_service_core::repositories::{RmaItemRepository, RmaRepository, StockMoveRepository};
 use inventory_service_core::services::rma::RmaService;
 use shared_error::AppError;
 
@@ -68,7 +66,9 @@ impl RmaService for PgRmaService {
                 if item_req.quantity_returned <= 0 {
                     panic!("Quantity must be positive"); // Will be caught by validation
                 }
-                let line_total = item_req.unit_cost.map(|cost| cost * item_req.quantity_returned);
+                let line_total = item_req
+                    .unit_cost
+                    .map(|cost| cost * item_req.quantity_returned);
                 total_items += item_req.quantity_returned as i32;
                 if let Some(total) = line_total {
                     total_value += total;
@@ -115,13 +115,13 @@ impl RmaService for PgRmaService {
             deleted_at: None,
         };
 
-        let created_rma = self.rma_repo.create(&rma).await?;
+        self.rma_repo.create(&rma).await?;
 
         // Set rma_id for items and create them
         let items_with_rma_id: Vec<RmaItem> = items
             .into_iter()
             .map(|mut item| {
-                item.rma_id = created_rma.rma_id;
+                item.rma_id = rma.rma_id;
                 item
             })
             .collect();
@@ -133,7 +133,7 @@ impl RmaService for PgRmaService {
         // Fetch the created RMA to get the generated number
         let final_rma = self
             .rma_repo
-            .find_by_id(tenant_id, created_rma.rma_id)
+            .find_by_id(tenant_id, rma.rma_id)
             .await?
             .ok_or_else(|| AppError::InternalError("Failed to retrieve created RMA".to_string()))?;
 
@@ -153,7 +153,7 @@ impl RmaService for PgRmaService {
         request: ApproveRmaRequest,
     ) -> Result<ApproveRmaResponse, AppError> {
         // Find the RMA
-        let mut rma = self
+        let rma = self
             .rma_repo
             .find_by_id(tenant_id, rma_id)
             .await?
