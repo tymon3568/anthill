@@ -5,10 +5,10 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.5_Lot_Serial_Tracking
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** InProgress_By_Grok_Code
+**Assignee:** Grok
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-11-28
 
 ## Detailed Description:
 Modify the `products` table to add a `tracking_method` field. This will allow enabling lot or serial number tracking on a per-product basis.
@@ -35,4 +35,8 @@ Modify the `products` table to add a `tracking_method` field. This will allow en
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+*   2025-11-28 13:37: [Claiming task] by Grok_Code
+    - Verified dependencies: task_04.01.01 and task_04.05.01 are Done
+    - Starting work on enabling lot/serial tracking per product
+    - Status: In progress
+```
