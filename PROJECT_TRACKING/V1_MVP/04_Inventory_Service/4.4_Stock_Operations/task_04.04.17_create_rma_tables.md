@@ -14,10 +14,10 @@
 Create the necessary tables to manage Returned Merchandise Authorization (RMA) requests.
 
 ## Specific Sub-tasks:
-- [ ] 1. Create a new SQL migration file.
-- [ ] 2. Define the `rma_requests` table with columns: `rma_id`, `rma_number`, `tenant_id`, `customer_id`, `original_delivery_id`, `status`, `return_reason`, etc.
-- [ ] 3. Define the `rma_items` table with columns: `rma_item_id`, `rma_id`, `product_id`, `quantity_returned`, `condition`, `action` (e.g., restock, scrap).
-- [ ] 4. Add foreign key constraints.
+- [x] 1. Create a new SQL migration file.
+- [x] 2. Define the `rma_requests` table with columns: `rma_id`, `rma_number`, `tenant_id`, `customer_id`, `original_delivery_id`, `status`, `return_reason`, etc.
+- [x] 3. Define the `rma_items` table with columns: `rma_item_id`, `rma_id`, `product_id`, `quantity_returned`, `condition`, `action` (e.g., restock, scrap).
+- [x] 4. Add foreign key constraints.
 
 ## Acceptance Criteria:
 - [x] A new SQL migration is created for the `rma_requests` and `rma_items` tables.
