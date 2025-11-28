@@ -10,6 +10,7 @@ use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::product::ProductService;
 use inventory_service_core::services::receipt::ReceiptService;
 use inventory_service_core::services::reconciliation::StockReconciliationService;
+use inventory_service_core::services::rma::RmaService;
 use inventory_service_core::services::stock_take::StockTakeService;
 use inventory_service_core::services::transfer::TransferService;
 use inventory_service_core::services::valuation::ValuationService;
@@ -30,6 +31,7 @@ pub struct AppState {
     pub transfer_service: Arc<dyn TransferService>,
     pub stock_take_service: Arc<dyn StockTakeService>,
     pub reconciliation_service: Arc<dyn StockReconciliationService>,
+    pub rma_service: Arc<dyn RmaService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,

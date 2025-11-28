@@ -18,6 +18,7 @@ use crate::handlers::category::create_category_routes;
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
+use crate::handlers::rma::create_rma_routes;
 use crate::handlers::search::create_search_routes;
 use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
@@ -34,6 +35,7 @@ use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 use inventory_service_infra::repositories::reconciliation::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
 };
+use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
 use inventory_service_infra::repositories::stock::{
     PgInventoryLevelRepository, PgStockMoveRepository,
 };
@@ -51,6 +53,7 @@ use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 use inventory_service_infra::services::product::ProductServiceImpl;
 
 use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
+use inventory_service_infra::services::rma::PgRmaService;
 use inventory_service_infra::services::stock_take::PgStockTakeService;
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
@@ -270,6 +273,12 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         product_repo,
     ));
 
+    // Initialize RMA repositories and services
+    let rma_repo = Arc::new(PgRmaRepository::new(Arc::new(pool.clone())));
+    let rma_item_repo = Arc::new(PgRmaItemRepository::new(Arc::new(pool.clone())));
+
+    let rma_service = Arc::new(PgRmaService::new(rma_repo, rma_item_repo, stock_move_repo.clone()));
+
     // Initialize receipt repositories and services
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
@@ -291,6 +300,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         transfer_service,
         stock_take_service,
         reconciliation_service,
+        rma_service,
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -308,6 +318,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let delivery_routes = create_delivery_routes(state.clone());
     let receipt_routes = create_receipt_routes(state.clone());
     let reconciliation_routes = create_reconciliation_routes(state.clone());
+    let rma_routes = create_rma_routes(state.clone());
     let search_routes = create_search_routes(state.clone());
     let transfer_routes = create_transfer_routes(state.clone());
     let stock_take_routes = create_stock_take_routes(state.clone());
@@ -361,6 +372,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let protected_routes = protected_routes
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
+        .nest("/api/v1/inventory/rma", rma_routes)
         .nest("/api/v1/inventory/products", search_routes)
         .nest("/api/v1/inventory/stock-takes", stock_take_routes)
         .nest("/api/v1/inventory/transfers", transfer_routes)

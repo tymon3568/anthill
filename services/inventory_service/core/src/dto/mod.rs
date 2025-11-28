@@ -6,6 +6,7 @@ pub mod category;
 pub mod delivery;
 pub mod receipt;
 pub mod reconciliation;
+pub mod rma;
 pub mod stock_take;
 pub mod transfer;
 
@@ -26,6 +27,10 @@ pub use reconciliation::{
     FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
     ReconciliationCountItem, ReconciliationDetailResponse, ReconciliationListQuery,
     ReconciliationListResponse, VarianceAnalysisResponse,
+};
+pub use rma::{
+    ApproveRmaRequest, ApproveRmaResponse, CreateRmaRequest, CreateRmaResponse, ReceiveRmaRequest,
+    ReceiveRmaResponse,
 };
 pub use stock_take::{
     CountItem, CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest,

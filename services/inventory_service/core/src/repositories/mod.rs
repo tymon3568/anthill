@@ -20,6 +20,7 @@ pub mod delivery_order;
 pub mod product;
 pub mod receipt;
 pub mod reconciliation;
+pub mod rma;
 pub mod stock;
 pub mod stock_take;
 pub mod transfer;
@@ -34,6 +35,7 @@ pub use delivery_order::{
 pub use product::ProductRepository;
 pub use receipt::ReceiptRepository;
 pub use reconciliation::{StockReconciliationItemRepository, StockReconciliationRepository};
+pub use rma::{RmaItemRepository, RmaRepository};
 pub use stock::{InventoryLevelRepository, StockMoveRepository};
 pub use stock_take::{StockTakeLineRepository, StockTakeRepository};
 pub use transfer::{TransferItemRepository, TransferRepository};
