@@ -1,7 +1,11 @@
 -- Migration: Create lots_serial_numbers table
--- Description: Creates the lots_serial_numbers table for tracking individual product units (serial numbers) or batches (lot numbers)
--- Dependencies: products table (20250110000017), tenants table
+-- Description: Creates the lots_serial_numbers table for tracking individual product units (serial numbers) or batches (lot numbers) with all fixes applied
+-- Dependencies: products table (20250110000017), tenants table, warehouse_locations table (20250110000023)
 -- Created: 2025-11-27
+
+-- Define ENUM types for better type safety
+CREATE TYPE lot_serial_tracking_type AS ENUM ('lot', 'serial');
+CREATE TYPE lot_serial_status AS ENUM ('active', 'expired', 'quarantined', 'disposed', 'reserved');
 
 -- ==================================
 -- LOTS_SERIAL_NUMBERS TABLE (Lot and Serial Number Tracking)
@@ -19,8 +23,8 @@ CREATE TABLE lots_serial_numbers (
     -- Product relationship
     product_id UUID NOT NULL,
 
-    -- Tracking type and identifiers
-    tracking_type VARCHAR(10) NOT NULL CHECK (tracking_type IN ('lot', 'serial')),
+    -- Tracking type and identifiers (using ENUMs for type safety)
+    tracking_type lot_serial_tracking_type NOT NULL,
     lot_number VARCHAR(100),     -- For lot tracking (batch numbers)
     serial_number VARCHAR(100),  -- For serial tracking (individual units)
 
@@ -29,9 +33,8 @@ CREATE TABLE lots_serial_numbers (
     manufacture_date TIMESTAMPTZ,-- Date of manufacture
     batch_reference VARCHAR(100),-- Additional batch reference
 
-    -- Status and lifecycle
-    status VARCHAR(20) NOT NULL DEFAULT 'active'
-        CHECK (status IN ('active', 'expired', 'quarantined', 'disposed', 'reserved')),
+    -- Status and lifecycle (using ENUM for type safety)
+    status lot_serial_status NOT NULL DEFAULT 'active',
 
     -- Quantity tracking (for lots)
     initial_quantity BIGINT,     -- Initial quantity in the lot
@@ -55,6 +58,9 @@ CREATE TABLE lots_serial_numbers (
     CONSTRAINT lots_serial_numbers_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouses (tenant_id, warehouse_id),
+    CONSTRAINT lots_serial_numbers_tenant_location_fk
+        FOREIGN KEY (tenant_id, location_id)
+        REFERENCES warehouse_locations (tenant_id, location_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT lots_serial_numbers_tenant_created_by_fk
         FOREIGN KEY (tenant_id, created_by)
         REFERENCES users (tenant_id, user_id),
@@ -68,17 +74,10 @@ CREATE TABLE lots_serial_numbers (
         ),
     CONSTRAINT lots_serial_numbers_quantity_validation
         CHECK (
-            (tracking_type = 'lot' AND initial_quantity IS NOT NULL AND remaining_quantity IS NOT NULL AND remaining_quantity <= initial_quantity) OR
+            (tracking_type = 'lot' AND initial_quantity IS NOT NULL AND initial_quantity >= 0 AND remaining_quantity IS NOT NULL AND remaining_quantity >= 0 AND remaining_quantity <= initial_quantity) OR
             (tracking_type = 'serial' AND initial_quantity IS NULL AND remaining_quantity IS NULL)
-        ),
-    CONSTRAINT lots_serial_numbers_unique_lot_per_tenant
-        UNIQUE (tenant_id, product_id, lot_number) DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT lots_serial_numbers_unique_serial_per_tenant
-        UNIQUE (tenant_id, product_id, serial_number) DEFERRABLE INITIALLY DEFERRED
+        )
 );
-
--- Add unique constraint for composite foreign keys
-ALTER TABLE lots_serial_numbers ADD CONSTRAINT lots_serial_numbers_tenant_lot_serial_unique UNIQUE (tenant_id, lot_serial_id);
 
 -- ==================================
 -- INDEXES for Performance
@@ -114,12 +113,19 @@ CREATE INDEX idx_lots_serial_numbers_tenant_expiry
     ON lots_serial_numbers(tenant_id, expiry_date)
     WHERE deleted_at IS NULL AND expiry_date IS NOT NULL;
 
+-- Partial unique indexes (for soft delete support)
+CREATE UNIQUE INDEX idx_lots_serial_numbers_unique_lot_per_tenant
+    ON lots_serial_numbers(tenant_id, product_id, lot_number)
+    WHERE deleted_at IS NULL AND lot_number IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_lots_serial_numbers_unique_serial_per_tenant
+    ON lots_serial_numbers(tenant_id, product_id, serial_number)
+    WHERE deleted_at IS NULL AND serial_number IS NOT NULL;
+
 -- Query optimization indexes
 CREATE INDEX idx_lots_serial_numbers_tenant_active
     ON lots_serial_numbers(tenant_id, product_id, status)
     WHERE deleted_at IS NULL AND status = 'active';
-
-
 
 -- ==================================
 -- TRIGGERS
@@ -162,11 +168,18 @@ COMMENT ON COLUMN lots_serial_numbers.location_id IS 'Specific location within w
 -- ==================================
 
 -- This migration creates the foundation for:
--- 1. Lot and serial number tracking
--- 2. Product traceability and recalls
+-- 1. Lot and serial number tracking with ENUM types for type safety
+-- 2. Product traceability and recalls with proper FK constraints
 -- 3. Quality control and expiry management
 -- 4. Inventory accuracy with granular tracking
--- 5. Batch and serial number validation
+-- 5. Batch and serial number validation with soft delete support
+
+-- Key improvements from PR review:
+-- - ENUM types for tracking_type and status instead of VARCHAR+CHECK
+-- - Added FK constraint for location_id to warehouse_locations
+-- - Partial unique indexes instead of constraints for soft delete compatibility
+-- - Non-negative quantity validation
+-- - Removed redundant unique constraint on (tenant_id, lot_serial_id)
 
 -- Future migrations will add:
 -- - Integration with stock movements
