@@ -10,13 +10,13 @@ use shared_events::{EventEnvelope, OrderConfirmedEvent};
 use uuid::Uuid;
 
 pub async fn init_event_consumers(pool: sqlx::PgPool, nats_url: &str) -> Result<(), AppError> {
-    shared_events::init_nats_client(nats_url).await?;
     // Delivery service is temporarily disabled - commenting out delivery event consumer
     // let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
     // let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
     // let inventory_repo = Arc::new(PgInventoryRepository::new(pool.clone()));
 
     // start_order_confirmed_consumer(delivery_repo, delivery_item_repo, inventory_repo, pool).await;
+    // TODO: Re-enable NATS initialization when delivery consumer is re-enabled
     Ok(())
 }
 
