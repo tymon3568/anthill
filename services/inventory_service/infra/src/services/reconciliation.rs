@@ -611,7 +611,10 @@ impl StockReconciliationService for PgStockReconciliationService {
 
         let item = items
             .into_iter()
-            .find(|item| item.product_id == product_id)
+            .find(|item| {
+                item.product_id == product_id
+                    && (request.location_id.is_none() || request.location_id == item.location_id)
+            })
             .ok_or_else(|| AppError::NotFound("Product not found in reconciliation".to_string()))?;
 
         // Check if this item already has a count

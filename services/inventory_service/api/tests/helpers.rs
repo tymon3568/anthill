@@ -105,8 +105,8 @@ pub async fn create_test_app(pool: PgPool) -> Router {
                 // Mock or test implementations
                 Arc::new(PgDeliveryOrderRepository::new(pool.clone())),
                 Arc::new(PgDeliveryOrderItemRepository::new(pool.clone())),
-                Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone()))),
-                Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone()))),
+                Arc::new(PgStockMoveRepository::new(pool.clone())),
+                Arc::new(PgInventoryLevelRepository::new(pool.clone())),
             ),
         ),
         #[cfg(not(feature = "delivery"))]
