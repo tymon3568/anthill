@@ -75,11 +75,12 @@ anthill/
 │   └── monitoring/             # Prometheus, Grafana, Loki setup
 ├── migrations/                  # Database migrations
 ├── scripts/                     # Utility scripts
+├── PROJECT_TRACKING/            # Project tracking and tasks
+│   └── TASKS_OVERVIEW.md        # Task list and progress
 ├── docs/                        # Documentation
 ├── Cargo.toml                   # Rust workspace
 ├── ARCHITECTURE.md              # Architecture documentation
 ├── STRUCTURE.md                 # Code structure guide
-├── TODO.md                      # Task list and progress
 └── README.md                    # This file
 ```
 
@@ -347,7 +348,7 @@ See details in `docs/monitoring-setup.md`
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed system architecture
 - [STRUCTURE.md](./STRUCTURE.md) - Code structure and patterns
-- [TODO.md](./TODO.md) - Task list and progress tracking
+- [PROJECT_TRACKING/TASKS_OVERVIEW.md](./PROJECT_TRACKING/TASKS_OVERVIEW.md) - Task list and progress tracking
 - [docs/production-deployment.md](./docs/production-deployment.md) - Production deployment guide
 - [docs/monitoring-setup.md](./docs/monitoring-setup.md) - Monitoring setup guide
 - [docs/troubleshooting.md](./docs/troubleshooting.md) - Troubleshooting guide
@@ -372,8 +373,8 @@ MIT License - See `LICENSE` file for more details.
 
 ---
 
-**Status**: 🚧 In Development - Phase 3 (User Service Production Integration)
+**Status**: 🚧 In Development - Phase 3 (User Service) & Phase 4 (Inventory Service)
 
 **MVP Target**: 2-3 months
 
-See [TODO.md](./TODO.md) for detailed progress tracking.
+See [PROJECT_TRACKING/TASKS_OVERVIEW.md](./PROJECT_TRACKING/TASKS_OVERVIEW.md) for detailed progress tracking.

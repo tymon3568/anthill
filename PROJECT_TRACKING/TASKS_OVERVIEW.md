@@ -75,22 +75,22 @@
           → [View folder](./V1_MVP/03_User_Service/3.4_Testing/)
           → Progress: 0/4 tasks completed
 
-### [🔄] Phase 4: Inventory Service - `In Progress 85%` *(Optimized Structure)*
-    - [⏳] 4.1 Product Master - `Todo`
+### [🔄] Phase 4: Inventory Service - `In Progress 52%` *(Optimized Structure)*
+    - [🔄] 4.1 Product Master - `In Progress`
           → [View folder](./V1_MVP/04_Inventory_Service/4.1_Product_Master/)
-          → Progress: 0/6 tasks completed
+          → Progress: 5/6 tasks completed (Updated: 2025-11-28)
 
-    - [⏳] 4.2 Warehouse Management - `Todo`
+    - [✅] 4.2 Warehouse Management - `Done`
           → [View folder](./V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/)
-          → Progress: 0/1 tasks completed
+          → Progress: 1/1 tasks completed (Updated: 2025-11-28)
 
-    - [🔄] 4.3 Stock Operations Core - `In Progress`
+    - [✅] 4.3 Stock Operations Core - `Done`
           → [View folder](./V1_MVP/04_Inventory_Service/4.3_Stock_Operations/)
-          → Progress: 2/3 tasks completed (Updated: 2025-11-26)
+          → Progress: 3/3 tasks completed (Updated: 2025-11-28)
 
     - [🔄] 4.4 Stock Transactions - `In Progress`
           → [View folder](./V1_MVP/04_Inventory_Service/4.4_Stock_Operations/)
-          → Progress: 18/19 tasks completed (Updated: 2025-11-26)
+          → Progress: 11/19 tasks completed (Updated: 2025-11-28)
           → **Note**: Consolidates GRN, DO, Transfers, Adjustments, RMA into unified workflow
 
     - [⏳] 4.5 Lot & Serial Tracking - `Todo`
@@ -294,7 +294,7 @@
 - **Phase 1** (Infrastructure): ✅ 95% - Production ready
 - **Phase 2** (Database): ✅ 100% - Foundation complete
 - **Phase 3** (User Service): 🔄 52% - Kanidm integration mostly complete, Casbin authorization nearly done (Updated: 2025-11-05)
-- **Phase 4** (Inventory): 🔄 85% - Optimized structure with 42 tasks (Updated: 2025-11-26)
+- **Phase 4** (Inventory): 🔄 52% - Optimized structure with 52 tasks (Updated: 2025-11-28)
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
@@ -411,8 +411,17 @@ open http://localhost:8000/docs  # Swagger UI
 
 ---
 
-**Last Updated**: 2025-11-12
-**Project Status**: In Progress (Phase 3 Kanidm Integration)
+**Last Updated**: 2025-11-28
+**Project Status**: In Progress (Phase 3 Kanidm Integration, Phase 4 Inventory Service)
+
+**Recent Changes (2025-11-28)**:
+- ✅ **Phase 4 Inventory Service Progress Updated**: Corrected completion percentages based on actual task statuses
+      - 4.1 Product Master: 5/6 completed (1 InProgress)
+      - 4.2 Warehouse Management: 1/1 completed
+      - 4.3 Stock Operations Core: 3/3 completed
+      - 4.4 Stock Transactions: 11/19 completed (10 Done, 1 NeedsReview)
+      - Overall Phase 4: 52% complete (27/52 tasks)
+      - Updated overall project metrics accordingly
 
 **Recent Changes (2025-11-12)**:
 - ✅ **Authentication UI Issue Resolved**: task_08.02.01 session_expired error fixed
