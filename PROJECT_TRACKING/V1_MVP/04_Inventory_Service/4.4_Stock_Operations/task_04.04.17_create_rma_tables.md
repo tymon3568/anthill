@@ -54,3 +54,13 @@ Create the necessary tables to manage Returned Merchandise Authorization (RMA) r
   - Foreign key constraints added for multi-tenancy isolation
   - Migration syntax validated, ready for testing
   - Status: Ready for review and testing
+
+*   2025-11-29 12:00: PR review issues auto-fixed by Claude
+  - Resolved critical FK constraint issues: added UNIQUE on rma_requests(tenant_id, rma_id), adjusted FKs to delivery_orders and product_variants
+  - Fixed trigger logic to set line_total to NULL when operands are NULL
+  - Updated indexes for consistency: added tenant_id to created_at and condition_action indexes, excluded NULL from variant index
+  - Added trigger to auto-update rma_requests totals on rma_items changes
+  - Documented RMA number global uniqueness
+  - Fixed markdown indentation in log
+  - Status: All review issues addressed, migration validated and committed
+  - Files modified: migrations/20251126000003_create_rma_tables.sql, PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.17_create_rma_tables.md
