@@ -8,7 +8,8 @@ pub type InfraTx<'a> = &'a mut Transaction<'a, sqlx::Postgres>;
 
 use inventory_service_core::models::{DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus};
 use inventory_service_core::repositories::{
-    DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
+    DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository, LotSerialRepository,
+    ProductRepository,
 };
 use shared_error::AppError;
 
@@ -582,11 +583,21 @@ impl PgDeliveryOrderItemRepository {
 // sqlx implementations for DeliveryOrderStatus (moved from core to avoid infra deps)
 pub struct PgInventoryRepository {
     pool: Arc<PgPool>,
+    product_repo: Arc<crate::repositories::product::ProductRepositoryImpl>,
+    lot_serial_repo: Arc<crate::repositories::lot_serial::LotSerialRepositoryImpl>,
 }
 
 impl PgInventoryRepository {
-    pub fn new(pool: Arc<PgPool>) -> Self {
-        Self { pool }
+    pub fn new(
+        pool: Arc<PgPool>,
+        product_repo: Arc<crate::repositories::product::ProductRepositoryImpl>,
+        lot_serial_repo: Arc<crate::repositories::lot_serial::LotSerialRepositoryImpl>,
+    ) -> Self {
+        Self {
+            pool,
+            product_repo,
+            lot_serial_repo,
+        }
     }
 }
 
@@ -605,31 +616,79 @@ impl InventoryRepository for PgInventoryRepository {
             ));
         }
 
-        let res = sqlx::query!(
-            r#"
-            UPDATE inventory_levels
-            SET available_quantity = available_quantity - $4,
-                reserved_quantity = reserved_quantity + $4,
-                updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
-              AND available_quantity >= $4
-              AND deleted_at IS NULL
-            "#,
-            tenant_id,
-            product_id,
-            warehouse_id,
-            quantity,
-        )
-        .execute(&*self.pool)
-        .await?;
+        // Check if product is lot-tracked
+        let products = self
+            .product_repo
+            .find_by_ids(tenant_id, &[product_id])
+            .await?;
+        let product = products
+            .into_iter()
+            .next()
+            .ok_or_else(|| AppError::NotFound(format!("Product {} not found", product_id)))?;
 
-        if res.rows_affected() == 0 {
-            return Err(AppError::ValidationError(
-                "Insufficient stock available for reservation".to_string(),
-            ));
+        use inventory_service_core::domains::inventory::product::ProductTrackingMethod;
+        match product.tracking_method {
+            ProductTrackingMethod::Lot | ProductTrackingMethod::Serial => {
+                // FEFO: Reserve from lots ordered by expiry_date ascending
+                let available_lots = self
+                    .lot_serial_repo
+                    .find_available_for_picking(tenant_id, product_id, Some(warehouse_id), quantity)
+                    .await?;
+
+                let mut remaining_to_reserve = quantity;
+                for lot in available_lots {
+                    if remaining_to_reserve <= 0 {
+                        break;
+                    }
+                    let available_in_lot = lot.remaining_quantity.unwrap_or(0);
+                    let to_reserve_from_lot = available_in_lot.min(remaining_to_reserve);
+
+                    if to_reserve_from_lot > 0 {
+                        let new_remaining = available_in_lot - to_reserve_from_lot;
+                        self.lot_serial_repo
+                            .update_remaining_quantity(tenant_id, lot.lot_serial_id, new_remaining)
+                            .await?;
+                        remaining_to_reserve -= to_reserve_from_lot;
+                    }
+                }
+
+                if remaining_to_reserve > 0 {
+                    return Err(AppError::ValidationError(
+                        "Insufficient stock available in lots for reservation".to_string(),
+                    ));
+                }
+
+                Ok(())
+            },
+            ProductTrackingMethod::None => {
+                // Standard reservation from inventory_levels
+                let res = sqlx::query!(
+                    r#"
+                    UPDATE inventory_levels
+                    SET available_quantity = available_quantity - $4,
+                        reserved_quantity = reserved_quantity + $4,
+                        updated_at = NOW()
+                    WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
+                      AND available_quantity >= $4
+                      AND deleted_at IS NULL
+                    "#,
+                    tenant_id,
+                    product_id,
+                    warehouse_id,
+                    quantity,
+                )
+                .execute(&*self.pool)
+                .await?;
+
+                if res.rows_affected() == 0 {
+                    return Err(AppError::ValidationError(
+                        "Insufficient stock available for reservation".to_string(),
+                    ));
+                }
+
+                Ok(())
+            },
         }
-
-        Ok(())
     }
 
     async fn release_stock(

@@ -5,10 +5,10 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.5_Lot_Serial_Tracking
 **Priority:** Medium
-**Status:** Todo
-**Assignee:** 
+**Status:** Done
+**Assignee:** Grok_Code
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-11-29
 
 ## Detailed Description:
 Implement a FEFO (First Expiry, First Out) picking strategy. When creating a delivery order or pick list, the system should automatically suggest or allocate stock from the lots with the nearest expiry date first.
@@ -36,4 +36,13 @@ Implement a FEFO (First Expiry, First Out) picking strategy. When creating a del
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+* 2025-11-29 05:05: Task claimed by Grok_Code
+  - Verified dependency task_04.05.01 is Done
+  - Starting work on FEFO picking strategy
+* 2025-11-29 05:30: Task completed by Grok_Code
+  - Implemented FEFO picking strategy in reserve_stock method
+  - Added LotSerial model and repository with PostgreSQL implementation
+  - Modified PgInventoryRepository to check product tracking method and reserve from lots ordered by expiry_date ascending
+  - Prevents picking from expired lots by filtering expiry_date > CURRENT_DATE
+  - Added find_available_for_picking method that sorts by expiry_date (FEFO)
+  - Status: Done

@@ -4,6 +4,7 @@
 
 pub mod category;
 pub mod delivery_order;
+pub mod lot_serial;
 pub mod product;
 pub mod receipt;
 pub mod reconciliation;
@@ -19,6 +20,7 @@ pub use category::CategoryRepositoryImpl;
 pub use delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository, PgInventoryRepository,
 };
+pub use lot_serial::LotSerialRepositoryImpl;
 pub use product::ProductRepositoryImpl;
 pub use receipt::ReceiptRepositoryImpl;
 pub use reconciliation::{PgStockReconciliationItemRepository, PgStockReconciliationRepository};
