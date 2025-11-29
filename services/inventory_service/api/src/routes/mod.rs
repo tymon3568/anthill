@@ -377,6 +377,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(cors)
 }
 
+#[cfg(feature = "delivery")]
 use crate::handlers::delivery::create_delivery_routes;
 use inventory_service_infra::repositories::reconciliation::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,

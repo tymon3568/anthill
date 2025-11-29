@@ -90,10 +90,8 @@ async fn handle_order_confirmed(
 async fn generate_delivery_number(
     _tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
 ) -> Result<String, AppError> {
-    // Call DB function generate_delivery_number() within transaction
-    // let result: (String,) = sqlx::query_as("SELECT generate_delivery_number()")
-    //     .fetch_one(&mut **tx)
-    //     .await?;
-    // Ok(result.0)
-    Ok("DELIVERY-000001".to_string()) // Temporarily disabled
+    // Delivery functionality is disabled
+    Err(AppError::ServiceUnavailable(
+        "Delivery number generation is disabled. Enable with --features delivery".to_string(),
+    ))
 }

@@ -10,7 +10,7 @@ use inventory_service_core::domains::inventory::dto::search_dto::{
     AppliedFilters, ProductSearchRequest, ProductSearchResponse, ProductSortBy,
     SearchSuggestionsRequest, SearchSuggestionsResponse, SortOrder,
 };
-use inventory_service_core::domains::inventory::product::Product;
+use inventory_service_core::domains::inventory::product::{Product, ProductTrackingMethod};
 use inventory_service_core::repositories::product::ProductRepository;
 use inventory_service_core::Result;
 
@@ -457,7 +457,11 @@ impl ProductRepository for ProductRepositoryImpl {
                 product_type: row.product_type,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
-                tracking_method: row.tracking_method.unwrap_or_else(|| "none".to_string()),
+                tracking_method: row
+                    .tracking_method
+                    .unwrap_or_else(|| "none".to_string())
+                    .parse::<ProductTrackingMethod>()
+                    .unwrap_or(ProductTrackingMethod::None),
                 default_uom_id: row.default_uom_id,
                 sale_price: row.sale_price,
                 cost_price: row.cost_price,
@@ -514,7 +518,11 @@ impl ProductRepository for ProductRepositoryImpl {
                 product_type: row.product_type,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
-                tracking_method: row.tracking_method.unwrap_or_else(|| "none".to_string()),
+                tracking_method: row
+                    .tracking_method
+                    .unwrap_or_else(|| "none".to_string())
+                    .parse::<ProductTrackingMethod>()
+                    .unwrap_or(ProductTrackingMethod::None),
                 default_uom_id: row.default_uom_id,
                 sale_price: row.sale_price,
                 cost_price: row.cost_price,
@@ -563,7 +571,11 @@ impl ProductRepository for ProductRepositoryImpl {
                 product_type: row.product_type,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
-                tracking_method: row.tracking_method.unwrap_or_else(|| "none".to_string()),
+                tracking_method: row
+                    .tracking_method
+                    .unwrap_or_else(|| "none".to_string())
+                    .parse::<ProductTrackingMethod>()
+                    .unwrap_or(ProductTrackingMethod::None),
                 default_uom_id: row.default_uom_id,
                 sale_price: row.sale_price,
                 cost_price: row.cost_price,
