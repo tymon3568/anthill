@@ -17,6 +17,7 @@ pub mod transaction {
     }
 }
 pub mod delivery_order;
+pub mod lot_serial;
 pub mod product;
 pub mod receipt;
 pub mod reconciliation;
@@ -32,6 +33,7 @@ pub use category::CategoryRepository;
 pub use delivery_order::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
 };
+pub use lot_serial::LotSerialRepository;
 pub use product::ProductRepository;
 pub use receipt::ReceiptRepository;
 pub use reconciliation::{StockReconciliationItemRepository, StockReconciliationRepository};

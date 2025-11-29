@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -330,6 +330,95 @@ impl FromStr for RmaAction {
             _ => Err(format!("Unknown RMA action: {}", s)),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "lot_serial_tracking_type", rename_all = "snake_case")]
+pub enum LotSerialTrackingType {
+    Lot,
+    Serial,
+}
+
+impl fmt::Display for LotSerialTrackingType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            LotSerialTrackingType::Lot => "lot",
+            LotSerialTrackingType::Serial => "serial",
+        };
+        f.write_str(s)
+    }
+}
+
+impl FromStr for LotSerialTrackingType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "lot" => Ok(LotSerialTrackingType::Lot),
+            "serial" => Ok(LotSerialTrackingType::Serial),
+            _ => Err(format!("Unknown tracking type: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "lot_serial_status", rename_all = "snake_case")]
+pub enum LotSerialStatus {
+    Active,
+    Expired,
+    Quarantined,
+    Consumed,
+}
+
+impl fmt::Display for LotSerialStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            LotSerialStatus::Active => "active",
+            LotSerialStatus::Expired => "expired",
+            LotSerialStatus::Quarantined => "quarantined",
+            LotSerialStatus::Consumed => "consumed",
+        };
+        f.write_str(s)
+    }
+}
+
+impl FromStr for LotSerialStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "active" => Ok(LotSerialStatus::Active),
+            "expired" => Ok(LotSerialStatus::Expired),
+            "quarantined" => Ok(LotSerialStatus::Quarantined),
+            "consumed" => Ok(LotSerialStatus::Consumed),
+            _ => Err(format!("Unknown lot serial status: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LotSerial {
+    pub lot_serial_id: Uuid,
+    pub tenant_id: Uuid,
+    pub product_id: Uuid,
+    pub tracking_type: LotSerialTrackingType,
+    pub lot_number: Option<String>,
+    pub serial_number: Option<String>,
+    pub initial_quantity: Option<i64>,
+    pub remaining_quantity: Option<i64>,
+    pub expiry_date: Option<NaiveDate>,
+    pub status: LotSerialStatus,
+    pub warehouse_id: Option<Uuid>,
+    pub location_id: Option<Uuid>,
+    pub created_by: Uuid,
+    pub updated_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
