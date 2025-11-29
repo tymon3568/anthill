@@ -154,8 +154,6 @@ impl DeliveryService for DummyDeliveryService {
     }
 }
 
-// Dummy delivery service to avoid compile errors when delivery is disabled
-
 /// Create the main application router
 pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Validate CORS configuration for production
