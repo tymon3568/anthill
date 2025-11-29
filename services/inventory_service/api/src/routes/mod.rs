@@ -270,7 +270,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         reconciliation_item_repo,
         stock_move_repo.clone(),
         inventory_level_repo.clone(),
-        product_repo,
+        product_repo.clone(),
     ));
 
     // Initialize RMA repositories and services

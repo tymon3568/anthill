@@ -7,11 +7,14 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use inventory_service_core::domains::inventory::dto::search_dto;
 use inventory_service_core::domains::inventory::product::Product;
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
 use inventory_service_core::repositories::product::ProductRepository;
+use inventory_service_core::repositories::receipt::ReceiptRepository;
+use inventory_service_core::services::receipt::ReceiptService;
 use shared_error::AppError;
 
 /// Implementation of ReceiptService
@@ -45,9 +48,10 @@ where
 }
 
 #[async_trait]
-impl<R> ReceiptService for ReceiptServiceImpl<R>
+impl<R, P> ReceiptService for ReceiptServiceImpl<R, P>
 where
     R: ReceiptRepository + Send + Sync,
+    P: ProductRepository + Send + Sync,
 {
     /// Create a new goods receipt note with validation and side effects
     async fn create_receipt(
@@ -401,21 +405,56 @@ mod tests {
             unimplemented!("Not needed for validation tests")
         }
 
+        async fn find_by_barcode(
+            &self,
+            _tenant_id: Uuid,
+            _barcode: &str,
+        ) -> Result<Option<Product>, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn create(&self, _product: &Product) -> Result<Product, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn update(
+            &self,
+            _tenant_id: Uuid,
+            _product_id: Uuid,
+            _product: &Product,
+        ) -> Result<Product, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn delete(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn is_in_stock(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn get_inventory_level(
+            &self,
+            _tenant_id: Uuid,
+            _product_id: Uuid,
+        ) -> Result<i64, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
         async fn search_products(
             &self,
             _tenant_id: Uuid,
-            _request: inventory_service_core::dto::search_dto::ProductSearchRequest,
-        ) -> Result<inventory_service_core::dto::search_dto::ProductSearchResponse, AppError>
-        {
+            _request: search_dto::ProductSearchRequest,
+        ) -> Result<search_dto::ProductSearchResponse, AppError> {
             unimplemented!("Not needed for validation tests")
         }
 
         async fn get_search_suggestions(
             &self,
             _tenant_id: Uuid,
-            _request: inventory_service_core::dto::search_dto::SearchSuggestionsRequest,
-        ) -> Result<inventory_service_core::dto::search_dto::SearchSuggestionsResponse, AppError>
-        {
+            _request: search_dto::SearchSuggestionsRequest,
+        ) -> Result<search_dto::SearchSuggestionsResponse, AppError> {
             unimplemented!("Not needed for validation tests")
         }
 
