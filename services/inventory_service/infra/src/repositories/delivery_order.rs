@@ -647,7 +647,7 @@ impl InventoryRepository for PgInventoryRepository {
 
                     if to_reserve_from_lot > 0 {
                         let new_remaining = available_in_lot - to_reserve_from_lot;
-                        allocations.push((lot.lot_serial_id, new_remaining));
+                        allocations.push((lot.lot_serial_id, new_remaining, available_in_lot));
                         remaining_to_reserve -= to_reserve_from_lot;
                     }
                 }
@@ -662,34 +662,54 @@ impl InventoryRepository for PgInventoryRepository {
                 let mut tx = self.pool.begin().await.map_err(|e| {
                     AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
                 })?;
-                for (lot_id, new_remaining) in allocations {
-                    sqlx::query!(
+                for (lot_id, new_remaining, expected_remaining) in allocations {
+                    let res = sqlx::query!(
                         r#"
                         UPDATE lots_serial_numbers
                         SET remaining_quantity = $3, updated_at = NOW()
-                        WHERE tenant_id = $1 AND lot_serial_id = $2 AND deleted_at IS NULL
+                        WHERE tenant_id = $1 AND lot_serial_id = $2 AND remaining_quantity = $4 AND deleted_at IS NULL
                         "#,
                         tenant_id,
                         lot_id,
-                        new_remaining
+                        new_remaining,
+                        expected_remaining
                     )
                     .execute(&mut *tx)
                     .await?;
+                    if res.rows_affected() == 0 {
+                        tx.rollback().await.ok();
+                        return Err(AppError::ValidationError(
+                            "Concurrent modification detected during lot reservation".to_string(),
+                        ));
+                    }
                 }
 
                 // Update inventory_levels for consistency
-                sqlx::query!(
+                let inv_res = sqlx::query!(
                     r#"
                     UPDATE inventory_levels
                     SET available_quantity = available_quantity - $4,
                         reserved_quantity = reserved_quantity + $4,
                         updated_at = NOW()
-                    WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3 AND deleted_at IS NULL
+                    WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
+                      AND available_quantity >= $4
+                      AND deleted_at IS NULL
                     "#,
-                    tenant_id, product_id, warehouse_id, quantity
+                    tenant_id,
+                    product_id,
+                    warehouse_id,
+                    quantity
                 )
                 .execute(&mut *tx)
                 .await?;
+
+                if inv_res.rows_affected() == 0 {
+                    tx.rollback().await.ok();
+                    return Err(AppError::ValidationError(
+                        "Insufficient available stock in inventory_levels for reservation"
+                            .to_string(),
+                    ));
+                }
 
                 tx.commit().await.map_err(|e| {
                     AppError::DatabaseError(format!("Failed to commit transaction: {}", e))
@@ -770,7 +790,7 @@ impl InventoryRepository for PgInventoryRepository {
                     let to_release = releasable.min(remaining_to_release);
                     if to_release > 0 {
                         let new_remaining = current_remaining + to_release;
-                        allocations.push((lot.lot_serial_id, new_remaining));
+                        allocations.push((lot.lot_serial_id, new_remaining, current_remaining));
                         remaining_to_release -= to_release;
                     }
                 }
@@ -786,19 +806,26 @@ impl InventoryRepository for PgInventoryRepository {
                     AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
                 })?;
 
-                for (lot_id, new_remaining) in allocations {
-                    sqlx::query!(
+                for (lot_id, new_remaining, expected_remaining) in allocations {
+                    let res = sqlx::query!(
                         r#"
                         UPDATE lots_serial_numbers
                         SET remaining_quantity = $3, updated_at = NOW()
-                        WHERE tenant_id = $1 AND lot_serial_id = $2 AND deleted_at IS NULL
+                        WHERE tenant_id = $1 AND lot_serial_id = $2 AND remaining_quantity = $4 AND deleted_at IS NULL
                         "#,
                         tenant_id,
                         lot_id,
-                        new_remaining
+                        new_remaining,
+                        expected_remaining
                     )
                     .execute(&mut *tx)
                     .await?;
+                    if res.rows_affected() == 0 {
+                        tx.rollback().await.ok();
+                        return Err(AppError::ValidationError(
+                            "Concurrent modification detected during lot release".to_string(),
+                        ));
+                    }
                 }
 
                 // Update inventory_levels for consistency; ensure we don't drive reserved_quantity negative
