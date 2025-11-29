@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.5_Lot_Serial_Tracking
 **Priority:** Medium
-**Status:** Done
+**Status:** NeedsReview
 **Assignee:** Grok_Code
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-11-29
@@ -46,3 +46,14 @@ Implement a FEFO (First Expiry, First Out) picking strategy. When creating a del
   - Prevents picking from expired lots by filtering expiry_date > CURRENT_DATE
   - Added find_available_for_picking method that sorts by expiry_date (FEFO)
   - Status: Done
+* 2025-11-29 06:00: Fixes applied by Grok_Code
+  - Wrapped lot reservation in database transaction to prevent partial updates
+  - Updated inventory_levels alongside lot quantities for data consistency
+  - Implemented release_stock for lot-tracked products with transaction
+  - Fixed enum sqlx type_name to match DB enums
+  - Removed redundant in-memory sorting after SQL ORDER BY
+  - Replaced silent parse defaults with logging warnings
+  - Extracted row mapping to helper function
+  - Added OpenAPI derives to enums
+  - Marked sub-tasks and acceptance criteria as completed
+  - Status: NeedsReview
