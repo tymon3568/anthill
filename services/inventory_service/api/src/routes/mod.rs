@@ -217,23 +217,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
 
-    // Initialize delivery repositories and services
-    // #[cfg(feature = "delivery")]
-    // let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(Arc::new(pool.clone())));
-    // #[cfg(feature = "delivery")]
-    // let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(Arc::new(pool.clone())));
-
     // Initialize stock repositories
     let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
     let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
-
-    // #[cfg(feature = "delivery")]
-    // let delivery_service = Arc::new(DeliveryServiceImpl::new(
-    //     delivery_repo,
-    //     delivery_item_repo,
-    //     stock_move_repo.clone(),
-    //     inventory_level_repo.clone(),
-    // ));
 
     // Initialize transfer repositories and services
     let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool.clone())));
