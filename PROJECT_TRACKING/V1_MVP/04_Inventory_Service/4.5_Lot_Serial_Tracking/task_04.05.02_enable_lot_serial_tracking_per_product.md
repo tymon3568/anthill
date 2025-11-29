@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.5_Lot_Serial_Tracking
 **Priority:** High
-**Status:** InProgress_By_Grok_Code
+**Status:** NeedsReview
 **Assignee:** Grok
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-11-28
@@ -15,12 +15,12 @@ Modify the `products` table to add a `tracking_method` field. This will allow en
 
 ## Specific Sub-tasks:
 - [x] 1. Create a new SQL migration to add a `tracking_method` column (e.g., with values `none`, `lot`, `serial`) to the `products` table.
-- [ ] 2. Update the business logic for Goods Receipt to enforce lot/serial number assignment for tracked products.
+- [x] 2. Update the business logic for Goods Receipt to enforce lot/serial number assignment for tracked products.
 
 ## Acceptance Criteria:
 - [x] A new SQL migration is created to add the `tracking_method` column to the `products` table.
-- [ ] The GRN process is updated to require lot/serial numbers for tracked products.
-- [ ] The migration runs successfully.
+- [x] The GRN process is updated to require lot/serial numbers for tracked products.
+- [x] The migration runs successfully.
 
 ## Dependencies:
 *   Task: `task_04.01.01_create_products_table.md`
@@ -44,3 +44,9 @@ Modify the `products` table to add a `tracking_method` field. This will allow en
     - Marked sub-task 1 as completed
     - Starting work on sub-task 2: Update GRN business logic to enforce lot/serial tracking
     - Status: In progress on sub-task 2
+*   2025-11-28 15:00: [Completed sub-task 2] by Grok_Code
+    - Implemented validation in ReceiptServiceImpl to enforce tracking method requirements
+    - Added product repository dependency for validation
+    - Requires lot_number for lot-tracked products, serial_numbers array for serial-tracked products
+    - Updated service instantiation and added unit tests
+    - Status: All sub-tasks completed, ready for review

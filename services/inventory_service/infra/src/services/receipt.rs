@@ -7,34 +7,40 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use inventory_service_core::domains::inventory::product::Product;
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
-use inventory_service_core::repositories::receipt::ReceiptRepository;
-use inventory_service_core::services::receipt::ReceiptService;
+use inventory_service_core::repositories::product::ProductRepository;
 use shared_error::AppError;
 
 /// Implementation of ReceiptService
 ///
 /// Orchestrates the creation and management of Goods Receipt Notes (GRN)
 /// with proper validation, transaction management, and side effects.
-pub struct ReceiptServiceImpl<R> {
+pub struct ReceiptServiceImpl<R, P> {
     receipt_repository: Arc<R>,
+    product_repository: Arc<P>,
 }
 
-impl<R> ReceiptServiceImpl<R>
+impl<R, P> ReceiptServiceImpl<R, P>
 where
     R: ReceiptRepository + Send + Sync,
+    P: ProductRepository + Send + Sync,
 {
     /// Create a new ReceiptServiceImpl
     ///
     /// # Arguments
     /// * `receipt_repository` - Repository for receipt operations
+    /// * `product_repository` - Repository for product operations
     ///
     /// # Returns
     /// New ReceiptServiceImpl instance
-    pub fn new(receipt_repository: Arc<R>) -> Self {
-        Self { receipt_repository }
+    pub fn new(receipt_repository: Arc<R>, product_repository: Arc<P>) -> Self {
+        Self {
+            receipt_repository,
+            product_repository,
+        }
     }
 }
 
@@ -102,7 +108,7 @@ where
     /// Validate receipt data before creation
     async fn validate_receipt_request(
         &self,
-        _tenant_id: Uuid,
+        tenant_id: Uuid,
         request: &ReceiptCreateRequest,
     ) -> Result<(), AppError> {
         // Validate that warehouse exists (basic check)
@@ -145,10 +151,52 @@ where
                     )));
                 }
             }
+
+            // Validate tracking method requirements
+            let product = self
+                .product_repository
+                .find_by_id(tenant_id, item.product_id)
+                .await?
+                .ok_or_else(|| {
+                    AppError::ValidationError(format!("Item {}: Product not found", index + 1))
+                })?;
+
+            match product.tracking_method.as_str() {
+                "lot" => {
+                    if item.lot_number.is_none() {
+                        return Err(AppError::ValidationError(format!(
+                            "Item {}: Lot number is required for lot-tracked product",
+                            index + 1
+                        )));
+                    }
+                },
+                "serial" => {
+                    if let Some(serial_numbers) = &item.serial_numbers {
+                        if let serde_json::Value::Array(arr) = serial_numbers {
+                            if arr.len() as i64 != item.received_quantity {
+                                return Err(AppError::ValidationError(format!(
+                                    "Item {}: Number of serial numbers ({}) must match received quantity ({})",
+                                    index + 1, arr.len(), item.received_quantity
+                                )));
+                            }
+                        } else {
+                            return Err(AppError::ValidationError(format!(
+                                "Item {}: Serial numbers must be an array",
+                                index + 1
+                            )));
+                        }
+                    } else {
+                        return Err(AppError::ValidationError(format!(
+                            "Item {}: Serial numbers are required for serial-tracked product",
+                            index + 1
+                        )));
+                    }
+                },
+                _ => {}, // none, no validation needed
+            }
         }
 
         // Additional validations could include:
-        // - Check if products exist
         // - Check if warehouse belongs to tenant
         // - Check if supplier exists (if provided)
         // - Business rule validations
@@ -260,7 +308,7 @@ mod tests {
         assert!(request.validate().is_ok());
     }
 
-    // Dummy repository for testing service-level validation
+    // Dummy repositories for testing service-level validation
     struct DummyReceiptRepository;
 
     #[async_trait]
@@ -309,11 +357,93 @@ mod tests {
         }
     }
 
+    struct DummyProductRepository;
+
+    #[async_trait]
+    impl ProductRepository for DummyProductRepository {
+        async fn find_by_id(
+            &self,
+            tenant_id: Uuid,
+            _product_id: Uuid,
+        ) -> Result<Option<Product>, AppError> {
+            // Return a dummy product with tracking_method "none"
+            Ok(Some(Product {
+                product_id: Uuid::new_v4(),
+                tenant_id,
+                sku: "DUMMY".to_string(),
+                name: "Dummy Product".to_string(),
+                description: None,
+                product_type: "goods".to_string(),
+                item_group_id: None,
+                track_inventory: true,
+                tracking_method: "none".to_string(),
+                default_uom_id: None,
+                sale_price: None,
+                cost_price: None,
+                currency_code: "VND".to_string(),
+                weight_grams: None,
+                dimensions: None,
+                attributes: None,
+                is_active: true,
+                is_sellable: true,
+                is_purchaseable: true,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deleted_at: None,
+            }))
+        }
+
+        async fn find_by_sku(
+            &self,
+            _tenant_id: Uuid,
+            _sku: &str,
+        ) -> Result<Option<Product>, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn search_products(
+            &self,
+            _tenant_id: Uuid,
+            _request: inventory_service_core::dto::search_dto::ProductSearchRequest,
+        ) -> Result<inventory_service_core::dto::search_dto::ProductSearchResponse, AppError>
+        {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn get_search_suggestions(
+            &self,
+            _tenant_id: Uuid,
+            _request: inventory_service_core::dto::search_dto::SearchSuggestionsRequest,
+        ) -> Result<inventory_service_core::dto::search_dto::SearchSuggestionsResponse, AppError>
+        {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn get_popular_search_terms(
+            &self,
+            _tenant_id: Uuid,
+            _limit: u32,
+        ) -> Result<Vec<(String, u32)>, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn record_search_analytics(
+            &self,
+            _tenant_id: Uuid,
+            _query: &str,
+            _result_count: u32,
+            _user_id: Option<Uuid>,
+        ) -> Result<(), AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+    }
+
     #[tokio::test]
     async fn test_service_validation_valid_request() {
         let tenant_id = Uuid::new_v4();
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -343,8 +473,9 @@ mod tests {
     #[tokio::test]
     async fn test_service_validation_invalid_empty_items() {
         let tenant_id = Uuid::new_v4();
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -362,8 +493,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_nil_warehouse() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -395,8 +527,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_nil_product() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -428,8 +561,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_zero_received_quantity() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -461,8 +595,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_negative_expected_quantity() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -494,8 +629,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_negative_unit_cost() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
