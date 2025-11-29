@@ -20,6 +20,7 @@ pub async fn init_event_consumers(_pool: sqlx::PgPool, _nats_url: &str) -> Resul
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn start_order_confirmed_consumer(
     delivery_repo: Arc<PgDeliveryOrderRepository>,
     delivery_item_repo: Arc<PgDeliveryOrderItemRepository>,
@@ -57,6 +58,7 @@ async fn start_order_confirmed_consumer(
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn handle_order_confirmed(
     event: EventEnvelope<OrderConfirmedEvent>,
     _delivery_repo: Arc<PgDeliveryOrderRepository>,
@@ -267,6 +269,7 @@ async fn handle_order_confirmed(
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn generate_delivery_number(
     _tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
 ) -> Result<String, AppError> {

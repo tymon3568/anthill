@@ -2,14 +2,9 @@
 ///
 /// This test suite validates that all endpoints are protected against
 /// SQL injection attacks and properly validate/sanitize inputs.
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
+use axum::http::StatusCode;
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
-use sqlx::PgPool;
-use tower::ServiceExt;
 use uuid::Uuid;
 
 mod helpers;

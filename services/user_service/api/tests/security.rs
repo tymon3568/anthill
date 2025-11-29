@@ -1,23 +1,17 @@
 use axum::{
-    body::Body,
-    extract::State,
     http::{Request, StatusCode},
     response::Response,
-    routing::{get, post},
     Router,
 };
 use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use serde_json::Value;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower::ServiceExt;
 use user_service_api::AppState;
-use user_service_core::domains::auth::{
-    domain::{
-        model::{Tenant, User},
-        repository::{TenantRepository, UserRepository},
-    },
-    dto::auth_dto::RegisterReq,
+use user_service_core::domains::auth::domain::{
+    model::{Tenant, User},
+    repository::{TenantRepository, UserRepository},
 };
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,

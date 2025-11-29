@@ -47,6 +47,7 @@ use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 #[cfg(feature = "delivery")]
 // use inventory_service_infra::services::delivery::DeliveryServiceImpl; // Delivery feature disabled
+#[allow(unused_imports)]
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
 
@@ -54,7 +55,6 @@ use inventory_service_infra::services::valuation::ValuationServiceImpl;
 #[allow(dead_code)]
 pub struct DummyDeliveryService;
 
-#[cfg(not(feature = "delivery"))]
 #[async_trait::async_trait]
 impl inventory_service_core::services::delivery::DeliveryService for DummyDeliveryService {
     async fn pick_items(
@@ -232,12 +232,13 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool.clone())));
     let transfer_item_repo = Arc::new(PgTransferItemRepository::new(Arc::new(pool.clone())));
 
-    let transfer_service = Arc::new(PgTransferService::new(
-        transfer_repo,
-        transfer_item_repo,
-        stock_move_repo.clone(),
-        inventory_level_repo.clone(),
-    ));
+    let transfer_service =
+        Arc::new(inventory_service_infra::services::transfer::PgTransferService::new(
+            transfer_repo,
+            transfer_item_repo,
+            stock_move_repo.clone(),
+            inventory_level_repo.clone(),
+        ));
 
     // Initialize stock take repositories and services
     let stock_take_repo = Arc::new(PgStockTakeRepository::new(Arc::new(pool.clone())));

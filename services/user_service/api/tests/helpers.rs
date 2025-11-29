@@ -1,8 +1,8 @@
-use axum::{body::Body, http::Request, Router};
+use axum::{body::Body, http::Request, response::Response, Router};
 use serde_json::Value;
 use shared_config::Config;
 use shared_jwt::{encode_jwt as create_jwt, Claims};
-use sqlx::{Executor, PgPool};
+use sqlx::PgPool;
 use std::sync::Arc;
 use tower::ServiceExt;
 use user_service_api::AppState;
