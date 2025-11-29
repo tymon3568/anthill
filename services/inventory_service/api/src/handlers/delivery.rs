@@ -5,15 +5,7 @@
 //!
 //! NOTE: Delivery handlers are temporarily commented out as delivery service is disabled.
 
-use axum::{routing::post, Router};
-use uuid::Uuid;
-
-use inventory_service_core::dto::delivery::{
-    PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
-    ShipItemsResponse,
-};
-use shared_auth::extractors::AuthUser;
-use shared_error::AppError;
+use axum::Router;
 
 use crate::state::AppState;
 

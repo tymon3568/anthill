@@ -26,10 +26,7 @@ use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
 use crate::state::AppState;
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-#[cfg(feature = "delivery")]
-use inventory_service_infra::repositories::delivery_order::{
-    PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
-};
+
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 
 use inventory_service_infra::repositories::reconciliation::{
@@ -50,15 +47,11 @@ use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 #[cfg(feature = "delivery")]
 // use inventory_service_infra::services::delivery::DeliveryServiceImpl; // Delivery feature disabled
-use inventory_service_infra::services::product::ProductServiceImpl;
-use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
-use inventory_service_infra::services::rma::PgRmaService;
-use inventory_service_infra::services::stock_take::PgStockTakeService;
 use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
 
-#[cfg(not(feature = "delivery"))]
 // Dummy delivery service to avoid compile errors when delivery is disabled
+#[allow(dead_code)]
 pub struct DummyDeliveryService;
 
 #[cfg(not(feature = "delivery"))]
@@ -250,13 +243,14 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let stock_take_repo = Arc::new(PgStockTakeRepository::new(Arc::new(pool.clone())));
     let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(Arc::new(pool.clone())));
 
-    let stock_take_service = Arc::new(PgStockTakeService::new(
-        Arc::new(pool.clone()),
-        stock_take_repo,
-        stock_take_line_repo,
-        stock_move_repo.clone(),
-        inventory_level_repo.clone(),
-    ));
+    let stock_take_service =
+        Arc::new(inventory_service_infra::services::stock_take::PgStockTakeService::new(
+            Arc::new(pool.clone()),
+            stock_take_repo,
+            stock_take_line_repo,
+            stock_move_repo.clone(),
+            inventory_level_repo.clone(),
+        ));
 
     // Initialize reconciliation repositories and services
     let reconciliation_repo =

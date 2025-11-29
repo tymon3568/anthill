@@ -9,7 +9,7 @@ use shared_error::AppError;
 use shared_events::{EventEnvelope, OrderConfirmedEvent};
 use uuid::Uuid;
 
-pub async fn init_event_consumers(pool: sqlx::PgPool, nats_url: &str) -> Result<(), AppError> {
+pub async fn init_event_consumers(_pool: sqlx::PgPool, _nats_url: &str) -> Result<(), AppError> {
     // Delivery service is temporarily disabled - commenting out delivery event consumer
     // let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
     // let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
@@ -75,8 +75,8 @@ async fn handle_order_confirmed(
 
     // System warehouse and user IDs (TODO: get from config)
     // TODO: Replace with actual system warehouse/user IDs from config or seeded data
-    let system_warehouse_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
-    let system_user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
+    let _system_warehouse_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+    let _system_user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
 
     // Start transaction for atomicity
     let mut tx = pool.begin().await?;
@@ -129,7 +129,7 @@ async fn handle_order_confirmed(
     //     updated_at: chrono::Utc::now(),
     //     deleted_at: None,
     // };
-    let delivery_id = Uuid::now_v7(); // Still needed for delivery_item construction
+    let _delivery_id = Uuid::now_v7(); // Still needed for delivery_item construction
 
     // Save delivery order within transaction
     // Note: Repositories need to be updated to accept &mut Transaction
@@ -176,7 +176,7 @@ async fn handle_order_confirmed(
     // Temporarily disabled
 
     // Process items and reserve stock within transaction
-    for item in &order_data.items {
+    for _item in &order_data.items {
         // Temporarily disabled - delivery item construction not used since INSERT is commented
         // let delivery_item_id = Uuid::now_v7();
         // let delivery_item = inventory_service_core::models::DeliveryOrderItem {
@@ -244,7 +244,7 @@ async fn handle_order_confirmed(
         // )
         // .execute(&mut *tx)
         // .await?;
-        let result = sqlx::postgres::PgQueryResult::default(); // Temporarily disabled
+        let _result = sqlx::postgres::PgQueryResult::default(); // Temporarily disabled
 
         // Temporarily disabled stock check - will always fail with default result
         // if result.rows_affected() == 0 {
