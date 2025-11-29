@@ -2,25 +2,63 @@
 //!
 //! This module defines the API routes and creates the main router.
 
+// Standard library/external crates
+use async_trait::async_trait;
 use axum::{extract::Extension, http::HeaderValue, routing::get, Router};
+use sqlx::PgPool;
+use std::sync::Arc;
+use tower_http::cors::{AllowOrigin, CorsLayer};
+use uuid::Uuid;
+
+// Shared crates
 use shared_auth::{
     enforcer::create_enforcer,
     middleware::{casbin_middleware, AuthzState},
 };
 use shared_config::Config;
+use shared_error::AppError;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
-use sqlx::PgPool;
-use std::sync::Arc;
-use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use async_trait::async_trait;
+// Inventory-service core
 use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
 use inventory_service_core::services::delivery::DeliveryService;
-use shared_error::AppError;
-use uuid::Uuid;
+
+// Inventory-service infra
+use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::reconciliation::{
+    PgStockReconciliationItemRepository, PgStockReconciliationRepository,
+};
+use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
+use inventory_service_infra::repositories::stock::{
+    PgInventoryLevelRepository, PgStockMoveRepository,
+};
+use inventory_service_infra::repositories::stock_take::{
+    PgStockTakeLineRepository, PgStockTakeRepository,
+};
+use inventory_service_infra::repositories::transfer::{
+    PgTransferItemRepository, PgTransferRepository,
+};
+use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
+use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
+use inventory_service_infra::services::category::CategoryServiceImpl;
+
+// Local handlers/state
+use crate::handlers::category::create_category_routes;
+#[cfg(feature = "delivery")]
+use crate::handlers::delivery::create_delivery_routes;
+use crate::handlers::receipt::create_receipt_routes;
+use crate::handlers::reconciliation::create_reconciliation_routes;
+use crate::handlers::rma::create_rma_routes;
+use crate::handlers::search::create_search_routes;
+use crate::handlers::stock_take::create_stock_take_routes;
+use crate::handlers::transfer::create_transfer_routes;
+use crate::handlers::valuation::create_valuation_routes;
+use crate::handlers::warehouses::create_warehouse_routes;
+use crate::state::AppState;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -115,23 +153,6 @@ impl DeliveryService for DummyDeliveryService {
         ))
     }
 }
-
-use crate::handlers::category::create_category_routes;
-use crate::handlers::receipt::create_receipt_routes;
-use crate::handlers::reconciliation::create_reconciliation_routes;
-use crate::handlers::rma::create_rma_routes;
-use crate::handlers::search::create_search_routes;
-use crate::handlers::stock_take::create_stock_take_routes;
-use crate::handlers::transfer::create_transfer_routes;
-use crate::handlers::valuation::create_valuation_routes;
-use crate::handlers::warehouses::create_warehouse_routes;
-use crate::state::AppState;
-use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-
-use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-
-// #[cfg(feature = "delivery")]
-// use inventory_service_infra::services::delivery::DeliveryServiceImpl;
 
 // Dummy delivery service to avoid compile errors when delivery is disabled
 
@@ -376,24 +397,5 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .merge(protected_routes)
         .layer(cors)
 }
-
-#[cfg(feature = "delivery")]
-use crate::handlers::delivery::create_delivery_routes;
-use inventory_service_infra::repositories::reconciliation::{
-    PgStockReconciliationItemRepository, PgStockReconciliationRepository,
-};
-use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
-use inventory_service_infra::repositories::stock::{
-    PgInventoryLevelRepository, PgStockMoveRepository,
-};
-use inventory_service_infra::repositories::stock_take::{
-    PgStockTakeLineRepository, PgStockTakeRepository,
-};
-use inventory_service_infra::repositories::transfer::{
-    PgTransferItemRepository, PgTransferRepository,
-};
-use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
-use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
-use inventory_service_infra::services::category::CategoryServiceImpl;
 
 // function moved
