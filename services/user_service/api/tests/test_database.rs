@@ -40,6 +40,7 @@ impl TestDatabaseConfig {
     }
 
     /// Create instance without auto-cleanup (for manual control)
+    #[allow(dead_code)]
     pub async fn new_no_cleanup() -> Self {
         let mut config = Self::new().await;
         config.auto_cleanup = false;
@@ -76,6 +77,7 @@ impl TestDatabaseConfig {
     }
 
     /// Track a session for cleanup
+    #[allow(dead_code)]
     async fn track_session(&self, session_id: Uuid) {
         self.tracked_sessions.lock().await.push(session_id);
     }
@@ -146,6 +148,7 @@ impl TestDatabaseConfig {
     }
 
     /// Create a test session with automatic tracking
+    #[allow(dead_code)]
     pub async fn create_session(
         &self,
         user_id: Uuid,
@@ -221,6 +224,7 @@ impl TestDatabaseConfig {
     }
 
     /// Clean up all test data using Rust function
+    #[allow(dead_code)]
     pub async fn cleanup_all_test_data(&self) {
         // Delete in reverse dependency order to avoid foreign key constraints
         sqlx::query!("DELETE FROM sessions")
@@ -246,6 +250,7 @@ impl TestDatabaseConfig {
     }
 
     /// Verify database is in clean state
+    #[allow(dead_code)]
     pub async fn verify_clean(&self) -> bool {
         let count: i64 = sqlx::query_scalar!(
             r#"SELECT COUNT(*) as "count!" FROM tenants WHERE slug LIKE 'test-%' OR slug LIKE '%-test-%'"#
@@ -258,6 +263,7 @@ impl TestDatabaseConfig {
     }
 
     /// Get count of resources in database
+    #[allow(dead_code)]
     pub async fn get_resource_counts(&self) -> ResourceCounts {
         let result = sqlx::query!(
             r#"
@@ -327,6 +333,7 @@ impl TestDatabaseConfig {
     }
 
     /// Check if email exists in tenant
+    #[allow(dead_code)]
     pub async fn email_exists(&self, tenant_id: Uuid, email: &str) -> bool {
         sqlx::query_scalar!(
             "SELECT EXISTS(SELECT 1 FROM users WHERE tenant_id = $1 AND email = $2)",
@@ -340,6 +347,7 @@ impl TestDatabaseConfig {
     }
 
     /// Reset auto_increment sequences (useful for predictable IDs in tests)
+    #[allow(dead_code)]
     pub async fn reset_sequences(&self) {
         // Note: UUID v7 doesn't use sequences, but this is here for future use
         // if we add any serial/sequence-based IDs
@@ -398,6 +406,7 @@ impl Drop for TestDatabaseConfig {
 
 /// Resource counts in database
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub struct ResourceCounts {
     pub tenants: i64,
     pub users: i64,
@@ -407,6 +416,7 @@ pub struct ResourceCounts {
 
 /// Tenant details for verification
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TenantDetails {
     pub tenant_id: Uuid,
     pub name: String,
@@ -419,6 +429,7 @@ pub struct TenantDetails {
 
 /// User details for verification
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct UserDetails {
     pub user_id: Uuid,
     pub tenant_id: Uuid,

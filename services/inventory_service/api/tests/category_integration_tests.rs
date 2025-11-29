@@ -151,6 +151,7 @@ impl TestApp {
             kanidm_client_id: Some("test-client".to_string()),
             kanidm_client_secret: Some("test-secret".to_string()),
             kanidm_redirect_url: Some("http://localhost:8001/oauth/callback".to_string()),
+            nats_url: None,
             casbin_model_path: "shared/auth/model.conf".to_string(),
             max_connections: Some(10),
         };

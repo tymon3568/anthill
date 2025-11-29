@@ -5,20 +5,10 @@
 use axum::{
     body::Body,
     http::{Request, StatusCode},
-    routing::{delete, get, post},
-    Router,
 };
-use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use serde_json::json;
 use shared_auth::casbin::{CoreApi, MgmtApi};
-use sqlx::PgPool;
-use std::sync::Arc;
 use tower::ServiceExt;
-use user_service_api::AppState;
-use user_service_infra::auth::{
-    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
-};
-use uuid::Uuid;
 
 mod helpers;
 use helpers::*;
@@ -147,7 +137,7 @@ async fn test_rbac_role_hierarchy() {
         create_test_user(&pool, tenant.tenant_id, "super@test.com", "Super Admin", "super_admin")
             .await;
     let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
-    let manager =
+    let _manager =
         create_test_user(&pool, tenant.tenant_id, "manager@test.com", "Manager", "manager").await;
 
     let app = create_test_app(&pool).await;
@@ -201,7 +191,7 @@ async fn test_rbac_permission_inheritance() {
 
     let tenant = create_test_tenant(&pool, "Permission Inheritance Test").await;
     let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
-    let user = create_test_user(&pool, tenant.tenant_id, "user@test.com", "User", "user").await;
+    let _user = create_test_user(&pool, tenant.tenant_id, "user@test.com", "User", "user").await;
 
     let app = create_test_app(&pool).await;
     let admin_token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
@@ -427,7 +417,8 @@ async fn test_rbac_complex_policy_evaluation() {
     let pool = setup_test_db().await;
 
     let tenant = create_test_tenant(&pool, "Complex Policy Test").await;
-    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+    let _admin =
+        create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
 
     let enforcer = shared_auth::create_enforcer(&get_test_database_url(), None)
         .await
@@ -458,7 +449,7 @@ async fn test_rbac_complex_policy_evaluation() {
     }
 
     // Verify policies are enforced correctly
-    let mut e = enforcer.write().await;
+    let e = enforcer.write().await;
 
     let can_get = e
         .enforce(("role:developer", tenant.tenant_id.to_string(), "/api/v1/code", "GET"))

@@ -23,11 +23,14 @@ async fn test_oauth_authorize_generates_url() {
         jwt_refresh_expiration: 604800,
         host: "127.0.0.1".to_string(),
         port: 3000,
+        cors_origins: None,
         kanidm_url: Some("https://localhost:8300".to_string()),
         kanidm_client_id: Some("anthill".to_string()),
         kanidm_client_secret: Some("test-secret".to_string()),
         kanidm_redirect_url: Some("http://localhost:8000/api/v1/auth/oauth/callback".to_string()),
+        nats_url: None,
         casbin_model_path: "./shared/auth/model.conf".to_string(),
+        max_connections: None,
     };
     let db_pool = shared_db::init_pool(&config.database_url, 5)
         .await
@@ -150,11 +153,14 @@ async fn test_user_created_after_oauth() {
         jwt_refresh_expiration: 604800,
         host: "127.0.0.1".to_string(),
         port: 3000,
+        cors_origins: None,
         kanidm_url: Some("https://localhost:8300".to_string()),
         kanidm_client_id: Some("anthill".to_string()),
         kanidm_client_secret: Some("test-secret".to_string()),
         kanidm_redirect_url: Some("http://localhost:8000/api/v1/auth/oauth/callback".to_string()),
+        nats_url: None,
         casbin_model_path: "./shared/auth/model.conf".to_string(),
+        max_connections: None,
     };
     let db_pool = shared_db::init_pool(&config.database_url, 5)
         .await

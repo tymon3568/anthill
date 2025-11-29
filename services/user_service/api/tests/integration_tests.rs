@@ -66,7 +66,7 @@ async fn test_multi_tenant_isolation() {
         .db
         .create_test_user(tenant_a_id, "user1@tenant-a.com", "user")
         .await;
-    let user_a2 = ctx
+    let _user_a2 = ctx
         .db
         .create_test_user(tenant_a_id, "user2@tenant-a.com", "user")
         .await;

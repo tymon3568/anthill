@@ -26,6 +26,7 @@ pub fn get_test_jwt_secret() -> String {
 }
 
 /// Clean up all test data from the database
+#[allow(dead_code)]
 pub async fn cleanup_test_data(pool: &PgPool) {
     // Delete in reverse dependency order to avoid foreign key constraints
     sqlx::query!("DELETE FROM sessions")
@@ -135,6 +136,7 @@ pub async fn create_test_user(
 }
 
 /// Create a JWT token for testing
+#[allow(dead_code)]
 pub fn create_test_jwt(user_id: Uuid, tenant_id: Uuid, role: &str) -> String {
     let claims = Claims::new_access(user_id, tenant_id, role.to_string(), 900);
     let jwt_secret = get_test_jwt_secret();
@@ -264,6 +266,7 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
 }
 
 /// Make an authenticated HTTP request
+#[allow(dead_code)]
 pub async fn make_authenticated_request(
     router: &Router,
     method: &str,
@@ -291,6 +294,7 @@ pub async fn make_authenticated_request(
 }
 
 /// Make an unauthenticated HTTP request
+#[allow(dead_code)]
 pub async fn make_unauthenticated_request(
     router: &Router,
     method: &str,
@@ -315,11 +319,13 @@ pub async fn make_unauthenticated_request(
         .expect("Failed to execute request")
 }
 
+#[allow(dead_code)]
 pub fn generate_jwt(user_id: Uuid, tenant_id: Uuid, role: &str, config: &Config) -> String {
     let claims = Claims::new_access(user_id, tenant_id, role.to_string(), config.jwt_expiration);
     create_jwt(&claims, &config.jwt_secret).unwrap()
 }
 
+#[allow(dead_code)]
 pub async fn seed_test_data(pool: &PgPool) {
     // Create tenants
     let tenant_a_id = Uuid::now_v7();
@@ -366,6 +372,7 @@ pub async fn seed_test_data(pool: &PgPool) {
     seed_test_policies(pool, tenant_a_id, tenant_b_id).await;
 }
 
+#[allow(dead_code)]
 pub async fn seed_test_policies(pool: &PgPool, tenant_a_id: Uuid, _tenant_b_id: Uuid) {
     // Admin policies for tenant A
     sqlx::query!(
