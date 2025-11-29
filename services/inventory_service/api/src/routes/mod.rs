@@ -13,86 +13,14 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
-use crate::handlers::category::create_category_routes;
-#[cfg(feature = "delivery")]
-use crate::handlers::delivery::create_delivery_routes;
-use crate::handlers::receipt::create_receipt_routes;
-use crate::handlers::reconciliation::create_reconciliation_routes;
-use crate::handlers::rma::create_rma_routes;
-use crate::handlers::search::create_search_routes;
-use crate::handlers::stock_take::create_stock_take_routes;
-use crate::handlers::transfer::create_transfer_routes;
-use crate::handlers::valuation::create_valuation_routes;
-use crate::handlers::warehouses::create_warehouse_routes;
-use crate::state::AppState;
-use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-
-use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-
-use inventory_service_infra::repositories::reconciliation::{
-    PgStockReconciliationItemRepository, PgStockReconciliationRepository,
+use async_trait::async_trait;
+use inventory_service_core::dto::delivery::{
+    PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
+    ShipItemsResponse,
 };
-use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
-use inventory_service_infra::repositories::stock::{
-    PgInventoryLevelRepository, PgStockMoveRepository,
-};
-use inventory_service_infra::repositories::stock_take::{
-    PgStockTakeLineRepository, PgStockTakeRepository,
-};
-use inventory_service_infra::repositories::transfer::{
-    PgTransferItemRepository, PgTransferRepository,
-};
-use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
-use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
-use inventory_service_infra::services::category::CategoryServiceImpl;
-#[cfg(feature = "delivery")]
-// use inventory_service_infra::services::delivery::DeliveryServiceImpl; // Delivery feature disabled
-use inventory_service_infra::services::valuation::ValuationServiceImpl;
-
-// Dummy delivery service to avoid compile errors when delivery is disabled
-pub struct DummyDeliveryService;
-
-#[async_trait::async_trait]
-impl inventory_service_core::services::delivery::DeliveryService for DummyDeliveryService {
-    async fn pick_items(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _delivery_id: uuid::Uuid,
-        _user_id: uuid::Uuid,
-        _request: inventory_service_core::dto::delivery::PickItemsRequest,
-    ) -> Result<inventory_service_core::dto::delivery::PickItemsResponse, shared_error::AppError>
-    {
-        Err(shared_error::AppError::ServiceUnavailable(
-            "Delivery service is disabled. Enable with --features delivery".to_string(),
-        ))
-    }
-
-    async fn pack_items(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _delivery_id: uuid::Uuid,
-        _user_id: uuid::Uuid,
-        _request: inventory_service_core::dto::delivery::PackItemsRequest,
-    ) -> Result<inventory_service_core::dto::delivery::PackItemsResponse, shared_error::AppError>
-    {
-        Err(shared_error::AppError::ServiceUnavailable(
-            "Delivery service is disabled. Enable with --features delivery".to_string(),
-        ))
-    }
-
-    async fn ship_items(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _delivery_id: uuid::Uuid,
-        _user_id: uuid::Uuid,
-        _request: inventory_service_core::dto::delivery::ShipItemsRequest,
-    ) -> Result<inventory_service_core::dto::delivery::ShipItemsResponse, shared_error::AppError>
-    {
-        Err(shared_error::AppError::ServiceUnavailable(
-            "Delivery service is disabled. Enable with --features delivery".to_string(),
-        ))
-    }
-}
+use inventory_service_core::services::delivery::DeliveryService;
+use shared_error::AppError;
+use uuid::Uuid;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -146,6 +74,67 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
     )
 }
 
+// Dummy delivery service to avoid compile errors when delivery is disabled
+pub struct DummyDeliveryService;
+
+#[async_trait]
+impl DeliveryService for DummyDeliveryService {
+    async fn pick_items(
+        &self,
+        _tenant_id: Uuid,
+        _delivery_id: Uuid,
+        _user_id: Uuid,
+        _request: PickItemsRequest,
+    ) -> Result<PickItemsResponse, AppError> {
+        Err(AppError::ServiceUnavailable(
+            "Delivery service is disabled. Enable with --features delivery".to_string(),
+        ))
+    }
+
+    async fn pack_items(
+        &self,
+        _tenant_id: Uuid,
+        _delivery_id: Uuid,
+        _user_id: Uuid,
+        _request: PackItemsRequest,
+    ) -> Result<PackItemsResponse, AppError> {
+        Err(AppError::ServiceUnavailable(
+            "Delivery service is disabled. Enable with --features delivery".to_string(),
+        ))
+    }
+
+    async fn ship_items(
+        &self,
+        _tenant_id: Uuid,
+        _delivery_id: Uuid,
+        _user_id: Uuid,
+        _request: ShipItemsRequest,
+    ) -> Result<ShipItemsResponse, AppError> {
+        Err(AppError::ServiceUnavailable(
+            "Delivery service is disabled. Enable with --features delivery".to_string(),
+        ))
+    }
+}
+
+use crate::handlers::category::create_category_routes;
+use crate::handlers::receipt::create_receipt_routes;
+use crate::handlers::reconciliation::create_reconciliation_routes;
+use crate::handlers::rma::create_rma_routes;
+use crate::handlers::search::create_search_routes;
+use crate::handlers::stock_take::create_stock_take_routes;
+use crate::handlers::transfer::create_transfer_routes;
+use crate::handlers::valuation::create_valuation_routes;
+use crate::handlers::warehouses::create_warehouse_routes;
+use crate::state::AppState;
+use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+
+use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+
+// #[cfg(feature = "delivery")]
+// use inventory_service_infra::services::delivery::DeliveryServiceImpl;
+
+// Dummy delivery service to avoid compile errors when delivery is disabled
+
 /// Create the main application router
 pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Validate CORS configuration for production
@@ -196,7 +185,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         inventory_service_infra::services::product::ProductServiceImpl::new(product_repo.clone());
 
     let valuation_repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
-    let valuation_service = ValuationServiceImpl::new(
+    let valuation_service = inventory_service_infra::services::valuation::ValuationServiceImpl::new(
         valuation_repo.clone()
             as Arc<dyn inventory_service_core::repositories::valuation::ValuationRepository>,
         valuation_repo.clone()
@@ -230,7 +219,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let transfer_item_repo = Arc::new(PgTransferItemRepository::new(Arc::new(pool.clone())));
 
     let transfer_service =
-
+        Arc::new(inventory_service_infra::services::transfer::PgTransferService::new(
             transfer_repo,
             transfer_item_repo,
             stock_move_repo.clone(),
@@ -293,9 +282,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
         receipt_service: Arc::new(receipt_service),
-        // #[cfg(feature = "delivery")]
-        // delivery_service,
-        // #[cfg(not(feature = "delivery"))]
         delivery_service: Arc::new(DummyDeliveryService {}),
         transfer_service,
         stock_take_service,
@@ -390,3 +376,23 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .merge(protected_routes)
         .layer(cors)
 }
+
+use crate::handlers::delivery::create_delivery_routes;
+use inventory_service_infra::repositories::reconciliation::{
+    PgStockReconciliationItemRepository, PgStockReconciliationRepository,
+};
+use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
+use inventory_service_infra::repositories::stock::{
+    PgInventoryLevelRepository, PgStockMoveRepository,
+};
+use inventory_service_infra::repositories::stock_take::{
+    PgStockTakeLineRepository, PgStockTakeRepository,
+};
+use inventory_service_infra::repositories::transfer::{
+    PgTransferItemRepository, PgTransferRepository,
+};
+use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
+use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
+use inventory_service_infra::services::category::CategoryServiceImpl;
+
+// function moved
