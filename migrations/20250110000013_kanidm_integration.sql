@@ -2,7 +2,7 @@
 -- Add kanidm_user_id to users and create kanidm_tenant_groups mapping table
 
 -- Add kanidm_user_id to users table
-ALTER TABLE users 
+ALTER TABLE users
   ADD COLUMN kanidm_user_id UUID UNIQUE,
   ADD COLUMN kanidm_synced_at TIMESTAMPTZ;
 
@@ -18,7 +18,7 @@ CREATE TABLE kanidm_tenant_groups (
   role TEXT NOT NULL CHECK (role IN ('admin', 'member', 'viewer')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
+
   PRIMARY KEY (tenant_id, kanidm_group_uuid)
 );
 

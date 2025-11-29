@@ -34,7 +34,7 @@ echo -e "${YELLOW}Querying database...${NC}"
 psql "$DATABASE_URL" -t -A -o "$OUTPUT_FILE" <<'SQL'
 SELECT json_agg(row_to_json(u))::text
 FROM (
-  SELECT 
+  SELECT
     u.user_id::text,
     u.tenant_id::text,
     t.slug AS tenant_slug,

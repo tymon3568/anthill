@@ -39,7 +39,7 @@ SET name = EXCLUDED.name,
 
 -- Map Kanidm groups to tenant
 INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name, role, created_at, updated_at)
-VALUES 
+VALUES
   (
     '018c3f1e-1234-7890-abcd-000000000001'::uuid,
     '00000000-0000-0000-0000-000000000001'::uuid,
@@ -62,10 +62,10 @@ SET kanidm_group_name = EXCLUDED.kanidm_group_name,
     updated_at = NOW();
 
 -- Verify
-SELECT 
-  t.name as tenant, 
-  ktg.kanidm_group_name as group, 
-  ktg.role 
+SELECT
+  t.name as tenant,
+  ktg.kanidm_group_name as group,
+  ktg.role
 FROM tenants t
 JOIN kanidm_tenant_groups ktg ON t.tenant_id = ktg.tenant_id
 WHERE t.slug = 'acme';

@@ -994,12 +994,10 @@ impl CategoryRepository for CategoryRepositoryImpl {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use inventory_service_core::dto::category::CategoryListQuery;
     use inventory_service_core::dto::category::CategorySortField;
     use inventory_service_core::dto::category::SortDirection;
     use serde_json;
-    use sqlx::PgPool;
     use uuid::Uuid;
     use validator::Validate;
 

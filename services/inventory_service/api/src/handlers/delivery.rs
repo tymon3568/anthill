@@ -5,18 +5,7 @@
 //!
 //! NOTE: Delivery handlers are temporarily commented out as delivery service is disabled.
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use uuid::Uuid;
-
-use inventory_service_core::dto::delivery::{
-    PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
-    ShipItemsResponse,
-};
-use shared_auth::extractors::AuthUser;
-use shared_error::AppError;
+use axum::Router;
 
 use crate::state::AppState;
 
@@ -196,3 +185,11 @@ pub async fn ship_items(
     Ok(Json(response))
 }
 */
+
+// Dummy delivery routes function - delivery feature is disabled
+pub fn create_delivery_routes(_state: AppState) -> Router {
+    Router::new()
+    // .route("/{delivery_id}/pick", post(pick_items))
+    // .route("/{delivery_id}/pack", post(pack_items))
+    // .route("/{delivery_id}/ship", post(ship_items))
+}

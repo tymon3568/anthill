@@ -487,6 +487,7 @@ async fn verify_password(user: &TestUser, password: &str) -> Result<bool, String
     Ok(true)
 }
 
+#[allow(dead_code)]
 async fn create_user_with_password(email: &str, password: &str) -> Result<TestUser, String> {
     // Implementation: User creation with password validation
     let _ = (email, password); // Use parameters to avoid warnings

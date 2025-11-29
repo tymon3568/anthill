@@ -1,7 +1,51 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
+
+/// Product tracking method for inventory management
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ProductTrackingMethod {
+    /// No tracking required
+    None,
+    /// Lot/batch tracking
+    Lot,
+    /// Serial number tracking
+    Serial,
+}
+
+impl Default for ProductTrackingMethod {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl std::fmt::Display for ProductTrackingMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "none"),
+            Self::Lot => write!(f, "lot"),
+            Self::Serial => write!(f, "serial"),
+        }
+    }
+}
+
+impl std::str::FromStr for ProductTrackingMethod {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "none" => Ok(Self::None),
+            "lot" => Ok(Self::Lot),
+            "serial" => Ok(Self::Serial),
+            _ => Err(format!("Invalid tracking method: {}", s)),
+        }
+    }
+}
 
 /// Product domain entity representing the Item Master
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -31,8 +75,7 @@ pub struct Product {
     /// Inventory tracking
     pub track_inventory: bool,
 
-    #[validate(custom(function = "validate_tracking_method"))]
-    pub tracking_method: String,
+    pub tracking_method: ProductTrackingMethod,
 
     /// Units of measure
     pub default_uom_id: Option<Uuid>,
@@ -68,13 +111,6 @@ fn validate_product_type(product_type: &str) -> Result<(), validator::Validation
     }
 }
 
-fn validate_tracking_method(tracking_method: &str) -> Result<(), validator::ValidationError> {
-    match tracking_method {
-        "none" | "lot" | "serial" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_tracking_method")),
-    }
-}
-
 impl Product {
     /// Create a new product
     pub fn new(
@@ -93,7 +129,7 @@ impl Product {
             product_type,
             item_group_id: None,
             track_inventory: true,
-            tracking_method: "none".to_string(),
+            tracking_method: ProductTrackingMethod::None,
             default_uom_id: None,
             sale_price: None,
             cost_price: None,
@@ -168,7 +204,7 @@ mod openapi {
 
         /// Inventory tracking
         pub track_inventory: bool,
-        pub tracking_method: String,
+        pub tracking_method: ProductTrackingMethod,
 
         /// Units of measure
         pub default_uom_id: Option<Uuid>,

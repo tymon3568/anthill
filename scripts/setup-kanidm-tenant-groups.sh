@@ -46,8 +46,8 @@ echo -e "${YELLOW}📋 Fetching tenants...${NC}"
 TENANTS_JSON=$(psql "$DATABASE_URL" -t -A -c "
   SELECT json_agg(row_to_json(t))::text
   FROM (
-    SELECT tenant_id::text, slug, name 
-    FROM tenants 
+    SELECT tenant_id::text, slug, name
+    FROM tenants
     WHERE deleted_at IS NULL AND status = 'active'
     ORDER BY slug
   ) t;
@@ -67,19 +67,19 @@ echo ""
 # Process each tenant
 for i in $(seq 0 $((TENANT_COUNT - 1))); do
   TENANT=$(echo "$TENANTS_JSON" | jq -r ".[$i]")
-  
+
   TENANT_ID=$(echo "$TENANT" | jq -r '.tenant_id')
   SLUG=$(echo "$TENANT" | jq -r '.slug')
   NAME=$(echo "$TENANT" | jq -r '.name')
-  
+
   echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
   echo -e "${BLUE}[$((i+1))/$TENANT_COUNT] Tenant: $SLUG ($NAME)${NC}"
   echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-  
+
   # Group names
   USERS_GROUP="tenant_${SLUG}_users"
   ADMINS_GROUP="tenant_${SLUG}_admins"
-  
+
   if [ "$DRY_RUN" == "true" ]; then
     echo "  [DRY RUN] Would create group: $USERS_GROUP"
     echo "  [DRY RUN] Would create group: $ADMINS_GROUP"
@@ -87,13 +87,13 @@ for i in $(seq 0 $((TENANT_COUNT - 1))); do
     echo ""
     continue
   fi
-  
+
   # ============================================================================
   # Create users group
   # ============================================================================
-  
+
   echo -e "${YELLOW}Creating users group: $USERS_GROUP${NC}"
-  
+
   if kanidm group get "$USERS_GROUP" > /dev/null 2>&1; then
     echo "  ℹ️  Group already exists"
     USERS_GROUP_UUID=$(kanidm group get "$USERS_GROUP" --output json | jq -r '.uuid')
@@ -102,15 +102,15 @@ for i in $(seq 0 $((TENANT_COUNT - 1))); do
     USERS_GROUP_UUID=$(kanidm group get "$USERS_GROUP" --output json | jq -r '.uuid')
     echo -e "  ${GREEN}✓ Created${NC}"
   fi
-  
+
   echo "  UUID: $USERS_GROUP_UUID"
-  
+
   # ============================================================================
   # Create admins group
   # ============================================================================
-  
+
   echo -e "${YELLOW}Creating admins group: $ADMINS_GROUP${NC}"
-  
+
   if kanidm group get "$ADMINS_GROUP" > /dev/null 2>&1; then
     echo "  ℹ️  Group already exists"
     ADMINS_GROUP_UUID=$(kanidm group get "$ADMINS_GROUP" --output json | jq -r '.uuid')
@@ -119,27 +119,32 @@ for i in $(seq 0 $((TENANT_COUNT - 1))); do
     ADMINS_GROUP_UUID=$(kanidm group get "$ADMINS_GROUP" --output json | jq -r '.uuid')
     echo -e "  ${GREEN}✓ Created${NC}"
   fi
-  
+
   echo "  UUID: $ADMINS_GROUP_UUID"
-  
+
   # ============================================================================
   # Map groups to tenant in PostgreSQL
   # ============================================================================
-  
+
   echo -e "${YELLOW}Mapping groups to tenant in database...${NC}"
-  
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
+
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+    -v tenant_id="$TENANT_ID" \
+    -v users_uuid="$USERS_GROUP_UUID" \
+    -v users_name="$USERS_GROUP" \
+    -v admins_uuid="$ADMINS_GROUP_UUID" \
+    -v admins_name="$ADMINS_GROUP" <<SQL
     INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name, role)
-    VALUES 
-      ('$TENANT_ID', '$USERS_GROUP_UUID', '$USERS_GROUP', 'member'),
-      ('$TENANT_ID', '$ADMINS_GROUP_UUID', '$ADMINS_GROUP', 'admin')
-    ON CONFLICT (tenant_id, kanidm_group_uuid) 
-    DO UPDATE SET 
+    VALUES
+      (:'tenant_id'::uuid, :'users_uuid'::uuid, :'users_name', 'member'),
+      (:'tenant_id'::uuid, :'admins_uuid'::uuid, :'admins_name', 'admin')
+    ON CONFLICT (tenant_id, kanidm_group_uuid)
+    DO UPDATE SET
       kanidm_group_name = EXCLUDED.kanidm_group_name,
       role = EXCLUDED.role,
       updated_at = NOW();
 SQL
-  
+
   echo -e "  ${GREEN}✓ Mapped to database${NC}"
   echo ""
 done
@@ -161,7 +166,7 @@ psql "$DATABASE_URL" -c "
 echo ""
 echo "Groups by tenant:"
 psql "$DATABASE_URL" -c "
-  SELECT 
+  SELECT
     t.slug AS tenant,
     COUNT(*) AS groups,
     string_agg(ktg.role, ', ' ORDER BY ktg.role) AS roles

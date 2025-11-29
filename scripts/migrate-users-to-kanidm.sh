@@ -95,7 +95,7 @@ if [ "$DRY_RUN" != "true" ]; then
     echo "Run: kanidm login admin"
     exit 1
   fi
-  
+
   KANIDM_USER=$(kanidm self whoami)
   print_success "Logged in to Kanidm as: $KANIDM_USER"
 fi
@@ -158,7 +158,7 @@ echo ""
 
 for i in $(seq 0 $((TOTAL_USERS - 1))); do
   USER=$(echo "$USERS" | jq -r ".[$i]")
-  
+
   # Extract user data
   USER_ID=$(echo "$USER" | jq -r '.user_id')
   EMAIL=$(echo "$USER" | jq -r '.email')
@@ -167,11 +167,11 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
   TENANT_ID=$(echo "$USER" | jq -r '.tenant_id')
   ROLE=$(echo "$USER" | jq -r '.role')
   HAS_KANIDM=$(echo "$USER" | jq -r '.has_kanidm')
-  
+
   echo -e "${CYAN}[$((i+1))/$TOTAL_USERS] $EMAIL${NC} (${TENANT_SLUG})"
   echo "  User ID:  $USER_ID"
   echo "  Role:     $ROLE"
-  
+
   # Skip if already in Kanidm
   if [ "$HAS_KANIDM" == "true" ]; then
     print_warning "Already in Kanidm - skipping"
@@ -180,7 +180,7 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
     echo ""
     continue
   fi
-  
+
   if [ "$DRY_RUN" == "true" ]; then
     print_info "[DRY RUN] Would create user in Kanidm"
     print_info "[DRY RUN] Would add to group: tenant_${TENANT_SLUG}_users"
@@ -192,17 +192,17 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
     echo ""
     continue
   fi
-  
+
   # ============================================================================
   # Create user in Kanidm
   # ============================================================================
-  
+
   echo "  Creating user in Kanidm..."
-  
+
   # Create person account
   if KANIDM_RESULT=$(kanidm person create "$EMAIL" "$FULL_NAME" --output json 2>&1); then
     KANIDM_USER_ID=$(echo "$KANIDM_RESULT" | jq -r '.uuid')
-    
+
     if [ -z "$KANIDM_USER_ID" ] || [ "$KANIDM_USER_ID" == "null" ]; then
       print_error "Failed to extract Kanidm UUID from response"
       echo "$EMAIL,ERROR,No UUID in response: $KANIDM_RESULT" >> "$LOG_FILE"
@@ -210,13 +210,13 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
       echo ""
       continue
     fi
-    
+
     print_success "Created in Kanidm: $KANIDM_USER_ID"
   else
     # Check if user already exists
     if echo "$KANIDM_RESULT" | grep -q "already exists"; then
       print_warning "User already exists in Kanidm"
-      
+
       # Try to get existing user UUID
       if KANIDM_USER_INFO=$(kanidm person get "$EMAIL" --output json 2>&1); then
         KANIDM_USER_ID=$(echo "$KANIDM_USER_INFO" | jq -r '.uuid')
@@ -236,7 +236,7 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
       continue
     fi
   fi
-  
+
   # Set password (if provided)
   if [ -n "$DEFAULT_PASSWORD" ]; then
     echo "  Setting default password..."
@@ -246,13 +246,13 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
       print_warning "Failed to set password (user must reset)"
     fi
   fi
-  
+
   # ============================================================================
   # Add to tenant groups
   # ============================================================================
-  
+
   echo "  Adding to tenant groups..."
-  
+
   # Add to users group
   USERS_GROUP="tenant_${TENANT_SLUG}_users"
   if kanidm group add-members "$USERS_GROUP" "$EMAIL" 2>&1; then
@@ -260,7 +260,7 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
   else
     print_warning "Failed to add to $USERS_GROUP (group may not exist)"
   fi
-  
+
   # Add to admins group if admin
   if [ "$ROLE" == "admin" ] || [ "$ROLE" == "super_admin" ]; then
     ADMINS_GROUP="tenant_${TENANT_SLUG}_admins"
@@ -270,21 +270,23 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
       print_warning "Failed to add to $ADMINS_GROUP (group may not exist)"
     fi
   fi
-  
+
   # ============================================================================
   # Update PostgreSQL
   # ============================================================================
-  
+
   echo "  Updating PostgreSQL..."
-  
-  if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
-    UPDATE users 
-    SET 
-      kanidm_user_id = '$KANIDM_USER_ID',
+
+  if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+    -v kanidm_user_id="$KANIDM_USER_ID" \
+    -v user_id="$USER_ID" <<SQL
+    UPDATE users
+    SET
+      kanidm_user_id = :'kanidm_user_id'::uuid,
       kanidm_synced_at = NOW(),
       auth_method = 'dual',
       migration_completed_at = NOW()
-    WHERE user_id = '$USER_ID';
+    WHERE user_id = :'user_id'::uuid;
 SQL
   then
     print_success "Database updated"
@@ -295,7 +297,7 @@ SQL
     echo "$EMAIL,ERROR,Database update failed" >> "$LOG_FILE"
     ((ERROR_COUNT++))
   fi
-  
+
   echo ""
 done
 

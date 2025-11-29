@@ -1,3 +1,11 @@
+[[bench]]
+harness = false
+name = "password_benchmarks"
+
+[[bench]]
+harness = false
+name = "database_benchmarks"
+
 [dependencies]
 async-trait = {workspace = true}
 chrono = {workspace = true}
@@ -16,25 +24,17 @@ validator = {workspace = true}
 zxcvbn = {workspace = true}
 
 [dev-dependencies]
+criterion = {workspace = true}
 fake = {workspace = true}
 mockall = {workspace = true}
 proptest = {workspace = true}
 tokio = {workspace = true}
-criterion = {workspace = true}
 
-[[bench]]
-name = "password_benchmarks"
-harness = false
-
-[[bench]]
-name = "database_benchmarks"
-harness = false
+[features]
+openapi = []
 
 [package]
 name = "user_service_core"
 authors.workspace = true
 edition.workspace = true
 version.workspace = true
-
-[features]
-openapi = []

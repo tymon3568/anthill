@@ -4,12 +4,15 @@
 //! orchestrating receipt creation with validation, stock movements, and event publishing.
 
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use inventory_service_core::domains::inventory::product::{Product, ProductTrackingMethod};
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
+use inventory_service_core::repositories::product::ProductRepository;
 use inventory_service_core::repositories::receipt::ReceiptRepository;
 use inventory_service_core::services::receipt::ReceiptService;
 use shared_error::AppError;
@@ -18,30 +21,37 @@ use shared_error::AppError;
 ///
 /// Orchestrates the creation and management of Goods Receipt Notes (GRN)
 /// with proper validation, transaction management, and side effects.
-pub struct ReceiptServiceImpl<R> {
+pub struct ReceiptServiceImpl<R, P> {
     receipt_repository: Arc<R>,
+    product_repository: Arc<P>,
 }
 
-impl<R> ReceiptServiceImpl<R>
+impl<R, P> ReceiptServiceImpl<R, P>
 where
     R: ReceiptRepository + Send + Sync,
+    P: ProductRepository + Send + Sync,
 {
     /// Create a new ReceiptServiceImpl
     ///
     /// # Arguments
     /// * `receipt_repository` - Repository for receipt operations
+    /// * `product_repository` - Repository for product operations
     ///
     /// # Returns
     /// New ReceiptServiceImpl instance
-    pub fn new(receipt_repository: Arc<R>) -> Self {
-        Self { receipt_repository }
+    pub fn new(receipt_repository: Arc<R>, product_repository: Arc<P>) -> Self {
+        Self {
+            receipt_repository,
+            product_repository,
+        }
     }
 }
 
 #[async_trait]
-impl<R> ReceiptService for ReceiptServiceImpl<R>
+impl<R, P> ReceiptService for ReceiptServiceImpl<R, P>
 where
     R: ReceiptRepository + Send + Sync,
+    P: ProductRepository + Send + Sync,
 {
     /// Create a new goods receipt note with validation and side effects
     async fn create_receipt(
@@ -102,11 +112,10 @@ where
     /// Validate receipt data before creation
     async fn validate_receipt_request(
         &self,
-        _tenant_id: Uuid,
+        tenant_id: Uuid,
         request: &ReceiptCreateRequest,
     ) -> Result<(), AppError> {
-        // Validate that warehouse exists (basic check)
-        // In a real implementation, you'd check against warehouse repository
+        // Validate warehouse ID
         if request.warehouse_id.is_nil() {
             return Err(AppError::ValidationError("Warehouse ID is required".to_string()));
         }
@@ -118,25 +127,40 @@ where
             ));
         }
 
+        // Collect all product IDs for batch fetch to avoid N+1 queries
+        let product_ids: Vec<Uuid> = request.items.iter().map(|item| item.product_id).collect();
+        let products = self
+            .product_repository
+            .find_by_ids(tenant_id, &product_ids)
+            .await?;
+        let product_map: HashMap<Uuid, &Product> =
+            products.iter().map(|p| (p.product_id, p)).collect();
+
+        // Validate each item
         for (index, item) in request.items.iter().enumerate() {
+            // Validate product ID
             if item.product_id.is_nil() {
                 return Err(AppError::ValidationError(format!(
                     "Item {}: Product ID is required",
                     index + 1
                 )));
             }
+
+            // Validate quantities
             if item.received_quantity <= 0 {
                 return Err(AppError::ValidationError(format!(
                     "Item {}: Received quantity must be positive",
                     index + 1
                 )));
             }
+
             if item.expected_quantity < 0 {
                 return Err(AppError::ValidationError(format!(
                     "Item {}: Expected quantity cannot be negative",
                     index + 1
                 )));
             }
+
             if let Some(cost) = item.unit_cost {
                 if cost < 0 {
                     return Err(AppError::ValidationError(format!(
@@ -145,10 +169,69 @@ where
                     )));
                 }
             }
+
+            // Get product from batch fetch
+            let product = product_map.get(&item.product_id).ok_or_else(|| {
+                AppError::ValidationError(format!("Item {}: Product not found", index + 1))
+            })?;
+
+            match product.tracking_method {
+                ProductTrackingMethod::Lot => {
+                    if item.lot_number.is_none() {
+                        return Err(AppError::ValidationError(format!(
+                            "Item {}: Lot number is required for lot-tracked product",
+                            index + 1
+                        )));
+                    }
+                },
+                ProductTrackingMethod::Serial => {
+                    if let Some(serial_numbers) = &item.serial_numbers {
+                        if let serde_json::Value::Array(arr) = serial_numbers {
+                            if (arr.len() as i64) != item.received_quantity {
+                                return Err(AppError::ValidationError(format!(
+                                    "Item {}: Number of serial numbers ({}) must match received quantity ({})",
+                                    index + 1, arr.len(), item.received_quantity
+                                )));
+                            }
+
+                            // Check that all serial numbers are strings
+                            let serials: Vec<_> = arr.iter().filter_map(|v| v.as_str()).collect();
+                            if serials.len() != arr.len() {
+                                return Err(AppError::ValidationError(format!(
+                                    "Item {}: All serial numbers must be strings",
+                                    index + 1
+                                )));
+                            }
+
+                            // Check for duplicate serial numbers
+                            let unique_count = serials
+                                .iter()
+                                .collect::<std::collections::HashSet<_>>()
+                                .len();
+                            if unique_count != serials.len() {
+                                return Err(AppError::ValidationError(format!(
+                                    "Item {}: Duplicate serial numbers are not allowed",
+                                    index + 1
+                                )));
+                            }
+                        } else {
+                            return Err(AppError::ValidationError(format!(
+                                "Item {}: Serial numbers must be an array",
+                                index + 1
+                            )));
+                        }
+                    } else {
+                        return Err(AppError::ValidationError(format!(
+                            "Item {}: Serial numbers are required for serial-tracked product",
+                            index + 1
+                        )));
+                    }
+                },
+                ProductTrackingMethod::None => {},
+            }
         }
 
         // Additional validations could include:
-        // - Check if products exist
         // - Check if warehouse belongs to tenant
         // - Check if supplier exists (if provided)
         // - Business rule validations
@@ -192,6 +275,9 @@ mod tests {
     use std::sync::Arc;
     use uuid::Uuid;
     use validator::Validate;
+
+    use inventory_service_core::domains::inventory::dto::search_dto;
+    use inventory_service_core::domains::inventory::product::{Product, ProductTrackingMethod};
 
     #[test]
     fn test_generate_idempotency_key() {
@@ -260,7 +346,7 @@ mod tests {
         assert!(request.validate().is_ok());
     }
 
-    // Dummy repository for testing service-level validation
+    // Dummy repositories for testing service-level validation
     struct DummyReceiptRepository;
 
     #[async_trait]
@@ -309,11 +395,181 @@ mod tests {
         }
     }
 
+    struct DummyProductRepository;
+
+    #[async_trait]
+    impl ProductRepository for DummyProductRepository {
+        async fn find_by_id(
+            &self,
+            tenant_id: Uuid,
+            product_id: Uuid,
+        ) -> Result<Option<Product>, AppError> {
+            // Return a dummy product with configurable tracking_method based on product_id
+            let tracking_method = match product_id.as_u128() % 3 {
+                0 => ProductTrackingMethod::None,
+                1 => ProductTrackingMethod::Lot,
+                2 => ProductTrackingMethod::Serial,
+                _ => ProductTrackingMethod::None,
+            };
+            Ok(Some(Product {
+                product_id,
+                tenant_id,
+                sku: "DUMMY".to_string(),
+                name: "Dummy Product".to_string(),
+                description: None,
+                product_type: "goods".to_string(),
+                item_group_id: None,
+                track_inventory: true,
+                tracking_method,
+                default_uom_id: None,
+                sale_price: None,
+                cost_price: None,
+                currency_code: "VND".to_string(),
+                weight_grams: None,
+                dimensions: None,
+                attributes: None,
+                is_active: true,
+                is_sellable: true,
+                is_purchaseable: true,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+                deleted_at: None,
+            }))
+        }
+
+        async fn find_by_ids(
+            &self,
+            tenant_id: Uuid,
+            product_ids: &[Uuid],
+        ) -> Result<Vec<Product>, AppError> {
+            if product_ids.is_empty() {
+                return Ok(vec![]);
+            }
+            // Return dummy products for each requested ID with configurable tracking_method
+            let products = product_ids
+                .iter()
+                .map(|&product_id| {
+                    let tracking_method = match product_id.as_u128() % 3 {
+                        0 => ProductTrackingMethod::None,
+                        1 => ProductTrackingMethod::Lot,
+                        2 => ProductTrackingMethod::Serial,
+                        _ => ProductTrackingMethod::None,
+                    };
+                    Product {
+                        product_id,
+                        tenant_id,
+                        sku: "DUMMY".to_string(),
+                        name: "Dummy Product".to_string(),
+                        description: None,
+                        product_type: "goods".to_string(),
+                        item_group_id: None,
+                        track_inventory: true,
+                        tracking_method,
+                        default_uom_id: None,
+                        sale_price: None,
+                        cost_price: None,
+                        currency_code: "VND".to_string(),
+                        weight_grams: None,
+                        dimensions: None,
+                        attributes: None,
+                        is_active: true,
+                        is_sellable: true,
+                        is_purchaseable: true,
+                        created_at: chrono::Utc::now(),
+                        updated_at: chrono::Utc::now(),
+                        deleted_at: None,
+                    }
+                })
+                .collect();
+            Ok(products)
+        }
+
+        async fn find_by_sku(
+            &self,
+            _tenant_id: Uuid,
+            _sku: &str,
+        ) -> Result<Option<Product>, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn find_by_barcode(
+            &self,
+            _tenant_id: Uuid,
+            _barcode: &str,
+        ) -> Result<Option<Product>, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn create(&self, _product: &Product) -> Result<Product, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn update(
+            &self,
+            _tenant_id: Uuid,
+            _product_id: Uuid,
+            _product: &Product,
+        ) -> Result<Product, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn delete(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn is_in_stock(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn get_inventory_level(
+            &self,
+            _tenant_id: Uuid,
+            _product_id: Uuid,
+        ) -> Result<i64, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn search_products(
+            &self,
+            _tenant_id: Uuid,
+            _request: search_dto::ProductSearchRequest,
+        ) -> Result<search_dto::ProductSearchResponse, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn get_search_suggestions(
+            &self,
+            _tenant_id: Uuid,
+            _request: search_dto::SearchSuggestionsRequest,
+        ) -> Result<search_dto::SearchSuggestionsResponse, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn get_popular_search_terms(
+            &self,
+            _tenant_id: Uuid,
+            _limit: u32,
+        ) -> Result<Vec<(String, u32)>, AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+
+        async fn record_search_analytics(
+            &self,
+            _tenant_id: Uuid,
+            _query: &str,
+            _result_count: u32,
+            _user_id: Option<Uuid>,
+        ) -> Result<(), AppError> {
+            unimplemented!("Not needed for validation tests")
+        }
+    }
+
     #[tokio::test]
     async fn test_service_validation_valid_request() {
         let tenant_id = Uuid::new_v4();
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -323,7 +579,7 @@ mod tests {
             currency_code: "USD".to_string(),
             items: vec![
                 inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
-                    product_id: Uuid::new_v4(),
+                    product_id: Uuid::from_u128(3), // tracking_method = None
                     expected_quantity: 10,
                     received_quantity: 8,
                     unit_cost: Some(1000),
@@ -343,8 +599,9 @@ mod tests {
     #[tokio::test]
     async fn test_service_validation_invalid_empty_items() {
         let tenant_id = Uuid::new_v4();
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -362,8 +619,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_nil_warehouse() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -395,8 +653,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_nil_product() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -428,8 +687,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_zero_received_quantity() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -461,8 +721,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_negative_expected_quantity() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -494,8 +755,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_service_validation_invalid_negative_unit_cost() {
-        let repo = Arc::new(DummyReceiptRepository);
-        let service = ReceiptServiceImpl::new(repo);
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -523,5 +785,296 @@ mod tests {
         let result = service.validate_receipt_request(tenant_id, &request).await;
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Item 1: Unit cost cannot be negative");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_lot_tracked_requires_lot_number() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        // Uuid::from_u128(1) has as_u128() % 3 == 1, so tracking_method = "lot"
+        let lot_product_id = Uuid::from_u128(1);
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: lot_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 8,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None, // Missing lot number
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Item 1: Lot number is required for lot-tracked product"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_lot_tracked_valid() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        let lot_product_id = Uuid::from_u128(1); // tracking_method = "lot"
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: lot_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 8,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: Some("LOT-123".to_string()), // Valid lot number
+                    serial_numbers: None,
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_serial_tracked_requires_serial_numbers() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: serial_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 3,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: None, // Missing serial numbers
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Item 1: Serial numbers are required for serial-tracked product"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_serial_tracked_wrong_count() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: serial_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 3,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: Some(serde_json::json!(["SN1", "SN2"])), // Only 2 serials for 3 received
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Item 1: Number of serial numbers (2) must match received quantity (3)"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_serial_tracked_not_array() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: serial_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 2,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: Some(serde_json::json!("not an array")), // Not an array
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Item 1: Serial numbers must be an array");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_serial_tracked_non_string_elements() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: serial_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 2,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: Some(serde_json::json!(["SN1", 123])), // Mixed types
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Item 1: All serial numbers must be strings");
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_serial_tracked_duplicate_serials() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: serial_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 2,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: Some(serde_json::json!(["SN1", "SN1"])), // Duplicate
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "Item 1: Duplicate serial numbers are not allowed"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_service_validation_serial_tracked_valid() {
+        let receipt_repo = Arc::new(DummyReceiptRepository);
+        let product_repo = Arc::new(DummyProductRepository);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+
+        let tenant_id = Uuid::new_v4();
+        let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
+        let request = ReceiptCreateRequest {
+            warehouse_id: Uuid::new_v4(),
+            supplier_id: None,
+            reference_number: None,
+            expected_delivery_date: None,
+            notes: None,
+            currency_code: "USD".to_string(),
+            items: vec![
+                inventory_service_core::dto::receipt::ReceiptItemCreateRequest {
+                    product_id: serial_product_id,
+                    expected_quantity: 10,
+                    received_quantity: 3,
+                    unit_cost: Some(1000),
+                    uom_id: None,
+                    lot_number: None,
+                    serial_numbers: Some(serde_json::json!(["SN1", "SN2", "SN3"])), // Valid
+                    expiry_date: None,
+                    notes: None,
+                },
+            ],
+        };
+
+        let result = service.validate_receipt_request(tenant_id, &request).await;
+        assert!(result.is_ok());
     }
 }
