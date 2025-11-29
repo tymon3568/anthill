@@ -277,14 +277,16 @@ for i in $(seq 0 $((TOTAL_USERS - 1))); do
 
   echo "  Updating PostgreSQL..."
 
-  if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
+  if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+    -v kanidm_user_id="$KANIDM_USER_ID" \
+    -v user_id="$USER_ID" <<SQL
     UPDATE users
     SET
-      kanidm_user_id = '$KANIDM_USER_ID',
+      kanidm_user_id = :'kanidm_user_id'::uuid,
       kanidm_synced_at = NOW(),
       auth_method = 'dual',
       migration_completed_at = NOW()
-    WHERE user_id = '$USER_ID';
+    WHERE user_id = :'user_id'::uuid;
 SQL
   then
     print_success "Database updated"

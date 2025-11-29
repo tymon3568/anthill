@@ -128,11 +128,16 @@ for i in $(seq 0 $((TENANT_COUNT - 1))); do
 
   echo -e "${YELLOW}Mapping groups to tenant in database...${NC}"
 
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<SQL
+  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+    -v tenant_id="$TENANT_ID" \
+    -v users_uuid="$USERS_GROUP_UUID" \
+    -v users_name="$USERS_GROUP" \
+    -v admins_uuid="$ADMINS_GROUP_UUID" \
+    -v admins_name="$ADMINS_GROUP" <<SQL
     INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name, role)
     VALUES
-      ('$TENANT_ID', '$USERS_GROUP_UUID', '$USERS_GROUP', 'member'),
-      ('$TENANT_ID', '$ADMINS_GROUP_UUID', '$ADMINS_GROUP', 'admin')
+      (:'tenant_id'::uuid, :'users_uuid'::uuid, :'users_name', 'member'),
+      (:'tenant_id'::uuid, :'admins_uuid'::uuid, :'admins_name', 'admin')
     ON CONFLICT (tenant_id, kanidm_group_uuid)
     DO UPDATE SET
       kanidm_group_name = EXCLUDED.kanidm_group_name,
