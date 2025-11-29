@@ -116,4 +116,3 @@ Modify the `products` table to add a `tracking_method` field. This will allow en
     - Status: Compilation issues resolved, tests passing
 
   ---
-
