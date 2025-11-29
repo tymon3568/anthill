@@ -423,6 +423,60 @@ impl ProductRepository for ProductRepositoryImpl {
         todo!("Implement find_by_id")
     }
 
+    async fn find_by_ids(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<Vec<Product>> {
+        if product_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let rows = sqlx::query!(
+            r#"
+            SELECT
+                product_id, tenant_id, sku, name, description,
+                product_type, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            FROM products
+            WHERE tenant_id = $1 AND product_id = ANY($2) AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            &product_ids
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let products = rows
+            .into_iter()
+            .map(|row| Product {
+                product_id: row.product_id,
+                tenant_id: row.tenant_id,
+                sku: row.sku,
+                name: row.name,
+                description: row.description,
+                product_type: row.product_type,
+                item_group_id: row.item_group_id,
+                track_inventory: row.track_inventory,
+                tracking_method: row.tracking_method.unwrap_or_else(|| "none".to_string()),
+                default_uom_id: row.default_uom_id,
+                sale_price: row.sale_price,
+                cost_price: row.cost_price,
+                currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
+                weight_grams: row.weight_grams,
+                dimensions: row.dimensions,
+                attributes: row.attributes,
+                is_active: row.is_active,
+                is_sellable: row.is_sellable,
+                is_purchaseable: row.is_purchaseable,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                deleted_at: row.deleted_at,
+            })
+            .collect();
+
+        Ok(products)
+    }
+
     async fn find_by_sku(&self, _tenant_id: Uuid, _sku: &str) -> Result<Option<Product>> {
         todo!("Implement find_by_sku")
     }

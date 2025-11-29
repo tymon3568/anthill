@@ -4,9 +4,11 @@
 //! orchestrating receipt creation with validation, stock movements, and event publishing.
 
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use inventory_service_core::domains::inventory::product::Product;
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
@@ -113,8 +115,7 @@ where
         tenant_id: Uuid,
         request: &ReceiptCreateRequest,
     ) -> Result<(), AppError> {
-        // Validate that warehouse exists (basic check)
-        // In a real implementation, you'd check against warehouse repository
+        // Validate warehouse ID
         if request.warehouse_id.is_nil() {
             return Err(AppError::ValidationError("Warehouse ID is required".to_string()));
         }
@@ -126,25 +127,40 @@ where
             ));
         }
 
+        // Collect all product IDs for batch fetch to avoid N+1 queries
+        let product_ids: Vec<Uuid> = request.items.iter().map(|item| item.product_id).collect();
+        let products = self
+            .product_repository
+            .find_by_ids(tenant_id, &product_ids)
+            .await?;
+        let product_map: HashMap<Uuid, &Product> =
+            products.iter().map(|p| (p.product_id, p)).collect();
+
+        // Validate each item
         for (index, item) in request.items.iter().enumerate() {
+            // Validate product ID
             if item.product_id.is_nil() {
                 return Err(AppError::ValidationError(format!(
                     "Item {}: Product ID is required",
                     index + 1
                 )));
             }
+
+            // Validate quantities
             if item.received_quantity <= 0 {
                 return Err(AppError::ValidationError(format!(
                     "Item {}: Received quantity must be positive",
                     index + 1
                 )));
             }
+
             if item.expected_quantity < 0 {
                 return Err(AppError::ValidationError(format!(
                     "Item {}: Expected quantity cannot be negative",
                     index + 1
                 )));
             }
+
             if let Some(cost) = item.unit_cost {
                 if cost < 0 {
                     return Err(AppError::ValidationError(format!(
@@ -154,14 +170,10 @@ where
                 }
             }
 
-            // Validate tracking method requirements
-            let product = self
-                .product_repository
-                .find_by_id(tenant_id, item.product_id)
-                .await?
-                .ok_or_else(|| {
-                    AppError::ValidationError(format!("Item {}: Product not found", index + 1))
-                })?;
+            // Get product from batch fetch
+            let product = product_map.get(&item.product_id).ok_or_else(|| {
+                AppError::ValidationError(format!("Item {}: Product not found", index + 1))
+            })?;
 
             match product.tracking_method.as_str() {
                 "lot" => {
@@ -175,10 +187,31 @@ where
                 "serial" => {
                     if let Some(serial_numbers) = &item.serial_numbers {
                         if let serde_json::Value::Array(arr) = serial_numbers {
-                            if arr.len() as i64 != item.received_quantity {
+                            if arr.len() != item.received_quantity as usize {
                                 return Err(AppError::ValidationError(format!(
                                     "Item {}: Number of serial numbers ({}) must match received quantity ({})",
                                     index + 1, arr.len(), item.received_quantity
+                                )));
+                            }
+
+                            // Check that all serial numbers are strings
+                            let serials: Vec<_> = arr.iter().filter_map(|v| v.as_str()).collect();
+                            if serials.len() != arr.len() {
+                                return Err(AppError::ValidationError(format!(
+                                    "Item {}: All serial numbers must be strings",
+                                    index + 1
+                                )));
+                            }
+
+                            // Check for duplicate serial numbers
+                            let unique_count = serials
+                                .iter()
+                                .collect::<std::collections::HashSet<_>>()
+                                .len();
+                            if unique_count != serials.len() {
+                                return Err(AppError::ValidationError(format!(
+                                    "Item {}: Duplicate serial numbers are not allowed",
+                                    index + 1
                                 )));
                             }
                         } else {
@@ -194,7 +227,13 @@ where
                         )));
                     }
                 },
-                _ => {}, // none, no validation needed
+                other => {
+                    tracing::warn!(
+                        "Item {}: Unknown tracking method '{}', skipping tracking validation",
+                        index + 1,
+                        other
+                    );
+                },
             }
         }
 
@@ -396,6 +435,45 @@ mod tests {
                 updated_at: chrono::Utc::now(),
                 deleted_at: None,
             }))
+        }
+
+        async fn find_by_ids(
+            &self,
+            tenant_id: Uuid,
+            product_ids: &[Uuid],
+        ) -> Result<Vec<Product>, AppError> {
+            if product_ids.is_empty() {
+                return Ok(vec![]);
+            }
+            // Return dummy products for each requested ID
+            let products = product_ids
+                .iter()
+                .map(|&product_id| Product {
+                    product_id,
+                    tenant_id,
+                    sku: "DUMMY".to_string(),
+                    name: "Dummy Product".to_string(),
+                    description: None,
+                    product_type: "goods".to_string(),
+                    item_group_id: None,
+                    track_inventory: true,
+                    tracking_method: "none".to_string(),
+                    default_uom_id: None,
+                    sale_price: None,
+                    cost_price: None,
+                    currency_code: "VND".to_string(),
+                    weight_grams: None,
+                    dimensions: None,
+                    attributes: None,
+                    is_active: true,
+                    is_sellable: true,
+                    is_purchaseable: true,
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                    deleted_at: None,
+                })
+                .collect();
+            Ok(products)
         }
 
         async fn find_by_sku(

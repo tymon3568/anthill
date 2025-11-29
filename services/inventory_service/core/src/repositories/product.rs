@@ -65,6 +65,16 @@ pub trait ProductRepository: Send + Sync {
     /// Product if found
     async fn find_by_id(&self, tenant_id: Uuid, product_id: Uuid) -> Result<Option<Product>>;
 
+    /// Get multiple products by IDs
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `product_ids` - List of product identifiers
+    ///
+    /// # Returns
+    /// List of products found (may be less than requested if some not found)
+    async fn find_by_ids(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<Vec<Product>>;
+
     /// Get product by SKU
     ///
     /// # Arguments
