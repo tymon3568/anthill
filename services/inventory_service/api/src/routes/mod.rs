@@ -47,12 +47,9 @@ use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 #[cfg(feature = "delivery")]
 // use inventory_service_infra::services::delivery::DeliveryServiceImpl; // Delivery feature disabled
-#[allow(unused_imports)]
-use inventory_service_infra::services::transfer::PgTransferService;
 use inventory_service_infra::services::valuation::ValuationServiceImpl;
 
 // Dummy delivery service to avoid compile errors when delivery is disabled
-#[allow(dead_code)]
 pub struct DummyDeliveryService;
 
 #[async_trait::async_trait]
@@ -233,7 +230,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let transfer_item_repo = Arc::new(PgTransferItemRepository::new(Arc::new(pool.clone())));
 
     let transfer_service =
-        Arc::new(inventory_service_infra::services::transfer::PgTransferService::new(
+
             transfer_repo,
             transfer_item_repo,
             stock_move_repo.clone(),

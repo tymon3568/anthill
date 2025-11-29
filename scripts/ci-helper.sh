@@ -358,7 +358,8 @@ run_build() {
 run_all() {
     log_info "Running complete CI pipeline..."
 
-    local start_time=$(date +%s)
+    local start_time
+    start_time=$(date +%s)
 
     # Run all stages
     check_prerequisites || return 1
@@ -376,7 +377,8 @@ run_all() {
 
     run_build || return 1
 
-    local end_time=$(date +%s)
+    local end_time
+    end_time=$(date +%s)
     local duration=$((end_time - start_time))
 
     log_success "Complete CI pipeline: PASSED in ${duration}s"
