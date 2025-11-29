@@ -6,6 +6,7 @@ use uuid::Uuid;
 /// Helper type for infra-internal transaction operations
 pub type InfraTx<'a> = &'a mut Transaction<'a, sqlx::Postgres>;
 
+use inventory_service_core::domains::inventory::product::ProductTrackingMethod;
 use inventory_service_core::models::{DeliveryOrder, DeliveryOrderItem, DeliveryOrderStatus};
 use inventory_service_core::repositories::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository, LotSerialRepository,
@@ -626,7 +627,6 @@ impl InventoryRepository for PgInventoryRepository {
             .next()
             .ok_or_else(|| AppError::NotFound(format!("Product {} not found", product_id)))?;
 
-        use inventory_service_core::domains::inventory::product::ProductTrackingMethod;
         match product.tracking_method {
             ProductTrackingMethod::Lot | ProductTrackingMethod::Serial => {
                 // FEFO: Reserve from lots ordered by expiry_date ascending
@@ -635,6 +635,8 @@ impl InventoryRepository for PgInventoryRepository {
                     .find_available_for_picking(tenant_id, product_id, Some(warehouse_id), quantity)
                     .await?;
 
+                // Compute allocations first to avoid partial updates
+                let mut allocations = Vec::new();
                 let mut remaining_to_reserve = quantity;
                 for lot in available_lots {
                     if remaining_to_reserve <= 0 {
@@ -645,9 +647,7 @@ impl InventoryRepository for PgInventoryRepository {
 
                     if to_reserve_from_lot > 0 {
                         let new_remaining = available_in_lot - to_reserve_from_lot;
-                        self.lot_serial_repo
-                            .update_remaining_quantity(tenant_id, lot.lot_serial_id, new_remaining)
-                            .await?;
+                        allocations.push((lot.lot_serial_id, new_remaining));
                         remaining_to_reserve -= to_reserve_from_lot;
                     }
                 }
@@ -658,6 +658,42 @@ impl InventoryRepository for PgInventoryRepository {
                     ));
                 }
 
+                // Apply updates in transaction
+                let mut tx = self.pool.begin().await.map_err(|e| {
+                    AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
+                })?;
+                for (lot_id, new_remaining) in allocations {
+                    sqlx::query!(
+                        r#"
+                        UPDATE lots_serial_numbers
+                        SET remaining_quantity = $3, updated_at = NOW()
+                        WHERE tenant_id = $1 AND lot_serial_id = $2 AND deleted_at IS NULL
+                        "#,
+                        tenant_id,
+                        lot_id,
+                        new_remaining
+                    )
+                    .execute(&mut *tx)
+                    .await?;
+                }
+
+                // Update inventory_levels for consistency
+                sqlx::query!(
+                    r#"
+                    UPDATE inventory_levels
+                    SET available_quantity = available_quantity - $4,
+                        reserved_quantity = reserved_quantity + $4,
+                        updated_at = NOW()
+                    WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3 AND deleted_at IS NULL
+                    "#,
+                    tenant_id, product_id, warehouse_id, quantity
+                )
+                .execute(&mut *tx)
+                .await?;
+
+                tx.commit().await.map_err(|e| {
+                    AppError::DatabaseError(format!("Failed to commit transaction: {}", e))
+                })?;
                 Ok(())
             },
             ProductTrackingMethod::None => {
@@ -704,31 +740,99 @@ impl InventoryRepository for PgInventoryRepository {
             ));
         }
 
-        let res = sqlx::query!(
-            r#"
-            UPDATE inventory_levels
-            SET available_quantity = available_quantity + $4,
-                reserved_quantity = reserved_quantity - $4,
-                updated_at = NOW()
-            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
-              AND reserved_quantity >= $4
-              AND deleted_at IS NULL
-            "#,
-            tenant_id,
-            product_id,
-            warehouse_id,
-            quantity,
-        )
-        .execute(&*self.pool)
-        .await?;
+        let products = self
+            .product_repo
+            .find_by_ids(tenant_id, &[product_id])
+            .await?;
+        let product = products
+            .into_iter()
+            .next()
+            .ok_or_else(|| AppError::NotFound(format!("Product {} not found", product_id)))?;
 
-        if res.rows_affected() == 0 {
-            return Err(AppError::ValidationError(
-                "Insufficient reserved stock to release".to_string(),
-            ));
+        match product.tracking_method {
+            ProductTrackingMethod::Lot | ProductTrackingMethod::Serial => {
+                // Release stock back to lots, distributing to available lots
+                let available_lots = self
+                    .lot_serial_repo
+                    .find_available_for_picking(tenant_id, product_id, Some(warehouse_id), i64::MAX)
+                    .await?;
+
+                let mut remaining_to_release = quantity;
+                let mut tx = self.pool.begin().await.map_err(|e| {
+                    AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
+                })?;
+                for lot in available_lots {
+                    if remaining_to_release <= 0 {
+                        break;
+                    }
+                    let current_remaining = lot.remaining_quantity.unwrap_or(0);
+                    let initial = lot.initial_quantity.unwrap_or(0);
+                    let can_release = (initial - current_remaining).min(remaining_to_release);
+                    if can_release > 0 {
+                        let new_remaining = current_remaining + can_release;
+                        sqlx::query!(
+                            r#"
+                            UPDATE lots_serial_numbers
+                            SET remaining_quantity = $3, updated_at = NOW()
+                            WHERE tenant_id = $1 AND lot_serial_id = $2 AND deleted_at IS NULL
+                            "#,
+                            tenant_id,
+                            lot.lot_serial_id,
+                            new_remaining
+                        )
+                        .execute(&mut *tx)
+                        .await?;
+                        remaining_to_release -= can_release;
+                    }
+                }
+
+                // Update inventory_levels for consistency
+                sqlx::query!(
+                    r#"
+                    UPDATE inventory_levels
+                    SET available_quantity = available_quantity + $4,
+                        reserved_quantity = reserved_quantity - $4,
+                        updated_at = NOW()
+                    WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3 AND deleted_at IS NULL
+                    "#,
+                    tenant_id, product_id, warehouse_id, quantity
+                )
+                .execute(&mut *tx)
+                .await?;
+
+                tx.commit().await.map_err(|e| {
+                    AppError::DatabaseError(format!("Failed to commit transaction: {}", e))
+                })?;
+                Ok(())
+            },
+            ProductTrackingMethod::None => {
+                let res = sqlx::query!(
+                    r#"
+                    UPDATE inventory_levels
+                    SET available_quantity = available_quantity + $4,
+                        reserved_quantity = reserved_quantity - $4,
+                        updated_at = NOW()
+                    WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3
+                      AND reserved_quantity >= $4
+                      AND deleted_at IS NULL
+                    "#,
+                    tenant_id,
+                    product_id,
+                    warehouse_id,
+                    quantity,
+                )
+                .execute(&*self.pool)
+                .await?;
+
+                if res.rows_affected() == 0 {
+                    return Err(AppError::ValidationError(
+                        "Insufficient reserved stock to release".to_string(),
+                    ));
+                }
+
+                Ok(())
+            },
         }
-
-        Ok(())
     }
 
     async fn get_available_stock(

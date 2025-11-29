@@ -333,8 +333,9 @@ impl FromStr for RmaAction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[sqlx(type_name = "lot_serial_tracking_type", rename_all = "snake_case")]
 pub enum LotSerialTrackingType {
     Lot,
     Serial,
@@ -363,8 +364,9 @@ impl FromStr for LotSerialTrackingType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[sqlx(type_name = "lot_serial_status", rename_all = "snake_case")]
 pub enum LotSerialStatus {
     Active,
     Expired,

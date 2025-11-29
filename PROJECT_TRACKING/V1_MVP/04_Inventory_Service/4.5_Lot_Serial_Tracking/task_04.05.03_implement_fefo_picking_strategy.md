@@ -14,14 +14,14 @@
 Implement a FEFO (First Expiry, First Out) picking strategy. When creating a delivery order or pick list, the system should automatically suggest or allocate stock from the lots with the nearest expiry date first.
 
 ## Specific Sub-tasks:
-- [ ] 1. Modify the delivery order creation logic.
-- [ ] 2. When reserving stock for lot-tracked items, query the `lots_serial_numbers` table to find available lots, ordered by `expiry_date` ascending.
-- [ ] 3. The system should raise a warning or prevent picking from an already expired lot.
+- [x] 1. Modify the delivery order creation logic.
+- [x] 2. When reserving stock for lot-tracked items, query the `lots_serial_numbers` table to find available lots, ordered by `expiry_date` ascending.
+- [x] 3. The system should raise a warning or prevent picking from an already expired lot.
 - [ ] 4. (Optional) Implement a background job to automatically move expired items to a `Quarantine` location.
 
 ## Acceptance Criteria:
-- [ ] The picking logic correctly prioritizes lots with the earliest expiry dates.
-- [ ] The system prevents the use of expired stock.
+- [x] The picking logic correctly prioritizes lots with the earliest expiry dates.
+- [x] The system prevents the use of expired stock.
 - [ ] Tests are written to verify the FEFO logic.
 
 ## Dependencies:

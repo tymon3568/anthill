@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
+use tracing;
 use uuid::Uuid;
 
 use inventory_service_core::models::{LotSerial, LotSerialStatus, LotSerialTrackingType};
@@ -12,6 +13,40 @@ pub struct LotSerialRepositoryImpl {
 }
 
 impl LotSerialRepositoryImpl {
+    fn map_row_to_lot_serial(r: sqlx::postgres::PgRow) -> LotSerial {
+        LotSerial {
+            lot_serial_id: r.get("lot_serial_id"),
+            tenant_id: r.get("tenant_id"),
+            product_id: r.get("product_id"),
+            tracking_type: {
+                let raw = r.get::<String, _>("tracking_type");
+                raw.parse().unwrap_or_else(|_| {
+                    tracing::warn!(raw = %raw, lot_serial_id = ?r.get::<Uuid, _>("lot_serial_id"), "Unknown tracking_type, defaulting to Lot");
+                    LotSerialTrackingType::Lot
+                })
+            },
+            lot_number: r.get("lot_number"),
+            serial_number: r.get("serial_number"),
+            initial_quantity: r.get("initial_quantity"),
+            remaining_quantity: r.get("remaining_quantity"),
+            expiry_date: r.get("expiry_date"),
+            status: {
+                let raw = r.get::<String, _>("status");
+                raw.parse().unwrap_or_else(|_| {
+                    tracing::warn!(raw = %raw, lot_serial_id = ?r.get::<Uuid, _>("lot_serial_id"), "Unknown status, defaulting to Active");
+                    LotSerialStatus::Active
+                })
+            },
+            warehouse_id: r.get("warehouse_id"),
+            location_id: r.get("location_id"),
+            created_by: r.get("created_by"),
+            updated_by: r.get("updated_by"),
+            created_at: r.get("created_at"),
+            updated_at: r.get("updated_at"),
+            deleted_at: r.get("deleted_at"),
+        }
+    }
+
     /// Create new repository instance
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
@@ -75,31 +110,7 @@ impl LotSerialRepository for LotSerialRepositoryImpl {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row.map(|r| LotSerial {
-            lot_serial_id: r.get("lot_serial_id"),
-            tenant_id: r.get("tenant_id"),
-            product_id: r.get("product_id"),
-            tracking_type: r
-                .get::<String, _>("tracking_type")
-                .parse()
-                .unwrap_or(LotSerialTrackingType::Lot),
-            lot_number: r.get("lot_number"),
-            serial_number: r.get("serial_number"),
-            initial_quantity: r.get("initial_quantity"),
-            remaining_quantity: r.get("remaining_quantity"),
-            expiry_date: r.get("expiry_date"),
-            status: r
-                .get::<String, _>("status")
-                .parse()
-                .unwrap_or(LotSerialStatus::Active),
-            warehouse_id: r.get("warehouse_id"),
-            location_id: r.get("location_id"),
-            created_by: r.get("created_by"),
-            updated_by: r.get("updated_by"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-            deleted_at: r.get("deleted_at"),
-        }))
+        Ok(row.map(Self::map_row_to_lot_serial))
     }
 
     async fn find_by_product(
@@ -139,34 +150,7 @@ impl LotSerialRepository for LotSerialRepositoryImpl {
 
         let rows = query.build().fetch_all(&self.pool).await?;
 
-        let lot_serials = rows
-            .into_iter()
-            .map(|r| LotSerial {
-                lot_serial_id: r.get("lot_serial_id"),
-                tenant_id: r.get("tenant_id"),
-                product_id: r.get("product_id"),
-                tracking_type: r
-                    .get::<String, _>("tracking_type")
-                    .parse()
-                    .unwrap_or(LotSerialTrackingType::Lot),
-                lot_number: r.get("lot_number"),
-                serial_number: r.get("serial_number"),
-                initial_quantity: r.get("initial_quantity"),
-                remaining_quantity: r.get("remaining_quantity"),
-                expiry_date: r.get("expiry_date"),
-                status: r
-                    .get::<String, _>("status")
-                    .parse()
-                    .unwrap_or(LotSerialStatus::Active),
-                warehouse_id: r.get("warehouse_id"),
-                location_id: r.get("location_id"),
-                created_by: r.get("created_by"),
-                updated_by: r.get("updated_by"),
-                created_at: r.get("created_at"),
-                updated_at: r.get("updated_at"),
-                deleted_at: r.get("deleted_at"),
-            })
-            .collect();
+        let lot_serials = rows.into_iter().map(Self::map_row_to_lot_serial).collect();
 
         Ok(lot_serials)
     }
@@ -193,7 +177,8 @@ impl LotSerialRepository for LotSerialRepositoryImpl {
         query.push(" AND product_id = ");
         query.push_bind(product_id);
         query.push(" AND deleted_at IS NULL");
-        query.push(" AND status = 'active'");
+        query.push(" AND status = ");
+        query.push_bind(LotSerialStatus::Active.to_string());
         query.push(" AND remaining_quantity > 0");
         query.push(" AND (expiry_date IS NULL OR expiry_date > CURRENT_DATE)");
 
@@ -206,42 +191,8 @@ impl LotSerialRepository for LotSerialRepositoryImpl {
 
         let rows = query.build().fetch_all(&self.pool).await?;
 
-        let mut lot_serials: Vec<LotSerial> = rows
-            .into_iter()
-            .map(|r| LotSerial {
-                lot_serial_id: r.get("lot_serial_id"),
-                tenant_id: r.get("tenant_id"),
-                product_id: r.get("product_id"),
-                tracking_type: r
-                    .get::<String, _>("tracking_type")
-                    .parse()
-                    .unwrap_or(LotSerialTrackingType::Lot),
-                lot_number: r.get("lot_number"),
-                serial_number: r.get("serial_number"),
-                initial_quantity: r.get("initial_quantity"),
-                remaining_quantity: r.get("remaining_quantity"),
-                expiry_date: r.get("expiry_date"),
-                status: r
-                    .get::<String, _>("status")
-                    .parse()
-                    .unwrap_or(LotSerialStatus::Active),
-                warehouse_id: r.get("warehouse_id"),
-                location_id: r.get("location_id"),
-                created_by: r.get("created_by"),
-                updated_by: r.get("updated_by"),
-                created_at: r.get("created_at"),
-                updated_at: r.get("updated_at"),
-                deleted_at: r.get("deleted_at"),
-            })
-            .collect();
-
-        // Sort by expiry date ascending (FEFO)
-        lot_serials.sort_by(|a, b| match (a.expiry_date, b.expiry_date) {
-            (Some(a_date), Some(b_date)) => a_date.cmp(&b_date),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => a.created_at.cmp(&b.created_at),
-        });
+        let lot_serials: Vec<LotSerial> =
+            rows.into_iter().map(Self::map_row_to_lot_serial).collect();
 
         // Take only enough to cover quantity_needed
         let mut selected = Vec::new();
