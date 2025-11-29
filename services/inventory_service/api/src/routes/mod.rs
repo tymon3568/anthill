@@ -51,7 +51,6 @@ use inventory_service_infra::services::category::CategoryServiceImpl;
 #[cfg(feature = "delivery")]
 // use inventory_service_infra::services::delivery::DeliveryServiceImpl; // Delivery feature disabled
 use inventory_service_infra::services::product::ProductServiceImpl;
-
 use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
 use inventory_service_infra::services::rma::PgRmaService;
 use inventory_service_infra::services::stock_take::PgStockTakeService;
@@ -203,7 +202,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let category_service = CategoryServiceImpl::new(category_repo);
 
     let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
-    let product_service = ProductServiceImpl::new(product_repo.clone());
+    let product_service =
+        inventory_service_infra::services::product::ProductServiceImpl::new(product_repo.clone());
 
     let valuation_repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
     let valuation_service = ValuationServiceImpl::new(
@@ -264,20 +264,26 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let reconciliation_item_repo =
         Arc::new(PgStockReconciliationItemRepository::new(Arc::new(pool.clone())));
 
-    let reconciliation_service = Arc::new(PgStockReconciliationService::new(
-        Arc::new(pool.clone()),
-        reconciliation_repo,
-        reconciliation_item_repo,
-        stock_move_repo.clone(),
-        inventory_level_repo.clone(),
-        product_repo.clone(),
-    ));
+    let reconciliation_service = Arc::new(
+        inventory_service_infra::services::reconciliation::PgStockReconciliationService::new(
+            Arc::new(pool.clone()),
+            reconciliation_repo,
+            reconciliation_item_repo,
+            stock_move_repo.clone(),
+            inventory_level_repo.clone(),
+            product_repo.clone(),
+        ),
+    );
 
     // Initialize RMA repositories and services
     let rma_repo = Arc::new(PgRmaRepository::new(Arc::new(pool.clone())));
     let rma_item_repo = Arc::new(PgRmaItemRepository::new(Arc::new(pool.clone())));
 
-    let rma_service = Arc::new(PgRmaService::new(rma_repo, rma_item_repo, stock_move_repo.clone()));
+    let rma_service = Arc::new(inventory_service_infra::services::rma::PgRmaService::new(
+        rma_repo,
+        rma_item_repo,
+        stock_move_repo.clone(),
+    ));
 
     // Initialize receipt repositories and services
     let receipt_repo =
