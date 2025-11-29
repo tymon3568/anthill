@@ -109,3 +109,10 @@ Modify the `products` table to add a `tracking_method` field. This will allow en
     - Removed redundant comment "// Dummy delivery service to avoid compile errors when delivery is disabled" from services/inventory_service/api/src/routes/mod.rs
     - Committed with message: "refactor: remove redundant comment about dummy delivery service [TaskID: 04.05.02]"
     - Status: Code cleanup completed, no linting warnings
+  *   2025-11-29 18:00: [Utoipa Import Fix] by Grok_Code
+    - Fixed utoipa import in services/inventory_service/core/src/domains/inventory/product.rs by gating with #[cfg(feature = "openapi")]
+    - Added #[cfg_attr(feature = "openapi", derive(ToSchema))] to ProductTrackingMethod enum
+    - Committed with message: "fix: gate utoipa import with openapi feature in product.rs [TaskID: 04.05.02]"
+    - Status: Compilation issues resolved, tests passing
+
+  ---
