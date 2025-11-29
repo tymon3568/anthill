@@ -50,7 +50,7 @@ Commands:
   build             Build all services
   all               Run complete CI pipeline
   clean             Clean up test artifacts
-  
+
 Options:
   --verbose         Show detailed output
   --package NAME    Run tests for specific package
@@ -74,32 +74,32 @@ EOF
 
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     # Check Rust
     if ! command -v cargo &> /dev/null; then
         log_error "Rust is not installed. Install from https://rustup.rs"
         exit 1
     fi
     log_success "Rust $(rustc --version)"
-    
+
     # Check rustfmt
     if ! command -v cargo-fmt &> /dev/null; then
         log_warning "rustfmt not found. Installing..."
         rustup component add rustfmt
     fi
-    
+
     # Check clippy
     if ! command -v cargo-clippy &> /dev/null; then
         log_warning "clippy not found. Installing..."
         rustup component add clippy
     fi
-    
+
     log_success "All prerequisites met"
 }
 
 run_lint() {
     log_info "Running lint checks..."
-    
+
     # Format check
     log_info "Checking code formatting..."
     if cargo fmt --all -- --check; then
@@ -109,7 +109,7 @@ run_lint() {
         log_warning "Run 'cargo fmt --all' to fix"
         return 1
     fi
-    
+
     # Clippy
     log_info "Running clippy..."
     if RUSTFLAGS="$RUSTFLAGS" cargo clippy --workspace --all-targets --all-features -- -D warnings; then
@@ -118,7 +118,7 @@ run_lint() {
         log_error "Clippy: FAILED"
         return 1
     fi
-    
+
     log_success "Lint checks: ALL PASSED"
 }
 
@@ -126,23 +126,23 @@ run_unit_tests() {
     local verbose="${1:-false}"
     local package="${2:-}"
     local threads="${3:-4}"
-    
+
     log_info "Running unit tests..."
-    
+
     local cmd="cargo test --workspace --lib --bins --exclude integration_tests"
-    
+
     if [ -n "$package" ]; then
         cmd="cargo test --package $package --lib"
     fi
-    
+
     if [ "$verbose" = "true" ]; then
         cmd="$cmd -- --nocapture --test-threads=$threads"
     else
         cmd="$cmd -- --test-threads=$threads"
     fi
-    
+
     log_info "Command: $cmd"
-    
+
     if RUSTFLAGS="$RUSTFLAGS" eval "$cmd"; then
         log_success "Unit tests: PASSED"
     else
@@ -154,9 +154,9 @@ run_unit_tests() {
 run_integration_tests() {
     local verbose="${1:-false}"
     local package="${2:-}"
-    
+
     log_info "Running integration tests..."
-    
+
     # Check database connection
     if ! psql "$DATABASE_URL" -c "SELECT 1" &> /dev/null; then
         log_error "Cannot connect to database: $DATABASE_URL"
@@ -165,39 +165,39 @@ run_integration_tests() {
         return 1
     fi
     log_success "Database connection: OK"
-    
+
     # Run migrations
     log_info "Running database migrations..."
     if ! command -v sqlx &> /dev/null; then
         log_warning "sqlx-cli not found. Installing..."
         cargo install sqlx-cli --no-default-features --features postgres
     fi
-    
+
     sqlx migrate run --database-url "$DATABASE_URL"
     log_success "Migrations: COMPLETE"
-    
+
     # Run tests
     local cmd="cargo test --workspace --test '*'"
-    
+
     if [ -n "$package" ]; then
         cmd="cargo test --package $package --test '*'"
     fi
-    
+
     if [ "$verbose" = "true" ]; then
         cmd="$cmd -- --ignored --nocapture --test-threads=1"
     else
         cmd="$cmd -- --ignored --test-threads=1"
     fi
-    
+
     log_info "Command: $cmd"
-    
+
     if DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" RUSTFLAGS="$RUSTFLAGS" eval "$cmd"; then
         log_success "Integration tests: PASSED"
     else
         log_error "Integration tests: FAILED"
         return 1
     fi
-    
+
     # Cleanup
     log_info "Cleaning up test data..."
     psql "$DATABASE_URL" -c "SELECT cleanup_test_data();" &> /dev/null || log_warning "Cleanup function not available"
@@ -205,18 +205,18 @@ run_integration_tests() {
 
 run_security_tests() {
     local verbose="${1:-false}"
-    
+
     log_info "Running security tests..."
-    
+
     # Check database
     if ! psql "$DATABASE_URL" -c "SELECT 1" &> /dev/null; then
         log_error "Cannot connect to database: $DATABASE_URL"
         return 1
     fi
-    
+
     # Run migrations
     sqlx migrate run --database-url "$DATABASE_URL" &> /dev/null
-    
+
     # SQL injection tests
     log_info "Testing SQL injection protection..."
     if DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" RUSTFLAGS="$RUSTFLAGS" \
@@ -225,7 +225,7 @@ run_security_tests() {
     else
         log_warning "SQL injection tests: FAILED or not found"
     fi
-    
+
     # Tenant isolation tests
     log_info "Testing tenant isolation..."
     if DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" RUSTFLAGS="$RUSTFLAGS" \
@@ -234,7 +234,7 @@ run_security_tests() {
     else
         log_warning "Tenant isolation tests: FAILED or not found"
     fi
-    
+
     # Security tests
     log_info "Testing authentication/JWT security..."
     if DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" RUSTFLAGS="$RUSTFLAGS" \
@@ -243,25 +243,25 @@ run_security_tests() {
     else
         log_warning "Security tests: FAILED or not found"
     fi
-    
+
     log_success "Security tests: COMPLETE"
 }
 
 run_coverage() {
     local upload="${1:-false}"
     local open_html="${2:-false}"
-    
+
     log_info "Generating coverage report..."
-    
+
     # Check for coverage tool
     if ! command -v cargo-llvm-cov &> /dev/null; then
         log_warning "cargo-llvm-cov not found. Installing..."
         cargo install cargo-llvm-cov
     fi
-    
+
     # Install llvm-tools
     rustup component add llvm-tools-preview &> /dev/null || true
-    
+
     # Check database for integration tests
     local db_available=false
     if psql "$DATABASE_URL" -c "SELECT 1" &> /dev/null; then
@@ -271,10 +271,10 @@ run_coverage() {
     else
         log_warning "Database not available - skipping integration tests"
     fi
-    
+
     # Generate coverage
     log_info "Running tests with coverage instrumentation..."
-    
+
     if [ "$db_available" = true ]; then
         DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT_SECRET" RUSTFLAGS="$RUSTFLAGS" \
         cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info -- --include-ignored
@@ -282,9 +282,9 @@ run_coverage() {
         RUSTFLAGS="$RUSTFLAGS" \
         cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
     fi
-    
+
     log_success "Coverage data generated: lcov.info"
-    
+
     # Generate HTML report
     log_info "Generating HTML report..."
     if [ "$db_available" = true ]; then
@@ -294,17 +294,17 @@ run_coverage() {
         RUSTFLAGS="$RUSTFLAGS" \
         cargo llvm-cov report --html
     fi
-    
+
     if [ -d "target/llvm-cov/html" ]; then
         log_success "HTML report: target/llvm-cov/html/index.html"
     fi
-    
+
     # Get coverage percentage
     local coverage
     coverage=$(cargo llvm-cov report --summary-only | grep -oP '\d+\.\d+(?=%)' | head -1 || echo "0")
-    
+
     log_info "Coverage: ${coverage}%"
-    
+
     if (( $(echo "$coverage < 70.0" | bc -l 2>/dev/null || echo 0) )); then
         log_warning "Coverage is below 70% (current: ${coverage}%)"
     elif (( $(echo "$coverage < 80.0" | bc -l 2>/dev/null || echo 0) )); then
@@ -312,7 +312,7 @@ run_coverage() {
     else
         log_success "Coverage meets target: ${coverage}%"
     fi
-    
+
     # Upload to Codecov
     if [ "$upload" = "true" ]; then
         log_info "Uploading to Codecov..."
@@ -322,7 +322,7 @@ run_coverage() {
             log_warning "curl not found. Cannot upload to Codecov"
         fi
     fi
-    
+
     # Open HTML report
     if [ "$open_html" = "true" ]; then
         if command -v xdg-open &> /dev/null; then
@@ -337,9 +337,9 @@ run_coverage() {
 
 run_build() {
     log_info "Building all services..."
-    
+
     local services=("user_service" "inventory_service" "order_service" "payment_service" "integration_service")
-    
+
     for service in "${services[@]}"; do
         if [ -d "services/$service" ]; then
             log_info "Building $service..."
@@ -351,20 +351,20 @@ run_build() {
             fi
         fi
     done
-    
+
     log_success "All services: BUILD COMPLETE"
 }
 
 run_all() {
     log_info "Running complete CI pipeline..."
-    
+
     local start_time=$(date +%s)
-    
+
     # Run all stages
     check_prerequisites || return 1
     run_lint || return 1
     run_unit_tests false "" 4 || return 1
-    
+
     # Check if database is available
     if psql "$DATABASE_URL" -c "SELECT 1" &> /dev/null; then
         run_integration_tests false "" || return 1
@@ -373,23 +373,23 @@ run_all() {
     else
         log_warning "Skipping integration, security, and coverage tests (no database)"
     fi
-    
+
     run_build || return 1
-    
+
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
-    
+
     log_success "Complete CI pipeline: PASSED in ${duration}s"
 }
 
 clean_artifacts() {
     log_info "Cleaning test artifacts..."
-    
+
     rm -rf target/debug/deps/*.xml 2>/dev/null || true
     rm -rf target/llvm-cov 2>/dev/null || true
     rm -f lcov.info 2>/dev/null || true
     rm -rf coverage-html 2>/dev/null || true
-    
+
     log_success "Artifacts cleaned"
 }
 
@@ -397,14 +397,14 @@ clean_artifacts() {
 main() {
     local command="${1:-help}"
     shift || true
-    
+
     # Parse options
     local verbose=false
     local package=""
     local threads=""
     local upload=false
     local open_html=false
-    
+
     while [[ $# -gt 0 ]]; do
         case $1 in
             --verbose)
@@ -438,7 +438,7 @@ main() {
                 ;;
         esac
     done
-    
+
     # Execute command
     case $command in
         lint)

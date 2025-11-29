@@ -12,10 +12,10 @@
 ALTER TABLE sessions ALTER COLUMN access_token_hash DROP NOT NULL;
 ALTER TABLE sessions ALTER COLUMN refresh_token_hash DROP NOT NULL;
 
-COMMENT ON COLUMN sessions.access_token_hash IS 
+COMMENT ON COLUMN sessions.access_token_hash IS
   'SHA-256 hash of JWT access token (legacy auth). NULL for Kanidm sessions.';
 
-COMMENT ON COLUMN sessions.refresh_token_hash IS 
+COMMENT ON COLUMN sessions.refresh_token_hash IS
   'SHA-256 hash of JWT refresh token (legacy auth). NULL for Kanidm sessions.';
 
 -- =============================================================================
@@ -32,10 +32,10 @@ ALTER TABLE sessions ADD COLUMN auth_method VARCHAR(50) NOT NULL DEFAULT 'jwt';
 ALTER TABLE sessions ADD CONSTRAINT sessions_auth_method_check
   CHECK (auth_method IN ('jwt', 'kanidm', 'dual'));
 
-COMMENT ON COLUMN sessions.kanidm_session_id IS 
+COMMENT ON COLUMN sessions.kanidm_session_id IS
   'Kanidm session UUID for OAuth2 sessions. NULL for legacy JWT sessions.';
 
-COMMENT ON COLUMN sessions.auth_method IS 
+COMMENT ON COLUMN sessions.auth_method IS
   'Authentication method: jwt (legacy), kanidm (OAuth2), dual (hybrid session)';
 
 -- =============================================================================
@@ -43,7 +43,7 @@ COMMENT ON COLUMN sessions.auth_method IS
 -- =============================================================================
 
 -- Mark existing sessions as JWT-based (legacy)
-UPDATE sessions 
+UPDATE sessions
 SET auth_method = 'jwt'
 WHERE kanidm_session_id IS NULL;
 
@@ -52,18 +52,18 @@ WHERE kanidm_session_id IS NULL;
 -- =============================================================================
 
 -- Index for Kanidm session lookup
-CREATE INDEX idx_sessions_kanidm_session 
-  ON sessions(kanidm_session_id) 
+CREATE INDEX idx_sessions_kanidm_session
+  ON sessions(kanidm_session_id)
   WHERE kanidm_session_id IS NOT NULL AND NOT revoked;
 
 -- Index for auth method analytics
-CREATE INDEX idx_sessions_auth_method 
-  ON sessions(auth_method, created_at) 
+CREATE INDEX idx_sessions_auth_method
+  ON sessions(auth_method, created_at)
   WHERE NOT revoked;
 
 -- Composite index for user sessions by auth method
-CREATE INDEX idx_sessions_user_auth 
-  ON sessions(user_id, auth_method, created_at) 
+CREATE INDEX idx_sessions_user_auth
+  ON sessions(user_id, auth_method, created_at)
   WHERE NOT revoked;
 
 -- =============================================================================
@@ -72,7 +72,7 @@ CREATE INDEX idx_sessions_user_auth
 
 -- Session distribution by auth method
 CREATE OR REPLACE VIEW v_session_stats AS
-SELECT 
+SELECT
   auth_method,
   COUNT(*) AS total_sessions,
   COUNT(*) FILTER (WHERE revoked = FALSE) AS active_sessions,
@@ -84,7 +84,7 @@ WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
 GROUP BY auth_method
 ORDER BY total_sessions DESC;
 
-COMMENT ON VIEW v_session_stats IS 
+COMMENT ON VIEW v_session_stats IS
   'Session statistics by authentication method (last 7 days)';
 
 -- =============================================================================
@@ -118,13 +118,13 @@ BEGIN
     -- Revoked sessions older than threshold
     (revoked = TRUE AND revoked_at < NOW() - (days_old || ' days')::INTERVAL)
   );
-  
+
   GET DIAGNOSTICS deleted = ROW_COUNT;
   RETURN QUERY SELECT deleted;
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION cleanup_expired_sessions IS 
+COMMENT ON FUNCTION cleanup_expired_sessions IS
   'Delete expired and old revoked sessions. Usage: SELECT * FROM cleanup_expired_sessions(30);';
 
 -- =============================================================================
@@ -135,7 +135,7 @@ COMMENT ON FUNCTION cleanup_expired_sessions IS
 -- SELECT * FROM v_session_stats;
 
 -- Find Kanidm sessions
--- SELECT 
+-- SELECT
 --   s.session_id,
 --   s.auth_method,
 --   s.kanidm_session_id,

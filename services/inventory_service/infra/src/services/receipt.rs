@@ -7,8 +7,6 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use inventory_service_core::domains::inventory::dto::search_dto;
-use inventory_service_core::domains::inventory::product::Product;
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptListQuery, ReceiptListResponse, ReceiptResponse,
 };
@@ -244,6 +242,9 @@ mod tests {
     use std::sync::Arc;
     use uuid::Uuid;
     use validator::Validate;
+
+    use inventory_service_core::domains::inventory::dto::search_dto;
+    use inventory_service_core::domains::inventory::product::Product;
 
     #[test]
     fn test_generate_idempotency_key() {

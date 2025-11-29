@@ -11,7 +11,7 @@ BEGIN
     DELETE FROM user_profiles WHERE user_id IN (SELECT user_id FROM users WHERE tenant_id IN (SELECT tenant_id FROM tenants WHERE slug LIKE 'test-%'));
     DELETE FROM users WHERE tenant_id IN (SELECT tenant_id FROM tenants WHERE slug LIKE 'test-%');
     DELETE FROM tenants WHERE slug LIKE 'test-%';
-    
+
     -- Reset sequences if needed
     -- ALTER SEQUENCE users_id_seq RESTART WITH 1;
 END;
@@ -59,7 +59,7 @@ DECLARE
 BEGIN
     FOR i IN 1..count_param LOOP
         user_id_var := gen_random_uuid();
-        
+
         INSERT INTO users (
             user_id, tenant_id, email, password_hash, role, status,
             email_verified, email_verified_at, full_name, created_at, updated_at

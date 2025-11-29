@@ -49,7 +49,7 @@ use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 #[cfg(feature = "delivery")]
-use inventory_service_infra::services::delivery::DeliveryServiceImpl;
+// use inventory_service_infra::services::delivery::DeliveryServiceImpl; // Delivery feature disabled
 use inventory_service_infra::services::product::ProductServiceImpl;
 
 use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
@@ -218,22 +218,22 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
 
     // Initialize delivery repositories and services
-    #[cfg(feature = "delivery")]
-    let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(pool.clone()));
-    #[cfg(feature = "delivery")]
-    let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(pool.clone()));
+    // #[cfg(feature = "delivery")]
+    // let delivery_repo = Arc::new(PgDeliveryOrderRepository::new(Arc::new(pool.clone())));
+    // #[cfg(feature = "delivery")]
+    // let delivery_item_repo = Arc::new(PgDeliveryOrderItemRepository::new(Arc::new(pool.clone())));
 
     // Initialize stock repositories
     let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
     let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
 
-    #[cfg(feature = "delivery")]
-    let delivery_service = Arc::new(DeliveryServiceImpl::new(
-        delivery_repo,
-        delivery_item_repo,
-        stock_move_repo.clone(),
-        inventory_level_repo.clone(),
-    ));
+    // #[cfg(feature = "delivery")]
+    // let delivery_service = Arc::new(DeliveryServiceImpl::new(
+    //     delivery_repo,
+    //     delivery_item_repo,
+    //     stock_move_repo.clone(),
+    //     inventory_level_repo.clone(),
+    // ));
 
     // Initialize transfer repositories and services
     let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool.clone())));
@@ -295,9 +295,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
         receipt_service: Arc::new(receipt_service),
-        #[cfg(feature = "delivery")]
-        delivery_service,
-        #[cfg(not(feature = "delivery"))]
+        // #[cfg(feature = "delivery")]
+        // delivery_service,
+        // #[cfg(not(feature = "delivery"))]
         delivery_service: Arc::new(DummyDeliveryService {}),
         transfer_service,
         stock_take_service,
@@ -344,7 +344,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
                 match header_values {
                     Ok(values) => AllowOrigin::list(values),
-                    Err(e) => panic!("CORS configuration error: {}", e),
+                    Err(e) => {
+                        panic!("CORS configuration error: {}", e);
+                    },
                 }
             }
         })
