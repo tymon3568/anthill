@@ -7,8 +7,6 @@
 
 use axum::Router;
 
-use crate::state::AppState;
-
 /*
 #[utoipa::path(
     post,
@@ -187,10 +185,9 @@ pub async fn ship_items(
 */
 
 // Dummy delivery routes function - delivery feature is disabled
-pub fn create_delivery_routes(state: AppState) -> Router<AppState> {
+pub fn create_delivery_routes() -> Router {
     Router::new()
     // .route("/{delivery_id}/pick", post(pick_items))
     // .route("/{delivery_id}/pack", post(pack_items))
     // .route("/{delivery_id}/ship", post(ship_items))
-        .with_state(state)
 }

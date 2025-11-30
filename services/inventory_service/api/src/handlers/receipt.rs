@@ -21,6 +21,7 @@ use shared_error::AppError;
 use crate::state::AppState;
 
 /// Create the receipt routes with state
+/// Create the receipt routes with state
 pub fn create_receipt_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", post(create_receipt).get(list_receipts))
