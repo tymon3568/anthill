@@ -10,10 +10,10 @@ async-trait = {workspace = true}
 # Axum & web
 axum = {workspace = true}
 chrono = {workspace = true}
-hyper = {version = "1.0", features = ["full"]}
-hyper-util = {version = "0.1", features = ["full"]}
 # Futures
 futures = {workspace = true}
+hyper = {version = "1.0", features = ["full"]}
+hyper-util = {version = "0.1", features = ["full"]}
 # Internal crates
 inventory_service_core = {workspace = true, features = ["openapi"]}
 inventory_service_infra = {workspace = true}
