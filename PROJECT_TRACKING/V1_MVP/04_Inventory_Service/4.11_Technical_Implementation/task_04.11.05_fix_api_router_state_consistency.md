@@ -14,21 +14,21 @@
 Fix inconsistent router state usage in the inventory service API crate. Currently, some route builders return Router<AppState> while others return Router<()>, causing compilation errors when merging/nesting routers. Standardize on Router<AppState> everywhere to support AuthUser extractors and consistent state management.
 
 ## Specific Sub-tasks:
-- [ ] 1. Convert all route builders to return Router<AppState>
-- [ ] 2. Update handlers to use State<AppState> extractors instead of Extension<AppState>
-- [ ] 3. Fix router merging and nesting to use consistent AppState type
-- [ ] 4. Update create_router function to properly compose Router<AppState>
-- [ ] 5. Ensure AppState implements Clone for .with_state(state.clone()) usage
-- [ ] 6. Verify compilation passes with cargo check --workspace
-- [ ] 7. Run tests to ensure functionality works
+- [x] 1. Convert all route builders to return Router<AppState>
+- [x] 2. Update handlers to use State<AppState> extractors instead of Extension<AppState>
+- [x] 3. Fix router merging and nesting to use consistent AppState type
+- [x] 4. Update create_router function to properly compose Router<AppState>
+- [x] 5. Ensure AppState implements Clone for .with_state(state.clone()) usage
+- [x] 6. Verify compilation passes with cargo check --workspace
+- [x] 7. Run tests to ensure functionality works
 
 ## Acceptance Criteria:
-- [ ] All route builders return Router<AppState>
-- [ ] All handlers use State<AppState> extractors
-- [ ] Router merging and nesting works without type errors
-- [ ] Code compiles without errors: `cargo check --workspace`
-- [ ] Tests pass: `cargo test`
-- [ ] AuthUser and other state-dependent extractors work correctly
+- [x] All route builders return Router<AppState>
+- [x] All handlers use State<AppState> extractors
+- [x] Router merging and nesting works without type errors
+- [x] Code compiles without errors: `cargo check --workspace`
+- [x] Tests pass: `cargo test`
+- [x] AuthUser and other state-dependent extractors work correctly
 
 ## Dependencies:
 *   Task: `task_04.05.03_implement_fefo_picking_strategy.md` (Status: Done)
