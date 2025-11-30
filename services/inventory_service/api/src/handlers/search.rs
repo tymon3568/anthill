@@ -19,7 +19,7 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Create the search routes
-pub fn create_search_routes(state: AppState) -> Router {
+pub fn create_search_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/search", get(search_products))
         .route("/suggestions", get(search_suggestions))

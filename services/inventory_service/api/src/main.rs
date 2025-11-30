@@ -9,6 +9,7 @@ use inventory_service_api::create_router;
 use shared_config::Config;
 use shared_db::init_pool;
 use tokio::net::TcpListener;
+use tower::make::Shared;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -48,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(addr).await?;
     tracing::info!("Inventory service listening on {}", addr);
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, tower::make::Shared::new(app)).await?;
 
     Ok(())
 }

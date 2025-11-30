@@ -1,5 +1,5 @@
 use crate::enforcer::SharedEnforcer;
-use axum::extract::{Request, State};
+use axum::extract::{Extension, Request};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use casbin::CoreApi;
@@ -39,7 +39,7 @@ pub struct AuthzState {
 /// }
 /// ```
 pub async fn casbin_middleware(
-    State(state): State<AuthzState>,
+    Extension(state): Extension<AuthzState>,
     mut request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {

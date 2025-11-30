@@ -19,7 +19,7 @@ use shared_error::AppError;
 use crate::state::AppState;
 
 /// Create the stock take routes with state
-pub fn create_stock_take_routes(state: AppState) -> Router {
+pub fn create_stock_take_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", post(create_stock_take))
         .route("/:stock_take_id/count", post(count_stock_take))

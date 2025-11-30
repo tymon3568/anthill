@@ -26,7 +26,7 @@ use shared_error::AppError;
 use crate::state::AppState;
 
 /// Create the category routes with state
-pub fn create_category_routes(state: AppState) -> Router {
+pub fn create_category_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", get(list_categories).post(create_category))
         .route("/tree", get(get_category_tree))

@@ -45,11 +45,13 @@ use inventory_service_infra::repositories::transfer::{
 use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
+use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
 
 // Local handlers/state
 use crate::handlers::category::create_category_routes;
 #[cfg(feature = "delivery")]
 use crate::handlers::delivery::create_delivery_routes;
+use crate::handlers::lot_serial::create_lot_serial_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
 use crate::handlers::rma::create_rma_routes;
@@ -155,7 +157,7 @@ impl DeliveryService for DummyDeliveryService {
 }
 
 /// Create the main application router
-pub async fn create_router(pool: PgPool, config: &Config) -> Router {
+pub async fn create_router(pool: PgPool, config: &Config) -> Router<AppState> {
     // Validate CORS configuration for production
     let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
     let rust_env = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string());
@@ -198,6 +200,12 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Initialize repositories and services
     let category_repo = CategoryRepositoryImpl::new(pool.clone());
     let category_service = CategoryServiceImpl::new(category_repo);
+
+    let lot_serial_repo =
+        inventory_service_infra::repositories::lot_serial::LotSerialRepositoryImpl::new(
+            pool.clone(),
+        );
+    let lot_serial_service = LotSerialServiceImpl::new(lot_serial_repo);
 
     let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
     let product_service =
@@ -283,6 +291,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
+        lot_serial_service: Arc::new(lot_serial_service),
         product_service: Arc::new(product_service),
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
@@ -354,13 +363,14 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let public_routes = Router::new()
         .route("/health", get(crate::handlers::health::health_check))
         .layer(Extension(pool.clone()))
-        .layer(Extension(config.clone()));
+        .layer(Extension(config.clone()))
+        .with_state(state.clone());
 
     // Protected routes (require authentication)
-    let protected_routes = Router::new().nest("/api/v1/inventory", category_routes);
-
-    #[cfg(feature = "delivery")]
-    let protected_routes = protected_routes.nest("/api/v1/inventory/deliveries", delivery_routes);
+    let protected_routes = Router::new()
+        .with_state(state.clone())
+        .layer(Extension(authz_state))
+        .nest("/api/v1/inventory", category_routes);
 
     let protected_routes = protected_routes
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
@@ -373,13 +383,15 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
         .layer(Extension(pool))
         .layer(Extension(config.clone()))
-        .layer(axum::middleware::from_fn_with_state(authz_state, casbin_middleware));
+        .layer(axum::middleware::from_fn(casbin_middleware));
 
     // Merge public and protected routes, apply global layers
-    Router::new()
-        .merge(public_routes)
-        .merge(protected_routes)
-        .layer(cors)
+    let mut router = Router::new().with_state(state.clone());
+    router = router.merge(public_routes);
+    router = router.merge(protected_routes);
+    router = router.nest("/api/v1/inventory/lot-serials", create_lot_serial_routes(state.clone()));
+    router = router.layer(cors);
+    router
 }
 
 // function moved

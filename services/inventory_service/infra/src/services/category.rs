@@ -43,7 +43,7 @@ impl<R: CategoryRepository> CategoryServiceImpl<R> {
 }
 
 #[async_trait]
-impl<R: CategoryRepository> CategoryService for CategoryServiceImpl<R> {
+impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R> {
     /// Create a new category with business rule validation
     ///
     /// Validates the request, generates slugs, checks parent relationships,

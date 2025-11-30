@@ -77,8 +77,8 @@ pub async fn approve_rma(
     Ok(Json(response))
 }
 
-/// Create RMA routes
-pub fn create_rma_routes(state: AppState) -> Router {
+/// Create the RMA routes with state
+pub fn create_rma_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", post(create_rma))
         .route("/:rma_id/approve", post(approve_rma))

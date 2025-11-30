@@ -4,6 +4,7 @@
 
 pub mod category;
 pub mod delivery;
+pub mod lot_serial;
 pub mod product;
 pub mod receipt;
 pub mod reconciliation;
@@ -18,6 +19,7 @@ mod category_tests;
 // Re-export services for convenience
 pub use category::CategoryServiceImpl;
 // pub use delivery::DeliveryServiceImpl;
+pub use lot_serial::LotSerialServiceImpl;
 pub use product::ProductServiceImpl;
 pub use receipt::ReceiptServiceImpl;
 pub use reconciliation::PgStockReconciliationService;

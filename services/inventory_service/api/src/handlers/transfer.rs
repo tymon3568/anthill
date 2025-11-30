@@ -18,7 +18,7 @@ use shared_error::AppError;
 use crate::state::AppState;
 
 /// Create the transfer routes with state
-pub fn create_transfer_routes(state: AppState) -> Router {
+pub fn create_transfer_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", post(create_transfer))
         .route("/:transfer_id/confirm", post(confirm_transfer))

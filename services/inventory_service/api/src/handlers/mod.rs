@@ -1,6 +1,7 @@
 pub mod category;
 pub mod delivery;
 pub mod health;
+pub mod lot_serial;
 pub mod receipt;
 pub mod reconciliation;
 pub mod rma;

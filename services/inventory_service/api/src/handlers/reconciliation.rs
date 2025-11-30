@@ -21,7 +21,7 @@ use shared_error::AppError;
 use crate::state::AppState;
 
 /// Create the reconciliation routes with state
-pub fn create_reconciliation_routes(state: AppState) -> Router {
+pub fn create_reconciliation_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", post(create_reconciliation))
         .route("/analytics", get(get_reconciliation_analytics))

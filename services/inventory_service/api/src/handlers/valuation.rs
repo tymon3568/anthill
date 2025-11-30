@@ -22,7 +22,7 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Create the valuation routes
-pub fn create_valuation_routes(state: AppState) -> Router {
+pub fn create_valuation_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", get(get_valuation))
         .route("/method", put(set_valuation_method))

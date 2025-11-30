@@ -18,7 +18,7 @@ use crate::Result;
 /// This trait defines all business operations for categories.
 /// Infrastructure layer will provide the actual implementation.
 #[async_trait]
-pub trait CategoryService: Send + Sync {
+pub trait CategoryService: Send + Sync + 'static {
     // ========================================================================
     // CRUD Operations
     // ========================================================================

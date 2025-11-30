@@ -403,7 +403,7 @@ pub async fn create_location(
 }
 
 /// Create warehouse routes
-pub fn create_warehouse_routes(state: AppState) -> Router {
+pub fn create_warehouse_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", get(get_warehouses).post(create_warehouse))
         .route("/tree", get(get_warehouse_tree))
