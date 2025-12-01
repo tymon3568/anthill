@@ -213,7 +213,7 @@ where
     /// # use uuid::Uuid;
     /// # struct MyState;
     /// # impl crate::JwtSecretProvider for MyState { fn get_jwt_secret(&self) -> &str { "secret" } }
-    /// # impl crate::JwtSecretProvider for MyState { fn get_kanidm_client(&self) -> &KanidmClient { todo!() } }
+    /// # impl crate::KanidmClientProvider for MyState { fn get_kanidm_client(&self) -> &shared_kanidm_client::KanidmClient { todo!() } }
     /// # struct MyRole;
     /// # impl crate::Role for MyRole { fn name() -> &'static str { "user" } }
     /// # async fn demo(parts: &mut Parts, state: &MyState) {

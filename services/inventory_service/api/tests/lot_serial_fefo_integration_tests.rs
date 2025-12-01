@@ -254,7 +254,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
         "EXPIRED001",
         50,
         50,
-        chrono::Utc::now().date_naive() - chrono::Days::new(1), // expired yesterday
+        chrono::Utc::now().date_naive() - chrono::Days::new(2), // safely expired in the past
         LotSerialStatus::Active as LotSerialStatus
     )
     .execute(&pool)
@@ -376,7 +376,7 @@ async fn test_quarantine_expired_lots() {
         "EXPIRED001",
         50,
         25, // partially consumed
-        chrono::Utc::now().date_naive() - chrono::Days::new(1), // expired
+        chrono::Utc::now().date_naive() - chrono::Days::new(2), // safely expired in the past
         LotSerialStatus::Active as LotSerialStatus
     )
     .execute(&pool)

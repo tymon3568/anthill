@@ -381,6 +381,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router<AppState> {
         .nest("/api/v1/inventory/transfers", transfer_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
+        .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes(state.clone()))
         .layer(Extension(pool))
         .layer(Extension(config.clone()))
         .layer(axum::middleware::from_fn(casbin_middleware));
@@ -389,7 +390,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router<AppState> {
     let mut router = Router::new().with_state(state.clone());
     router = router.merge(public_routes);
     router = router.merge(protected_routes);
-    router = router.nest("/api/v1/inventory/lot-serials", create_lot_serial_routes(state.clone()));
     router = router.layer(cors);
     router
 }

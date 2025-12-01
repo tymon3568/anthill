@@ -22,7 +22,7 @@ Implement a FEFO (First Expiry, First Out) picking strategy. When creating a del
 ## Acceptance Criteria:
 - [x] The picking logic correctly prioritizes lots with the earliest expiry dates.
 - [x] The system prevents the use of expired stock.
-- [ ] Tests are written to verify the FEFO logic.
+- [x] Tests are written to verify the FEFO logic.
 
 ## Dependencies:
 *   Task: `task_04.05.01_create_lots_serial_numbers_table.md`

@@ -114,10 +114,13 @@ pub async fn quarantine_expired_lots(
 pub fn create_lot_serial_routes(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::post(create_lot_serial))
-        .route("/:lot_serial_id", axum::routing::get(get_lot_serial))
-        .route("/:lot_serial_id", axum::routing::put(update_lot_serial))
-        .route("/:lot_serial_id", axum::routing::delete(delete_lot_serial))
-        .route("/products/:product_id", axum::routing::get(list_lot_serials_by_product))
+        .route(
+            "/{lot_serial_id}",
+            axum::routing::get(get_lot_serial)
+                .put(update_lot_serial)
+                .delete(delete_lot_serial),
+        )
+        .route("/products/{product_id}", axum::routing::get(list_lot_serials_by_product))
         .route("/quarantine-expired", axum::routing::post(quarantine_expired_lots))
         .with_state(state)
 }
