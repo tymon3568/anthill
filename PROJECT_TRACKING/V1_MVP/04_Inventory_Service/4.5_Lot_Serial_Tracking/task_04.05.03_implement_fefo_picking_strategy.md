@@ -67,3 +67,9 @@ Implement a FEFO (First Expiry, First Out) picking strategy. When creating a del
   - Status remains NeedsReview
 * 2025-11-29 15:45: PR merged, task completed by Grok_Code
   - Status: Done
+* 2025-12-01 10:00: Architectural consolidation by Grok_Code
+  - Consolidated duplicate LotSerialService implementations: Removed LotSerialServiceImpl from core crate, keeping only the trait for domain contracts
+  - Ensured infra crate retains the concrete implementation using LotSerialRepositoryImpl
+  - Verified inventory_service_core builds successfully without infrastructure dependencies
+  - Maintained separation of concerns: core = traits/models, infra = implementations
+  - Status: Done
