@@ -4,6 +4,7 @@ use axum::{
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use inventory_service_core::models::{LotSerial, LotSerialStatus, LotSerialTrackingType};
@@ -13,13 +14,13 @@ use shared_error::AppError;
 
 use crate::state::AppState;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct ListLotSerialsQuery {
     pub tracking_type: Option<LotSerialTrackingType>,
     pub status: Option<LotSerialStatus>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct QuarantineResponse {
     pub quarantined_count: i64,
 }
