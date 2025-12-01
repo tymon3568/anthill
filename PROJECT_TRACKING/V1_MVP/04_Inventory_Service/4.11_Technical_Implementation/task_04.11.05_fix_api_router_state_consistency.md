@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.11_Technical_Implementation
 **Priority:** High
-**Status:** Done
+**Status:** NeedsReview
 **Assignee:** Grok_Code
 **Created Date:** 2025-11-29
 **Last Updated:** 2025-11-29
@@ -67,4 +67,10 @@ Fix inconsistent router state usage in the inventory service API crate. Currentl
   - Code compiles successfully with serving temporarily commented out
   - Serving Router<AppState> requires separate implementation (hyper or Extension approach)
   - Status: Done
+* 2025-11-29 19:00: Implementation refined to Extension-based approach
+  - Switched to Router<()> with Extension<AppState> layers for axum::serve compatibility
+  - Updated AuthUser, RequireAdmin, RequirePermission extractors to use Extension<AuthzState>
+  - Standardized all handlers to use Extension<AppState> for state access
+  - Fixed router composition, authentication bypass, and server startup issues
+  - Status: NeedsReview - core fixes applied, awaiting human review for architectural consistency
 ```
