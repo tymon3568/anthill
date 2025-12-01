@@ -5,7 +5,7 @@ use crate::models::{LotSerial, LotSerialStatus, LotSerialTrackingType};
 use shared_error::AppError;
 
 #[async_trait]
-pub trait LotSerialRepository: Send + Sync {
+pub trait LotSerialRepository: Send + Sync + 'static {
     async fn create(&self, lot_serial: &LotSerial) -> Result<(), AppError>;
     async fn find_by_id(
         &self,
@@ -34,4 +34,5 @@ pub trait LotSerialRepository: Send + Sync {
         new_remaining_quantity: i64,
     ) -> Result<(), AppError>;
     async fn delete(&self, tenant_id: Uuid, lot_serial_id: Uuid) -> Result<(), AppError>;
+    async fn quarantine_expired_lots(&self, tenant_id: Uuid) -> Result<i64, AppError>;
 }

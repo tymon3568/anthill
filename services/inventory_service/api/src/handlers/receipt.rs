@@ -3,7 +3,7 @@
 //! This module contains the Axum handlers for Goods Receipt Note (GRN) operations.
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -20,13 +20,12 @@ use shared_error::AppError;
 
 use crate::state::AppState;
 
-/// Create the receipt routes with state
-pub fn create_receipt_routes(state: AppState) -> Router {
+/// Create the receipt routes
+pub fn create_receipt_routes() -> Router {
     Router::new()
         .route("/", post(create_receipt).get(list_receipts))
         .route("/{receipt_id}", get(get_receipt))
         .route("/{receipt_id}/validate", post(validate_receipt))
-        .with_state(state)
 }
 
 /// POST /api/v1/inventory/receipts - Create a new Goods Receipt Note
@@ -75,7 +74,7 @@ pub fn create_receipt_routes(state: AppState) -> Router {
 /// ```
 pub async fn create_receipt(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<ReceiptCreateRequest>,
 ) -> Result<(StatusCode, Json<ReceiptResponse>), AppError> {
     request
@@ -120,7 +119,7 @@ pub async fn create_receipt(
 /// ```
 pub async fn list_receipts(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(query): Query<ReceiptListQuery>,
 ) -> Result<Json<ReceiptListResponse>, AppError> {
     query
@@ -180,7 +179,7 @@ pub async fn list_receipts(
 /// ```
 pub async fn get_receipt(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(receipt_id): Path<Uuid>,
 ) -> Result<Json<ReceiptResponse>, AppError> {
     let receipt = state
@@ -218,7 +217,7 @@ pub async fn get_receipt(
 /// Response includes the updated receipt with status 'received'.
 pub async fn validate_receipt(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(receipt_id): Path<Uuid>,
 ) -> Result<Json<ReceiptResponse>, AppError> {
     let receipt = state

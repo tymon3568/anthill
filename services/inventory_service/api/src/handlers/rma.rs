@@ -3,7 +3,7 @@
 //! This module contains HTTP handlers for RMA operations.
 
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path},
     routing::post,
     Json, Router,
 };
@@ -34,7 +34,7 @@ use crate::state::AppState;
 )]
 pub async fn create_rma(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<CreateRmaRequest>,
 ) -> Result<Json<CreateRmaResponse>, AppError> {
     let response = state
@@ -65,7 +65,7 @@ pub async fn create_rma(
 )]
 pub async fn approve_rma(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(rma_id): Path<Uuid>,
     Json(request): Json<ApproveRmaRequest>,
 ) -> Result<Json<ApproveRmaResponse>, AppError> {
@@ -77,13 +77,12 @@ pub async fn approve_rma(
     Ok(Json(response))
 }
 
-/// Create RMA routes
-pub fn create_rma_routes(state: AppState) -> Router {
+/// Create the RMA routes
+pub fn create_rma_routes() -> Router {
     Router::new()
         .route("/", post(create_rma))
         .route("/:rma_id/approve", post(approve_rma))
         .route("/:rma_id/receive", post(receive_rma))
-        .with_state(state)
 }
 
 /// POST /api/v1/inventory/rma/{rma_id}/receive - Process the receipt of returned goods
@@ -106,7 +105,7 @@ pub fn create_rma_routes(state: AppState) -> Router {
 )]
 pub async fn receive_rma(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(rma_id): Path<Uuid>,
     Json(request): Json<ReceiveRmaRequest>,
 ) -> Result<Json<ReceiveRmaResponse>, AppError> {

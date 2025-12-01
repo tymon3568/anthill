@@ -1,15 +1,17 @@
 use crate::enforcer::SharedEnforcer;
-use axum::extract::{Request, State};
+use axum::extract::{Extension, Request};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use casbin::CoreApi;
 use http::{header, StatusCode};
+use shared_kanidm_client::KanidmClient;
 use tracing::{debug, warn};
 
 #[derive(Clone)]
 pub struct AuthzState {
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
+    pub kanidm_client: KanidmClient,
 }
 
 /// Casbin authorization middleware
@@ -39,7 +41,7 @@ pub struct AuthzState {
 /// }
 /// ```
 pub async fn casbin_middleware(
-    State(state): State<AuthzState>,
+    Extension(state): Extension<AuthzState>,
     mut request: Request,
     next: Next,
 ) -> Result<Response, AuthError> {

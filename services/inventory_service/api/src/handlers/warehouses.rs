@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
@@ -46,7 +46,7 @@ pub struct ErrorResponse {
     )
 )]
 pub async fn create_warehouse(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
     Json(request): Json<CreateWarehouseRequest>,
@@ -101,7 +101,7 @@ pub async fn create_warehouse(
     )
 )]
 pub async fn get_warehouse_tree(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
 ) -> Result<Json<WarehouseTreeResponse>, AppError> {
@@ -134,7 +134,7 @@ pub async fn get_warehouse_tree(
     )
 )]
 pub async fn get_warehouse(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
     Path(warehouse_id): Path<Uuid>,
@@ -165,7 +165,7 @@ pub async fn get_warehouse(
     )
 )]
 pub async fn get_warehouses(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
 ) -> Result<Json<Vec<WarehouseResponse>>, AppError> {
@@ -202,7 +202,7 @@ pub async fn get_warehouses(
     )
 )]
 pub async fn update_warehouse(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
     Path(warehouse_id): Path<Uuid>,
@@ -273,7 +273,7 @@ pub async fn update_warehouse(
     )
 )]
 pub async fn delete_warehouse(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
     Path(warehouse_id): Path<Uuid>,
@@ -313,7 +313,7 @@ pub async fn delete_warehouse(
     )
 )]
 pub async fn create_zone(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
     Path(warehouse_id): Path<Uuid>,
@@ -366,7 +366,7 @@ pub async fn create_zone(
     )
 )]
 pub async fn create_location(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     user: AuthUser,
     RequirePermission { .. }: RequirePermission,
     Path(warehouse_id): Path<Uuid>,
@@ -403,7 +403,7 @@ pub async fn create_location(
 }
 
 /// Create warehouse routes
-pub fn create_warehouse_routes(state: AppState) -> Router {
+pub fn create_warehouse_routes() -> Router {
     Router::new()
         .route("/", get(get_warehouses).post(create_warehouse))
         .route("/tree", get(get_warehouse_tree))
@@ -415,5 +415,4 @@ pub fn create_warehouse_routes(state: AppState) -> Router {
         )
         .route("/{warehouse_id}/zones", post(create_zone))
         .route("/{warehouse_id}/locations", post(create_location))
-        .with_state(state)
 }

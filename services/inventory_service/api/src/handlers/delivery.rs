@@ -7,8 +7,6 @@
 
 use axum::Router;
 
-use crate::state::AppState;
-
 /*
 #[utoipa::path(
     post,
@@ -29,7 +27,7 @@ use crate::state::AppState;
 )]
 pub async fn pick_items(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(delivery_id): Path<Uuid>,
     Json(request): Json<PickItemsRequest>,
 ) -> Result<Json<PickItemsResponse>, AppError> {
@@ -97,7 +95,7 @@ pub async fn pick_items(
 )]
 pub async fn pack_items(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(delivery_id): Path<Uuid>,
     Json(request): Json<PackItemsRequest>,
 ) -> Result<Json<PackItemsResponse>, AppError> {
@@ -173,7 +171,7 @@ pub async fn pack_items(
 )]
 pub async fn ship_items(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(delivery_id): Path<Uuid>,
     Json(request): Json<ShipItemsRequest>,
 ) -> Result<Json<ShipItemsResponse>, AppError> {
@@ -187,7 +185,7 @@ pub async fn ship_items(
 */
 
 // Dummy delivery routes function - delivery feature is disabled
-pub fn create_delivery_routes(_state: AppState) -> Router {
+pub fn create_delivery_routes() -> Router {
     Router::new()
     // .route("/{delivery_id}/pick", post(pick_items))
     // .route("/{delivery_id}/pack", post(pack_items))

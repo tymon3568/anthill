@@ -3,7 +3,7 @@
 //! This module contains the Axum handlers for category management endpoints.
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -26,7 +26,7 @@ use shared_error::AppError;
 use crate::state::AppState;
 
 /// Create the category routes with state
-pub fn create_category_routes(state: AppState) -> Router {
+pub fn create_category_routes() -> Router {
     Router::new()
         .route("/", get(list_categories).post(create_category))
         .route("/tree", get(get_category_tree))
@@ -46,7 +46,6 @@ pub fn create_category_routes(state: AppState) -> Router {
         .route("/{category_id}/stats", get(get_category_stats))
         .route("/{category_id}/can-delete", get(can_delete_category))
         .route("/products/move", post(move_products_to_category))
-        .with_state(state)
 }
 
 /// POST /api/v1/inventory/categories - Create a new category
@@ -81,7 +80,7 @@ pub fn create_category_routes(state: AppState) -> Router {
 /// ```
 pub async fn create_category(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<CategoryCreateRequest>,
 ) -> Result<Json<CategoryResponse>, AppError> {
     let category = state
@@ -123,7 +122,7 @@ pub async fn create_category(
 /// ```
 pub async fn list_categories(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(query): Query<CategoryListQuery>,
 ) -> Result<Json<CategoryListResponse>, AppError> {
     let response = state
@@ -158,7 +157,7 @@ pub async fn list_categories(
 /// ```
 pub async fn get_category_tree(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(params): Query<CategoryTreeQuery>,
 ) -> Result<Json<Vec<CategoryTreeResponse>>, AppError> {
     let tree = state
@@ -192,7 +191,7 @@ pub async fn get_category_tree(
 /// ```
 pub async fn search_categories(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(params): Query<SearchQuery>,
 ) -> Result<Json<Vec<CategoryResponse>>, AppError> {
     let categories = state
@@ -226,7 +225,7 @@ pub async fn search_categories(
 /// ```
 pub async fn get_top_categories(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(params): Query<TopCategoriesQuery>,
 ) -> Result<Json<Vec<CategoryResponse>>, AppError> {
     let categories = state
@@ -260,7 +259,7 @@ pub async fn get_top_categories(
 /// ```
 pub async fn get_category(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(category_id): Path<Uuid>,
 ) -> Result<Json<CategoryResponse>, AppError> {
     let category = state
@@ -303,7 +302,7 @@ pub async fn get_category(
 /// ```
 pub async fn update_category(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(category_id): Path<Uuid>,
     Json(request): Json<CategoryUpdateRequest>,
 ) -> Result<Json<CategoryResponse>, AppError> {
@@ -339,7 +338,7 @@ pub async fn update_category(
 /// ```
 pub async fn delete_category(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(category_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
     state
@@ -372,7 +371,7 @@ pub async fn delete_category(
 /// ```
 pub async fn get_children(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(category_id): Path<Uuid>,
 ) -> Result<Json<Vec<CategoryResponse>>, AppError> {
     let children = state
@@ -414,7 +413,7 @@ pub async fn get_children(
 /// ```
 pub async fn get_breadcrumbs(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(category_id): Path<Uuid>,
 ) -> Result<Json<Vec<inventory_service_core::domains::category::CategoryBreadcrumb>>, AppError> {
     let breadcrumbs = state
@@ -461,7 +460,7 @@ pub async fn get_breadcrumbs(
 /// ```
 pub async fn get_category_stats(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(category_id): Path<Uuid>,
 ) -> Result<Json<CategoryStatsResponse>, AppError> {
     let stats = state
@@ -496,7 +495,7 @@ pub async fn get_category_stats(
 /// Response: `true` or `false`
 pub async fn can_delete_category(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(category_id): Path<Uuid>,
 ) -> Result<Json<bool>, AppError> {
     let can_delete = state
@@ -535,7 +534,7 @@ pub async fn can_delete_category(
 /// ```
 pub async fn bulk_activate_categories(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<BulkCategoryIds>,
 ) -> Result<Json<BulkOperationResponse>, AppError> {
     let response = state
@@ -574,7 +573,7 @@ pub async fn bulk_activate_categories(
 /// ```
 pub async fn bulk_deactivate_categories(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<BulkCategoryIds>,
 ) -> Result<Json<BulkOperationResponse>, AppError> {
     let response = state
@@ -613,7 +612,7 @@ pub async fn bulk_deactivate_categories(
 /// ```
 pub async fn bulk_delete_categories(
     RequireAdmin(auth_user): RequireAdmin,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<BulkCategoryIds>,
 ) -> Result<Json<BulkOperationResponse>, AppError> {
     let response = state
@@ -654,7 +653,7 @@ pub async fn bulk_delete_categories(
 /// ```
 pub async fn move_products_to_category(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<MoveToCategoryRequest>,
 ) -> Result<Json<BulkOperationResponse>, AppError> {
     let response = state

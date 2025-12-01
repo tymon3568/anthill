@@ -15,7 +15,7 @@ use crate::Result;
 /// This trait defines all data access operations for categories.
 /// Infrastructure layer will provide the actual implementation.
 #[async_trait]
-pub trait CategoryRepository: Send + Sync {
+pub trait CategoryRepository: Send + Sync + 'static {
     // ========================================================================
     // Basic CRUD Operations
     // ========================================================================

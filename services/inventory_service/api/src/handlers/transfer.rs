@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path},
     http::StatusCode,
     response::Json,
     routing::post,
@@ -17,13 +17,12 @@ use shared_error::AppError;
 
 use crate::state::AppState;
 
-/// Create the transfer routes with state
-pub fn create_transfer_routes(state: AppState) -> Router {
+/// Create the transfer routes
+pub fn create_transfer_routes() -> Router {
     Router::new()
         .route("/", post(create_transfer))
         .route("/:transfer_id/confirm", post(confirm_transfer))
         .route("/:transfer_id/receive", post(receive_transfer))
-        .with_state(state)
 }
 
 /// POST /api/v1/inventory/transfers - Create a new stock transfer
@@ -96,7 +95,7 @@ pub fn create_transfer_routes(state: AppState) -> Router {
 )]
 pub async fn create_transfer(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<CreateTransferRequest>,
 ) -> Result<(StatusCode, Json<CreateTransferResponse>), AppError> {
     let response = state
@@ -165,7 +164,7 @@ pub async fn create_transfer(
 )]
 pub async fn confirm_transfer(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(transfer_id): Path<Uuid>,
     Json(request): Json<ConfirmTransferRequest>,
 ) -> Result<Json<ConfirmTransferResponse>, AppError> {
@@ -237,7 +236,7 @@ pub async fn confirm_transfer(
 )]
 pub async fn receive_transfer(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(transfer_id): Path<Uuid>,
     Json(request): Json<ReceiveTransferRequest>,
 ) -> Result<Json<ReceiveTransferResponse>, AppError> {

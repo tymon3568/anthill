@@ -45,11 +45,13 @@ use inventory_service_infra::repositories::transfer::{
 use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
+use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
 
 // Local handlers/state
 use crate::handlers::category::create_category_routes;
 #[cfg(feature = "delivery")]
 use crate::handlers::delivery::create_delivery_routes;
+use crate::handlers::lot_serial::create_lot_serial_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
 use crate::handlers::rma::create_rma_routes;
@@ -199,6 +201,12 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let category_repo = CategoryRepositoryImpl::new(pool.clone());
     let category_service = CategoryServiceImpl::new(category_repo);
 
+    let lot_serial_repo =
+        inventory_service_infra::repositories::lot_serial::LotSerialRepositoryImpl::new(
+            pool.clone(),
+        );
+    let lot_serial_service = LotSerialServiceImpl::new(lot_serial_repo);
+
     let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
     let product_service =
         inventory_service_infra::services::product::ProductServiceImpl::new(product_repo.clone());
@@ -283,6 +291,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
+        lot_serial_service: Arc::new(lot_serial_service),
         product_service: Arc::new(product_service),
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: Arc::new(warehouse_repo),
@@ -301,20 +310,21 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let authz_state = AuthzState {
         enforcer: state.enforcer.clone(),
         jwt_secret: state.jwt_secret.clone(),
+        kanidm_client: state.kanidm_client.clone(),
     };
 
-    // Create routes with state
-    let category_routes = create_category_routes(state.clone());
+    // Create routes
+    let category_routes = create_category_routes();
     #[cfg(feature = "delivery")]
-    let delivery_routes = create_delivery_routes(state.clone());
-    let receipt_routes = create_receipt_routes(state.clone());
-    let reconciliation_routes = create_reconciliation_routes(state.clone());
-    let rma_routes = create_rma_routes(state.clone());
-    let search_routes = create_search_routes(state.clone());
-    let transfer_routes = create_transfer_routes(state.clone());
-    let stock_take_routes = create_stock_take_routes(state.clone());
-    let valuation_routes = create_valuation_routes(state.clone());
-    let warehouse_routes = create_warehouse_routes(state.clone());
+    let delivery_routes = create_delivery_routes();
+    let receipt_routes = create_receipt_routes();
+    let reconciliation_routes = create_reconciliation_routes();
+    let rma_routes = create_rma_routes();
+    let search_routes = create_search_routes();
+    let transfer_routes = create_transfer_routes();
+    let stock_take_routes = create_stock_take_routes();
+    let valuation_routes = create_valuation_routes();
+    let warehouse_routes = create_warehouse_routes();
 
     // Add CORS configuration
     let cors = CorsLayer::new()
@@ -350,17 +360,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             axum::http::header::AUTHORIZATION,
         ]);
 
-    // Public routes (no authentication required)
-    let public_routes = Router::new()
-        .route("/health", get(crate::handlers::health::health_check))
-        .layer(Extension(pool.clone()))
-        .layer(Extension(config.clone()));
-
     // Protected routes (require authentication)
-    let protected_routes = Router::new().nest("/api/v1/inventory", category_routes);
-
-    #[cfg(feature = "delivery")]
-    let protected_routes = protected_routes.nest("/api/v1/inventory/deliveries", delivery_routes);
+    let protected_routes = Router::new()
+        .route("/health", get(crate::handlers::health::health_check))
+        .nest("/api/v1/inventory", category_routes);
 
     let protected_routes = protected_routes
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
@@ -371,15 +374,21 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/transfers", transfer_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
-        .layer(Extension(pool))
-        .layer(Extension(config.clone()))
-        .layer(axum::middleware::from_fn_with_state(authz_state, casbin_middleware));
+        .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes());
 
-    // Merge public and protected routes, apply global layers
-    Router::new()
-        .merge(public_routes)
-        .merge(protected_routes)
-        .layer(cors)
+    #[cfg(feature = "delivery")]
+    let protected_routes = protected_routes.nest("/api/v1/inventory/deliveries", delivery_routes);
+
+    let protected_routes = protected_routes
+        .layer(Extension(pool.clone()))
+        .layer(Extension(config.clone()))
+        .layer(Extension(state))
+        .layer(axum::middleware::from_fn(casbin_middleware))
+        .layer(Extension(authz_state));
+
+    // Apply global layers
+    let router = protected_routes.layer(cors);
+    router
 }
 
 // function moved

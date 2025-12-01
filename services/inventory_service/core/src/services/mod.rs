@@ -5,6 +5,7 @@
 
 pub mod category;
 pub mod delivery;
+pub mod lot_serial;
 pub mod product;
 pub mod receipt;
 pub mod reconciliation;
@@ -16,6 +17,7 @@ pub mod valuation;
 // Re-export main types for convenience
 pub use category::CategoryService;
 // pub use delivery::DeliveryService;
+pub use lot_serial::LotSerialService;
 pub use product::ProductService;
 pub use receipt::ReceiptService;
 pub use reconciliation::StockReconciliationService;

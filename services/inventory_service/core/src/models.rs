@@ -401,6 +401,7 @@ impl FromStr for LotSerialStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct LotSerial {
     pub lot_serial_id: Uuid,
     pub tenant_id: Uuid,

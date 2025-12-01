@@ -276,4 +276,22 @@ impl LotSerialRepository for LotSerialRepositoryImpl {
         .await?;
         Ok(())
     }
+
+    async fn quarantine_expired_lots(&self, tenant_id: Uuid) -> Result<i64, AppError> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE lots_serial_numbers SET
+                status = 'quarantined',
+                updated_at = NOW()
+            WHERE tenant_id = $1
+                AND status = 'active'
+                AND expiry_date < CURRENT_DATE
+                AND deleted_at IS NULL
+            "#,
+            tenant_id
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() as i64)
+    }
 }
