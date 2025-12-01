@@ -27,7 +27,7 @@ use axum::Router;
 )]
 pub async fn pick_items(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(delivery_id): Path<Uuid>,
     Json(request): Json<PickItemsRequest>,
 ) -> Result<Json<PickItemsResponse>, AppError> {
@@ -95,7 +95,7 @@ pub async fn pick_items(
 )]
 pub async fn pack_items(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(delivery_id): Path<Uuid>,
     Json(request): Json<PackItemsRequest>,
 ) -> Result<Json<PackItemsResponse>, AppError> {
@@ -171,7 +171,7 @@ pub async fn pack_items(
 )]
 pub async fn ship_items(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(delivery_id): Path<Uuid>,
     Json(request): Json<ShipItemsRequest>,
 ) -> Result<Json<ShipItemsResponse>, AppError> {

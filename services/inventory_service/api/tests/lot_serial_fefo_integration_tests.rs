@@ -234,7 +234,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         warehouse_id,
         product_id,
-        100,
+        80, // 50 expired + 30 valid
         0
     )
     .execute(&pool)
@@ -286,7 +286,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
     let lot_serial_repo = Arc::new(LotSerialRepositoryImpl::new(pool.clone()));
     let inventory_repo = PgInventoryRepository::new(pool.clone(), product_repo, lot_serial_repo);
 
-    // Try to reserve 40 units - should skip expired lot and use valid one
+    // Try to reserve 40 units - should fail because only 30 non-expired units are available (expired lot is skipped)
     let result = inventory_repo
         .reserve_stock(tenant_id, warehouse_id, product_id, 40)
         .await;
@@ -358,6 +358,20 @@ async fn test_quarantine_expired_lots() {
         "LOTTEST",
         "Lot Test Product",
         ProductTrackingMethod::Lot as ProductTrackingMethod
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Create inventory level for consistency
+    sqlx::query!(
+        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())",
+        tenant_id,
+        warehouse_id,
+        product_id,
+        80, // 50 expired + 30 valid
+        0
     )
     .execute(&pool)
     .await

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     Json, Router,
 };
@@ -26,7 +26,7 @@ pub struct QuarantineResponse {
 
 pub async fn create_lot_serial(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(lot_serial): Json<LotSerial>,
 ) -> Result<StatusCode, AppError> {
     // Validate tenant_id matches auth_user
@@ -43,7 +43,7 @@ pub async fn create_lot_serial(
 
 pub async fn get_lot_serial(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(lot_serial_id): Path<Uuid>,
 ) -> Result<Json<Option<LotSerial>>, AppError> {
     let lot_serial = state
@@ -55,7 +55,7 @@ pub async fn get_lot_serial(
 
 pub async fn list_lot_serials_by_product(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
     Query(query): Query<ListLotSerialsQuery>,
 ) -> Result<Json<Vec<LotSerial>>, AppError> {
@@ -73,7 +73,7 @@ pub async fn list_lot_serials_by_product(
 
 pub async fn update_lot_serial(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(lot_serial): Json<LotSerial>,
 ) -> Result<StatusCode, AppError> {
     // Validate tenant_id matches auth_user
@@ -90,7 +90,7 @@ pub async fn update_lot_serial(
 
 pub async fn delete_lot_serial(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(lot_serial_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
     state
@@ -102,7 +102,7 @@ pub async fn delete_lot_serial(
 
 pub async fn quarantine_expired_lots(
     RequireAdmin(auth_user): RequireAdmin,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
 ) -> Result<Json<QuarantineResponse>, AppError> {
     let quarantined_count = state
         .lot_serial_service
@@ -111,7 +111,7 @@ pub async fn quarantine_expired_lots(
     Ok(Json(QuarantineResponse { quarantined_count }))
 }
 
-pub fn create_lot_serial_routes(state: AppState) -> Router<AppState> {
+pub fn create_lot_serial_routes() -> Router {
     Router::new()
         .route("/", axum::routing::post(create_lot_serial))
         .route(
@@ -122,5 +122,4 @@ pub fn create_lot_serial_routes(state: AppState) -> Router<AppState> {
         )
         .route("/products/{product_id}", axum::routing::get(list_lot_serials_by_product))
         .route("/quarantine-expired", axum::routing::post(quarantine_expired_lots))
-        .with_state(state)
 }

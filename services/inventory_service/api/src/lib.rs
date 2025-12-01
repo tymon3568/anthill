@@ -28,7 +28,7 @@ use crate::state::AppState;
 
 /// Create the complete application with database initialization
 /// Used for integration tests
-pub async fn create_app(config: Config) -> Router<AppState> {
+pub async fn create_app(config: Config) -> Router {
     let pool = init_pool(&config.database_url, config.max_connections.unwrap_or(10))
         .await
         .expect("Failed to initialize database pool");

@@ -3,11 +3,12 @@
 //! This is the main entry point for the inventory service.
 //! It sets up the web server and starts the application.
 
-use hyper_util::server::Server;
+use hyper_util::server::auto::Server;
 use inventory_service_api::create_router;
 use shared_config::Config;
 use shared_db::init_pool;
 use std::net::SocketAddr;
+use tokio::net::TcpListener;
 
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

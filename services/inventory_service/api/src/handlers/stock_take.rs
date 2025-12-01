@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -18,15 +18,14 @@ use shared_error::AppError;
 
 use crate::state::AppState;
 
-/// Create the stock take routes with state
-pub fn create_stock_take_routes(state: AppState) -> Router<AppState> {
+/// Create the stock take routes
+pub fn create_stock_take_routes() -> Router {
     Router::new()
         .route("/", post(create_stock_take))
         .route("/:stock_take_id/count", post(count_stock_take))
         .route("/:stock_take_id/finalize", post(finalize_stock_take))
         .route("/", get(list_stock_takes))
         .route("/:stock_take_id", get(get_stock_take))
-        .with_state(state)
 }
 
 /// POST /api/v1/inventory/stock-takes - Create a new stock take session
@@ -83,7 +82,7 @@ pub fn create_stock_take_routes(state: AppState) -> Router<AppState> {
 )]
 pub async fn create_stock_take(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<CreateStockTakeRequest>,
 ) -> Result<(StatusCode, Json<CreateStockTakeResponse>), AppError> {
     let response = state
@@ -165,7 +164,7 @@ pub async fn create_stock_take(
 )]
 pub async fn count_stock_take(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(stock_take_id): Path<Uuid>,
     Json(request): Json<CountStockTakeRequest>,
 ) -> Result<Json<CountStockTakeResponse>, AppError> {
@@ -242,7 +241,7 @@ pub async fn count_stock_take(
 )]
 pub async fn finalize_stock_take(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(stock_take_id): Path<Uuid>,
 ) -> Result<Json<FinalizeStockTakeResponse>, AppError> {
     let response = state
@@ -304,7 +303,7 @@ pub async fn finalize_stock_take(
 )]
 pub async fn list_stock_takes(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(query): Query<StockTakeListQuery>,
 ) -> Result<Json<StockTakeListResponse>, AppError> {
     let response = state
@@ -355,7 +354,7 @@ pub async fn list_stock_takes(
 )]
 pub async fn get_stock_take(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(stock_take_id): Path<Uuid>,
 ) -> Result<Json<StockTakeDetailResponse>, AppError> {
     let response = state

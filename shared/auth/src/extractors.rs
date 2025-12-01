@@ -1,5 +1,5 @@
 use axum::{
-    extract::FromRequestParts,
+    extract::{Extension, FromRequestParts},
     http::{header, request::Parts, StatusCode},
 };
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use uuid::Uuid;
 use casbin::CoreApi;
 use shared_jwt::Claims;
 
-use crate::enforcer::SharedEnforcer;
+use crate::{enforcer::SharedEnforcer, middleware::AuthzState};
 
 pub trait JwtSecretProvider {
     fn get_jwt_secret(&self) -> &str;
@@ -106,14 +106,12 @@ impl AuthUser {
 ///
 /// Kanidm JWTs have specific claims like "iss" (issuer) pointing to Kanidm server.
 /// Legacy JWTs are simpler and use our custom format.
-async fn detect_and_validate_token<S>(token: &str, state: &S) -> Result<AuthUser, StatusCode>
-where
-    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
-{
+async fn detect_and_validate_token(
+    token: &str,
+    authz_state: &AuthzState,
+) -> Result<AuthUser, StatusCode> {
     // Try Kanidm first (preferred in new system)
-    let kanidm_client = state.get_kanidm_client();
-
-    match kanidm_client.validate_token(token).await {
+    match authz_state.kanidm_client.validate_token(token).await {
         Ok(_claims) => {
             // Successfully validated as Kanidm JWT
             // TODO: Map Kanidm user to tenant and role
@@ -127,8 +125,7 @@ where
     }
 
     // Fallback to legacy JWT
-    let secret = state.get_jwt_secret();
-    match shared_jwt::decode_jwt(token, secret) {
+    match shared_jwt::decode_jwt(token, &authz_state.jwt_secret) {
         Ok(claims) => {
             debug!("Validated as legacy JWT");
             Ok(AuthUser::from_claims(claims))
@@ -140,10 +137,7 @@ where
     }
 }
 
-impl<S> FromRequestParts<S> for AuthUser
-where
-    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
-{
+impl FromRequestParts<()> for AuthUser {
     type Rejection = StatusCode;
 
     /// Extracts an AuthUser from request parts by validating a Bearer JWT in the `Authorization` header.
@@ -155,7 +149,13 @@ where
     /// Returns `Ok(AuthUser)` when a valid Bearer token is present and validates successfully.
     /// Returns `StatusCode::UNAUTHORIZED` when the header is missing, not a Bearer token,
     /// or the JWT fails to validate with either method.
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &()) -> Result<Self, Self::Rejection> {
+        // Extract AuthzState from extensions
+        let Extension(authz_state): Extension<AuthzState> =
+            Extension::from_request_parts(parts, &())
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
         // Extract Authorization header
         let auth_header = parts
             .headers
@@ -169,7 +169,7 @@ where
             .ok_or(StatusCode::UNAUTHORIZED)?;
 
         // Try both Kanidm and legacy JWT validation
-        detect_and_validate_token(token, state).await
+        detect_and_validate_token(token, &authz_state).await
     }
 }
 
@@ -188,10 +188,9 @@ pub struct RequireRole<R: Role> {
     _phantom: PhantomData<R>,
 }
 
-impl<S, R> FromRequestParts<S> for RequireRole<R>
+impl<R> FromRequestParts<()> for RequireRole<R>
 where
     R: Role + Send + Sync,
-    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
 {
     type Rejection = StatusCode;
 
@@ -231,8 +230,8 @@ where
     /// }
     /// # }
     /// ```
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let user = AuthUser::from_request_parts(parts, state).await?;
+    async fn from_request_parts(parts: &mut Parts, _state: &()) -> Result<Self, Self::Rejection> {
+        let user = AuthUser::from_request_parts(parts, &()).await?;
         let required_role = R::name();
 
         let authorized = if required_role == "admin" {
@@ -293,10 +292,7 @@ impl Role for AdminRole {
 #[derive(Debug, Clone)]
 pub struct RequireAdmin(pub AuthUser);
 
-impl<S> FromRequestParts<S> for RequireAdmin
-where
-    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
-{
+impl FromRequestParts<()> for RequireAdmin {
     type Rejection = StatusCode;
 
     /// Extracts an authenticated admin user from request parts and returns it wrapped in `RequireAdmin`.
@@ -312,8 +308,8 @@ where
     ///     let _id = user.user_id;
     /// }
     /// ```
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let role_extractor = RequireRole::<AdminRole>::from_request_parts(parts, state).await?;
+    async fn from_request_parts(parts: &mut Parts, _state: &()) -> Result<Self, Self::Rejection> {
+        let role_extractor = RequireRole::<AdminRole>::from_request_parts(parts, &()).await?;
         Ok(RequireAdmin(role_extractor.user))
     }
 }
@@ -364,15 +360,12 @@ impl RequirePermission {
     }
 }
 
-impl<S> FromRequestParts<S> for RequirePermission
-where
-    S: Send + Sync + JwtSecretProvider + KanidmClientProvider,
-{
+impl FromRequestParts<()> for RequirePermission {
     type Rejection = StatusCode;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &()) -> Result<Self, Self::Rejection> {
         // First, extract the authenticated user
-        let user = AuthUser::from_request_parts(parts, state).await?;
+        let user = AuthUser::from_request_parts(parts, &()).await?;
 
         // Extract the enforcer from extensions
         let enforcer = parts

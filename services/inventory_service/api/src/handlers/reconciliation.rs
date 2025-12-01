@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::Json,
     routing::{get, post},
@@ -20,8 +20,8 @@ use shared_error::AppError;
 
 use crate::state::AppState;
 
-/// Create the reconciliation routes with state
-pub fn create_reconciliation_routes(state: AppState) -> Router<AppState> {
+/// Create the reconciliation routes
+pub fn create_reconciliation_routes() -> Router {
     Router::new()
         .route("/", post(create_reconciliation))
         .route("/analytics", get(get_reconciliation_analytics))
@@ -32,7 +32,6 @@ pub fn create_reconciliation_routes(state: AppState) -> Router<AppState> {
         .route("/:reconciliation_id/variance", get(get_variance_analysis))
         .route("/", get(list_reconciliations))
         .route("/:reconciliation_id", get(get_reconciliation))
-        .with_state(state)
 }
 
 /// POST /api/v1/inventory/reconciliations - Start reconciliation
@@ -94,7 +93,7 @@ pub fn create_reconciliation_routes(state: AppState) -> Router<AppState> {
 )]
 pub async fn create_reconciliation(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<CreateReconciliationRequest>,
 ) -> Result<(StatusCode, Json<CreateReconciliationResponse>), AppError> {
     let response = state
@@ -185,7 +184,7 @@ pub async fn create_reconciliation(
 )]
 pub async fn count_reconciliation(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(reconciliation_id): Path<Uuid>,
     Json(request): Json<CountReconciliationRequest>,
 ) -> Result<Json<CountReconciliationResponse>, AppError> {
@@ -260,7 +259,7 @@ pub async fn count_reconciliation(
 )]
 pub async fn finalize_reconciliation(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(reconciliation_id): Path<Uuid>,
 ) -> Result<Json<FinalizeReconciliationResponse>, AppError> {
     let response = state
@@ -336,7 +335,7 @@ pub async fn finalize_reconciliation(
 )]
 pub async fn approve_reconciliation(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(reconciliation_id): Path<Uuid>,
     Json(request): Json<ApproveReconciliationRequest>,
 ) -> Result<Json<ApproveReconciliationResponse>, AppError> {
@@ -395,7 +394,7 @@ pub async fn approve_reconciliation(
 )]
 pub async fn list_reconciliations(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(query): Query<ReconciliationListQuery>,
 ) -> Result<Json<ReconciliationListResponse>, AppError> {
     let response = state
@@ -446,7 +445,7 @@ pub async fn list_reconciliations(
 )]
 pub async fn get_reconciliation(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(reconciliation_id): Path<Uuid>,
 ) -> Result<Json<ReconciliationDetailResponse>, AppError> {
     let response = state
@@ -497,7 +496,7 @@ pub async fn get_reconciliation(
 )]
 pub async fn get_reconciliation_analytics(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(query): Query<ReconciliationAnalyticsQuery>,
 ) -> Result<Json<ReconciliationAnalyticsResponse>, AppError> {
     let response = state
@@ -552,7 +551,7 @@ pub async fn get_reconciliation_analytics(
 )]
 pub async fn get_variance_analysis(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(reconciliation_id): Path<Uuid>,
 ) -> Result<Json<VarianceAnalysisResponse>, AppError> {
     let response = state
@@ -624,7 +623,7 @@ pub async fn get_variance_analysis(
 )]
 pub async fn scan_barcode(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(reconciliation_id): Path<Uuid>,
     Json(request): Json<ScanBarcodeRequest>,
 ) -> Result<Json<ScanBarcodeResponse>, AppError> {

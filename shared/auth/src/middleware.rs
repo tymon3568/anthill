@@ -4,12 +4,14 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use casbin::CoreApi;
 use http::{header, StatusCode};
+use shared_kanidm_client::KanidmClient;
 use tracing::{debug, warn};
 
 #[derive(Clone)]
 pub struct AuthzState {
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
+    pub kanidm_client: KanidmClient,
 }
 
 /// Casbin authorization middleware

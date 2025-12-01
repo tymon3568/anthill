@@ -3,7 +3,7 @@
 //! This module contains the Axum handlers for inventory valuation endpoints.
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     response::Json,
     routing::{get, post, put},
     Router,
@@ -22,7 +22,7 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Create the valuation routes
-pub fn create_valuation_routes(state: AppState) -> Router<AppState> {
+pub fn create_valuation_routes() -> Router {
     Router::new()
         .route("/", get(get_valuation))
         .route("/method", put(set_valuation_method))
@@ -31,7 +31,6 @@ pub fn create_valuation_routes(state: AppState) -> Router<AppState> {
         .route("/history", get(get_valuation_history))
         .route("/adjust", post(adjust_cost))
         .route("/revalue", post(revalue_inventory))
-        .with_state(state)
 }
 
 /// GET /api/v1/inventory/valuation - Get current valuation for a product
@@ -53,7 +52,7 @@ pub fn create_valuation_routes(state: AppState) -> Router<AppState> {
 /// * `403` - Insufficient permissions
 pub async fn get_valuation(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
 ) -> Result<Json<ValuationDto>, AppError> {
     let request = GetValuationRequest {
@@ -92,7 +91,7 @@ pub async fn get_valuation(
 /// * `403` - Insufficient permissions
 pub async fn set_valuation_method(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
     Json(payload): Json<SetValuationMethodPayload>,
 ) -> Result<Json<ValuationDto>, AppError> {
@@ -136,7 +135,7 @@ pub async fn set_valuation_method(
 /// * `403` - Insufficient permissions
 pub async fn set_standard_cost(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
     Json(payload): Json<SetStandardCostPayload>,
 ) -> Result<Json<ValuationDto>, AppError> {
@@ -169,7 +168,7 @@ pub async fn set_standard_cost(
 /// * `403` - Insufficient permissions
 pub async fn get_valuation_layers(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
 ) -> Result<Json<ValuationLayersResponse>, AppError> {
     let request = GetValuationLayersRequest {
@@ -207,7 +206,7 @@ pub async fn get_valuation_layers(
 /// * `403` - Insufficient permissions
 pub async fn get_valuation_history(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
     Query(params): Query<HistoryQueryParams>,
 ) -> Result<Json<ValuationHistoryResponse>, AppError> {
@@ -256,7 +255,7 @@ pub async fn get_valuation_history(
 /// * `403` - Insufficient permissions
 pub async fn adjust_cost(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
     Json(payload): Json<CostAdjustmentPayload>,
 ) -> Result<Json<ValuationDto>, AppError> {
@@ -299,7 +298,7 @@ pub async fn adjust_cost(
 /// * `403` - Insufficient permissions
 pub async fn revalue_inventory(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Path(product_id): Path<Uuid>,
     Json(payload): Json<RevaluationPayload>,
 ) -> Result<Json<ValuationDto>, AppError> {

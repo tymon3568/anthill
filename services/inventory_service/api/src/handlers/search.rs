@@ -3,7 +3,7 @@
 //! This module contains the Axum handlers for product search endpoints.
 
 use axum::{
-    extract::{Query, State},
+    extract::{Extension, Query},
     response::Json,
     routing::get,
     Router,
@@ -19,11 +19,10 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Create the search routes
-pub fn create_search_routes(state: AppState) -> Router<AppState> {
+pub fn create_search_routes() -> Router {
     Router::new()
         .route("/search", get(search_products))
         .route("/suggestions", get(search_suggestions))
-        .with_state(state)
 }
 
 /// GET /api/v1/inventory/products/search - Advanced product search
@@ -61,7 +60,7 @@ pub fn create_search_routes(state: AppState) -> Router<AppState> {
 /// ```
 pub async fn search_products(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(params): Query<ProductSearchQuery>,
 ) -> Result<Json<ProductSearchResponse>, AppError> {
     // Convert query parameters to search request
@@ -101,7 +100,7 @@ pub async fn search_products(
 /// ```
 pub async fn search_suggestions(
     auth_user: AuthUser,
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     Query(params): Query<SearchSuggestionsQuery>,
 ) -> Result<Json<SearchSuggestionsResponse>, AppError> {
     // Convert query parameters to suggestions request
