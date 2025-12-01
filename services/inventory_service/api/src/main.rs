@@ -3,7 +3,6 @@
 //! This is the main entry point for the inventory service.
 //! It sets up the web server and starts the application.
 
-use hyper_util::server::auto::Server;
 use inventory_service_api::create_router;
 use shared_config::Config;
 use shared_db::init_pool;
@@ -48,7 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     tracing::info!("Inventory service listening on {}", addr);
 
-    Server::bind(&addr).serve(app.into_make_service()).await?;
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
 
     Ok(())
 }

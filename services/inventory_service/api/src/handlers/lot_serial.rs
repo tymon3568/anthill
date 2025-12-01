@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     Json, Router,
 };
+use chrono::{NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -13,6 +14,18 @@ use shared_auth::extractors::{AuthUser, RequireAdmin};
 use shared_error::AppError;
 
 use crate::state::AppState;
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CreateLotSerialRequest {
+    pub product_id: Uuid,
+    pub tracking_type: LotSerialTrackingType,
+    pub lot_number: Option<String>,
+    pub serial_number: Option<String>,
+    pub initial_quantity: Option<i64>,
+    pub remaining_quantity: Option<i64>,
+    pub expiry_date: Option<NaiveDate>,
+    pub status: LotSerialStatus,
+}
 
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct ListLotSerialsQuery {
@@ -39,7 +52,7 @@ pub struct ErrorResponse {
     path = "/api/v1/inventory/lot-serials",
     tag = "lot-serial",
     operation_id = "create_lot_serial",
-    request_body = LotSerial,
+    request_body = CreateLotSerialRequest,
     responses(
         (status = 201, description = "Lot serial created successfully"),
         (status = 400, body = ErrorResponse),
@@ -54,12 +67,28 @@ pub struct ErrorResponse {
 pub async fn create_lot_serial(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
-    Json(lot_serial): Json<LotSerial>,
+    Json(request): Json<CreateLotSerialRequest>,
 ) -> Result<StatusCode, AppError> {
-    // Validate tenant_id matches auth_user
-    if lot_serial.tenant_id != auth_user.tenant_id {
-        return Err(AppError::ValidationError("Tenant ID mismatch".to_string()));
-    }
+    let now = Utc::now();
+    let lot_serial = LotSerial {
+        lot_serial_id: Uuid::now_v7(),
+        tenant_id: auth_user.tenant_id,
+        product_id: request.product_id,
+        tracking_type: request.tracking_type,
+        lot_number: request.lot_number,
+        serial_number: request.serial_number,
+        initial_quantity: request.initial_quantity,
+        remaining_quantity: request.remaining_quantity,
+        expiry_date: request.expiry_date,
+        status: request.status,
+        warehouse_id: None,
+        location_id: None,
+        created_by: auth_user.kanidm_user_id.unwrap_or(auth_user.user_id),
+        updated_by: None,
+        created_at: now,
+        updated_at: now,
+        deleted_at: None,
+    };
 
     state
         .lot_serial_service
@@ -158,8 +187,14 @@ pub async fn list_lot_serials_by_product(
 pub async fn update_lot_serial(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
+    Path(lot_serial_id): Path<Uuid>,
     Json(lot_serial): Json<LotSerial>,
 ) -> Result<StatusCode, AppError> {
+    // Validate path ID matches body ID
+    if lot_serial_id != lot_serial.lot_serial_id {
+        return Err(AppError::ValidationError("Path ID does not match body ID".to_string()));
+    }
+
     // Validate tenant_id matches auth_user
     if lot_serial.tenant_id != auth_user.tenant_id {
         return Err(AppError::ValidationError("Tenant ID mismatch".to_string()));

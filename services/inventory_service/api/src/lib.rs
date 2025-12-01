@@ -24,8 +24,6 @@ use axum::Router;
 use shared_config::Config;
 use shared_db::init_pool;
 
-use crate::state::AppState;
-
 /// Create the complete application with database initialization
 /// Used for integration tests
 pub async fn create_app(config: Config) -> Router {

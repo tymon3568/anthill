@@ -360,14 +360,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             axum::http::header::AUTHORIZATION,
         ]);
 
-    // Public routes (no authentication required)
-    let public_routes = Router::new()
-        .route("/health", get(crate::handlers::health::health_check))
-        .layer(Extension(pool.clone()))
-        .layer(Extension(config.clone()));
-
     // Protected routes (require authentication)
-    let protected_routes = Router::new().nest("/api/v1/inventory", category_routes);
+    let protected_routes = Router::new()
+        .route("/health", get(crate::handlers::health::health_check))
+        .nest("/api/v1/inventory", category_routes);
 
     let protected_routes = protected_routes
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
@@ -384,9 +380,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let protected_routes = protected_routes.nest("/api/v1/inventory/deliveries", delivery_routes);
 
     let protected_routes = protected_routes
-        .layer(Extension(state))
-        .layer(Extension(pool))
+        .layer(Extension(pool.clone()))
         .layer(Extension(config.clone()))
+        .layer(Extension(state))
         .layer(axum::middleware::from_fn(casbin_middleware))
         .layer(Extension(authz_state));
 
