@@ -252,7 +252,7 @@ Table warehouses {
 }
 
 Table warehouse_zones {
-  zone_id UUID [pk, default: `gen_random_uuid()`]
+  zone_id UUID [pk, default: `uuid_generate_v7()`]
   tenant_id UUID [not null, ref: > tenants.tenant_id]
   warehouse_id UUID [not null]
   zone_code VARCHAR(50) [not null]
@@ -267,8 +267,8 @@ Table warehouse_zones {
   deleted_at TIMESTAMPTZ
 
   Indexes {
-    (warehouse_id, zone_code) [unique, name: 'warehouse_zones_code_unique_per_warehouse']
-    (warehouse_id, zone_id) [unique, name: 'warehouse_zones_warehouse_zone_unique']
+    (tenant_id, warehouse_id, zone_code) [unique, name: 'warehouse_zones_code_unique_per_warehouse']
+    (tenant_id, zone_id) [unique, name: 'warehouse_zones_tenant_zone_unique']
     (tenant_id, warehouse_id) [name: 'idx_warehouse_zones_tenant_warehouse', where: 'deleted_at IS NULL']
     (tenant_id, zone_type) [name: 'idx_warehouse_zones_tenant_type', where: 'deleted_at IS NULL']
   }
@@ -277,7 +277,7 @@ Table warehouse_zones {
 }
 
 Table warehouse_locations {
-  location_id UUID [pk, default: `gen_random_uuid()`]
+  location_id UUID [pk, default: `uuid_generate_v7()`]
   tenant_id UUID [not null, ref: > tenants.tenant_id]
   warehouse_id UUID [not null]
   zone_id UUID [note: 'Optional reference to warehouse zone']
@@ -295,7 +295,8 @@ Table warehouse_locations {
   deleted_at TIMESTAMPTZ
 
   Indexes {
-    (warehouse_id, location_code) [unique, name: 'warehouse_locations_code_unique_per_warehouse']
+    (tenant_id, warehouse_id, location_code) [unique, name: 'warehouse_locations_code_unique_per_warehouse']
+    (tenant_id, location_id) [unique, name: 'warehouse_locations_tenant_location_unique']
     (tenant_id, warehouse_id) [name: 'idx_warehouse_locations_tenant_warehouse', where: 'deleted_at IS NULL']
     (tenant_id, zone_id) [name: 'idx_warehouse_locations_zone', where: 'deleted_at IS NULL']
     (tenant_id, location_type) [name: 'idx_warehouse_locations_tenant_type', where: 'deleted_at IS NULL']
@@ -326,6 +327,7 @@ Table lots_serial_numbers {
   deleted_at TIMESTAMPTZ
 
   Indexes {
+    (tenant_id, lot_serial_id) [unique, name: 'lots_serial_numbers_tenant_lot_serial_unique']
     (tenant_id, product_id) [name: 'idx_lots_serial_numbers_tenant_product', where: 'deleted_at IS NULL']
     (tenant_id, tracking_type, product_id) [name: 'idx_lots_serial_numbers_tenant_tracking', where: 'deleted_at IS NULL']
     (tenant_id, lot_number) [name: 'idx_lots_serial_numbers_tenant_lot', where: 'deleted_at IS NULL AND lot_number IS NOT NULL']
@@ -605,6 +607,7 @@ Table stock_moves {
 
   Indexes {
     (tenant_id, move_id) [unique, name: 'stock_moves_tenant_move_unique']
+    (tenant_id, idempotency_key) [unique, name: 'stock_moves_tenant_idempotency_unique']
     (tenant_id, product_id, move_date DESC) [name: 'idx_stock_moves_tenant_product_date']
     (tenant_id, reference_type, reference_id) [name: 'idx_stock_moves_tenant_reference']
     (tenant_id, lot_serial_id) [name: 'idx_stock_moves_tenant_lot_serial']
@@ -660,7 +663,7 @@ Ref: warehouses.(tenant_id, parent_warehouse_id) > warehouses.(tenant_id, wareho
 
 Ref: warehouse_zones.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
 Ref: warehouse_locations.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
-Ref: warehouse_locations.(warehouse_id, zone_id) > warehouse_zones.(warehouse_id, zone_id)
+Ref: warehouse_locations.(tenant_id, zone_id) > warehouse_zones.(tenant_id, zone_id)
 
 Ref: lots_serial_numbers.(tenant_id, product_id) > products.(tenant_id, product_id)
 Ref: lots_serial_numbers.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
