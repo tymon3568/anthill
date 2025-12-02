@@ -60,3 +60,9 @@ Create an endpoint to provide full traceability for a given lot or serial number
     - All sub-tasks completed: handler implemented, query for stock_moves added, lifecycle aggregated, auth ensured with AuthUser extractor
     - Status: Implementation complete, ready for review
     - Note: Compilation blocked by sqlx macro requiring DB connection; will resolve in review or with proper DATABASE_URL
+*   2025-12-02 12:00: Fixed PR review issues
+    - Corrected OpenAPI path annotation to match actual route (/api/v1/inventory/lot-serials/tracking/{lot_serial_id})
+    - Added TODO comments for unimplemented lifecycle fields (supplier_name, purchase_order_number, coa_link, current_warehouse_name, current_location_code, quality_checks)
+    - Committed and pushed changes to feature branch
+    - Status: NeedsReview (awaiting resolution of critical query issue where batch_info is not populated)
+    - Files modified: services/inventory_service/api/src/handlers/lot_serial.rs, services/inventory_service/core/src/models.rs

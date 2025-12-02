@@ -226,6 +226,7 @@ impl TransferService for PgTransferService {
                 reference_id: transfer_id,
                 idempotency_key: format!("transfer-{}-item-{}", transfer_id, item.transfer_item_id),
                 move_reason: Some(format!("Transfer {} confirmation", transfer.transfer_number)),
+                lot_serial_id: None, // TODO: Set if lot-tracked product
                 batch_info: None,
                 metadata: None,
             };
@@ -299,6 +300,7 @@ impl TransferService for PgTransferService {
                     transfer_id, item.transfer_item_id
                 ),
                 move_reason: Some(format!("Transfer {} receipt", transfer.transfer_number)),
+                lot_serial_id: None, // TODO: Set if lot-tracked product
                 batch_info: None,
                 metadata: None,
             };

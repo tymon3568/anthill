@@ -180,10 +180,10 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                 r#"
                 INSERT INTO stock_moves (
                     move_id, tenant_id, product_id, move_type, quantity,
-                    unit_cost, reference_type, reference_id, idempotency_key,
+                    unit_cost, reference_type, reference_id, lot_serial_id, idempotency_key,
                     move_date, move_reason
                 )
-                VALUES ($1, $2, $3, 'receipt', $4, $5, 'grn', $6, $7, NOW(), 'Goods receipt')
+                VALUES ($1, $2, $3, 'receipt', $4, $5, 'grn', $6, NULL, $7, NOW(), 'Goods receipt')
                 "#,
                 move_id,
                 tenant_id,

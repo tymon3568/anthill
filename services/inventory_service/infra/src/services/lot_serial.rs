@@ -1,24 +1,26 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
+use std::sync::Arc;
+
 use crate::repositories::stock::PgStockMoveRepository;
 use crate::repositories::LotSerialRepositoryImpl;
 use inventory_service_core::models::{
     LotSerial, LotSerialLifecycle, LotSerialStatus, LotSerialTrackingType,
 };
-use inventory_service_core::repositories::LotSerialRepository;
+use inventory_service_core::repositories::{LotSerialRepository, StockMoveRepository};
 use inventory_service_core::services::LotSerialService;
 use shared_error::AppError;
 
 pub struct LotSerialServiceImpl {
     lot_serial_repo: LotSerialRepositoryImpl,
-    stock_move_repo: PgStockMoveRepository,
+    stock_move_repo: Arc<PgStockMoveRepository>,
 }
 
 impl LotSerialServiceImpl {
     pub fn new(
         lot_serial_repo: LotSerialRepositoryImpl,
-        stock_move_repo: PgStockMoveRepository,
+        stock_move_repo: Arc<PgStockMoveRepository>,
     ) -> Self {
         Self {
             lot_serial_repo,

@@ -291,6 +291,7 @@ impl StockReconciliationService for PgStockReconciliationService {
                         "Reconciliation {} adjustment",
                         reconciliation.reconciliation_number
                     )),
+                    lot_serial_id: None, // TODO: Set if lot-tracked product
                     batch_info: None,
                     metadata: None,
                 };
