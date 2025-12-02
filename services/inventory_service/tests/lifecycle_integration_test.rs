@@ -103,11 +103,16 @@ async fn test_lot_serial_lifecycle_endpoint() {
             casbin::MemoryAdapter::default(),
         ).await.expect("Failed to create test enforcer")),
         jwt_secret: "test_secret".to_string(),
-        kanidm_client: Arc::new(shared::kanidm_client::KanidmClient::new(
-            "http://localhost:8080".to_string(),
-            "test_client".to_string(),
-            "test_secret".to_string(),
-        )),
+        kanidm_client: shared::kanidm_client::KanidmClient::new(shared::kanidm_client::KanidmConfig {
+            kanidm_url: "http://localhost:8080".to_string(),
+            client_id: "test_client".to_string(),
+            client_secret: "test_secret".to_string(),
+            redirect_uri: "http://localhost:3000/oauth/callback".to_string(),
+            scopes: vec!["openid".to_string(), "profile".to_string()],
+            skip_jwt_verification: true,
+            allowed_issuers: vec!["http://localhost:8080".to_string()],
+            expected_audience: Some("test_client".to_string()),
+        }).expect("Failed to create test Kanidm client"),
     };
 
     // Create test server
