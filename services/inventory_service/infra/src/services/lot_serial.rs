@@ -51,14 +51,40 @@ impl LotSerialService for LotSerialServiceImpl {
             .find_by_lot_serial(tenant_id, lot_serial_id)
             .await?;
 
+        // Populate current_warehouse_name from warehouse_zones
+        let current_warehouse_name = if let Some(warehouse_id) = lot_serial.warehouse_id {
+            sqlx::query_scalar!(
+                "SELECT zone_name FROM warehouse_zones WHERE tenant_id = $1 AND zone_id = $2 AND deleted_at IS NULL",
+                tenant_id,
+                warehouse_id
+            )
+            .fetch_optional(&self.lot_serial_repo.pool)
+            .await?
+        } else {
+            None
+        };
+
+        // Populate current_location_code from warehouse_locations
+        let current_location_code = if let Some(location_id) = lot_serial.location_id {
+            sqlx::query_scalar!(
+                "SELECT location_code FROM warehouse_locations WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL",
+                tenant_id,
+                location_id
+            )
+            .fetch_optional(&self.lot_serial_repo.pool)
+            .await?
+        } else {
+            None
+        };
+
         Ok(LotSerialLifecycle {
             lot_serial,
             supplier_name: None,
             purchase_order_number: None,
             coa_link: None,
             stock_moves,
-            current_warehouse_name: None,
-            current_location_code: None,
+            current_warehouse_name,
+            current_location_code,
             quality_checks: vec![],
         })
     }

@@ -158,6 +158,34 @@ pub trait WarehouseRepository: Send + Sync {
     /// List of warehouse locations
     async fn get_all_locations(&self, tenant_id: Uuid) -> Result<Vec<WarehouseLocation>>;
 
+    /// Get zone by ID
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `zone_id` - Zone identifier
+    ///
+    /// # Returns
+    /// Zone if found
+    async fn find_zone_by_id(
+        &self,
+        tenant_id: Uuid,
+        zone_id: Uuid,
+    ) -> Result<Option<WarehouseZone>>;
+
+    /// Get location by ID
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `location_id` - Location identifier
+    ///
+    /// # Returns
+    /// Location if found
+    async fn find_location_by_id(
+        &self,
+        tenant_id: Uuid,
+        location_id: Uuid,
+    ) -> Result<Option<WarehouseLocation>>;
+
     /// Create a new zone in a warehouse
     ///
     /// # Arguments

@@ -445,6 +445,28 @@ pub struct LotSerialLifecycle {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WarehouseZone {
+    pub tenant_id: Uuid,
+    pub zone_id: Uuid,
+    pub zone_name: String,
+    pub warehouse_id: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WarehouseLocation {
+    pub tenant_id: Uuid,
+    pub location_id: Uuid,
+    pub location_code: String,
+    pub zone_id: Uuid,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RmaRequest {
     pub rma_id: Uuid,
     pub rma_number: String,
