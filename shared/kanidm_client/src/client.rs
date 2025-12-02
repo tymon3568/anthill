@@ -190,13 +190,13 @@ impl KanidmOAuth2Client for KanidmClient {
         if self.config.skip_jwt_verification {
             tracing::warn!("⚠️ Skipping JWT signature verification - DEV MODE ONLY!");
 
-            let mut validation = Validation::new(Algorithm::HS256);
+            let mut validation = Validation::new(Algorithm::RS256);
             validation.insecure_disable_signature_validation();
             validation.validate_exp = false;
 
             let token_data = decode::<KanidmClaims>(
                 token,
-                &DecodingKey::from_secret(b"test_secret"), // Use test secret
+                &DecodingKey::from_secret(&[]), // Dummy key
                 &validation,
             )?;
 

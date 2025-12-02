@@ -142,6 +142,7 @@ async fn test_lot_serial_lifecycle_endpoint() {
         .enforcer
         .add_policy(vec![
             "test_user".to_string(),
+            tenant_id.to_string(),
             "/api/v1/inventory/lot-serials/tracking/*".to_string(),
             "GET".to_string(),
         ])
