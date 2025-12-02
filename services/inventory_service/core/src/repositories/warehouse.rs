@@ -170,7 +170,10 @@ pub trait WarehouseRepository: Send + Sync {
         &self,
         tenant_id: Uuid,
         zone_id: Uuid,
-    ) -> Result<Option<WarehouseZone>>;
+    ) -> Result<Option<WarehouseZone>> {
+        let zones = self.get_all_zones(tenant_id).await?;
+        Ok(zones.into_iter().find(|zone| zone.zone_id == zone_id))
+    }
 
     /// Get location by ID
     ///
@@ -184,7 +187,12 @@ pub trait WarehouseRepository: Send + Sync {
         &self,
         tenant_id: Uuid,
         location_id: Uuid,
-    ) -> Result<Option<WarehouseLocation>>;
+    ) -> Result<Option<WarehouseLocation>> {
+        let locations = self.get_all_locations(tenant_id).await?;
+        Ok(locations
+            .into_iter()
+            .find(|location| location.location_id == location_id))
+    }
 
     /// Create a new zone in a warehouse
     ///

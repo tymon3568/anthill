@@ -91,3 +91,11 @@ Create an endpoint to provide full traceability for a given lot or serial number
   - All acceptance criteria now met
   - Status: Done
   - Files modified: anthill-windsurf/services/inventory_service/tests/lifecycle_integration_test.rs, PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/task_04.05.04_implement_lot_serial_lifecycle_endpoint.md
+*  2025-12-03 03:00: Fixed repository layering and test issues
+  - Added default implementations for find_zone_by_id and find_location_by_id in WarehouseRepository trait to avoid breaking changes
+  - Injected WarehouseRepository into LotSerialServiceImpl and updated service to use repository methods instead of raw SQL for warehouse/location lookups
+  - Updated API routes and test to pass warehouse_repo to LotSerialServiceImpl
+  - Fixed integration test: created proper warehouse data, persisted stock move, improved AppState initialization, removed mock auth for test
+  - Corrected query logic to fetch warehouse_name from warehouses table and location_code from warehouse_locations
+  - Status: NeedsReview (fixes applied; awaiting verification that test passes and no compilation errors)
+  - Files modified: services/inventory_service/core/src/repositories/warehouse.rs, services/inventory_service/infra/src/services/lot_serial.rs, services/inventory_service/api/src/routes/mod.rs, services/inventory_service/tests/lifecycle_integration_test.rs

@@ -220,11 +220,14 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             as Arc<dyn inventory_service_core::repositories::valuation::ValuationHistoryRepository>,
     );
 
-    let warehouse_repo = WarehouseRepositoryImpl::new(pool.clone());
+    let warehouse_repo_impl = WarehouseRepositoryImpl::new(pool.clone());
+    let warehouse_repo = Arc::new(warehouse_repo_impl)
+        as Arc<dyn inventory_service_core::repositories::WarehouseRepository>;
 
     // Initialize stock repositories
     let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
-    let lot_serial_service = LotSerialServiceImpl::new(lot_serial_repo, stock_move_repo.clone());
+    let lot_serial_service =
+        LotSerialServiceImpl::new(lot_serial_repo, stock_move_repo.clone(), warehouse_repo.clone());
     let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
 
     // Initialize transfer repositories and services
@@ -294,7 +297,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         lot_serial_service: Arc::new(lot_serial_service),
         product_service: Arc::new(product_service),
         valuation_service: Arc::new(valuation_service),
-        warehouse_repository: Arc::new(warehouse_repo),
+        warehouse_repository: warehouse_repo.clone(),
         receipt_service: Arc::new(receipt_service),
         delivery_service: Arc::new(DummyDeliveryService {}),
         transfer_service,

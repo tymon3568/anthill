@@ -18,20 +18,79 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Create repositories
     let lot_serial_repo =
         inventory_service_infra::repositories::LotSerialRepositoryImpl::new(pool.clone());
-    let stock_move_repo =
-        inventory_service_infra::repositories::StockMoveRepositoryImpl::new(pool.clone());
+    let stock_move_repo = Arc::new(
+        inventory_service_infra::repositories::StockMoveRepositoryImpl::new(pool.clone()),
+    );
+    let warehouse_repo = Arc::new(
+        inventory_service_infra::repositories::WarehouseRepositoryImpl::new(pool.clone()),
+    );
 
     // Create service
     let lot_serial_service =
         Arc::new(inventory_service_infra::services::LotSerialServiceImpl::new(
             lot_serial_repo,
-            stock_move_repo,
+            stock_move_repo.clone(),
+            warehouse_repo.clone(),
         ));
 
-    // Create AppState
+    // Create minimal AppState for test
     let app_state = AppState {
         lot_serial_service: lot_serial_service.clone(),
-        // Add other services as needed
+        warehouse_repository: warehouse_repo.clone(),
+        // Dummy values for required fields
+        category_service: Arc::new(inventory_service_infra::services::category::CategoryServiceImpl::new(
+            inventory_service_infra::repositories::category::CategoryRepositoryImpl::new(pool.clone()),
+        )),
+        product_service: Arc::new(inventory_service_infra::services::product::ProductServiceImpl::new(
+            inventory_service_infra::repositories::product::ProductRepositoryImpl::new(pool.clone()),
+            inventory_service_infra::repositories::category::CategoryRepositoryImpl::new(pool.clone()),
+        )),
+        valuation_service: Arc::new(inventory_service_infra::services::valuation::ValuationServiceImpl::new(
+            inventory_service_infra::repositories::valuation::ValuationRepositoryImpl::new(pool.clone()),
+            inventory_service_infra::repositories::valuation::ValuationLayerRepositoryImpl::new(pool.clone()),
+            inventory_service_infra::repositories::valuation::ValuationHistoryRepositoryImpl::new(pool.clone()),
+        )),
+        receipt_service: Arc::new(inventory_service_infra::services::receipt::ReceiptServiceImpl::new(
+            Arc::new(inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone())),
+            inventory_service_infra::repositories::product::ProductRepositoryImpl::new(pool.clone()),
+        )),
+        delivery_service: Arc::new(inventory_service_api::DummyDeliveryService {}),
+        transfer_service: Arc::new(inventory_service_infra::services::transfer::PgTransferService::new(
+            Arc::new(inventory_service_infra::repositories::transfer::TransferRepositoryImpl::new(pool.clone())),
+            Arc::new(inventory_service_infra::repositories::transfer::TransferItemRepositoryImpl::new(pool.clone())),
+            stock_move_repo.clone(),
+            Arc::new(inventory_service_infra::repositories::inventory_level::InventoryLevelRepositoryImpl::new(pool.clone())),
+        )),
+        stock_take_service: Arc::new(inventory_service_infra::services::stock_take::PgStockTakeService::new(
+            pool.clone(),
+            Arc::new(inventory_service_infra::repositories::stock_take::StockTakeRepositoryImpl::new(pool.clone())),
+            Arc::new(inventory_service_infra::repositories::stock_take::StockTakeLineRepositoryImpl::new(pool.clone())),
+            stock_move_repo.clone(),
+            Arc::new(inventory_service_infra::repositories::inventory_level::InventoryLevelRepositoryImpl::new(pool.clone())),
+        )),
+        reconciliation_service: Arc::new(inventory_service_infra::services::reconciliation::PgStockReconciliationService::new(
+            pool.clone(),
+            Arc::new(inventory_service_infra::repositories::reconciliation::StockReconciliationRepositoryImpl::new(pool.clone())),
+            Arc::new(inventory_service_infra::repositories::reconciliation::StockReconciliationItemRepositoryImpl::new(pool.clone())),
+            stock_move_repo.clone(),
+            Arc::new(inventory_service_infra::repositories::inventory_level::InventoryLevelRepositoryImpl::new(pool.clone())),
+            inventory_service_infra::repositories::product::ProductRepositoryImpl::new(pool.clone()),
+        )),
+        rma_service: Arc::new(inventory_service_infra::services::rma::PgRmaService::new(
+            Arc::new(inventory_service_infra::repositories::rma::RmaRepositoryImpl::new(pool.clone())),
+            Arc::new(inventory_service_infra::repositories::rma::RmaItemRepositoryImpl::new(pool.clone())),
+            stock_move_repo.clone(),
+        )),
+        enforcer: Arc::new(casbin::Enforcer::new(
+            casbin::MemoryAdapter::default(),
+            casbin::FileAdapter::new(""),
+        ).await.unwrap()),
+        jwt_secret: "test_secret".to_string(),
+        kanidm_client: Arc::new(shared::kanidm_client::KanidmClient::new(
+            "http://localhost:8080".to_string(),
+            "test_client".to_string(),
+            "test_secret".to_string(),
+        )),
     };
 
     // Create test server
@@ -41,26 +100,36 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Create test data
     let tenant_id = Uuid::new_v4();
     let product_id = Uuid::new_v4();
-    let warehouse_id = Uuid::new_v4(); // Assume zone_id
+    let warehouse_id = Uuid::new_v4();
+    let zone_id = Uuid::new_v4();
     let location_id = Uuid::new_v4();
+
+    // Insert test warehouse
+    sqlx::query!(
+        "INSERT INTO warehouses (tenant_id, warehouse_id, warehouse_name, warehouse_code, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id, warehouse_id, "Test Warehouse", "WH001"
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to insert warehouse");
 
     // Insert test warehouse zone
     sqlx::query!(
-        "INSERT INTO warehouse_zones (tenant_id, zone_id, zone_name, warehouse_id) VALUES ($1, $2, $3, $4)",
-        tenant_id, warehouse_id, "Test Zone", warehouse_id
+        "INSERT INTO warehouse_zones (tenant_id, zone_id, zone_name, warehouse_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id, zone_id, "Test Zone", warehouse_id
     )
     .execute(&pool)
     .await
-    .unwrap();
+    .expect("Failed to insert zone");
 
     // Insert test warehouse location
     sqlx::query!(
-        "INSERT INTO warehouse_locations (tenant_id, location_id, location_code, zone_id) VALUES ($1, $2, $3, $4)",
-        tenant_id, location_id, "LOC-001", warehouse_id
+        "INSERT INTO warehouse_locations (tenant_id, location_id, location_code, zone_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id, location_id, "LOC-001", zone_id
     )
     .execute(&pool)
     .await
-    .unwrap();
+    .expect("Failed to insert location");
 
     // Create lot serial
     let lot_serial = LotSerial {
@@ -86,7 +155,7 @@ async fn test_lot_serial_lifecycle_endpoint() {
     lot_serial_service
         .create_lot_serial(&lot_serial)
         .await
-        .unwrap();
+        .expect("Failed to create lot serial");
 
     // Create stock move
     let stock_move = CreateStockMoveRequest {
@@ -105,13 +174,15 @@ async fn test_lot_serial_lifecycle_endpoint() {
         metadata: None,
     };
 
-    // Assume stock_move_repo.create is implemented
-    // stock_move_repo.create(&stock_move, tenant_id).await.unwrap();
+    // Persist stock move
+    stock_move_repo
+        .create(&stock_move, tenant_id)
+        .await
+        .expect("Failed to create stock move");
 
-    // Call endpoint
+    // Call endpoint (disable auth for test by not adding header, assuming test setup allows)
     let response = server
         .get(&format!("/api/v1/inventory/lot-serials/tracking/{}", lot_serial.lot_serial_id))
-        .add_header("Authorization", "Bearer test_token") // Mock auth
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -119,7 +190,7 @@ async fn test_lot_serial_lifecycle_endpoint() {
     let lifecycle: LotSerialLifecycle = response.json();
 
     assert_eq!(lifecycle.lot_serial.lot_serial_id, lot_serial.lot_serial_id);
-    assert_eq!(lifecycle.current_warehouse_name, Some("Test Zone".to_string()));
+    assert_eq!(lifecycle.current_warehouse_name, Some("Test Warehouse".to_string()));
     assert_eq!(lifecycle.current_location_code, Some("LOC-001".to_string()));
     assert!(!lifecycle.stock_moves.is_empty());
 }
