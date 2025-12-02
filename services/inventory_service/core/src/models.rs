@@ -427,12 +427,18 @@ pub struct LotSerial {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct LotSerialLifecycle {
     pub lot_serial: LotSerial,
+    /// TODO: Populate from supplier table via purchase order
     pub supplier_name: Option<String>,
+    /// TODO: Populate from purchase order table
     pub purchase_order_number: Option<String>,
+    /// TODO: Populate from quality documents or attachments
     pub coa_link: Option<String>,
     pub stock_moves: Vec<StockMove>,
+    /// TODO: Populate from warehouse table using lot_serial.location_id
     pub current_warehouse_name: Option<String>,
+    /// TODO: Populate from location table using lot_serial.location_id
     pub current_location_code: Option<String>,
+    /// TODO: Populate from quality_checks table or related records
     pub quality_checks: Vec<serde_json::Value>, // Placeholder for quality check records
 }
 

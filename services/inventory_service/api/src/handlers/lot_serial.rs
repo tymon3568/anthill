@@ -267,7 +267,7 @@ pub async fn quarantine_expired_lots(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/tracking/{lot_serial_id}",
+    path = "/api/v1/inventory/lot-serials/tracking/{lot_serial_id}",
     tag = "lot-serial",
     operation_id = "get_lot_serial_lifecycle",
     params(
