@@ -4,8 +4,9 @@ use inventory_service_api::AppState;
 use inventory_service_core::models::{
     CreateStockMoveRequest, LotSerial, LotSerialLifecycle, LotSerialStatus, LotSerialTrackingType,
 };
+use inventory_service_core::repositories::StockMoveRepository;
 use inventory_service_core::services::LotSerialService;
-use serde_json::json;
+
 use shared::db::init_pool;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -13,7 +14,9 @@ use uuid::Uuid;
 #[sqlx::test]
 async fn test_lot_serial_lifecycle_endpoint() {
     // Setup database pool
-    let pool = init_pool().await.expect("Failed to init pool");
+    let pool = init_pool(&std::env::var("DATABASE_URL").unwrap(), 5)
+        .await
+        .expect("Failed to init pool");
 
     // Create repositories
     let lot_serial_repo =
@@ -82,9 +85,9 @@ async fn test_lot_serial_lifecycle_endpoint() {
             stock_move_repo.clone(),
         )),
         enforcer: Arc::new(casbin::Enforcer::new(
+            "shared/auth/model.conf",
             casbin::MemoryAdapter::default(),
-            casbin::FileAdapter::new(""),
-        ).await.unwrap()),
+        ).await.expect("Failed to create test enforcer")),
         jwt_secret: "test_secret".to_string(),
         kanidm_client: Arc::new(shared::kanidm_client::KanidmClient::new(
             "http://localhost:8080".to_string(),
@@ -180,9 +183,10 @@ async fn test_lot_serial_lifecycle_endpoint() {
         .await
         .expect("Failed to create stock move");
 
-    // Call endpoint (disable auth for test by not adding header, assuming test setup allows)
+    // Call endpoint
     let response = server
         .get(&format!("/api/v1/inventory/lot-serials/tracking/{}", lot_serial.lot_serial_id))
+        .add_header("Authorization", "Bearer test_token")
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
