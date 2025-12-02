@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.5_Lot_Serial_Tracking
 **Priority:** Medium
-**Status:** Done
+**Status:** NeedsReview
 **Assignee:** AI_Agent
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-12-03
