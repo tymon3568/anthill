@@ -3,7 +3,7 @@
 // ============================================================
 //
 // Tool: https://dbdiagram.io/d (paste this code to visualize)
-// Last Updated: 2025-11-23
+// Last Updated: 2025-12-02
 // Multi-tenant architecture with application-level filtering
 //
 // HOW TO USE:
@@ -15,8 +15,8 @@
 //
 // TABLES INCLUDED:
 // - Core: tenants, users, sessions, casbin_rule
-// - Inventory: products, unit_of_measures, warehouses
-// - Stock Operations: goods_receipts, delivery_orders, stock_transfers, stock_takes
+// - Inventory: products, unit_of_measures, warehouses, warehouse_zones, warehouse_locations, lots_serial_numbers
+// - Stock Operations: goods_receipts, delivery_orders, stock_transfers, stock_takes, stock_moves
 //   (and their respective line item tables)
 //
 // ============================================================
@@ -249,6 +249,93 @@ Table warehouses {
   }
 
   Note: 'Warehouse locations with hierarchical support'
+}
+
+Table warehouse_zones {
+  zone_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  warehouse_id UUID [not null]
+  zone_code VARCHAR(50) [not null]
+  zone_name VARCHAR(255) [not null]
+  description TEXT
+  zone_type VARCHAR(50) [not null, default: 'storage', note: 'storage/picking/quarantine/receiving/shipping/bulk/damaged/returns']
+  zone_attributes JSONB [note: 'temperature_controlled, hazardous_materials, security_level']
+  capacity_info JSONB [note: 'max_volume_m3, max_weight_kg, max_locations']
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (warehouse_id, zone_code) [unique, name: 'warehouse_zones_code_unique_per_warehouse']
+    (warehouse_id, zone_id) [unique, name: 'warehouse_zones_warehouse_zone_unique']
+    (tenant_id, warehouse_id) [name: 'idx_warehouse_zones_tenant_warehouse', where: 'deleted_at IS NULL']
+    (tenant_id, zone_type) [name: 'idx_warehouse_zones_tenant_type', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Warehouse zones for internal organization within warehouses'
+}
+
+Table warehouse_locations {
+  location_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  warehouse_id UUID [not null]
+  zone_id UUID [note: 'Optional reference to warehouse zone']
+  location_code VARCHAR(100) [not null]
+  location_name VARCHAR(255)
+  description TEXT
+  location_type VARCHAR(50) [not null, default: 'bin', note: 'bin/shelf/pallet/floor/rack/container/bulk']
+  coordinates JSONB [note: 'aisle, rack, level, position, x, y, z']
+  dimensions JSONB [note: 'length_mm, width_mm, height_mm, volume_m3']
+  capacity_info JSONB [note: 'max_volume_m3, max_weight_kg, max_units, stacking_limit']
+  location_attributes JSONB [note: 'powered, climate_controlled, accessible, priority']
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (warehouse_id, location_code) [unique, name: 'warehouse_locations_code_unique_per_warehouse']
+    (tenant_id, warehouse_id) [name: 'idx_warehouse_locations_tenant_warehouse', where: 'deleted_at IS NULL']
+    (tenant_id, zone_id) [name: 'idx_warehouse_locations_zone', where: 'deleted_at IS NULL']
+    (tenant_id, location_type) [name: 'idx_warehouse_locations_tenant_type', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Individual storage locations within warehouse zones'
+}
+
+Table lots_serial_numbers {
+  lot_serial_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  product_id UUID [not null]
+  tracking_type VARCHAR(20) [not null, note: 'lot/serial']
+  lot_number VARCHAR(100)
+  serial_number VARCHAR(100)
+  expiry_date TIMESTAMPTZ
+  manufacture_date TIMESTAMPTZ
+  batch_reference VARCHAR(100)
+  status VARCHAR(20) [not null, default: 'active', note: 'active/expired/quarantined/disposed/reserved']
+  initial_quantity BIGINT
+  remaining_quantity BIGINT
+  warehouse_id UUID
+  location_id UUID
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  created_by UUID [not null]
+  updated_by UUID
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, product_id) [name: 'idx_lots_serial_numbers_tenant_product', where: 'deleted_at IS NULL']
+    (tenant_id, tracking_type, product_id) [name: 'idx_lots_serial_numbers_tenant_tracking', where: 'deleted_at IS NULL']
+    (tenant_id, lot_number) [name: 'idx_lots_serial_numbers_tenant_lot', where: 'deleted_at IS NULL AND lot_number IS NOT NULL']
+    (tenant_id, serial_number) [name: 'idx_lots_serial_numbers_tenant_serial', where: 'deleted_at IS NULL AND serial_number IS NOT NULL']
+    (tenant_id, status) [name: 'idx_lots_serial_numbers_tenant_status', where: 'deleted_at IS NULL']
+    (tenant_id, warehouse_id) [name: 'idx_lots_serial_numbers_tenant_warehouse', where: 'deleted_at IS NULL AND warehouse_id IS NOT NULL']
+    (tenant_id, expiry_date) [name: 'idx_lots_serial_numbers_tenant_expiry', where: 'deleted_at IS NULL AND expiry_date IS NOT NULL']
+  }
+
+  Note: 'Lot and serial number tracking table for granular inventory traceability'
 }
 
 // ==================================
@@ -496,6 +583,36 @@ Table stock_take_lines {
   Note: 'Stock take lines - individual product counts within stock take sessions'
 }
 
+Table stock_moves {
+  move_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  product_id UUID [not null]
+  source_location_id UUID [note: 'NULL for receipts']
+  destination_location_id UUID [note: 'NULL for deliveries']
+  move_type VARCHAR(20) [not null, note: 'receipt/delivery/transfer/adjustment/production/consumption']
+  quantity BIGINT [not null, note: 'Can be negative for deliveries/consumption']
+  unit_cost BIGINT [note: 'Cost per unit in cents/xu']
+  total_cost BIGINT [note: 'Calculated: quantity * unit_cost']
+  reference_type VARCHAR(20) [not null, note: 'grn/do/transfer/adjustment/production/consumption/manual']
+  reference_id UUID [not null]
+  idempotency_key VARCHAR(255) [not null]
+  lot_serial_id UUID [note: 'Reference to lots_serial_numbers table']
+  move_date TIMESTAMPTZ [not null, default: `NOW()`]
+  move_reason TEXT
+  batch_info JSONB [note: 'Lot/serial/batch information']
+  metadata JSONB [note: 'Additional movement-specific data']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, move_id) [unique, name: 'stock_moves_tenant_move_unique']
+    (tenant_id, product_id, move_date DESC) [name: 'idx_stock_moves_tenant_product_date']
+    (tenant_id, reference_type, reference_id) [name: 'idx_stock_moves_tenant_reference']
+    (tenant_id, lot_serial_id) [name: 'idx_stock_moves_tenant_lot_serial']
+  }
+
+  Note: 'Immutable stock ledger - Complete audit trail of all inventory movements'
+}
+
 // ==================================
 // RELATIONSHIPS (Stock Operations)
 // ==================================
@@ -540,6 +657,21 @@ Ref: stock_take_lines.(tenant_id, counted_by) > users.(tenant_id, user_id)
 Ref: products.(tenant_id, default_uom_id) > unit_of_measures.(tenant_id, uom_id)
 Ref: unit_of_measures.(tenant_id, base_uom_id) > unit_of_measures.(tenant_id, uom_id)
 Ref: warehouses.(tenant_id, parent_warehouse_id) > warehouses.(tenant_id, warehouse_id)
+
+Ref: warehouse_zones.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: warehouse_locations.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: warehouse_locations.(warehouse_id, zone_id) > warehouse_zones.(warehouse_id, zone_id)
+
+Ref: lots_serial_numbers.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: lots_serial_numbers.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: lots_serial_numbers.(tenant_id, location_id) > warehouse_locations.(tenant_id, location_id)
+Ref: lots_serial_numbers.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: lots_serial_numbers.(tenant_id, updated_by) > users.(tenant_id, user_id)
+
+Ref: stock_moves.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: stock_moves.(tenant_id, source_location_id) > warehouse_locations.(tenant_id, location_id)
+Ref: stock_moves.(tenant_id, destination_location_id) > warehouse_locations.(tenant_id, location_id)
+Ref: stock_moves.(tenant_id, lot_serial_id) > lots_serial_numbers.(tenant_id, lot_serial_id)
 
 Ref: delivery_orders.(tenant_id, updated_by) > users.(tenant_id, user_id)
 Ref: stock_transfers.(tenant_id, updated_by) > users.(tenant_id, user_id)
