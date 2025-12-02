@@ -11,6 +11,19 @@ use shared::db::init_pool;
 use std::sync::Arc;
 use uuid::Uuid;
 
+use chrono::{Duration, Utc};
+use jsonwebtoken::{encode, EncodingKey, Header};
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct Claims {
+    sub: String,
+    groups: Vec<String>,
+    preferred_username: String,
+    email: String,
+    exp: usize,
+}
+
 #[sqlx::test]
 async fn test_lot_serial_lifecycle_endpoint() {
     // Setup database pool
@@ -98,7 +111,7 @@ async fn test_lot_serial_lifecycle_endpoint() {
     };
 
     // Create test server
-    let app = inventory_service_api::create_router(app_state);
+    let app = inventory_service_api::create_router(app_state.clone());
     let server = TestServer::new(app).unwrap();
 
     // Create test data
@@ -107,6 +120,43 @@ async fn test_lot_serial_lifecycle_endpoint() {
     let warehouse_id = Uuid::new_v4();
     let zone_id = Uuid::new_v4();
     let location_id = Uuid::new_v4();
+
+    // Insert kanidm tenant group mapping
+    let kanidm_group_uuid = Uuid::new_v4();
+    let kanidm_group_name = format!("tenant_{}_users", tenant_id);
+    sqlx::query!(
+        "INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name) VALUES ($1, $2, $3)",
+        tenant_id, kanidm_group_uuid, kanidm_group_name
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to insert kanidm group");
+
+    // Add Casbin policy for test user
+    app_state
+        .enforcer
+        .add_policy(vec![
+            "test_user".to_string(),
+            "/api/v1/inventory/lot-serials/tracking/*".to_string(),
+            "GET".to_string(),
+        ])
+        .await
+        .expect("Failed to add policy");
+
+    // Generate JWT token
+    let claims = Claims {
+        sub: "test_user".to_string(),
+        groups: vec![kanidm_group_name],
+        preferred_username: "test".to_string(),
+        email: "test@example.com".to_string(),
+        exp: (Utc::now() + Duration::hours(1)).timestamp() as usize,
+    };
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(app_state.jwt_secret.as_ref()),
+    )
+    .expect("Failed to encode JWT");
 
     // Insert test warehouse
     sqlx::query!(
@@ -187,7 +237,7 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Call endpoint
     let response = server
         .get(&format!("/api/v1/inventory/lot-serials/tracking/{}", lot_serial.lot_serial_id))
-        .add_header("Authorization", "Bearer test_token")
+        .add_header("Authorization", format!("Bearer {}", token))
         .await;
 
     assert_eq!(response.status_code(), StatusCode::OK);
