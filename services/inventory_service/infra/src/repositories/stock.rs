@@ -39,8 +39,8 @@ impl PgStockMoveRepository {
             INSERT INTO stock_moves (
                 tenant_id, product_id, source_location_id, destination_location_id,
                 move_type, quantity, unit_cost, reference_type, reference_id,
-                idempotency_key, move_reason, batch_info, metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                lot_serial_id, idempotency_key, move_reason, batch_info, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             "#,
             tenant_id,
             stock_move.product_id,
@@ -51,6 +51,7 @@ impl PgStockMoveRepository {
             stock_move.unit_cost,
             stock_move.reference_type,
             stock_move.reference_id,
+            stock_move.lot_serial_id,
             stock_move.idempotency_key,
             stock_move.move_reason,
             stock_move.batch_info,
@@ -76,8 +77,8 @@ impl PgStockMoveRepository {
             INSERT INTO stock_moves (
                 tenant_id, product_id, source_location_id, destination_location_id,
                 move_type, quantity, unit_cost, reference_type, reference_id,
-                idempotency_key, move_reason, batch_info, metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                lot_serial_id, idempotency_key, move_reason, batch_info, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
             "#,
             tenant_id,
@@ -89,6 +90,7 @@ impl PgStockMoveRepository {
             stock_move.unit_cost,
             stock_move.reference_type,
             stock_move.reference_id,
+            stock_move.lot_serial_id,
             stock_move.idempotency_key,
             stock_move.move_reason,
             stock_move.batch_info,
@@ -115,8 +117,8 @@ impl StockMoveRepository for PgStockMoveRepository {
             INSERT INTO stock_moves (
                 tenant_id, product_id, source_location_id, destination_location_id,
                 move_type, quantity, unit_cost, reference_type, reference_id,
-                idempotency_key, move_reason, batch_info, metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                lot_serial_id, idempotency_key, move_reason, batch_info, metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             "#,
             tenant_id,
             stock_move.product_id,
@@ -127,6 +129,7 @@ impl StockMoveRepository for PgStockMoveRepository {
             stock_move.unit_cost,
             stock_move.reference_type,
             stock_move.reference_id,
+            stock_move.lot_serial_id,
             stock_move.idempotency_key,
             stock_move.move_reason,
             stock_move.batch_info,
@@ -151,7 +154,7 @@ impl StockMoveRepository for PgStockMoveRepository {
             SELECT
                 move_id, tenant_id, product_id, source_location_id, destination_location_id,
                 move_type, quantity, unit_cost, total_cost, reference_type, reference_id,
-                idempotency_key, move_date, move_reason, batch_info, metadata, created_at
+                lot_serial_id, idempotency_key, move_date, move_reason, batch_info, metadata, created_at
             FROM stock_moves
             WHERE tenant_id = $1 AND reference_type = $2 AND reference_id = $3
             ORDER BY created_at ASC
@@ -189,6 +192,32 @@ impl StockMoveRepository for PgStockMoveRepository {
         .unwrap_or(false);
 
         Ok(exists)
+    }
+
+    async fn find_by_lot_serial(
+        &self,
+        tenant_id: Uuid,
+        lot_serial_id: Uuid,
+    ) -> Result<Vec<StockMove>, AppError> {
+        let stock_moves = sqlx::query_as!(
+            StockMove,
+            r#"
+            SELECT
+                move_id, tenant_id, product_id, source_location_id, destination_location_id,
+                move_type, quantity, unit_cost, total_cost, reference_type, reference_id,
+                lot_serial_id, idempotency_key, move_date, move_reason, batch_info, metadata, created_at
+            FROM stock_moves
+            WHERE tenant_id = $1 AND lot_serial_id = $2
+            ORDER BY created_at ASC
+            "#,
+            tenant_id,
+            lot_serial_id
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        Ok(stock_moves)
     }
 }
 

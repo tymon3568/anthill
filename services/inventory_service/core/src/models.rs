@@ -169,6 +169,7 @@ pub struct DeliveryOrderItemResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct StockMove {
     pub move_id: Uuid,
     pub tenant_id: Uuid,
@@ -181,6 +182,7 @@ pub struct StockMove {
     pub total_cost: Option<i64>,
     pub reference_type: String,
     pub reference_id: Uuid,
+    pub lot_serial_id: Option<Uuid>,
     pub idempotency_key: String,
     pub move_date: DateTime<Utc>,
     pub move_reason: Option<String>,
@@ -212,6 +214,7 @@ pub struct CreateStockMoveRequest {
     pub unit_cost: Option<i64>,
     pub reference_type: String,
     pub reference_id: Uuid,
+    pub lot_serial_id: Option<Uuid>,
     pub idempotency_key: String,
     pub move_reason: Option<String>,
     pub batch_info: Option<serde_json::Value>,
@@ -420,6 +423,25 @@ pub struct LotSerial {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LotSerialLifecycle {
+    pub lot_serial: LotSerial,
+    /// TODO: Populate from supplier table via purchase order
+    pub supplier_name: Option<String>,
+    /// TODO: Populate from purchase order table
+    pub purchase_order_number: Option<String>,
+    /// TODO: Populate from quality documents or attachments
+    pub coa_link: Option<String>,
+    pub stock_moves: Vec<StockMove>,
+    /// TODO: Populate from warehouse table using lot_serial.location_id
+    pub current_warehouse_name: Option<String>,
+    /// TODO: Populate from location table using lot_serial.location_id
+    pub current_location_code: Option<String>,
+    /// TODO: Populate from quality_checks table or related records
+    pub quality_checks: Vec<serde_json::Value>, // Placeholder for quality check records
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

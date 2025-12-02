@@ -246,6 +246,7 @@ impl RmaService for PgRmaService {
                     reference_id: rma_id,
                     idempotency_key: format!("rma-{}-item-{}", rma_id, rma_item.rma_item_id),
                     move_reason: Some(format!("RMA {} return", rma.rma_number)),
+                    lot_serial_id: None, // TODO: Set if lot-tracked product
                     batch_info: None,
                     metadata: Some(serde_json::json!({
                         "rma_item_id": rma_item.rma_item_id,

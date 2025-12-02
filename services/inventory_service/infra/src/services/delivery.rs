@@ -344,6 +344,7 @@ impl DeliveryService for DeliveryServiceImpl {
                 reference_id: delivery_id,
                 idempotency_key: idempotency_key.clone(),
                 move_reason: Some(format!("Delivery order {}", delivery_order.delivery_number)),
+                lot_serial_id: None, // TODO: Set if lot-tracked product
                 batch_info: None,
                 metadata: Some(serde_json::json!({
                     "delivery_item_id": item.delivery_item_id,

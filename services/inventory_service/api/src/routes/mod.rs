@@ -205,7 +205,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         inventory_service_infra::repositories::lot_serial::LotSerialRepositoryImpl::new(
             pool.clone(),
         );
-    let lot_serial_service = LotSerialServiceImpl::new(lot_serial_repo);
 
     let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
     let product_service =
@@ -225,6 +224,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Initialize stock repositories
     let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
+    let lot_serial_service = LotSerialServiceImpl::new(lot_serial_repo, stock_move_repo.clone());
     let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
 
     // Initialize transfer repositories and services

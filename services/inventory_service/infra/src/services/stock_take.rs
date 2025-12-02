@@ -233,6 +233,7 @@ impl StockTakeService for PgStockTakeService {
                         "Stock take {} adjustment",
                         stock_take.stock_take_number
                     )),
+                    lot_serial_id: None, // TODO: Set if lot-tracked product
                     batch_info: None,
                     metadata: None,
                 };
