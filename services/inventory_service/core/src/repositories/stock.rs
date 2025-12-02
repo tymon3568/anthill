@@ -31,6 +31,13 @@ pub trait StockMoveRepository: Send + Sync {
         tenant_id: Uuid,
         idempotency_key: &str,
     ) -> Result<bool, AppError>;
+
+    /// Find stock moves by lot serial ID
+    async fn find_by_lot_serial(
+        &self,
+        tenant_id: Uuid,
+        lot_serial_id: Uuid,
+    ) -> Result<Vec<StockMove>, AppError>;
 }
 
 #[async_trait]

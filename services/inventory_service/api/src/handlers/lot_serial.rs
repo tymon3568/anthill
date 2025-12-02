@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
-use inventory_service_core::models::{LotSerial, LotSerialStatus, LotSerialTrackingType};
+use inventory_service_core::models::{
+    LotSerial, LotSerialLifecycle, LotSerialStatus, LotSerialTrackingType,
+};
 
 use shared_auth::extractors::{AuthUser, RequireAdmin};
 use shared_error::AppError;
@@ -263,6 +265,37 @@ pub async fn quarantine_expired_lots(
     Ok(Json(QuarantineResponse { quarantined_count }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/tracking/{lot_serial_id}",
+    tag = "lot-serial",
+    operation_id = "get_lot_serial_lifecycle",
+    params(
+        ("lot_serial_id" = Uuid, Path, description = "Lot serial ID")
+    ),
+    responses(
+        (status = 200, body = LotSerialLifecycle),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_lot_serial_lifecycle(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(lot_serial_id): Path<Uuid>,
+) -> Result<Json<LotSerialLifecycle>, AppError> {
+    let lifecycle = state
+        .lot_serial_service
+        .get_lifecycle(auth_user.tenant_id, lot_serial_id)
+        .await?;
+    Ok(Json(lifecycle))
+}
+
 pub fn create_lot_serial_routes() -> Router {
     Router::new()
         .route("/", axum::routing::post(create_lot_serial))
@@ -274,4 +307,5 @@ pub fn create_lot_serial_routes() -> Router {
         )
         .route("/products/{product_id}", axum::routing::get(list_lot_serials_by_product))
         .route("/quarantine-expired", axum::routing::post(quarantine_expired_lots))
+        .route("/tracking/{lot_serial_id}", axum::routing::get(get_lot_serial_lifecycle))
 }

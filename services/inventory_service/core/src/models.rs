@@ -169,6 +169,7 @@ pub struct DeliveryOrderItemResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct StockMove {
     pub move_id: Uuid,
     pub tenant_id: Uuid,
@@ -420,6 +421,19 @@ pub struct LotSerial {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct LotSerialLifecycle {
+    pub lot_serial: LotSerial,
+    pub supplier_name: Option<String>,
+    pub purchase_order_number: Option<String>,
+    pub coa_link: Option<String>,
+    pub stock_moves: Vec<StockMove>,
+    pub current_warehouse_name: Option<String>,
+    pub current_location_code: Option<String>,
+    pub quality_checks: Vec<serde_json::Value>, // Placeholder for quality check records
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

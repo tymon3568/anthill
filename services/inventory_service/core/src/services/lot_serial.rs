@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::models::{LotSerial, LotSerialStatus, LotSerialTrackingType};
+use crate::models::{LotSerial, LotSerialLifecycle, LotSerialStatus, LotSerialTrackingType};
 
 use shared_error::AppError;
 
@@ -13,6 +13,11 @@ pub trait LotSerialService: Send + Sync + 'static {
         tenant_id: Uuid,
         lot_serial_id: Uuid,
     ) -> Result<Option<LotSerial>, AppError>;
+    async fn get_lifecycle(
+        &self,
+        tenant_id: Uuid,
+        lot_serial_id: Uuid,
+    ) -> Result<LotSerialLifecycle, AppError>;
     async fn list_lot_serials_by_product(
         &self,
         tenant_id: Uuid,

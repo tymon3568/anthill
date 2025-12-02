@@ -190,6 +190,32 @@ impl StockMoveRepository for PgStockMoveRepository {
 
         Ok(exists)
     }
+
+    async fn find_by_lot_serial(
+        &self,
+        tenant_id: Uuid,
+        lot_serial_id: Uuid,
+    ) -> Result<Vec<StockMove>, AppError> {
+        let stock_moves = sqlx::query_as!(
+            StockMove,
+            r#"
+            SELECT
+                move_id, tenant_id, product_id, source_location_id, destination_location_id,
+                move_type, quantity, unit_cost, total_cost, reference_type, reference_id,
+                idempotency_key, move_date, move_reason, batch_info, metadata, created_at
+            FROM stock_moves
+            WHERE tenant_id = $1 AND batch_info->>'lot_serial_id' = $2
+            ORDER BY created_at ASC
+            "#,
+            tenant_id,
+            lot_serial_id.to_string()
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        Ok(stock_moves)
+    }
 }
 
 /// PostgreSQL implementation of InventoryLevelRepository
