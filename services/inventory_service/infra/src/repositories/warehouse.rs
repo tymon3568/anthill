@@ -400,6 +400,40 @@ impl WarehouseRepository for WarehouseRepositoryImpl {
         Ok(locations)
     }
 
+    async fn find_zone_by_id(
+        &self,
+        tenant_id: Uuid,
+        zone_id: Uuid,
+    ) -> Result<Option<WarehouseZone>> {
+        let zone = sqlx::query_as!(
+            WarehouseZone,
+            "SELECT zone_id, tenant_id, warehouse_id, zone_code, zone_name, description, zone_type, zone_attributes, capacity_info, is_active, created_at, updated_at, deleted_at FROM warehouse_zones WHERE tenant_id = $1 AND zone_id = $2 AND deleted_at IS NULL",
+            tenant_id,
+            zone_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(zone)
+    }
+
+    async fn find_location_by_id(
+        &self,
+        tenant_id: Uuid,
+        location_id: Uuid,
+    ) -> Result<Option<WarehouseLocation>> {
+        let location = sqlx::query_as!(
+            WarehouseLocation,
+            "SELECT location_id, tenant_id, warehouse_id, zone_id, location_code, location_name, description, location_type, coordinates, dimensions, capacity_info, location_attributes, is_active, created_at, updated_at, deleted_at FROM warehouse_locations WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL",
+            tenant_id,
+            location_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(location)
+    }
+
     async fn validate_hierarchy(
         &self,
         tenant_id: Uuid,
