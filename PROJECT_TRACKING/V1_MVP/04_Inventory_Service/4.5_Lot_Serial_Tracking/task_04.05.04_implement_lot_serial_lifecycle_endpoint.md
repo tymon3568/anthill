@@ -66,3 +66,14 @@ Create an endpoint to provide full traceability for a given lot or serial number
     - Committed and pushed changes to feature branch
     - Status: NeedsReview (awaiting resolution of critical query issue where batch_info is not populated)
     - Files modified: services/inventory_service/api/src/handlers/lot_serial.rs, services/inventory_service/core/src/models.rs
+*   2025-12-02 13:00: Implemented lot_serial_id column for stock_moves
+    - Added migration 20251202000001_add_lot_serial_id_to_stock_moves.sql to add UUID column and composite index
+    - Updated StockMove and CreateStockMoveRequest models to include lot_serial_id: Option<Uuid>
+    - Modified all stock move creation queries (transfer, rma, delivery, reconciliation, stock_take, receipt) to include lot_serial_id (set to None for now)
+    - Updated find_by_lot_serial query to use lot_serial_id column instead of batch_info JSON path
+    - Fixed LotSerialServiceImpl constructor to accept Arc<PgStockMoveRepository>
+    - Ran migration on test database and verified compilation
+    - Committed and pushed changes
+    - Status: NeedsReview (critical query issue resolved; lifecycle endpoint now returns stock_moves correctly when lot_serial_id is set)
+    - Next step: Update services to populate lot_serial_id when creating stock moves for lot-tracked products (requires checking product.tracking_type and passing lot_serial_id from inputs)
+    - Files modified: migrations/20251202000001_add_lot_serial_id_to_stock_moves.sql, services/inventory_service/core/src/models.rs, services/inventory_service/infra/src/repositories/stock.rs, services/inventory_service/infra/src/services/lot_serial.rs, services/inventory_service/infra/src/services/transfer.rs, services/inventory_service/infra/src/services/rma.rs, services/inventory_service/infra/src/services/delivery.rs, services/inventory_service/infra/src/services/reconciliation.rs, services/inventory_service/infra/src/services/stock_take.rs, services/inventory_service/infra/src/repositories/receipt.rs
