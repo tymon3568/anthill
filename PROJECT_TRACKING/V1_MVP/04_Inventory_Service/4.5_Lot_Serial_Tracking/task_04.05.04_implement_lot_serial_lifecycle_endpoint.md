@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.5_Lot_Serial_Tracking
 **Priority:** Medium
-**Status:** Done
+**Status:** InProgress_By_Grok
 **Assignee:** AI_Agent
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-12-03
@@ -99,3 +99,7 @@ Create an endpoint to provide full traceability for a given lot or serial number
 - Corrected query logic to fetch warehouse_name from warehouses table and location_code from warehouse_locations
 - Status: Done (all fixes applied and PR issues resolved)
 - Files modified: services/inventory_service/core/src/repositories/warehouse.rs, services/inventory_service/infra/src/services/lot_serial.rs, services/inventory_service/api/src/routes/mod.rs, services/inventory_service/tests/lifecycle_integration_test.rs
+*  2025-12-03 04:00: Fixing critical compilation error in integration test
+- Corrected stock_move_repo instantiation to use PgStockMoveRepository::new(Arc::new(pool.clone())) instead of incorrect StockMoveRepositoryImpl
+- Status: InProgress
+- Files modified: services/inventory_service/tests/lifecycle_integration_test.rs

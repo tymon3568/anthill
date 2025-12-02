@@ -21,9 +21,10 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Create repositories
     let lot_serial_repo =
         inventory_service_infra::repositories::LotSerialRepositoryImpl::new(pool.clone());
-    let stock_move_repo = Arc::new(
-        inventory_service_infra::repositories::StockMoveRepositoryImpl::new(pool.clone()),
-    );
+    let stock_move_repo =
+        Arc::new(inventory_service_infra::repositories::stock::PgStockMoveRepository::new(
+            Arc::new(pool.clone()),
+        ));
     let warehouse_repo = Arc::new(
         inventory_service_infra::repositories::WarehouseRepositoryImpl::new(pool.clone()),
     );
