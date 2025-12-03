@@ -9,6 +9,7 @@ use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::lot_serial::LotSerialService;
 use inventory_service_core::services::product::ProductService;
+use inventory_service_core::services::quality::QualityControlPointService;
 use inventory_service_core::services::receipt::ReceiptService;
 use inventory_service_core::services::reconciliation::StockReconciliationService;
 use inventory_service_core::services::replenishment::ReplenishmentService;
@@ -35,6 +36,7 @@ pub struct AppState {
     pub reconciliation_service: Arc<dyn StockReconciliationService>,
     pub rma_service: Arc<dyn RmaService>,
     pub replenishment_service: Arc<dyn ReplenishmentService>,
+    pub quality_service: Arc<dyn QualityControlPointService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,
@@ -55,6 +57,7 @@ impl Clone for AppState {
             reconciliation_service: self.reconciliation_service.clone(),
             rma_service: self.rma_service.clone(),
             replenishment_service: self.replenishment_service.clone(),
+            quality_service: self.quality_service.clone(),
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),
             kanidm_client: self.kanidm_client.clone(),
