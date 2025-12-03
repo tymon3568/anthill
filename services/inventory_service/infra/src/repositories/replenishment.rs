@@ -63,6 +63,7 @@ impl ReorderRuleRepository for PgReorderRuleRepository {
                     created_at, updated_at, deleted_at
                 FROM reorder_rules
                 WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3 AND deleted_at IS NULL
+                ORDER BY created_at
                 "#,
                 tenant_id,
                 product_id,
@@ -81,6 +82,7 @@ impl ReorderRuleRepository for PgReorderRuleRepository {
                     created_at, updated_at, deleted_at
                 FROM reorder_rules
                 WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+                ORDER BY created_at
                 "#,
                 tenant_id,
                 product_id
@@ -141,8 +143,9 @@ impl ReorderRuleRepository for PgReorderRuleRepository {
             rule.lead_time_days,
             rule.safety_stock
         )
-        .fetch_one(&self.pool)
-        .await?;
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Reorder rule {} not found", rule_id)))?;
 
         Ok(new_rule)
     }
@@ -179,8 +182,10 @@ impl ReorderRuleRepository for PgReorderRuleRepository {
             updates.lead_time_days,
             updates.safety_stock
         )
-        .fetch_one(&self.pool)
-        .await?;
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("Reorder rule {} not found", rule_id)))?;
 
         Ok(updated_rule)
     }

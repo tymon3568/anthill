@@ -54,7 +54,8 @@ impl PgReplenishmentService {
                 .await?
         };
 
-        // For simplicity, projected = available (incoming - reserved not implemented yet)
+        // Projected quantity = available + incoming - reserved
+        // For now, incoming = 0, reserved = 0 (not implemented yet)
         // TODO: Add incoming stock moves and reserved quantities
         Ok(available)
     }
@@ -107,13 +108,60 @@ impl ReplenishmentService for PgReplenishmentService {
         tenant_id: Uuid,
     ) -> Result<Vec<ReplenishmentCheckResult>, AppError> {
         let rules = self.reorder_repo.find_all_active(tenant_id).await?;
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(rules.len());
 
         for rule in rules {
-            let result = self
-                .check_product_replenishment(tenant_id, rule.product_id, rule.warehouse_id)
+            let projected_quantity = self
+                .calculate_projected_quantity(tenant_id, rule.product_id, rule.warehouse_id)
                 .await?;
-            results.push(result);
+            let current_quantity = projected_quantity;
+            let needs_replenishment = projected_quantity < rule.reorder_point;
+            let suggested_order_quantity = if needs_replenishment {
+                (rule.max_quantity - projected_quantity).max(rule.min_quantity)
+            } else {
+                0
+            };
+
+            let action_taken = if needs_replenishment {
+                if let Some(nats) = &self.nats_client {
+                    let event = ReorderTriggeredEvent {
+                        tenant_id,
+                        product_id: rule.product_id,
+                        warehouse_id: rule.warehouse_id,
+                        current_quantity,
+                        projected_quantity,
+                        reorder_point: rule.reorder_point,
+                        suggested_order_quantity,
+                        rule_id: rule.rule_id,
+                    };
+                    let envelope = EventEnvelope::new("inventory.reorder.triggered", event);
+                    match nats
+                        .publish_event("inventory.reorder.triggered".to_string(), &envelope)
+                        .await
+                    {
+                        Ok(_) => Some("Reorder triggered event published".to_string()),
+                        Err(e) => {
+                            tracing::warn!("Failed to publish reorder event: {}", e);
+                            Some("Reorder needed but event publishing failed".to_string())
+                        },
+                    }
+                } else {
+                    Some("Reorder needed but event publishing disabled".to_string())
+                }
+            } else {
+                None
+            };
+
+            results.push(ReplenishmentCheckResult {
+                product_id: rule.product_id,
+                warehouse_id: rule.warehouse_id,
+                current_quantity,
+                projected_quantity,
+                reorder_point: rule.reorder_point,
+                suggested_order_quantity,
+                needs_replenishment,
+                action_taken,
+            });
         }
 
         Ok(results)

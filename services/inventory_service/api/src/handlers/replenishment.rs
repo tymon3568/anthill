@@ -153,7 +153,7 @@ pub async fn list_reorder_rules_for_product(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path(product_id): Path<Uuid>,
-    axum::extract::Query(params): axum::extract::Query<ListRulesQuery>,
+    axum::extract::Query(params): axum::extract::Query<WarehouseFilterQuery>,
 ) -> Result<Json<Vec<inventory_service_core::domains::replenishment::ReorderRule>>, AppError> {
     let rules = state
         .replenishment_service
@@ -208,7 +208,7 @@ pub async fn check_product_replenishment(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path(product_id): Path<Uuid>,
-    axum::extract::Query(params): axum::extract::Query<CheckProductQuery>,
+    axum::extract::Query(params): axum::extract::Query<WarehouseFilterQuery>,
 ) -> Result<Json<ReplenishmentCheckResult>, AppError> {
     let result = state
         .replenishment_service
@@ -217,12 +217,7 @@ pub async fn check_product_replenishment(
     Ok(Json(result))
 }
 
-#[derive(Deserialize)]
-pub struct ListRulesQuery {
-    pub warehouse_id: Option<Uuid>,
-}
-
-#[derive(Deserialize)]
-pub struct CheckProductQuery {
+#[derive(Deserialize, ToSchema)]
+pub struct WarehouseFilterQuery {
     pub warehouse_id: Option<Uuid>,
 }
