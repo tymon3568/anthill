@@ -3,6 +3,7 @@
 //! This module contains PostgreSQL implementations of the repository traits.
 
 pub mod category;
+pub mod replenishment;
 
 /// Transaction abstraction to avoid sqlx dependency in core
 pub mod transaction {
@@ -37,6 +38,7 @@ pub use lot_serial::LotSerialRepository;
 pub use product::ProductRepository;
 pub use receipt::ReceiptRepository;
 pub use reconciliation::{StockReconciliationItemRepository, StockReconciliationRepository};
+pub use replenishment::ReorderRuleRepository;
 pub use rma::{RmaItemRepository, RmaRepository};
 pub use stock::{InventoryLevelRepository, StockMoveRepository};
 pub use stock_take::{StockTakeLineRepository, StockTakeRepository};

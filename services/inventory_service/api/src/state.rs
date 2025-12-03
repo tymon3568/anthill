@@ -11,6 +11,7 @@ use inventory_service_core::services::lot_serial::LotSerialService;
 use inventory_service_core::services::product::ProductService;
 use inventory_service_core::services::receipt::ReceiptService;
 use inventory_service_core::services::reconciliation::StockReconciliationService;
+use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::services::rma::RmaService;
 use inventory_service_core::services::stock_take::StockTakeService;
 use inventory_service_core::services::transfer::TransferService;
@@ -33,6 +34,7 @@ pub struct AppState {
     pub stock_take_service: Arc<dyn StockTakeService>,
     pub reconciliation_service: Arc<dyn StockReconciliationService>,
     pub rma_service: Arc<dyn RmaService>,
+    pub replenishment_service: Arc<dyn ReplenishmentService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,
@@ -52,6 +54,7 @@ impl Clone for AppState {
             stock_take_service: self.stock_take_service.clone(),
             reconciliation_service: self.reconciliation_service.clone(),
             rma_service: self.rma_service.clone(),
+            replenishment_service: self.replenishment_service.clone(),
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),
             kanidm_client: self.kanidm_client.clone(),

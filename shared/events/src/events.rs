@@ -44,3 +44,17 @@ pub struct Address {
     pub postal_code: Option<String>,
     pub country: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReorderTriggeredEvent {
+    pub event_id: Uuid,
+    pub tenant_id: Uuid,
+    pub product_id: Uuid,
+    pub warehouse_id: Option<Uuid>,
+    pub current_quantity: i64,
+    pub projected_quantity: i64,
+    pub reorder_point: i64,
+    pub suggested_order_quantity: i64,
+    pub rule_id: Uuid,
+    pub triggered_at: chrono::DateTime<chrono::Utc>,
+}
