@@ -8,23 +8,28 @@ use crate::repositories::LotSerialRepositoryImpl;
 use inventory_service_core::models::{
     LotSerial, LotSerialLifecycle, LotSerialStatus, LotSerialTrackingType,
 };
-use inventory_service_core::repositories::{LotSerialRepository, StockMoveRepository};
+use inventory_service_core::repositories::{
+    LotSerialRepository, StockMoveRepository, WarehouseRepository,
+};
 use inventory_service_core::services::LotSerialService;
 use shared_error::AppError;
 
 pub struct LotSerialServiceImpl {
     lot_serial_repo: LotSerialRepositoryImpl,
     stock_move_repo: Arc<PgStockMoveRepository>,
+    warehouse_repo: Arc<dyn WarehouseRepository>,
 }
 
 impl LotSerialServiceImpl {
     pub fn new(
         lot_serial_repo: LotSerialRepositoryImpl,
         stock_move_repo: Arc<PgStockMoveRepository>,
+        warehouse_repo: Arc<dyn WarehouseRepository>,
     ) -> Self {
         Self {
             lot_serial_repo,
             stock_move_repo,
+            warehouse_repo,
         }
     }
 }
@@ -51,14 +56,34 @@ impl LotSerialService for LotSerialServiceImpl {
             .find_by_lot_serial(tenant_id, lot_serial_id)
             .await?;
 
+        // Populate current_warehouse_name from warehouses
+        let current_warehouse_name = if let Some(warehouse_id) = lot_serial.warehouse_id {
+            self.warehouse_repo
+                .find_by_id(tenant_id, warehouse_id)
+                .await?
+                .map(|warehouse| warehouse.warehouse_name)
+        } else {
+            None
+        };
+
+        // Populate current_location_code from warehouse_locations
+        let current_location_code = if let Some(location_id) = lot_serial.location_id {
+            self.warehouse_repo
+                .find_location_by_id(tenant_id, location_id)
+                .await?
+                .map(|location| location.location_code)
+        } else {
+            None
+        };
+
         Ok(LotSerialLifecycle {
             lot_serial,
             supplier_name: None,
             purchase_order_number: None,
             coa_link: None,
             stock_moves,
-            current_warehouse_name: None,
-            current_location_code: None,
+            current_warehouse_name,
+            current_location_code,
             quality_checks: vec![],
         })
     }
