@@ -60,6 +60,7 @@ use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
+use crate::routes::replenishment::create_replenishment_routes;
 use crate::state::AppState;
 
 /// Create Kanidm client from configuration
@@ -282,6 +283,14 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         stock_move_repo.clone(),
     ));
 
+    // Initialize replenishment repositories and services
+    let reorder_rule_repo = Arc::new(PgReorderRuleRepository::new(pool.clone()));
+    let replenishment_service = Arc::new(PgReplenishmentService::new(
+        reorder_rule_repo,
+        inventory_level_repo.clone(),
+        stock_move_repo.clone(),
+    ));
+
     // Initialize receipt repositories and services
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
@@ -304,6 +313,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         stock_take_service,
         reconciliation_service,
         rma_service,
+        replenishment_service,
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -377,7 +387,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/transfers", transfer_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
-        .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes());
+        .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes())
+        .nest("/api/v1/inventory/replenishment", create_replenishment_routes());
 
     #[cfg(feature = "delivery")]
     let protected_routes = protected_routes.nest("/api/v1/inventory/deliveries", delivery_routes);

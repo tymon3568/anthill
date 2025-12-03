@@ -25,6 +25,13 @@ pub use dto::category::{
 pub use repositories::category::CategoryRepository;
 pub use services::category::CategoryService;
 
+// Re-export replenishment types
+pub use domains::replenishment::{
+    CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
+};
+pub use repositories::replenishment::ReorderRuleRepository;
+pub use services::replenishment::ReplenishmentService;
+
 // Re-export shared error types
 pub use shared_error::AppError;
 
