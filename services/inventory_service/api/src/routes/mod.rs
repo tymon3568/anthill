@@ -10,6 +10,9 @@ use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use uuid::Uuid;
 
+// Tokio for timeout
+use tokio::time::{timeout, Duration};
+
 // Shared crates
 use shared_auth::{
     enforcer::create_enforcer,
@@ -290,10 +293,14 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Initialize NATS client for event publishing
     let nats_client = if let Ok(nats_url) = std::env::var("NATS_URL") {
-        match shared_events::NatsClient::connect(&nats_url).await {
-            Ok(client) => Some(Arc::new(client)),
-            Err(e) => {
+        match timeout(Duration::from_secs(5), shared_events::NatsClient::connect(&nats_url)).await {
+            Ok(Ok(client)) => Some(Arc::new(client)),
+            Ok(Err(e)) => {
                 tracing::warn!("Failed to connect to NATS: {}", e);
+                None
+            },
+            Err(_) => {
+                tracing::warn!("NATS connection timed out");
                 None
             },
         }
@@ -305,7 +312,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let replenishment_service = Arc::new(PgReplenishmentService::new(
         reorder_rule_repo,
         inventory_level_repo.clone(),
-        stock_move_repo.clone(),
         nats_client,
     ));
 

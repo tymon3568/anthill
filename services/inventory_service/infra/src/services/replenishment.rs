@@ -15,7 +15,6 @@ use uuid::Uuid;
 pub struct PgReplenishmentService {
     reorder_repo: Arc<dyn ReorderRuleRepository>,
     inventory_repo: Arc<dyn InventoryLevelRepository>,
-    stock_move_repo: Arc<dyn StockMoveRepository>,
     nats_client: Option<Arc<NatsClient>>,
 }
 
@@ -24,13 +23,11 @@ impl PgReplenishmentService {
     pub fn new(
         reorder_repo: Arc<dyn ReorderRuleRepository>,
         inventory_repo: Arc<dyn InventoryLevelRepository>,
-        stock_move_repo: Arc<dyn StockMoveRepository>,
         nats_client: Option<Arc<NatsClient>>,
     ) -> Self {
         Self {
             reorder_repo,
             inventory_repo,
-            stock_move_repo,
             nats_client,
         }
     }
@@ -55,8 +52,8 @@ impl PgReplenishmentService {
         };
 
         // Projected quantity = available + incoming - reserved
-        // For now, incoming = 0, reserved = 0 (not implemented yet)
-        // TODO: Add incoming stock moves and reserved quantities
+        // Currently simplified: projected = available (incoming = 0, reserved = 0)
+        // TODO: Implement full calculation with incoming stock moves and reserved quantities
         Ok(available)
     }
 }
@@ -125,6 +122,7 @@ impl ReplenishmentService for PgReplenishmentService {
             let action_taken = if needs_replenishment {
                 if let Some(nats) = &self.nats_client {
                     let event = ReorderTriggeredEvent {
+                        event_id: uuid::Uuid::now_v7(),
                         tenant_id,
                         product_id: rule.product_id,
                         warehouse_id: rule.warehouse_id,
@@ -133,6 +131,7 @@ impl ReplenishmentService for PgReplenishmentService {
                         reorder_point: rule.reorder_point,
                         suggested_order_quantity,
                         rule_id: rule.rule_id,
+                        triggered_at: chrono::Utc::now(),
                     };
                     let envelope = EventEnvelope::new("inventory.reorder.triggered", event);
                     match nats
@@ -209,6 +208,7 @@ impl ReplenishmentService for PgReplenishmentService {
         if needs_replenishment {
             if let Some(nats) = &self.nats_client {
                 let event = ReorderTriggeredEvent {
+                    event_id: uuid::Uuid::now_v7(),
                     tenant_id,
                     product_id,
                     warehouse_id,
@@ -217,6 +217,7 @@ impl ReplenishmentService for PgReplenishmentService {
                     reorder_point: rule.reorder_point,
                     suggested_order_quantity,
                     rule_id: rule.rule_id,
+                    triggered_at: chrono::Utc::now(),
                 };
                 let envelope = EventEnvelope::new("inventory.reorder.triggered", event);
                 match nats

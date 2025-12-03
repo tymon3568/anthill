@@ -145,7 +145,9 @@ impl ReorderRuleRepository for PgReorderRuleRepository {
         )
         .fetch_optional(&self.pool)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Reorder rule {} not found", rule_id)))?;
+        .ok_or_else(|| {
+            AppError::NotFound(format!("Reorder rule for product {} not found", rule.product_id))
+        })?;
 
         Ok(new_rule)
     }

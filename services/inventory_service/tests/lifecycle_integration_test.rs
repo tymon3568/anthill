@@ -274,12 +274,8 @@ async fn test_replenishment_check() {
     let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
 
     // Create service (without NATS for test)
-    let replenishment_service = Arc::new(PgReplenishmentService::new(
-        reorder_rule_repo,
-        inventory_level_repo,
-        stock_move_repo,
-        None,
-    ));
+    let replenishment_service =
+        Arc::new(PgReplenishmentService::new(reorder_rule_repo, inventory_level_repo, None));
 
     // Create test data
     let tenant_id = Uuid::new_v4();
@@ -310,9 +306,9 @@ async fn test_replenishment_check() {
 
     // Insert test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, name, code) VALUES ($1, $2, $3, $4)",
-        warehouse_id,
+        "INSERT INTO warehouses (tenant_id, warehouse_id, warehouse_name, warehouse_code, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
         tenant_id,
+        warehouse_id,
         "Test Warehouse",
         "WH001"
     )
@@ -363,5 +359,80 @@ async fn test_replenishment_check() {
     assert_eq!(result.reorder_point, 50);
     assert!(result.needs_replenishment);
     assert_eq!(result.suggested_order_quantity, 90); // max - current = 100 - 10
-    assert!(result.action_taken.is_some()); // Since NATS not configured, should indicate disabled
+    assert_eq!(
+        result.action_taken.as_deref(),
+        Some("Reorder needed but event publishing disabled")
+    );
+}
+
+#[tokio::test]
+async fn test_replenishment_check_no_rule_returns_not_found() {
+    // Setup database
+    let pool = init_pool(&std::env::var("DATABASE_URL").unwrap(), 5)
+        .await
+        .expect("Failed to init pool");
+
+    // Create repositories
+    let reorder_rule_repo = Arc::new(PgReorderRuleRepository::new(pool.clone()));
+    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
+
+    // Create service (without NATS for test)
+    let replenishment_service =
+        Arc::new(PgReplenishmentService::new(reorder_rule_repo, inventory_level_repo, None));
+
+    // Create test data
+    let tenant_id = Uuid::new_v4();
+    let product_id = Uuid::new_v4();
+    let warehouse_id = Uuid::new_v4();
+
+    // Insert test tenant
+    sqlx::query!(
+        "INSERT INTO tenants (tenant_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        tenant_id,
+        "Test Tenant"
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to insert tenant");
+
+    // Insert test product
+    sqlx::query!(
+        "INSERT INTO products (product_id, tenant_id, sku, name) VALUES ($1, $2, $3, $4)",
+        product_id,
+        tenant_id,
+        "TEST001",
+        "Test Product"
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to insert product");
+
+    // Insert test warehouse
+    sqlx::query!(
+        "INSERT INTO warehouses (tenant_id, warehouse_id, warehouse_name, warehouse_code, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id,
+        warehouse_id,
+        "Test Warehouse",
+        "WH001"
+    )
+    .execute(&pool)
+    .await
+    .expect("Failed to insert warehouse");
+
+    // Ensure there is NO reorder rule for this product/warehouse combination
+    // (We don't insert any reorder rule)
+
+    // Act: Try to check replenishment
+    let err = replenishment_service
+        .check_product_replenishment(tenant_id, product_id, Some(warehouse_id))
+        .await
+        .expect_err("Expected NotFound error when no reorder rule exists");
+
+    // Assert that we get the expected NotFound error
+    match err {
+        AppError::NotFound(msg) => {
+            assert!(msg.contains("No reorder rule found"));
+        },
+        _ => panic!("Expected AppError::NotFound, got {:?}", err),
+    }
 }
