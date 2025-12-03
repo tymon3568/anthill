@@ -51,4 +51,5 @@ pub struct ReplenishmentCheckResult {
     pub reorder_point: i64,
     pub suggested_order_quantity: i64,
     pub needs_replenishment: bool,
+    pub action_taken: Option<String>,
 }

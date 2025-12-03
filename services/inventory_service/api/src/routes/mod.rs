@@ -285,10 +285,26 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Initialize replenishment repositories and services
     let reorder_rule_repo = Arc::new(PgReorderRuleRepository::new(pool.clone()));
+
+    // Initialize NATS client for event publishing
+    let nats_client = if let Ok(nats_url) = std::env::var("NATS_URL") {
+        match shared_events::NatsClient::connect(&nats_url).await {
+            Ok(client) => Some(Arc::new(client)),
+            Err(e) => {
+                tracing::warn!("Failed to connect to NATS: {}", e);
+                None
+            },
+        }
+    } else {
+        tracing::info!("NATS_URL not set, event publishing disabled");
+        None
+    };
+
     let replenishment_service = Arc::new(PgReplenishmentService::new(
         reorder_rule_repo,
         inventory_level_repo.clone(),
         stock_move_repo.clone(),
+        nats_client,
     ));
 
     // Initialize receipt repositories and services

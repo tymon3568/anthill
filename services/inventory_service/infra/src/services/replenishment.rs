@@ -7,6 +7,7 @@ use inventory_service_core::repositories::replenishment::ReorderRuleRepository;
 use inventory_service_core::repositories::stock::StockMoveRepository;
 use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::AppError;
+use shared_events::{EventEnvelope, NatsClient, ReorderTriggeredEvent};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -15,6 +16,7 @@ pub struct PgReplenishmentService {
     reorder_repo: Arc<dyn ReorderRuleRepository>,
     inventory_repo: Arc<dyn InventoryLevelRepository>,
     stock_move_repo: Arc<dyn StockMoveRepository>,
+    nats_client: Option<Arc<NatsClient>>,
 }
 
 impl PgReplenishmentService {
@@ -23,11 +25,13 @@ impl PgReplenishmentService {
         reorder_repo: Arc<dyn ReorderRuleRepository>,
         inventory_repo: Arc<dyn InventoryLevelRepository>,
         stock_move_repo: Arc<dyn StockMoveRepository>,
+        nats_client: Option<Arc<NatsClient>>,
     ) -> Self {
         Self {
             reorder_repo,
             inventory_repo,
             stock_move_repo,
+            nats_client,
         }
     }
 
@@ -151,6 +155,29 @@ impl ReplenishmentService for PgReplenishmentService {
             0
         };
 
+        // Publish reorder triggered event if needed
+        if needs_replenishment {
+            if let Some(nats) = &self.nats_client {
+                let event = ReorderTriggeredEvent {
+                    tenant_id,
+                    product_id,
+                    warehouse_id,
+                    current_quantity,
+                    projected_quantity,
+                    reorder_point: rule.reorder_point,
+                    suggested_order_quantity,
+                    rule_id: rule.rule_id,
+                };
+                let envelope = EventEnvelope::new("inventory.reorder.triggered", event);
+                if let Err(e) = nats
+                    .publish_event("inventory.reorder.triggered".to_string(), &envelope)
+                    .await
+                {
+                    tracing::warn!("Failed to publish reorder event: {}", e);
+                }
+            }
+        }
+
         Ok(ReplenishmentCheckResult {
             product_id,
             warehouse_id,
@@ -159,6 +186,13 @@ impl ReplenishmentService for PgReplenishmentService {
             reorder_point: rule.reorder_point,
             suggested_order_quantity,
             needs_replenishment,
+            action_taken: if needs_replenishment && self.nats_client.is_some() {
+                Some("Reorder triggered event published".to_string())
+            } else if needs_replenishment {
+                Some("Reorder needed but event publishing disabled".to_string())
+            } else {
+                None
+            },
         })
     }
 }
