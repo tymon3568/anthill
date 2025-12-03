@@ -7,6 +7,7 @@ use inventory_service_core::models::{
 };
 use inventory_service_core::repositories::StockMoveRepository;
 use inventory_service_core::services::LotSerialService;
+use inventory_service_core::AppError;
 use inventory_service_infra::repositories::inventory_level::PgInventoryLevelRepository;
 use inventory_service_infra::repositories::replenishment::PgReorderRuleRepository;
 use inventory_service_infra::repositories::stock::PgStockMoveRepository;
