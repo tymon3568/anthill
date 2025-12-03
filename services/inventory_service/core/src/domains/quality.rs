@@ -15,7 +15,8 @@ pub struct QualityControlPoint {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(type_name = "qc_point_type", rename_all = "lowercase")]
 pub enum QcPointType {
     Incoming,
     Outgoing,

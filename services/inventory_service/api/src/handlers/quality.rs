@@ -28,9 +28,9 @@ pub struct ListQcPointsQuery {
     request_body = CreateQualityControlPoint,
     responses(
         (status = 201, body = QualityControlPoint),
-        (status = 400, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 400, body = ErrorResp),
+        (status = 401, body = ErrorResp),
+        (status = 500, body = ErrorResp)
     ),
     security(("bearer_auth" = []))
 )]
@@ -38,12 +38,13 @@ pub async fn create_qc_point(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Json(qc_point): Json<CreateQualityControlPoint>,
-) -> Result<Json<QualityControlPoint>, AppError> {
+) -> Result<(StatusCode, Json<QualityControlPoint>), AppError> {
     let created = state
         .quality_service
         .create_qc_point(user.tenant_id, qc_point)
         .await?;
-    Ok(Json(created))
+
+    Ok((StatusCode::CREATED, Json(created)))
 }
 
 /// Get a quality control point by ID
@@ -99,7 +100,17 @@ pub async fn list_qc_points(
     AuthUser(user): AuthUser,
     Query(query): Query<ListQcPointsQuery>,
 ) -> Result<Json<Vec<QualityControlPoint>>, AppError> {
-    let qc_points = if query.active_only.unwrap_or(true) {
+    let qc_points = if let Some(product_id) = query.product_id {
+        state
+            .quality_service
+            .list_qc_points_for_product(user.tenant_id, product_id)
+            .await?
+    } else if let Some(warehouse_id) = query.warehouse_id {
+        state
+            .quality_service
+            .list_qc_points_for_warehouse(user.tenant_id, warehouse_id)
+            .await?
+    } else if query.active_only.unwrap_or(true) {
         state
             .quality_service
             .list_active_qc_points(user.tenant_id)
@@ -163,10 +174,10 @@ pub async fn delete_qc_point(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path(qc_point_id): Path<Uuid>,
-) -> Result<(), AppError> {
+) -> Result<StatusCode, AppError> {
     state
         .quality_service
         .delete_qc_point(user.tenant_id, qc_point_id)
         .await?;
-    Ok(())
+    Ok(StatusCode::NO_CONTENT)
 }

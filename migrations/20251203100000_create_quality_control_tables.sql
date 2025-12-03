@@ -21,6 +21,7 @@ CREATE TABLE quality_control_points (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
+    UNIQUE (tenant_id, qc_point_id),
     FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id),
     FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id),
     FOREIGN KEY (tenant_id, warehouse_id) REFERENCES warehouses(tenant_id, warehouse_id)
@@ -41,15 +42,16 @@ CREATE TABLE quality_checks (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
+    UNIQUE (tenant_id, qc_id),
     FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id),
     FOREIGN KEY (tenant_id, qc_point_id) REFERENCES quality_control_points(tenant_id, qc_point_id),
-    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id),
-    FOREIGN KEY (tenant_id, lot_serial_id) REFERENCES lot_serial_numbers(tenant_id, lot_serial_id)
+    FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id)
 );
 
 -- Create quality_check_lines table
 CREATE TABLE quality_check_lines (
     qc_line_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
     qc_id UUID NOT NULL,
     test_type qc_test_type NOT NULL,
     name TEXT NOT NULL,
@@ -60,7 +62,7 @@ CREATE TABLE quality_check_lines (
     result BOOLEAN,
     notes TEXT,
 
-    FOREIGN KEY (qc_id) REFERENCES quality_checks(qc_id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id, qc_id) REFERENCES quality_checks(tenant_id, qc_id) ON DELETE CASCADE,
     FOREIGN KEY (uom_id) REFERENCES unit_of_measures(uom_id)
 );
 
@@ -71,16 +73,16 @@ CREATE TABLE quality_alerts (
     qc_id UUID NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
-    priority alert_priority NOT NULL DEFAULT 'medium',
-    status alert_status NOT NULL DEFAULT 'open',
+    priority alert_priority NOT NULL,
+    status alert_status NOT NULL,
     assigned_to UUID,
     resolution TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id),
-    FOREIGN KEY (qc_id) REFERENCES quality_checks(qc_id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_to) REFERENCES users(user_id)
+    FOREIGN KEY (tenant_id, qc_id) REFERENCES quality_checks(tenant_id, qc_id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id, assigned_to) REFERENCES users(tenant_id, user_id)
 );
 
 -- Create indexes for performance

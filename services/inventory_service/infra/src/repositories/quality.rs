@@ -199,8 +199,8 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             SET
                 name = COALESCE($3, name),
                 type = COALESCE($4, type),
-                product_id = COALESCE($5, product_id),
-                warehouse_id = COALESCE($6, warehouse_id),
+                product_id = $5,
+                warehouse_id = $6,
                 active = COALESCE($7, active),
                 updated_at = NOW()
             WHERE tenant_id = $1 AND qc_point_id = $2
@@ -229,7 +229,7 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
     }
 
     async fn delete(&self, tenant_id: Uuid, qc_point_id: Uuid) -> Result<(), AppError> {
-        sqlx::query!(
+        let result = sqlx::query!(
             r#"
             UPDATE quality_control_points
             SET active = false, updated_at = NOW()
@@ -241,6 +241,13 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
         .execute(&self.pool)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Quality control point {} not found",
+                qc_point_id
+            )));
+        }
 
         Ok(())
     }
