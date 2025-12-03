@@ -11,6 +11,7 @@ use inventory_service_core::services::lot_serial::LotSerialService;
 use inventory_service_core::services::product::ProductService;
 use inventory_service_core::services::receipt::ReceiptService;
 use inventory_service_core::services::reconciliation::StockReconciliationService;
+use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::services::rma::RmaService;
 use inventory_service_core::services::stock_take::StockTakeService;
 use inventory_service_core::services::transfer::TransferService;

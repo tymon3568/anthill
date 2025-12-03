@@ -20,4 +20,4 @@ CREATE TABLE reorder_rules (
 -- Create indexes for performance
 CREATE INDEX idx_reorder_rules_tenant_product ON reorder_rules(tenant_id, product_id);
 CREATE INDEX idx_reorder_rules_tenant_warehouse ON reorder_rules(tenant_id, warehouse_id);
-CREATE INDEX idx_reorder_rules_active ON reorder_rules(tenant_id, product_id, warehouse_id) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX idx_reorder_rules_active ON reorder_rules(tenant_id, product_id, warehouse_id) WHERE deleted_at IS NULL;

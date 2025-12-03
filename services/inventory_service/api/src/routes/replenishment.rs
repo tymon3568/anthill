@@ -1,4 +1,3 @@
-anthill-windsurf/services/inventory_service/api/src/routes/replenishment.rs
 use axum::routing::{delete, get, post, put, Router};
 use axum::extract::State;
 

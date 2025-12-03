@@ -273,6 +273,7 @@ async fn test_replenishment_check() {
         reorder_rule_repo,
         inventory_level_repo,
         stock_move_repo,
+        None,
     ));
 
     // Create test data

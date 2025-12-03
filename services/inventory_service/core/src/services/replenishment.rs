@@ -1,7 +1,7 @@
 use crate::domains::replenishment::{
     CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
 };
-use crate::error::AppError;
+use crate::AppError;
 use async_trait::async_trait;
 use uuid::Uuid;
 

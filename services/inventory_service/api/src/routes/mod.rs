@@ -32,6 +32,7 @@ use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 use inventory_service_infra::repositories::reconciliation::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
 };
+use inventory_service_infra::repositories::replenishment::PgReorderRuleRepository;
 use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
 use inventory_service_infra::repositories::stock::{
     PgInventoryLevelRepository, PgStockMoveRepository,
@@ -46,6 +47,7 @@ use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
+use inventory_service_infra::services::replenishment::PgReplenishmentService;
 
 // Local handlers/state
 use crate::handlers::category::create_category_routes;

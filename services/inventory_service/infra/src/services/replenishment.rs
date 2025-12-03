@@ -155,6 +155,8 @@ impl ReplenishmentService for PgReplenishmentService {
             0
         };
 
+        let mut action_taken = None;
+
         // Publish reorder triggered event if needed
         if needs_replenishment {
             if let Some(nats) = &self.nats_client {
@@ -169,12 +171,21 @@ impl ReplenishmentService for PgReplenishmentService {
                     rule_id: rule.rule_id,
                 };
                 let envelope = EventEnvelope::new("inventory.reorder.triggered", event);
-                if let Err(e) = nats
+                match nats
                     .publish_event("inventory.reorder.triggered".to_string(), &envelope)
                     .await
                 {
-                    tracing::warn!("Failed to publish reorder event: {}", e);
+                    Ok(_) => {
+                        action_taken = Some("Reorder triggered event published".to_string());
+                    },
+                    Err(e) => {
+                        tracing::warn!("Failed to publish reorder event: {}", e);
+                        action_taken =
+                            Some("Reorder needed but event publishing failed".to_string());
+                    },
                 }
+            } else {
+                action_taken = Some("Reorder needed but event publishing disabled".to_string());
             }
         }
 
@@ -186,13 +197,7 @@ impl ReplenishmentService for PgReplenishmentService {
             reorder_point: rule.reorder_point,
             suggested_order_quantity,
             needs_replenishment,
-            action_taken: if needs_replenishment && self.nats_client.is_some() {
-                Some("Reorder triggered event published".to_string())
-            } else if needs_replenishment {
-                Some("Reorder needed but event publishing disabled".to_string())
-            } else {
-                None
-            },
+            action_taken,
         })
     }
 }

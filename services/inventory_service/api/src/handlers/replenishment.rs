@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, State},
+    http::StatusCode,
     Json,
 };
 use inventory_service_core::{
@@ -123,12 +124,12 @@ pub async fn delete_reorder_rule(
     State(state): State<AppState>,
     AuthUser(user): AuthUser,
     Path(rule_id): Path<Uuid>,
-) -> Result<(), AppError> {
+) -> Result<StatusCode, AppError> {
     state
         .replenishment_service
         .delete_reorder_rule(user.tenant_id, rule_id)
         .await?;
-    Ok(())
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// List reorder rules for a product
