@@ -22,12 +22,12 @@ Implement the core domain models, traits, and business logic for quality control
 - [x] 6. Export types and traits from core and infra crates
 
 ## Acceptance Criteria:
-- [ ] Domain models follow Anthill patterns with proper validation and serialization
-- [ ] Repository trait includes all CRUD operations with tenant isolation
-- [ ] Service trait provides business logic for QC point management
-- [ ] Infra implementations use sqlx with proper error handling
-- [ ] All types are properly exported for API layer consumption
-- [ ] Code compiles without errors and follows 3-crate pattern
+- [x] Domain models follow Anthill patterns with proper validation and serialization
+- [x] Repository trait includes all CRUD operations with tenant isolation
+- [x] Service trait provides business logic for QC point management
+- [x] Infra implementations use sqlx with proper error handling
+- [x] All types are properly exported for API layer consumption
+- [x] Code compiles without errors and follows 3-crate pattern
 
 ## Dependencies:
 *   Task: `task_04.08.01_create_quality_control_tables.md`
@@ -48,4 +48,3 @@ Implement the core domain models, traits, and business logic for quality control
 *   2025-12-03 10:25: Completed sub-task 1-6 - Implemented domain models, repository trait, service trait, infra implementations, and exports [TaskID: 04.08.01]
 *   2025-12-03 10:30: Marked all acceptance criteria as completed - Code compiles and follows 3-crate pattern [TaskID: 04.08.01]
 *   2025-12-03 10:35: Task completed successfully - Ready for next task in quality management phase [TaskID: 04.08.01]
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
