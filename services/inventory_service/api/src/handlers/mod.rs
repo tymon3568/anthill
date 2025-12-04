@@ -4,6 +4,7 @@ pub mod health;
 pub mod lot_serial;
 pub mod receipt;
 pub mod reconciliation;
+pub mod reports;
 pub mod rma;
 pub mod search;
 pub mod stock_take;
