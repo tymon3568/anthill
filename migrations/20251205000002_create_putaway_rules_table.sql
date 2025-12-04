@@ -62,9 +62,9 @@ CREATE TABLE putaway_rules (
     CONSTRAINT putaway_rules_tenant_product_fk
         FOREIGN KEY (tenant_id, product_id)
         REFERENCES products (tenant_id, product_id) DEFERRABLE INITIALLY DEFERRED,
-    CONSTRAINT putaway_rules_tenant_category_fk
-        FOREIGN KEY (tenant_id, product_category_id)
-        REFERENCES product_categories (tenant_id, category_id) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT putaway_rules_category_fk
+        FOREIGN KEY (product_category_id)
+        REFERENCES product_categories (category_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT putaway_rules_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouses (tenant_id, warehouse_id) DEFERRABLE INITIALLY DEFERRED,

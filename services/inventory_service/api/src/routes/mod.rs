@@ -332,6 +332,13 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         product_repo.clone(),
     );
 
+    // Initialize putaway repositories and services
+    let putaway_repo = Arc::new(PgPutawayRepository::new(pool.clone()));
+    let putaway_service = Arc::new(PgPutawayService::new(
+        putaway_repo,
+        PgStockMoveRepository::new(Arc::new(pool.clone())),
+    ));
+
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
@@ -347,6 +354,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         rma_service,
         replenishment_service,
         quality_service,
+        putaway_service,
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -363,6 +371,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let category_routes = create_category_routes();
     #[cfg(feature = "delivery")]
     let delivery_routes = create_delivery_routes();
+    let putaway_routes = create_putaway_routes();
     let receipt_routes = create_receipt_routes();
     let reconciliation_routes = create_reconciliation_routes();
     let reports_routes = create_reports_routes();
@@ -422,6 +431,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/transfers", transfer_routes)
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
+        .nest("/api/v1/warehouse/putaway", putaway_routes)
         .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes())
         .nest("/api/v1/inventory/quality", create_quality_routes())
         .nest("/api/v1/inventory/replenishment", create_replenishment_routes());

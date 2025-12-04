@@ -5,6 +5,80 @@ use std::str::FromStr;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+pub enum PutawayRuleType {
+    Product,
+    Category,
+    Attribute,
+    Fifo,
+    Fefo,
+}
+
+impl fmt::Display for PutawayRuleType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            PutawayRuleType::Product => "product",
+            PutawayRuleType::Category => "category",
+            PutawayRuleType::Attribute => "attribute",
+            PutawayRuleType::Fifo => "fifo",
+            PutawayRuleType::Fefo => "fefo",
+        };
+        f.write_str(s)
+    }
+}
+
+impl FromStr for PutawayRuleType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "product" => Ok(PutawayRuleType::Product),
+            "category" => Ok(PutawayRuleType::Category),
+            "attribute" => Ok(PutawayRuleType::Attribute),
+            "fifo" => Ok(PutawayRuleType::Fifo),
+            "fefo" => Ok(PutawayRuleType::Fefo),
+            _ => Err(format!("Unknown putaway rule type: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+pub enum PutawayMatchMode {
+    Exact,
+    Contains,
+    Regex,
+}
+
+impl fmt::Display for PutawayMatchMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            PutawayMatchMode::Exact => "exact",
+            PutawayMatchMode::Contains => "contains",
+            PutawayMatchMode::Regex => "regex",
+        };
+        f.write_str(s)
+    }
+}
+
+impl FromStr for PutawayMatchMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "exact" => Ok(PutawayMatchMode::Exact),
+            "contains" => Ok(PutawayMatchMode::Contains),
+            "regex" => Ok(PutawayMatchMode::Regex),
+            _ => Err(format!("Unknown match mode: {}", s)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "TEXT", rename_all = "snake_case")]
 pub enum DeliveryOrderStatus {
@@ -596,4 +670,118 @@ pub struct ReceiveRmaResponse {
     pub status: RmaStatus,
     pub received_at: DateTime<Utc>,
     pub stock_moves_created: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct StorageLocation {
+    pub location_id: Uuid,
+    pub tenant_id: Uuid,
+    pub warehouse_id: Uuid,
+    pub location_code: String,
+    pub location_type: String,
+    pub zone: Option<String>,
+    pub aisle: Option<String>,
+    pub rack: Option<String>,
+    pub level: Option<i32>,
+    pub position: Option<i32>,
+    pub capacity: Option<i64>,
+    pub current_stock: i64,
+    pub is_active: bool,
+    pub is_quarantine: bool,
+    pub is_picking_location: bool,
+    pub length_cm: Option<i32>,
+    pub width_cm: Option<i32>,
+    pub height_cm: Option<i32>,
+    pub weight_limit_kg: Option<i32>,
+    pub created_by: Uuid,
+    pub updated_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PutawayRule {
+    pub rule_id: Uuid,
+    pub tenant_id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub sequence: i32,
+    pub product_id: Option<Uuid>,
+    pub product_category_id: Option<Uuid>,
+    pub warehouse_id: Option<Uuid>,
+    pub preferred_location_type: Option<String>,
+    pub preferred_zone: Option<String>,
+    pub preferred_aisle: Option<String>,
+    pub conditions: Option<serde_json::Value>,
+    pub rule_type: PutawayRuleType,
+    pub match_mode: PutawayMatchMode,
+    pub max_quantity: Option<i64>,
+    pub min_quantity: Option<i64>,
+    pub priority_score: i32,
+    pub is_active: bool,
+    pub created_by: Uuid,
+    pub updated_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PutawaySuggestion {
+    pub location_id: Uuid,
+    pub location_code: String,
+    pub warehouse_id: Uuid,
+    pub zone: Option<String>,
+    pub aisle: Option<String>,
+    pub rack: Option<String>,
+    pub level: Option<i32>,
+    pub position: Option<i32>,
+    pub available_capacity: Option<i64>,
+    pub current_stock: i64,
+    pub score: i32,
+    pub rule_applied: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PutawayRequest {
+    pub product_id: Uuid,
+    pub quantity: i64,
+    pub warehouse_id: Option<Uuid>,
+    pub preferred_location_type: Option<String>,
+    pub attributes: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PutawayResponse {
+    pub suggestions: Vec<PutawaySuggestion>,
+    pub total_quantity: i64,
+    pub allocated_quantity: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ConfirmPutawayRequest {
+    pub allocations: Vec<PutawayAllocation>,
+    pub reference_type: String,
+    pub reference_id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct PutawayAllocation {
+    pub location_id: Uuid,
+    pub quantity: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ConfirmPutawayResponse {
+    pub stock_moves_created: Vec<Uuid>,
+    pub total_quantity_putaway: i64,
 }
