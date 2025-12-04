@@ -6,13 +6,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
-use sqlx::PgPool;
+use sqlx::{FromRow, PgPool};
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::state::AppState;
-
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct StockLedgerQuery {
     /// Product ID to filter the ledger (required)
     pub product_id: Uuid,
@@ -24,7 +22,7 @@ pub struct StockLedgerQuery {
     pub date_to: Option<DateTime<Utc>>,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Serialize, ToSchema, FromRow)]
 pub struct StockLedgerEntry {
     /// Movement ID
     pub move_id: Uuid,
@@ -82,10 +80,16 @@ pub async fn get_stock_ledger(
             sm.reference_type,
             sm.reference_id,
             sm.move_reason as description,
-            CASE WHEN sm.quantity > 0 THEN sm.quantity::BIGINT ELSE NULL END as quantity_in,
-            CASE WHEN sm.quantity < 0 THEN ABS(sm.quantity)::BIGINT ELSE NULL END as quantity_out,
-            SUM(sm.quantity) OVER (
-                PARTITION BY sm.product_id
+            CASE WHEN $3::uuid IS NOT NULL AND sm.destination_location_id = $3 THEN sm.quantity ELSE NULL END as quantity_in,
+            CASE WHEN $3::uuid IS NOT NULL AND sm.source_location_id = $3 THEN sm.quantity ELSE NULL END as quantity_out,
+            SUM(
+                CASE
+                    WHEN $3::uuid IS NOT NULL AND sm.destination_location_id = $3 THEN sm.quantity
+                    WHEN $3::uuid IS NOT NULL AND sm.source_location_id = $3 THEN -sm.quantity
+                    ELSE sm.quantity
+                END
+            ) OVER (
+                PARTITION BY sm.product_id, $3::uuid
                 ORDER BY sm.move_date, sm.created_at
                 ROWS UNBOUNDED PRECEDING
             )::BIGINT as balance,
