@@ -5,10 +5,10 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.9_Stock_Reports_Analytics
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** InProgress_By_AI_Agent
+**Assignee:** AI_Agent
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-12-04
 
 ## Detailed Description:
 Create the Stock Ledger Report, a critical ERP-style report that provides a complete, chronological audit trail of all movements for a product.
@@ -38,4 +38,6 @@ Create the Stock Ledger Report, a critical ERP-style report that provides a comp
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+*   2025-12-04 12:00: [Started] by AI_Agent
+    - Initiating fixes for PR #87 review issues: missing FromRow derive, warehouse balance logic, unused imports, missing ToSchema, markdown formatting.
+    - Status updated to InProgress_By_AI_Agent.
