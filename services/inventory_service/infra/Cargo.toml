@@ -6,6 +6,8 @@ chrono = {workspace = true}
 inventory_service_core = {workspace = true}
 # BigDecimal casting
 num-traits = "0.2"
+# Regex matching
+regex = {workspace = true}
 # Decimal numbers
 rust_decimal = {workspace = true}
 # JSON serialization
@@ -25,8 +27,6 @@ tracing = "0.1"
 uuid = {workspace = true}
 # Validation
 validator = {workspace = true}
-# Regex matching
-regex = {workspace = true}
 
 [dev-dependencies]
 # Test dependencies

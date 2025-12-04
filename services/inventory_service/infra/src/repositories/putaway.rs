@@ -200,7 +200,7 @@ impl PutawayRepository for PgPutawayRepository {
         location_id: &Uuid,
         new_stock: i64,
     ) -> Result<(), AppError> {
-        sqlx::query!(
+        let result = sqlx::query!(
             r#"
             UPDATE storage_locations
             SET current_stock = $3, updated_at = NOW()
@@ -213,6 +213,13 @@ impl PutawayRepository for PgPutawayRepository {
         .execute(&self.pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to update location stock: {}", e)))?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Storage location {} not found or already deleted",
+                location_id
+            )));
+        }
 
         Ok(())
     }
