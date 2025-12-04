@@ -61,7 +61,7 @@ pub struct StockAgingEntry {
     /// Aging bucket (e.g., "0-30 days", "31-60 days", etc.)
     pub aging_bucket: String,
     /// Days since last inbound movement
-    pub days_since_last_inbound: Option<i32>,
+    pub days_since_last_inbound: Option<f64>,
 }
 
 #[derive(Serialize, ToSchema, FromRow)]
@@ -102,10 +102,14 @@ pub struct DeadStockEntry {
     pub product_id: Uuid,
     /// Product name
     pub product_name: String,
+    /// Warehouse ID
+    pub warehouse_id: Uuid,
+    /// Warehouse name
+    pub warehouse_name: String,
     /// Last outbound movement date
     pub last_outbound_date: Option<DateTime<Utc>>,
     /// Days since last outbound
-    pub days_since_last_outbound: i32,
+    pub days_since_last_outbound: Option<i64>,
     /// Current stock quantity
     pub current_stock: i64,
 }
@@ -204,46 +208,44 @@ pub async fn get_stock_aging(
     let tenant_id = auth_user.tenant_id;
 
     let sql = r#"
+        WITH current_stock AS (
+            SELECT
+                product_id,
+                source_location_id as warehouse_id,
+                SUM(quantity) as on_hand
+            FROM stock_moves
+            WHERE tenant_id = $1 AND ($2::UUID IS NULL OR source_location_id = $2)
+            GROUP BY product_id, source_location_id
+            HAVING SUM(quantity) > 0
+        ), last_inbound AS (
+            SELECT
+                product_id,
+                source_location_id as warehouse_id,
+                MAX(move_date) as last_inbound_date,
+                (EXTRACT(EPOCH FROM (NOW() - MAX(move_date))) / 86400) as days
+            FROM stock_moves
+            WHERE tenant_id = $1 AND quantity > 0 AND ($2::UUID IS NULL OR source_location_id = $2)
+            GROUP BY product_id, source_location_id
+        )
         SELECT
             p.product_id,
             p.name as product_name,
             w.warehouse_id,
             w.name as warehouse_name,
-            COALESCE(SUM(sm.quantity) OVER (
-                PARTITION BY sm.product_id, sm.source_location_id
-                ORDER BY sm.move_date, sm.created_at
-                ROWS UNBOUNDED PRECEDING
-            ), 0)::BIGINT as current_stock,
+            cs.on_hand as current_stock,
+            li.days as days_since_last_inbound,
             CASE
-                WHEN last_inbound_days IS NULL THEN 'Unknown'
-                WHEN last_inbound_days <= 30 THEN '0-30 days'
-                WHEN last_inbound_days <= 60 THEN '31-60 days'
-                WHEN last_inbound_days <= 90 THEN '61-90 days'
+                WHEN li.days IS NULL THEN 'Unknown'
+                WHEN li.days <= 30 THEN '0-30 days'
+                WHEN li.days <= 60 THEN '31-60 days'
+                WHEN li.days <= 90 THEN '61-90 days'
                 ELSE '>90 days'
-            END as aging_bucket,
-            last_inbound_days as days_since_last_inbound
-        FROM products p
-        CROSS JOIN warehouses w
-        LEFT JOIN (
-            SELECT
-                product_id,
-                source_location_id as warehouse_id,
-                MAX(move_date) as last_inbound_date,
-                EXTRACT(EPOCH FROM (NOW() - MAX(move_date))) / 86400 as last_inbound_days
-            FROM stock_moves
-            WHERE tenant_id = $1
-            AND quantity > 0
-            AND ($2::UUID IS NULL OR source_location_id = $2)
-            GROUP BY product_id, source_location_id
-        ) li ON p.product_id = li.product_id AND w.warehouse_id = li.warehouse_id
-        LEFT JOIN stock_moves sm ON p.product_id = sm.product_id
-            AND w.warehouse_id = sm.source_location_id
-            AND sm.tenant_id = $1
-        WHERE p.tenant_id = $1
-        AND w.tenant_id = $1
-        AND ($2::UUID IS NULL OR w.warehouse_id = $2)
-        GROUP BY p.product_id, p.name, w.warehouse_id, w.name, last_inbound_days
-        HAVING COALESCE(SUM(sm.quantity), 0) > 0
+            END as aging_bucket
+        FROM current_stock cs
+        JOIN products p ON cs.product_id = p.product_id
+        JOIN warehouses w ON cs.warehouse_id = w.warehouse_id
+        LEFT JOIN last_inbound li ON cs.product_id = li.product_id AND cs.warehouse_id = li.warehouse_id
+        WHERE p.tenant_id = $1 AND w.tenant_id = $1
         ORDER BY p.name, w.name
     "#;
 
@@ -269,7 +271,7 @@ pub struct StockAgingQuery {
     tag = "reports",
     operation_id = "get_inventory_turnover",
     params(
-        ("period" = String, Query, description = "Reporting period (e.g., '30 days', '90 days')", default = "90 days")
+        ("period" = String, Query, description = "Reporting period in days (e.g., '30', '90')", default = "90")
     ),
     responses(
         (status = 200, description = "Inventory turnover report", body = Vec<InventoryTurnoverEntry>),
@@ -284,42 +286,44 @@ pub async fn get_inventory_turnover(
     Query(query): Query<InventoryTurnoverQuery>,
 ) -> Result<Json<Vec<InventoryTurnoverEntry>>, AppError> {
     let tenant_id = auth_user.tenant_id;
-    let period_days = query.period.parse::<i32>().unwrap_or(90);
+    let period_days = query.period.parse::<i32>().map_err(|_| {
+        AppError::ValidationError("period must be an integer number of days".to_string())
+    })?;
 
     let sql = r#"
-        WITH period_moves AS (
-            SELECT
-                product_id,
-                quantity,
-                unit_cost,
-                move_date
-            FROM stock_moves
-            WHERE tenant_id = $1
-            AND move_date >= NOW() - INTERVAL '1 day' * $2
+        WITH period_range AS (
+            SELECT (NOW() - ($2::text || ' days')::interval) as start_date
         ),
         cogs AS (
             SELECT
                 product_id,
-                SUM(ABS(quantity) * unit_cost) as total_cogs
-            FROM period_moves
-            WHERE quantity < 0
+                SUM(ABS(total_cost)) as total_cogs
+            FROM stock_moves, period_range
+            WHERE tenant_id = $1
+              AND quantity < 0
+              AND move_date >= period_range.start_date
+            GROUP BY product_id
+        ),
+        start_inventory AS (
+            SELECT product_id, SUM(total_cost) as value
+            FROM stock_moves, period_range
+            WHERE tenant_id = $1 AND move_date < period_range.start_date
+            GROUP BY product_id
+        ),
+        end_inventory AS (
+            SELECT product_id, SUM(total_cost) as value
+            FROM stock_moves
+            WHERE tenant_id = $1 AND move_date <= NOW()
             GROUP BY product_id
         ),
         avg_inventory AS (
             SELECT
-                product_id,
-                AVG(balance_value) as avg_value
-            FROM (
-                SELECT
-                    product_id,
-                    SUM(quantity * unit_cost) OVER (
-                        PARTITION BY product_id
-                        ORDER BY move_date
-                        ROWS UNBOUNDED PRECEDING
-                    ) as balance_value
-                FROM period_moves
-            ) balances
-            GROUP BY product_id
+                p.product_id,
+                (COALESCE(si.value, 0) + COALESCE(ei.value, 0)) / 2 as avg_value
+            FROM products p
+            LEFT JOIN start_inventory si ON p.product_id = si.product_id
+            LEFT JOIN end_inventory ei ON p.product_id = ei.product_id
+            WHERE p.tenant_id = $1
         )
         SELECT
             p.product_id,
@@ -327,8 +331,8 @@ pub async fn get_inventory_turnover(
             COALESCE(c.total_cogs, 0) as cogs,
             COALESCE(a.avg_value, 0) as avg_inventory_value,
             CASE
-                WHEN COALESCE(a.avg_value, 0) = 0 THEN 0
-                ELSE COALESCE(c.total_cogs, 0)::FLOAT / COALESCE(a.avg_value, 0)::FLOAT
+                WHEN COALESCE(a.avg_value, 0) <= 0 THEN 0.0
+                ELSE COALESCE(c.total_cogs, 0)::FLOAT / a.avg_value::FLOAT
             END as turnover_ratio,
             CONCAT($2, ' days') as period
         FROM products p
@@ -388,21 +392,23 @@ pub async fn get_low_stock(
             p.product_id,
             p.name as product_name,
             COALESCE(SUM(sm.quantity), 0)::BIGINT as current_stock,
-            p.reorder_point,
+            rr.reorder_point,
             w.warehouse_id,
             w.name as warehouse_name
         FROM products p
+        INNER JOIN reorder_rules rr ON p.product_id = rr.product_id AND p.tenant_id = rr.tenant_id
         CROSS JOIN warehouses w
         LEFT JOIN stock_moves sm ON p.product_id = sm.product_id
             AND w.warehouse_id = sm.source_location_id
             AND sm.tenant_id = $1
         WHERE p.tenant_id = $1
         AND w.tenant_id = $1
-        AND p.reorder_point IS NOT NULL
+        AND rr.deleted_at IS NULL
+        AND (rr.warehouse_id IS NULL OR rr.warehouse_id = w.warehouse_id)
         AND ($2::UUID IS NULL OR w.warehouse_id = $2)
-        GROUP BY p.product_id, p.name, p.reorder_point, w.warehouse_id, w.name
-        HAVING COALESCE(SUM(sm.quantity), 0) < p.reorder_point
-        ORDER BY (p.reorder_point - COALESCE(SUM(sm.quantity), 0)) DESC
+        GROUP BY p.product_id, p.name, rr.reorder_point, w.warehouse_id, w.name
+        HAVING COALESCE(SUM(sm.quantity), 0) < rr.reorder_point
+        ORDER BY (rr.reorder_point - COALESCE(SUM(sm.quantity), 0)) DESC
     "#;
 
     let entries = sqlx::query_as::<_, LowStockEntry>(sql)
@@ -446,39 +452,48 @@ pub async fn get_dead_stock(
     let days_threshold = query.days_threshold.unwrap_or(90);
 
     let sql = r#"
-        SELECT
-            p.product_id,
-            p.name as product_name,
-            last_outbound.last_date as last_outbound_date,
-            EXTRACT(EPOCH FROM (NOW() - last_outbound.last_date)) / 86400 as days_since_last_outbound,
-            COALESCE(current_stock.stock_qty, 0) as current_stock
-        FROM products p
-        LEFT JOIN (
+        WITH stock_by_warehouse AS (
             SELECT
                 product_id,
-                MAX(move_date) as last_date
-            FROM stock_moves
-            WHERE tenant_id = $1
-            AND quantity < 0
-            GROUP BY product_id
-        ) last_outbound ON p.product_id = last_outbound.product_id
-        LEFT JOIN (
-            SELECT
-                product_id,
+                source_location_id as warehouse_id,
                 SUM(quantity) as stock_qty
             FROM stock_moves
             WHERE tenant_id = $1
-            GROUP BY product_id
-        ) current_stock ON p.product_id = current_stock.product_id
+              AND ($3::UUID IS NULL OR source_location_id = $3)
+            GROUP BY product_id, source_location_id
+            HAVING SUM(quantity) > 0
+        ),
+        last_outbound AS (
+            SELECT
+                product_id,
+                source_location_id as warehouse_id,
+                MAX(move_date) as last_date
+            FROM stock_moves
+            WHERE tenant_id = $1 AND quantity < 0 AND ($3::UUID IS NULL OR source_location_id = $3)
+            GROUP BY product_id, source_location_id
+        )
+        SELECT
+            p.product_id,
+            p.name as product_name,
+            w.warehouse_id,
+            w.name as warehouse_name,
+            lo.last_date as last_outbound_date,
+            (EXTRACT(EPOCH FROM (NOW() - lo.last_date)) / 86400)::BIGINT as days_since_last_outbound,
+            s.stock_qty as current_stock
+        FROM stock_by_warehouse s
+        JOIN products p ON s.product_id = p.product_id
+        JOIN warehouses w ON s.warehouse_id = w.warehouse_id
+        LEFT JOIN last_outbound lo ON s.product_id = lo.product_id AND s.warehouse_id = lo.warehouse_id
         WHERE p.tenant_id = $1
-        AND (last_outbound.last_date IS NULL OR last_outbound.last_date < NOW() - INTERVAL '1 day' * $2)
-        AND COALESCE(current_stock.stock_qty, 0) > 0
-        ORDER BY days_since_last_outbound DESC
+          AND w.tenant_id = $1
+          AND (lo.last_date IS NULL OR lo.last_date < NOW() - INTERVAL '1 day' * $2)
+        ORDER BY days_since_last_outbound DESC NULLS LAST
     "#;
 
     let entries = sqlx::query_as::<_, DeadStockEntry>(sql)
         .bind(&tenant_id)
         .bind(&days_threshold)
+        .bind(&query.warehouse_id)
         .fetch_all(&pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to fetch dead stock: {}", e)))?;
