@@ -5,7 +5,6 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.9_Stock_Reports_Analytics
 **Priority:** High
-<<<<<<< HEAD
 **Status:** NeedsReview
 **Assignee:** AI_Agent
 **Created Date:** 2025-10-21
