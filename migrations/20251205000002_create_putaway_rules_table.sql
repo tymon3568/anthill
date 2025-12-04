@@ -63,8 +63,8 @@ CREATE TABLE putaway_rules (
         FOREIGN KEY (tenant_id, product_id)
         REFERENCES products (tenant_id, product_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT putaway_rules_category_fk
-        FOREIGN KEY (product_category_id)
-        REFERENCES product_categories (category_id) DEFERRABLE INITIALLY DEFERRED,
+        FOREIGN KEY (tenant_id, product_category_id)
+        REFERENCES product_categories (tenant_id, category_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT putaway_rules_tenant_warehouse_fk
         FOREIGN KEY (tenant_id, warehouse_id)
         REFERENCES warehouses (tenant_id, warehouse_id) DEFERRABLE INITIALLY DEFERRED,
@@ -132,6 +132,18 @@ CREATE INDEX idx_putaway_rules_conditions
 CREATE INDEX idx_putaway_rules_tenant_active
     ON putaway_rules(tenant_id, is_active)
     WHERE deleted_at IS NULL;
+
+-- ==================================
+-- FUNCTIONS
+-- ==================================
+
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ==================================
 -- TRIGGERS

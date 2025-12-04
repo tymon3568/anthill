@@ -15,7 +15,7 @@ pub trait StockMoveRepository: Send + Sync {
         &self,
         stock_move: &CreateStockMoveRequest,
         tenant_id: Uuid,
-    ) -> Result<(), AppError>;
+    ) -> Result<StockMove, AppError>;
 
     /// Find stock moves by reference
     async fn find_by_reference(

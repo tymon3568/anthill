@@ -25,6 +25,8 @@ tracing = "0.1"
 uuid = {workspace = true}
 # Validation
 validator = {workspace = true}
+# Regex matching
+regex = {workspace = true}
 
 [dev-dependencies]
 # Test dependencies

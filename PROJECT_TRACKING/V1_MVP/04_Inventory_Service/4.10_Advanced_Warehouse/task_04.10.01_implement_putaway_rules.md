@@ -76,4 +76,4 @@ Implement a comprehensive putaway rules system that automatically determines opt
     - Added API handlers for /api/v1/warehouse/putaway/suggest and /confirm endpoints
     - Integrated putaway service into application state and routing
     - Added proper multi-tenancy, capacity validation, and stock updates
-    - Sub-tasks 3, 5, and 6 completed, all acceptance criteria met, status set to NeedsReview
+    - Sub-tasks 3, 4, 5, and 6 completed, all acceptance criteria met, status set to NeedsReview

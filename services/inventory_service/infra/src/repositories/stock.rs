@@ -111,14 +111,19 @@ impl StockMoveRepository for PgStockMoveRepository {
         &self,
         stock_move: &CreateStockMoveRequest,
         tenant_id: Uuid,
-    ) -> Result<(), AppError> {
-        sqlx::query!(
+    ) -> Result<StockMove, AppError> {
+        let created_move = sqlx::query_as!(
+            StockMove,
             r#"
             INSERT INTO stock_moves (
                 tenant_id, product_id, source_location_id, destination_location_id,
                 move_type, quantity, unit_cost, reference_type, reference_id,
                 lot_serial_id, idempotency_key, move_reason, batch_info, metadata
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            RETURNING
+                move_id, tenant_id, product_id, source_location_id, destination_location_id,
+                move_type, quantity, unit_cost, total_cost, reference_type, reference_id,
+                lot_serial_id, idempotency_key, move_date, move_reason, batch_info, metadata, created_at
             "#,
             tenant_id,
             stock_move.product_id,
@@ -135,11 +140,11 @@ impl StockMoveRepository for PgStockMoveRepository {
             stock_move.batch_info,
             stock_move.metadata,
         )
-        .execute(&*self.pool)
+        .fetch_one(&*self.pool)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
-        Ok(())
+        Ok(created_move)
     }
 
     async fn find_by_reference(

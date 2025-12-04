@@ -3,6 +3,7 @@
 //! Implementation of the PutawayService trait with business logic for putaway rule evaluation.
 
 use async_trait::async_trait;
+use regex::Regex;
 use uuid::Uuid;
 
 use inventory_service_core::models::{
@@ -143,14 +144,18 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
                 }
             }
 
-            total_quantity += allocation.quantity;
+            total_quantity = total_quantity
+                .checked_add(allocation.quantity)
+                .ok_or_else(|| {
+                    AppError::ValidationError("Total putaway quantity overflow".to_string())
+                })?;
         }
 
         // Create stock moves for each allocation
         for allocation in &request.allocations {
             let stock_move = CreateStockMoveRequest {
-                product_id: Uuid::new_v4(), // TODO: Get from request context
-                source_location_id: None,   // Putaway from receiving area
+                product_id: request.product_id,
+                source_location_id: None, // Putaway from receiving area
                 destination_location_id: Some(allocation.location_id),
                 move_type: "putaway".to_string(),
                 quantity: allocation.quantity,
@@ -164,10 +169,7 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
                 metadata: None,
             };
 
-            let created_move = self
-                .stock_move_repo
-                .create(tenant_id, &stock_move, user_id)
-                .await?;
+            let created_move = self.stock_move_repo.create(&stock_move, *tenant_id).await?;
             stock_moves_created.push(created_move.move_id);
 
             // Update location stock
@@ -175,7 +177,12 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
                 .putaway_repo
                 .get_location_by_id(tenant_id, &allocation.location_id)
                 .await?
-                .unwrap(); // We validated it exists
+                .ok_or_else(|| {
+                    AppError::NotFound(format!(
+                        "Storage location {} not found during putaway",
+                        allocation.location_id
+                    ))
+                })?;
 
             let new_stock = location.current_stock + allocation.quantity;
             self.putaway_repo
@@ -354,9 +361,10 @@ impl<R: PutawayRepository + Send + Sync> PgPutawayService<R> {
             PutawayMatchMode::Exact => Ok(pattern == value),
             PutawayMatchMode::Contains => Ok(value.contains(pattern)),
             PutawayMatchMode::Regex => {
-                // TODO: Implement regex matching
-                // For now, fall back to contains
-                Ok(value.contains(pattern))
+                let re = Regex::new(pattern).map_err(|e| {
+                    AppError::ValidationError(format!("Invalid regex pattern: {}", e))
+                })?;
+                Ok(re.is_match(value))
             },
         }
     }

@@ -767,6 +767,7 @@ pub struct PutawayResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ConfirmPutawayRequest {
+    pub product_id: Uuid,
     pub allocations: Vec<PutawayAllocation>,
     pub reference_type: String,
     pub reference_id: Uuid,
