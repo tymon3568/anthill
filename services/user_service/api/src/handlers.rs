@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Extension, Query},
     http::StatusCode,
     Json,
 };
@@ -85,7 +85,7 @@ pub async fn health_check() -> Json<HealthResp> {
     )
 )]
 pub async fn register<S: AuthService>(
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
     Json(payload): Json<RegisterReq>,
 ) -> Result<(StatusCode, Json<AuthResp>), AppError> {
@@ -116,7 +116,7 @@ pub async fn register<S: AuthService>(
     )
 )]
 pub async fn login<S: AuthService>(
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
     Json(payload): Json<LoginReq>,
 ) -> Result<Json<AuthResp>, AppError> {
@@ -146,7 +146,7 @@ pub async fn login<S: AuthService>(
     )
 )]
 pub async fn refresh_token<S: AuthService>(
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
     Json(payload): Json<RefreshReq>,
 ) -> Result<Json<AuthResp>, AppError> {
@@ -176,7 +176,7 @@ pub async fn refresh_token<S: AuthService>(
     )
 )]
 pub async fn logout<S: AuthService>(
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Json(payload): Json<RefreshReq>,
 ) -> Result<StatusCode, AppError> {
     // Validate request
@@ -231,7 +231,7 @@ fn default_page_size() -> i32 {
 )]
 pub async fn list_users<S: AuthService>(
     auth_user: AuthUser,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Query(query): Query<ListUsersQuery>,
 ) -> Result<Json<UserListResp>, AppError> {
     // Extract tenant_id from authenticated user
@@ -266,7 +266,7 @@ pub async fn list_users<S: AuthService>(
 )]
 pub async fn get_user<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     axum::extract::Path(user_id): axum::extract::Path<uuid::Uuid>,
 ) -> Result<Json<UserInfo>, AppError> {
     // Admin can view any user in their tenant
@@ -323,7 +323,7 @@ pub struct DeletePolicyReq {
 )]
 pub async fn add_policy<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Json(payload): Json<CreatePolicyReq>,
 ) -> Result<StatusCode, AppError> {
     // Validate request
@@ -371,7 +371,7 @@ pub async fn add_policy<S: AuthService>(
 )]
 pub async fn remove_policy<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Json(payload): Json<DeletePolicyReq>,
 ) -> Result<StatusCode, AppError> {
     // Validate request

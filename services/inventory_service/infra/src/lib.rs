@@ -17,8 +17,10 @@ pub type InfraTx<'a> = &'a mut sqlx::Transaction<'a, sqlx::Postgres>;
 // Re-export main implementations for convenience
 pub use repositories::category::CategoryRepositoryImpl;
 pub use repositories::product::ProductRepositoryImpl;
+pub use repositories::quality::PgQualityControlPointRepository;
 pub use repositories::replenishment::PgReorderRuleRepository;
 pub use repositories::valuation::ValuationRepositoryImpl;
+pub use services::quality::PgQualityControlPointService;
 pub use services::replenishment::PgReplenishmentService;
 pub use services::CategoryServiceImpl;
 pub use services::PgRmaService;

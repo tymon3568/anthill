@@ -32,6 +32,7 @@ use inventory_service_core::services::delivery::DeliveryService;
 // Inventory-service infra
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
 use inventory_service_infra::repositories::reconciliation::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
 };
@@ -50,6 +51,7 @@ use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
+use inventory_service_infra::services::quality::PgQualityControlPointService;
 use inventory_service_infra::services::replenishment::PgReplenishmentService;
 
 // Local handlers/state
@@ -65,6 +67,7 @@ use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
+use crate::routes::quality::create_quality_routes;
 use crate::routes::replenishment::create_replenishment_routes;
 use crate::state::AppState;
 
@@ -291,6 +294,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Initialize replenishment repositories and services
     let reorder_rule_repo = Arc::new(PgReorderRuleRepository::new(pool.clone()));
 
+    // Initialize quality repositories and services
+    let qc_point_repo = Arc::new(PgQualityControlPointRepository::new(pool.clone()));
+    let quality_service = Arc::new(PgQualityControlPointService::new(qc_point_repo));
+
     // Initialize NATS client for event publishing
     let nats_client = if let Ok(nats_url) = std::env::var("NATS_URL") {
         match timeout(Duration::from_secs(5), shared_events::NatsClient::connect(&nats_url)).await {
@@ -338,6 +345,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         reconciliation_service,
         rma_service,
         replenishment_service,
+        quality_service,
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
@@ -412,6 +420,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
         .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes())
+        .nest("/api/v1/inventory/quality", create_quality_routes())
         .nest("/api/v1/inventory/replenishment", create_replenishment_routes());
 
     #[cfg(feature = "delivery")]

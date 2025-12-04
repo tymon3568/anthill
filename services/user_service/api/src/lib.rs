@@ -11,6 +11,7 @@ pub mod profile_handlers;
 pub use handlers::AppState;
 pub use profile_handlers::ProfileAppState;
 
+use axum::extract::Extension;
 use axum::routing::{get, post};
 use axum::Router;
 use shared_auth::enforcer::create_enforcer;
@@ -20,12 +21,14 @@ use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
-use user_service_core::domains::auth::domain::service::AuthService;
 use user_service_infra::auth::{
     AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+
+type ConcreteAuthService =
+    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -59,36 +62,39 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
 }
 
 /// Create router from app state (for testing)
-pub fn create_router<S: AuthService + 'static>(state: AppState<S>) -> Router {
+pub fn create_router(state: AppState<ConcreteAuthService>) -> Router {
     let authz_state = AuthzState {
         enforcer: state.enforcer.clone(),
         jwt_secret: state.jwt_secret.clone(),
+        kanidm_client: state.kanidm_client.clone(),
     };
 
     // Public routes (no auth required)
     let public_routes = Router::new()
-        .route("/api/v1/auth/register", post(handlers::register::<S>))
-        .route("/api/v1/auth/login", post(handlers::login::<S>))
-        .route("/api/v1/auth/refresh", post(handlers::refresh_token::<S>))
-        .route("/api/v1/auth/logout", post(handlers::logout::<S>))
+        .route("/api/v1/auth/register", post(handlers::register::<ConcreteAuthService>))
+        .route("/api/v1/auth/login", post(handlers::login::<ConcreteAuthService>))
+        .route("/api/v1/auth/refresh", post(handlers::refresh_token::<ConcreteAuthService>))
+        .route("/api/v1/auth/logout", post(handlers::logout::<ConcreteAuthService>))
         // OAuth2 endpoints
-        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<S>))
-        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<S>))
-        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<S>));
+        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<ConcreteAuthService>))
+        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<ConcreteAuthService>))
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>))
+        .layer(Extension(state.clone()));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
-        .route("/api/v1/users", get(handlers::list_users::<S>))
-        .route("/api/v1/users/{user_id}", get(handlers::get_user::<S>))
+        .route("/api/v1/users", get(handlers::list_users::<ConcreteAuthService>))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user::<ConcreteAuthService>))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
-            post(handlers::add_policy::<S>).delete(handlers::remove_policy::<S>),
+            post(handlers::add_policy::<ConcreteAuthService>).delete(handlers::remove_policy::<ConcreteAuthService>),
         )
-        .layer(shared_auth::CasbinAuthLayer::new(authz_state));
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state))
+        .layer(Extension(state.clone()));
 
     // Combine all API routes
-    let api_routes = public_routes.merge(protected_routes).with_state(state);
+    let api_routes = public_routes.merge(protected_routes);
 
     // Build application with routes and Swagger UI
     Router::new()
@@ -145,32 +151,35 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
     let authz_state = AuthzState {
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
+        kanidm_client: create_kanidm_client(config),
     };
 
     // Public routes (no auth required)
     let public_routes = Router::new()
-        .route("/api/v1/auth/register", post(handlers::register))
-        .route("/api/v1/auth/login", post(handlers::login))
-        .route("/api/v1/auth/refresh", post(handlers::refresh_token))
-        .route("/api/v1/auth/logout", post(handlers::logout))
+        .route("/api/v1/auth/register", post(handlers::register::<ConcreteAuthService>))
+        .route("/api/v1/auth/login", post(handlers::login::<ConcreteAuthService>))
+        .route("/api/v1/auth/refresh", post(handlers::refresh_token::<ConcreteAuthService>))
+        .route("/api/v1/auth/logout", post(handlers::logout::<ConcreteAuthService>))
         // OAuth2 endpoints
-        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize))
-        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback))
-        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh));
+        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<ConcreteAuthService>))
+        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<ConcreteAuthService>))
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>))
+        .layer(Extension(state.clone()));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
-        .route("/api/v1/users", get(handlers::list_users))
-        .route("/api/v1/users/{user_id}", get(handlers::get_user))
+        .route("/api/v1/users", get(handlers::list_users::<ConcreteAuthService>))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user::<ConcreteAuthService>))
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
-            post(handlers::add_policy).delete(handlers::remove_policy),
+            post(handlers::add_policy::<ConcreteAuthService>).delete(handlers::remove_policy::<ConcreteAuthService>),
         )
-        .layer(shared_auth::CasbinAuthLayer::new(authz_state));
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state))
+        .layer(Extension(state.clone()));
 
     // Combine all API routes
-    let api_routes = public_routes.merge(protected_routes).with_state(state);
+    let api_routes = public_routes.merge(protected_routes);
 
     // Build application with routes and Swagger UI
     Router::new()
