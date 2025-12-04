@@ -69,6 +69,7 @@ use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
 use crate::routes::quality::create_quality_routes;
 use crate::routes::replenishment::create_replenishment_routes;
+use crate::routes::reports::create_reports_routes;
 use crate::state::AppState;
 
 /// Create Kanidm client from configuration
@@ -364,6 +365,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let delivery_routes = create_delivery_routes();
     let receipt_routes = create_receipt_routes();
     let reconciliation_routes = create_reconciliation_routes();
+    let reports_routes = create_reports_routes();
     let rma_routes = create_rma_routes();
     let search_routes = create_search_routes();
     let transfer_routes = create_transfer_routes();
@@ -413,6 +415,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let protected_routes = protected_routes
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
         .nest("/api/v1/inventory/receipts", receipt_routes)
+        .nest("/api/v1/inventory/reports", reports_routes)
         .nest("/api/v1/inventory/rma", rma_routes)
         .nest("/api/v1/inventory/products", search_routes)
         .nest("/api/v1/inventory/stock-takes", stock_take_routes)
