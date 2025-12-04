@@ -32,6 +32,7 @@ use inventory_service_core::services::delivery::DeliveryService;
 // Inventory-service infra
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
 use inventory_service_infra::repositories::reconciliation::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
 };
@@ -50,6 +51,7 @@ use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
+use inventory_service_infra::services::quality::PgQualityControlPointService;
 use inventory_service_infra::services::replenishment::PgReplenishmentService;
 
 // Local handlers/state
