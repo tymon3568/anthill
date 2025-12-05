@@ -4,6 +4,7 @@
 
 use async_trait::async_trait;
 use regex::Regex;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 use inventory_service_core::models::{
@@ -121,34 +122,43 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
         let mut stock_moves_created = Vec::new();
         let mut total_quantity = 0i64;
 
-        // Validate all allocations first
+        // Aggregate quantities per location to prevent capacity bypass
+        let mut per_location_qty: HashMap<Uuid, i64> = HashMap::new();
+
         for allocation in &request.allocations {
-            let location = self
-                .putaway_repo
-                .get_location_by_id(tenant_id, &allocation.location_id)
-                .await?
-                .ok_or_else(|| {
-                    AppError::NotFound(format!(
-                        "Storage location {} not found",
-                        allocation.location_id
-                    ))
-                })?;
-
-            // Check capacity
-            if let Some(capacity) = location.capacity {
-                if location.current_stock + allocation.quantity > capacity {
-                    return Err(AppError::ValidationError(format!(
-                        "Location {} does not have enough capacity. Current: {}, Requested: {}, Capacity: {}",
-                        location.location_code, location.current_stock, allocation.quantity, capacity
-                    )));
-                }
-            }
-
             total_quantity = total_quantity
                 .checked_add(allocation.quantity)
                 .ok_or_else(|| {
                     AppError::ValidationError("Total putaway quantity overflow".to_string())
                 })?;
+
+            let entry = per_location_qty.entry(allocation.location_id).or_insert(0);
+            *entry = entry.checked_add(allocation.quantity).ok_or_else(|| {
+                AppError::ValidationError(format!(
+                    "Putaway quantity overflow for location {}",
+                    allocation.location_id
+                ))
+            })?;
+        }
+
+        // Validate capacity for each unique location
+        for (location_id, alloc_qty) in per_location_qty {
+            let location = self
+                .putaway_repo
+                .get_location_by_id(tenant_id, &location_id)
+                .await?
+                .ok_or_else(|| {
+                    AppError::NotFound(format!("Storage location {} not found", location_id))
+                })?;
+
+            if let Some(capacity) = location.capacity {
+                if location.current_stock + alloc_qty > capacity {
+                    return Err(AppError::ValidationError(format!(
+                        "Location {} does not have enough capacity. Current: {}, Requested: {}, Capacity: {}",
+                        location.location_code, location.current_stock, alloc_qty, capacity
+                    )));
+                }
+            }
         }
 
         // Create stock moves for each allocation
