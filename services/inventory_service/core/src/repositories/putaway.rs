@@ -5,6 +5,23 @@ use uuid::Uuid;
 use crate::models::{PutawayRequest, PutawayRule, PutawaySuggestion, StorageLocation};
 
 #[async_trait]
+pub trait TransactionalPutawayRepository: Send + Sync {
+    /// Begin a database transaction
+    async fn begin_transaction(
+        &self,
+    ) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, AppError>;
+
+    /// Update current stock for a storage location within a transaction
+    async fn update_location_stock_with_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: &Uuid,
+        location_id: &Uuid,
+        new_stock: i64,
+    ) -> Result<(), AppError>;
+}
+
+#[async_trait]
 pub trait PutawayRepository: Send + Sync {
     /// Get all active putaway rules for a tenant, ordered by sequence
     async fn get_active_rules(&self, tenant_id: &Uuid) -> Result<Vec<PutawayRule>, AppError>;

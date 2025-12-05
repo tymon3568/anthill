@@ -18,12 +18,12 @@ use shared_error::AppError;
 use crate::repositories::stock::PgStockMoveRepository;
 
 /// Implementation of PutawayService
-pub struct PgPutawayService<R: PutawayRepository + Send + Sync> {
+pub struct PgPutawayService<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> {
     putaway_repo: R,
     stock_move_repo: PgStockMoveRepository,
 }
 
-impl<R: PutawayRepository + Send + Sync> PgPutawayService<R> {
+impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> PgPutawayService<R> {
     /// Create new service instance
     pub fn new(putaway_repo: R, stock_move_repo: PgStockMoveRepository) -> Self {
         Self {
@@ -34,7 +34,9 @@ impl<R: PutawayRepository + Send + Sync> PgPutawayService<R> {
 }
 
 #[async_trait]
-impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> {
+impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> PutawayService
+    for PgPutawayService<R>
+{
     async fn suggest_putaway_locations(
         &self,
         tenant_id: &Uuid,
@@ -161,9 +163,10 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
             }
         }
 
-        // Create stock moves for each allocation
-        // TODO: Implement transactional atomicity for all-or-nothing updates
+        // Begin transaction for atomic putaway
+        let mut tx = self.putaway_repo.begin_transaction().await?;
 
+        // Create stock moves and update location stock atomically
         for allocation in &request.allocations {
             let stock_move = CreateStockMoveRequest {
                 product_id: request.product_id, // Fixed: Use actual product_id from request
@@ -181,15 +184,22 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
                 metadata: None,
             };
 
-            let created_move = self.stock_move_repo.create(&stock_move, *tenant_id).await?;
-            stock_moves_created.push(created_move.move_id);
+            // Create stock move within transaction
+            let (move_id, new_tx) = self
+                .stock_move_repo
+                .create_with_tx(tx, &stock_move, *tenant_id)
+                .await?;
+            stock_moves_created.push(move_id);
+            tx = new_tx;
 
-            // Update location stock
+            // Update location stock within transaction
             let location = self
                 .putaway_repo
                 .get_location_by_id(tenant_id, &allocation.location_id)
                 .await?
                 .ok_or_else(|| {
+                    // Rollback transaction on error
+                    let _ = tx.rollback().await;
                     AppError::NotFound(format!(
                         "Storage location {} was deleted during putaway",
                         allocation.location_id
@@ -198,9 +208,24 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
 
             let new_stock = location.current_stock + allocation.quantity;
             self.putaway_repo
-                .update_location_stock(tenant_id, &allocation.location_id, new_stock)
-                .await?;
+                .update_location_stock_with_tx(
+                    &mut tx,
+                    tenant_id,
+                    &allocation.location_id,
+                    new_stock,
+                )
+                .await
+                .map_err(|e| {
+                    // Rollback transaction on error
+                    let _ = tx.rollback().await;
+                    e
+                })?;
         }
+
+        // Commit transaction
+        tx.commit().await.map_err(|e| {
+            AppError::DatabaseError(format!("Failed to commit putaway transaction: {}", e))
+        })?;
 
         Ok(ConfirmPutawayResponse {
             stock_moves_created,
@@ -232,7 +257,7 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
     }
 }
 
-impl<R: PutawayRepository + Send + Sync> PgPutawayService<R> {
+impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> PgPutawayService<R> {
     /// Evaluate how well a location matches the putaway rules for a request
     async fn evaluate_location_score(
         &self,

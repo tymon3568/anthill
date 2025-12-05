@@ -3,7 +3,7 @@ use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::{
     http::{header, HeaderValue},
-    Router,
+    Extension, Router,
 };
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
@@ -215,15 +215,45 @@ async fn main() {
 
     // Public routes (no auth required)
     let public_routes = Router::new()
-        .route("/api/v1/auth/register", post(handlers::register))
-        .route("/api/v1/auth/login", post(handlers::login))
-        .route("/api/v1/auth/refresh", post(handlers::refresh_token))
-        .route("/api/v1/auth/logout", post(handlers::logout));
+        .layer(Extension(combined_state.app.clone()))
+        .route(
+            "/api/v1/auth/register",
+            post(
+                handlers::register::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
+        .route(
+            "/api/v1/auth/login",
+            post(
+                handlers::login::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
+        .route(
+            "/api/v1/auth/refresh",
+            post(
+                handlers::refresh_token::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
+        .route(
+            "/api/v1/auth/logout",
+            post(
+                handlers::logout::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        );
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
-        .route("/api/v1/users", get(handlers::list_users))
-        .route("/api/v1/users/{user_id}", get(handlers::get_user))
+        .layer(Extension(combined_state.app.clone()))
+        .route("/api/v1/users", get(handlers::list_users::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         // Permission checking routes
         .route("/api/v1/users/permissions/check", get(permission_handlers::check_permission::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         .route("/api/v1/users/permissions", get(permission_handlers::get_user_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
@@ -232,11 +262,12 @@ async fn main() {
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
-            post(handlers::add_policy).delete(handlers::remove_policy),
+            post(handlers::add_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>).delete(handlers::remove_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>),
         );
 
     // Admin role and permission management routes
     let admin_routes = Router::new()
+        .layer(Extension(combined_state.app.clone()))
         // Role management
         .route("/api/v1/admin/roles",
             post(admin_handlers::create_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
@@ -270,6 +301,7 @@ async fn main() {
 
     // Profile routes (require authentication)
     let profile_routes = Router::new()
+        .layer(Extension(combined_state.profile.clone()))
         .route("/api/v1/users/profile",
             get(profile_handlers::get_profile::<ProfileServiceImpl>)
             .put(profile_handlers::update_profile::<ProfileServiceImpl>)
@@ -303,10 +335,10 @@ async fn main() {
 
     // Build application with routes and Swagger UI
     let app = Router::new()
+        .layer(Extension(combined_state))
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
-        .with_state(combined_state)
         // CORS configuration
         .layer({
             let origins = config.get_cors_origins();

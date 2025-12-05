@@ -23,17 +23,6 @@ pub enum QcPointType {
     Internal,
 }
 
-impl From<String> for QcPointType {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "incoming" => QcPointType::Incoming,
-            "outgoing" => QcPointType::Outgoing,
-            "internal" => QcPointType::Internal,
-            _ => panic!("Invalid qc_point_type: {}", s),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateQualityControlPoint {
     pub name: String,

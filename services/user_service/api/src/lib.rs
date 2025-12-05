@@ -29,7 +29,7 @@ use utoipa_swagger_ui::SwaggerUi;
 type ConcreteAuthService =
     AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>;
 
-type AppStateType = AppState<ConcreteAuthService>;
+type AppRouter = Router;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -65,7 +65,7 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
 /// Create router from app state (for testing)
 pub fn create_router(
     state: &AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>,
-) -> Router<AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>> {
+) -> AppRouter {
     let authz_state = AuthzState {
         enforcer: state.enforcer.clone(),
         jwt_secret: state.jwt_secret.clone(),
@@ -74,6 +74,7 @@ pub fn create_router(
 
     // Public routes (no auth required)
     let public_routes = Router::new()
+        .layer(Extension(state.clone()))
         .route("/api/v1/auth/register", post(handlers::register::<ConcreteAuthService>))
         .route("/api/v1/auth/login", post(handlers::login::<ConcreteAuthService>))
         .route("/api/v1/auth/refresh", post(handlers::refresh_token::<ConcreteAuthService>))
@@ -81,8 +82,7 @@ pub fn create_router(
         // OAuth2 endpoints
         .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<ConcreteAuthService>))
         .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<ConcreteAuthService>))
-        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>))
-        .with_state(state.clone());
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
@@ -101,19 +101,19 @@ pub fn create_router(
 
     // Build application with routes and Swagger UI
     Router::new()
-        .with_state(state.clone())
+        .layer(Extension(state.clone()))
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
         .merge(
             Router::from(
                 SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()),
             )
-            .with_state(state.clone()),
+            .layer(Extension(state.clone())),
         )
         .layer(TraceLayer::new_for_http())
 }
 
-pub async fn get_app(db_pool: PgPool, config: &Config) -> Router<AppStateType> {
+pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
     // Initialize Casbin enforcer
     // Try multiple paths to find the model file
     let model_paths = [
@@ -195,9 +195,10 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router<AppStateType> {
     .layer(Extension(state.clone()));
 
     // Build application by merging routers
-    let app: Router<()> = Router::new()
+    Router::new()
+        .layer(Extension(state))
         .merge(public_routes)
         .merge(protected_routes)
-        .merge(swagger_routes);
-    app.with_state(state).layer(TraceLayer::new_for_http())
+        .merge(swagger_routes)
+        .layer(TraceLayer::new_for_http())
 }

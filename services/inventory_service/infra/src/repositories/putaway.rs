@@ -7,7 +7,9 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use inventory_service_core::models::{PutawayRule, StorageLocation};
-use inventory_service_core::repositories::putaway::PutawayRepository;
+use inventory_service_core::repositories::putaway::{
+    PutawayRepository, TransactionalPutawayRepository,
+};
 use shared_error::AppError;
 
 /// PostgreSQL implementation of PutawayRepository
@@ -630,5 +632,48 @@ impl PutawayRepository for PgPutawayRepository {
         })?;
 
         Ok(locations)
+    }
+}
+
+#[async_trait]
+impl TransactionalPutawayRepository for PgPutawayRepository {
+    async fn begin_transaction(
+        &self,
+    ) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, AppError> {
+        self.pool
+            .begin()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to begin transaction: {}", e)))
+    }
+
+    async fn update_location_stock_with_tx(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: &Uuid,
+        location_id: &Uuid,
+        new_stock: i64,
+    ) -> Result<(), AppError> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE storage_locations
+            SET current_stock = $3, updated_at = NOW()
+            WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            location_id,
+            new_stock
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to update location stock: {}", e)))?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Storage location {} not found or already deleted",
+                location_id
+            )));
+        }
+
+        Ok(())
     }
 }
