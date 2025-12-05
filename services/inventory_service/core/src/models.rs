@@ -750,6 +750,7 @@ pub struct PutawaySuggestion {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PutawayRequest {
     pub product_id: Uuid,
+    pub product_category_id: Option<Uuid>,
     pub quantity: i64,
     pub warehouse_id: Option<Uuid>,
     pub preferred_location_type: Option<String>,

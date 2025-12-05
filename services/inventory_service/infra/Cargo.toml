@@ -17,6 +17,7 @@ sha2 = "0.10"
 # Shared crates
 shared_db = {workspace = true}
 shared_error = {workspace = true}
+shared_events = {workspace = true}
 # Slug generation
 slug = "0.1"
 # Database

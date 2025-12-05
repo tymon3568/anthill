@@ -11,9 +11,8 @@ pub mod profile_handlers;
 pub use handlers::AppState;
 pub use profile_handlers::ProfileAppState;
 
-use axum::extract::Extension;
 use axum::routing::{get, post};
-use axum::Router;
+use axum::{Extension, Router};
 use shared_auth::enforcer::create_enforcer;
 use shared_auth::AuthzState;
 use shared_config::Config;
@@ -29,6 +28,8 @@ use utoipa_swagger_ui::SwaggerUi;
 
 type ConcreteAuthService =
     AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>;
+
+type AppStateType = AppState<ConcreteAuthService>;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -62,7 +63,9 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
 }
 
 /// Create router from app state (for testing)
-pub fn create_router(state: AppState<ConcreteAuthService>) -> Router {
+pub fn create_router(
+    state: &AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>,
+) -> Router<AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>> {
     let authz_state = AuthzState {
         enforcer: state.enforcer.clone(),
         jwt_secret: state.jwt_secret.clone(),
@@ -79,10 +82,11 @@ pub fn create_router(state: AppState<ConcreteAuthService>) -> Router {
         .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<ConcreteAuthService>))
         .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<ConcreteAuthService>))
         .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>))
-        .layer(Extension(state.clone()));
+        .with_state(state.clone());
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
+        .layer(Extension(state.clone()))
         .route("/api/v1/users", get(handlers::list_users::<ConcreteAuthService>))
         .route("/api/v1/users/{user_id}", get(handlers::get_user::<ConcreteAuthService>))
         // Low-level policy management (for advanced use cases)
@@ -90,21 +94,26 @@ pub fn create_router(state: AppState<ConcreteAuthService>) -> Router {
             "/api/v1/admin/policies",
             post(handlers::add_policy::<ConcreteAuthService>).delete(handlers::remove_policy::<ConcreteAuthService>),
         )
-        .layer(shared_auth::CasbinAuthLayer::new(authz_state))
-        .layer(Extension(state.clone()));
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state));
 
     // Combine all API routes
     let api_routes = public_routes.merge(protected_routes);
 
     // Build application with routes and Swagger UI
     Router::new()
+        .with_state(state.clone())
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
-        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
+        .merge(
+            Router::from(
+                SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()),
+            )
+            .with_state(state.clone()),
+        )
         .layer(TraceLayer::new_for_http())
 }
 
-pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
+pub async fn get_app(db_pool: PgPool, config: &Config) -> Router<AppStateType> {
     // Initialize Casbin enforcer
     // Try multiple paths to find the model file
     let model_paths = [
@@ -156,6 +165,8 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
 
     // Public routes (no auth required)
     let public_routes = Router::new()
+        .layer(Extension(state.clone()))
+        .route("/health", get(handlers::health_check))
         .route("/api/v1/auth/register", post(handlers::register::<ConcreteAuthService>))
         .route("/api/v1/auth/login", post(handlers::login::<ConcreteAuthService>))
         .route("/api/v1/auth/refresh", post(handlers::refresh_token::<ConcreteAuthService>))
@@ -163,11 +174,11 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
         // OAuth2 endpoints
         .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<ConcreteAuthService>))
         .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<ConcreteAuthService>))
-        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>))
-        .layer(Extension(state.clone()));
+        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
+        .layer(Extension(state.clone()))
         .route("/api/v1/users", get(handlers::list_users::<ConcreteAuthService>))
         .route("/api/v1/users/{user_id}", get(handlers::get_user::<ConcreteAuthService>))
         // Low-level policy management (for advanced use cases)
@@ -175,16 +186,18 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> Router {
             "/api/v1/admin/policies",
             post(handlers::add_policy::<ConcreteAuthService>).delete(handlers::remove_policy::<ConcreteAuthService>),
         )
-        .layer(shared_auth::CasbinAuthLayer::new(authz_state))
-        .layer(Extension(state.clone()));
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state));
 
-    // Combine all API routes
-    let api_routes = public_routes.merge(protected_routes);
+    // Swagger UI
+    let swagger_routes = Router::from(
+        SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()),
+    )
+    .layer(Extension(state.clone()));
 
-    // Build application with routes and Swagger UI
-    Router::new()
-        .route("/health", get(handlers::health_check))
-        .merge(api_routes)
-        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
-        .layer(TraceLayer::new_for_http())
+    // Build application by merging routers
+    let app: Router<()> = Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
+        .merge(swagger_routes);
+    app.with_state(state).layer(TraceLayer::new_for_http())
 }

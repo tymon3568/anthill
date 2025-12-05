@@ -71,6 +71,8 @@ CREATE TABLE storage_locations (
         CHECK (capacity IS NULL OR capacity > 0),
     CONSTRAINT storage_locations_current_stock_check
         CHECK (current_stock >= 0),
+    CONSTRAINT storage_locations_stock_within_capacity_check
+        CHECK (capacity IS NULL OR current_stock <= capacity),
     CONSTRAINT storage_locations_dimensions_check
         CHECK (
             (length_cm IS NULL AND width_cm IS NULL AND height_cm IS NULL) OR

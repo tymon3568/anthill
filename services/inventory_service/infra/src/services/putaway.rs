@@ -161,12 +161,8 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
             }
         }
 
-        // Create stock moves for each allocation within a DB transaction
-        // to ensure all-or-nothing atomicity
-        let mut tx =
-            self.putaway_repo.pool.begin().await.map_err(|e| {
-                AppError::DatabaseError(format!("Failed to start transaction: {}", e))
-            })?;
+        // Create stock moves for each allocation
+        // TODO: Implement transactional atomicity for all-or-nothing updates
 
         for allocation in &request.allocations {
             let stock_move = CreateStockMoveRequest {
@@ -185,12 +181,7 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
                 metadata: None,
             };
 
-            // Note: Repository methods need to be updated to accept &mut Transaction
-            // For now, using non-transactional calls - TODO: Implement transactional repo methods
-            let created_move = self
-                .stock_move_repo
-                .create(tenant_id, &stock_move, user_id)
-                .await?;
+            let created_move = self.stock_move_repo.create(&stock_move, *tenant_id).await?;
             stock_moves_created.push(created_move.move_id);
 
             // Update location stock
@@ -210,10 +201,6 @@ impl<R: PutawayRepository + Send + Sync> PutawayService for PgPutawayService<R> 
                 .update_location_stock(tenant_id, &allocation.location_id, new_stock)
                 .await?;
         }
-
-        tx.commit()
-            .await
-            .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(ConfirmPutawayResponse {
             stock_moves_created,
@@ -303,14 +290,35 @@ impl<R: PutawayRepository + Send + Sync> PgPutawayService<R> {
                 }
             },
             PutawayRuleType::Category => {
-                // TODO: Implement category matching - for now, assume no match
-                // Would need to fetch product category or include in request
-                false
+                if let Some(rule_cat_id) = rule.product_category_id {
+                    if let Some(req_cat_id) = request.product_category_id {
+                        rule_cat_id == req_cat_id
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             },
             PutawayRuleType::Attribute => {
-                // TODO: Implement attribute matching against rule.conditions JSON
-                // Would need to parse conditions and compare with request.attributes
-                false
+                if let Some(conditions) = &rule.conditions {
+                    if let Some(attrs) = &request.attributes {
+                        // Check if conditions (JSON object) is a subset of attrs
+                        if let (Some(cond_obj), Some(attrs_obj)) =
+                            (conditions.as_object(), attrs.as_object())
+                        {
+                            cond_obj
+                                .iter()
+                                .all(|(key, cond_val)| attrs_obj.get(key) == Some(cond_val))
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             },
             PutawayRuleType::Fifo | PutawayRuleType::Fefo => {
                 // FIFO/FEFO rules apply to all products

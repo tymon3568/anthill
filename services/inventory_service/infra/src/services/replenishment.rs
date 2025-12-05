@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use inventory_service_core::domains::replenishment::{
     CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
 };
-use inventory_service_core::repositories::inventory_level::InventoryLevelRepository;
 use inventory_service_core::repositories::replenishment::ReorderRuleRepository;
 use inventory_service_core::repositories::stock::StockMoveRepository;
+use inventory_service_core::repositories::InventoryLevelRepository;
 use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::AppError;
 use shared_events::{EventEnvelope, NatsClient, ReorderTriggeredEvent};
@@ -41,14 +41,19 @@ impl PgReplenishmentService {
     ) -> Result<i64, AppError> {
         // Get current available quantity
         let available = if let Some(wh_id) = warehouse_id {
-            self.inventory_repo
-                .get_available_quantity(tenant_id, wh_id, product_id)
+            if let Some(level) = self
+                .inventory_repo
+                .find_by_product(tenant_id, wh_id, product_id)
                 .await?
+            {
+                level.available_quantity
+            } else {
+                0
+            }
         } else {
             // Sum across all warehouses if no specific warehouse
-            self.inventory_repo
-                .get_total_available_quantity(tenant_id, product_id)
-                .await?
+            // TODO: Implement aggregation across warehouses
+            0 // Placeholder, need to add method to trait
         };
 
         // Projected quantity = available + incoming - reserved
