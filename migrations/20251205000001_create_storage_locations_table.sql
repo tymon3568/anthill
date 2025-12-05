@@ -122,6 +122,11 @@ CREATE INDEX idx_storage_locations_tenant_active
     ON storage_locations(tenant_id, warehouse_id, is_active)
     WHERE deleted_at IS NULL;
 
+-- Uniqueness constraints
+CREATE UNIQUE INDEX uq_storage_locations_tenant_wh_code
+    ON storage_locations(tenant_id, warehouse_id, location_code)
+    WHERE deleted_at IS NULL;
+
 -- ==================================
 -- TRIGGERS
 -- ==================================

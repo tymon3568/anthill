@@ -272,7 +272,7 @@ impl PutawayRepository for PgPutawayRepository {
     }
 
     async fn update_rule(&self, rule: &PutawayRule) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE putaway_rules
             SET
@@ -320,11 +320,18 @@ impl PutawayRepository for PgPutawayRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to update putaway rule: {}", e)))?;
 
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Putaway rule {} not found or already deleted",
+                rule.rule_id
+            )));
+        }
+
         Ok(())
     }
 
     async fn delete_rule(&self, tenant_id: &Uuid, rule_id: &Uuid) -> Result<(), AppError> {
-        sqlx::query!(
+        let result = sqlx::query!(
             r#"
             UPDATE putaway_rules
             SET deleted_at = NOW()
@@ -336,6 +343,13 @@ impl PutawayRepository for PgPutawayRepository {
         .execute(&self.pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to delete putaway rule: {}", e)))?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Putaway rule {} not found or already deleted",
+                rule_id
+            )));
+        }
 
         Ok(())
     }
@@ -438,7 +452,7 @@ impl PutawayRepository for PgPutawayRepository {
     }
 
     async fn update_location(&self, location: &StorageLocation) -> Result<(), AppError> {
-        sqlx::query!(
+        let result = sqlx::query!(
             r#"
             UPDATE storage_locations
             SET
@@ -488,11 +502,18 @@ impl PutawayRepository for PgPutawayRepository {
             AppError::DatabaseError(format!("Failed to update storage location: {}", e))
         })?;
 
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Storage location {} not found or already deleted",
+                location.location_id
+            )));
+        }
+
         Ok(())
     }
 
     async fn delete_location(&self, tenant_id: &Uuid, location_id: &Uuid) -> Result<(), AppError> {
-        sqlx::query!(
+        let result = sqlx::query!(
             r#"
             UPDATE storage_locations
             SET deleted_at = NOW()
@@ -506,6 +527,13 @@ impl PutawayRepository for PgPutawayRepository {
         .map_err(|e| {
             AppError::DatabaseError(format!("Failed to delete storage location: {}", e))
         })?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(format!(
+                "Storage location {} not found or already deleted",
+                location_id
+            )));
+        }
 
         Ok(())
     }
