@@ -90,3 +90,10 @@ Implement a comprehensive putaway rules system that automatically determines opt
     - Replaced unwrap with proper error handling in confirm_putaway for robustness
     - Corrected sub-task completion numbers in task log
     - All critical data integrity and compilation issues resolved, PR ready for final review
+
+*   2025-12-05 18:45: [fix] by Grok - fix: aggregate quantities per location in confirm_putaway to prevent capacity bypass [TaskID: 04.10.01]
+    - Fixed critical capacity validation bug where same location appearing multiple times in allocations could bypass capacity checks
+    - Changed validation logic to aggregate requested quantities per location_id using HashMap before checking capacity
+    - Ensures location.current_stock + aggregated_quantity <= capacity for each unique location
+    - Prevents over-allocation and maintains data integrity in concurrent putaway operations
+    - Added HashMap import and proper error handling for quantity overflow per location
