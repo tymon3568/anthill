@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Extension, Query},
     Json,
 };
 use serde::Deserialize;
@@ -38,7 +38,7 @@ pub struct PermissionCheckQuery {
 )]
 pub async fn check_permission<S: AuthService>(
     auth_user: AuthUser,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Query(query): Query<PermissionCheckQuery>,
 ) -> Result<Json<PermissionCheckResp>, AppError> {
     let enforcer = state.enforcer.read().await;
@@ -75,7 +75,7 @@ pub async fn check_permission<S: AuthService>(
 )]
 pub async fn get_user_permissions<S: AuthService>(
     auth_user: AuthUser,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
 ) -> Result<Json<UserPermissionsResp>, AppError> {
     let enforcer = state.enforcer.read().await;
 
@@ -131,7 +131,7 @@ pub async fn get_user_permissions<S: AuthService>(
 )]
 pub async fn get_user_roles<S: AuthService>(
     auth_user: AuthUser,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
 ) -> Result<Json<UserRolesResp>, AppError> {
     let enforcer = state.enforcer.read().await;
 
@@ -170,7 +170,7 @@ pub async fn get_user_roles<S: AuthService>(
 )]
 pub async fn validate_tenant_access<S: AuthService>(
     auth_user: AuthUser,
-    State(_state): State<AppState<S>>,
+    Extension(_state): Extension<AppState<S>>,
 ) -> Result<Json<TenantAccessResp>, AppError> {
     // Since the AuthUser extractor already validates tenant access,
     // if we reach this point, the user has valid tenant access

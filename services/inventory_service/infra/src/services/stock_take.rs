@@ -270,10 +270,11 @@ impl StockTakeService for PgStockTakeService {
         let tx = {
             let mut current_tx = tx;
             for stock_move in &stock_moves_to_create {
-                current_tx = self
+                let (_move_id, new_tx) = self
                     .stock_move_repo
                     .create_with_tx(current_tx, stock_move.clone(), tenant_id)
                     .await?;
+                current_tx = new_tx;
             }
             current_tx
         };

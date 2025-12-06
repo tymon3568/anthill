@@ -6,6 +6,8 @@ chrono = {workspace = true}
 inventory_service_core = {workspace = true}
 # BigDecimal casting
 num-traits = "0.2"
+# Regex matching
+regex = {workspace = true}
 # Decimal numbers
 rust_decimal = {workspace = true}
 # JSON serialization
@@ -15,6 +17,7 @@ sha2 = "0.10"
 # Shared crates
 shared_db = {workspace = true}
 shared_error = {workspace = true}
+shared_events = {workspace = true}
 # Slug generation
 slug = "0.1"
 # Database

@@ -15,6 +15,14 @@ use uuid::Uuid;
 
 use crate::state::AppState;
 
+#[derive(utoipa::ToSchema)]
+pub struct ErrorResponse {
+    /// Error message
+    pub error: String,
+    /// Error code
+    pub code: String,
+}
+
 /// Create a new reorder rule
 #[utoipa::path(
     post,
@@ -24,20 +32,20 @@ use crate::state::AppState;
     request_body = CreateReorderRule,
     responses(
         (status = 201, body = inventory_service_core::domains::replenishment::ReorderRule),
-        (status = 400, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn create_reorder_rule(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Json(rule): Json<CreateReorderRule>,
 ) -> Result<Json<inventory_service_core::domains::replenishment::ReorderRule>, AppError> {
     let created_rule = state
         .replenishment_service
-        .create_reorder_rule(user.tenant_id, rule)
+        .create_reorder_rule(auth_user.tenant_id, rule)
         .await?;
     Ok(Json(created_rule))
 }
@@ -53,20 +61,20 @@ pub async fn create_reorder_rule(
     ),
     responses(
         (status = 200, body = inventory_service_core::domains::replenishment::ReorderRule),
-        (status = 404, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn get_reorder_rule(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(rule_id): Path<Uuid>,
 ) -> Result<Json<inventory_service_core::domains::replenishment::ReorderRule>, AppError> {
     let rule = state
         .replenishment_service
-        .get_reorder_rule(user.tenant_id, rule_id)
+        .get_reorder_rule(auth_user.tenant_id, rule_id)
         .await?
         .ok_or_else(|| AppError::NotFound("Reorder rule not found".to_string()))?;
     Ok(Json(rule))
@@ -84,21 +92,21 @@ pub async fn get_reorder_rule(
     request_body = UpdateReorderRule,
     responses(
         (status = 200, body = inventory_service_core::domains::replenishment::ReorderRule),
-        (status = 404, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn update_reorder_rule(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(rule_id): Path<Uuid>,
     Json(updates): Json<UpdateReorderRule>,
 ) -> Result<Json<inventory_service_core::domains::replenishment::ReorderRule>, AppError> {
     let updated_rule = state
         .replenishment_service
-        .update_reorder_rule(user.tenant_id, rule_id, updates)
+        .update_reorder_rule(auth_user.tenant_id, rule_id, updates)
         .await?;
     Ok(Json(updated_rule))
 }
@@ -114,20 +122,20 @@ pub async fn update_reorder_rule(
     ),
     responses(
         (status = 204, description = "Rule deleted"),
-        (status = 404, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn delete_reorder_rule(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(rule_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
     state
         .replenishment_service
-        .delete_reorder_rule(user.tenant_id, rule_id)
+        .delete_reorder_rule(auth_user.tenant_id, rule_id)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -144,20 +152,20 @@ pub async fn delete_reorder_rule(
     ),
     responses(
         (status = 200, body = Vec<inventory_service_core::domains::replenishment::ReorderRule>),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn list_reorder_rules_for_product(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(product_id): Path<Uuid>,
     axum::extract::Query(params): axum::extract::Query<WarehouseFilterQuery>,
 ) -> Result<Json<Vec<inventory_service_core::domains::replenishment::ReorderRule>>, AppError> {
     let rules = state
         .replenishment_service
-        .list_reorder_rules_for_product(user.tenant_id, product_id, params.warehouse_id)
+        .list_reorder_rules_for_product(auth_user.tenant_id, product_id, params.warehouse_id)
         .await?;
     Ok(Json(rules))
 }
@@ -170,18 +178,18 @@ pub async fn list_reorder_rules_for_product(
     operation_id = "run_replenishment_check",
     responses(
         (status = 200, body = Vec<ReplenishmentCheckResult>),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn run_replenishment_check(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
 ) -> Result<Json<Vec<ReplenishmentCheckResult>>, AppError> {
     let results = state
         .replenishment_service
-        .run_replenishment_check(user.tenant_id)
+        .run_replenishment_check(auth_user.tenant_id)
         .await?;
     Ok(Json(results))
 }
@@ -198,21 +206,21 @@ pub async fn run_replenishment_check(
     ),
     responses(
         (status = 200, body = ReplenishmentCheckResult),
-        (status = 404, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn check_product_replenishment(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(product_id): Path<Uuid>,
     axum::extract::Query(params): axum::extract::Query<WarehouseFilterQuery>,
 ) -> Result<Json<ReplenishmentCheckResult>, AppError> {
     let result = state
         .replenishment_service
-        .check_product_replenishment(user.tenant_id, product_id, params.warehouse_id)
+        .check_product_replenishment(auth_user.tenant_id, product_id, params.warehouse_id)
         .await?;
     Ok(Json(result))
 }

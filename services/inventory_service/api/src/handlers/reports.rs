@@ -271,7 +271,7 @@ pub struct StockAgingQuery {
     tag = "reports",
     operation_id = "get_inventory_turnover",
     params(
-        ("period" = String, Query, description = "Reporting period in days (e.g., '30', '90')", default = "90")
+        ("period" = String, Query, description = "Reporting period in days (default: 90, e.g., '30', '90')")
     ),
     responses(
         (status = 200, description = "Inventory turnover report", body = Vec<InventoryTurnoverEntry>),
@@ -433,7 +433,7 @@ pub struct LowStockQuery {
     tag = "reports",
     operation_id = "get_dead_stock",
     params(
-        ("days_threshold" = Option<i32>, Query, description = "Days threshold for dead stock", default = 90),
+        ("days_threshold" = Option<i32>, Query, description = "Days threshold for dead stock (default: 90)"),
         ("warehouse_id" = Option<Uuid>, Query, description = "Warehouse ID to filter by location")
     ),
     responses(

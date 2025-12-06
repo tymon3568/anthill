@@ -29,7 +29,7 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             r#"
             SELECT
                 qc_point_id, tenant_id, name,
-                type as "type: QcPointType",
+                type as "qc_type: QcPointType",
                 product_id, warehouse_id, active,
                 created_at, updated_at
             FROM quality_control_points
@@ -51,7 +51,7 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             r#"
             SELECT
                 qc_point_id, tenant_id, name,
-                type as "type: QcPointType",
+                type as "qc_type: QcPointType",
                 product_id, warehouse_id, active,
                 created_at, updated_at
             FROM quality_control_points
@@ -77,7 +77,7 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             r#"
             SELECT
                 qc_point_id, tenant_id, name,
-                type as "type: QcPointType",
+                type as "qc_type: QcPointType",
                 product_id, warehouse_id, active,
                 created_at, updated_at
             FROM quality_control_points
@@ -104,7 +104,7 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             r#"
             SELECT
                 qc_point_id, tenant_id, name,
-                type as "type: QcPointType",
+                type as "qc_type: QcPointType",
                 product_id, warehouse_id, active,
                 created_at, updated_at
             FROM quality_control_points
@@ -127,7 +127,7 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             r#"
             SELECT
                 qc_point_id, tenant_id, name,
-                type as "type: QcPointType",
+                type as "qc_type: QcPointType",
                 product_id, warehouse_id, active,
                 created_at, updated_at
             FROM quality_control_points
@@ -148,12 +148,6 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
         tenant_id: Uuid,
         qc_point: CreateQualityControlPoint,
     ) -> Result<QualityControlPoint, AppError> {
-        let qc_type_str = match qc_point.r#type {
-            QcPointType::Incoming => "incoming",
-            QcPointType::Outgoing => "outgoing",
-            QcPointType::Internal => "internal",
-        };
-
         let new_qc_point = sqlx::query_as!(
             QualityControlPoint,
             r#"
@@ -163,13 +157,13 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             VALUES ($1, $2, $3, $4, $5)
             RETURNING
                 qc_point_id, tenant_id, name,
-                type as "type: QcPointType",
+                type as "qc_type: QcPointType",
                 product_id, warehouse_id, active,
                 created_at, updated_at
             "#,
             tenant_id,
             qc_point.name,
-            qc_type_str,
+            qc_point.r#type as QcPointType,
             qc_point.product_id,
             qc_point.warehouse_id
         )
@@ -186,12 +180,6 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
         qc_point_id: Uuid,
         updates: UpdateQualityControlPoint,
     ) -> Result<QualityControlPoint, AppError> {
-        let qc_type_str = updates.r#type.as_ref().map(|t| match t {
-            QcPointType::Incoming => "incoming",
-            QcPointType::Outgoing => "outgoing",
-            QcPointType::Internal => "internal",
-        });
-
         let updated_qc_point = sqlx::query_as!(
             QualityControlPoint,
             r#"
@@ -206,14 +194,14 @@ impl QualityControlPointRepository for PgQualityControlPointRepository {
             WHERE tenant_id = $1 AND qc_point_id = $2
             RETURNING
                 qc_point_id, tenant_id, name,
-                type as "type: QcPointType",
+                type as "qc_type: QcPointType",
                 product_id, warehouse_id, active,
                 created_at, updated_at
             "#,
             tenant_id,
             qc_point_id,
             updates.name,
-            qc_type_str,
+            updates.r#type as Option<QcPointType>,
             updates.product_id,
             updates.warehouse_id,
             updates.active

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path},
     http::StatusCode,
     Json,
 };
@@ -38,7 +38,7 @@ use crate::handlers::AppState;
 )]
 pub async fn create_role<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Json(payload): Json<CreateRoleReq>,
 ) -> Result<(StatusCode, Json<CreateRoleResp>), AppError> {
     // Validate request
@@ -138,7 +138,7 @@ pub async fn create_role<S: AuthService>(
 )]
 pub async fn list_roles<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
 ) -> Result<Json<RoleListResp>, AppError> {
     let tenant_id = admin_user.tenant_id;
 
@@ -226,7 +226,7 @@ pub async fn list_roles<S: AuthService>(
 )]
 pub async fn update_role<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Path(role_name): Path<String>,
     Json(payload): Json<UpdateRoleReq>,
 ) -> Result<Json<UpdateRoleResp>, AppError> {
@@ -352,7 +352,7 @@ pub async fn update_role<S: AuthService>(
 )]
 pub async fn delete_role<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Path(role_name): Path<String>,
 ) -> Result<Json<DeleteRoleResp>, AppError> {
     let tenant_id = admin_user.tenant_id;
@@ -435,7 +435,7 @@ pub async fn delete_role<S: AuthService>(
 )]
 pub async fn assign_role_to_user<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Path(user_id): Path<Uuid>,
     Json(payload): Json<AssignUserRoleReq>,
 ) -> Result<Json<AssignUserRoleResp>, AppError> {
@@ -514,7 +514,7 @@ pub async fn assign_role_to_user<S: AuthService>(
 )]
 pub async fn remove_role_from_user<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Path((user_id, role_name)): Path<(Uuid, String)>,
 ) -> Result<Json<RemoveUserRoleResp>, AppError> {
     let tenant_id = admin_user.tenant_id;
@@ -597,7 +597,7 @@ pub async fn remove_role_from_user<S: AuthService>(
 )]
 pub async fn get_user_roles<S: AuthService>(
     RequireAdmin(admin_user): RequireAdmin,
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Path(user_id): Path<Uuid>,
 ) -> Result<Json<UserRolesResp>, AppError> {
     let tenant_id = admin_user.tenant_id;
@@ -642,7 +642,7 @@ pub async fn get_user_roles<S: AuthService>(
 )]
 pub async fn list_permissions<S: AuthService>(
     RequireAdmin(_admin_user): RequireAdmin,
-    State(_state): State<AppState<S>>,
+    Extension(_state): Extension<AppState<S>>,
 ) -> Result<Json<PermissionListResp>, AppError> {
     // Define available permissions for the system
     // In a production system, this could be loaded from a configuration file or database
