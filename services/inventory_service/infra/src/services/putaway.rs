@@ -145,25 +145,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
             })?;
         }
 
-        // Validate capacity for each unique location
-        for (location_id, alloc_qty) in per_location_qty {
-            let location = self
-                .putaway_repo
-                .get_location_by_id(tenant_id, &location_id)
-                .await?
-                .ok_or_else(|| {
-                    AppError::NotFound(format!("Storage location {} not found", location_id))
-                })?;
-
-            if let Some(capacity) = location.capacity {
-                if location.current_stock + alloc_qty > capacity {
-                    return Err(AppError::ValidationError(format!(
-                        "Location {} does not have enough capacity. Current: {}, Requested: {}, Capacity: {}",
-                        location.location_code, location.current_stock, alloc_qty, capacity
-                    )));
-                }
-            }
-        }
+        // Capacity validation will be performed atomically within the transaction
 
         // Begin transaction for atomic putaway
         let mut tx = self.putaway_repo.begin_transaction().await?;
@@ -194,25 +176,13 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
             stock_moves_created.push(move_id);
             tx = new_tx;
 
-            // Update location stock within transaction
-            let location = self
-                .putaway_repo
-                .get_location_by_id(tenant_id, &allocation.location_id)
-                .await?
-                .ok_or_else(|| {
-                    AppError::NotFound(format!(
-                        "Storage location {} was deleted during putaway",
-                        allocation.location_id
-                    ))
-                })?;
-
-            let new_stock = location.current_stock + allocation.quantity;
+            // Update location stock within transaction (atomic with capacity check)
             self.putaway_repo
                 .update_location_stock_with_tx(
                     &mut tx,
                     tenant_id,
                     &allocation.location_id,
-                    new_stock,
+                    allocation.quantity,
                 )
                 .await?;
         }

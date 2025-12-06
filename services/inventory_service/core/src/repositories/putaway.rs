@@ -11,13 +11,13 @@ pub trait TransactionalPutawayRepository: Send + Sync {
         &self,
     ) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, AppError>;
 
-    /// Update current stock for a storage location within a transaction
+    /// Update current stock for a storage location within a transaction with capacity check
     async fn update_location_stock_with_tx(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         tenant_id: &Uuid,
         location_id: &Uuid,
-        new_stock: i64,
+        quantity: i64,
     ) -> Result<(), AppError>;
 }
 

@@ -651,8 +651,34 @@ impl TransactionalPutawayRepository for PgPutawayRepository {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         tenant_id: &Uuid,
         location_id: &Uuid,
-        new_stock: i64,
+        quantity: i64,
     ) -> Result<(), AppError> {
+        let row = sqlx::query!(
+            r#"
+            SELECT current_stock, capacity
+            FROM storage_locations
+            WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL
+            FOR UPDATE
+            "#,
+            tenant_id,
+            location_id
+        )
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(|e| {
+            AppError::DatabaseError(format!("Failed to get location for update: {}", e))
+        })?;
+
+        let new_stock = row.current_stock + quantity;
+        if let Some(capacity) = row.capacity {
+            if new_stock > capacity {
+                return Err(AppError::ValidationError(format!(
+                    "Location capacity exceeded: current {}, adding {}, capacity {}",
+                    row.current_stock, quantity, capacity
+                )));
+            }
+        }
+
         let result = sqlx::query!(
             r#"
             UPDATE storage_locations
