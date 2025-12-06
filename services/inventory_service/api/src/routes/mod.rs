@@ -35,6 +35,10 @@ use inventory_service_core::services::delivery::DeliveryService;
 
 // Inventory-service infra
 
+use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+use inventory_service_infra::repositories::product::ProductRepositoryImpl;
+use inventory_service_infra::repositories::putaway::PgPutawayRepository;
+use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
 use inventory_service_infra::repositories::reconciliation::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
 };
