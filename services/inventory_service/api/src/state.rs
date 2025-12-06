@@ -4,12 +4,12 @@
 
 use std::sync::Arc;
 
+use inventory_service_core::repositories::putaway::PutawayService;
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::lot_serial::LotSerialService;
 use inventory_service_core::services::product::ProductService;
-use inventory_service_core::services::putaway::PutawayService;
 use inventory_service_core::services::quality::QualityControlPointService;
 use inventory_service_core::services::receipt::ReceiptService;
 use inventory_service_core::services::reconciliation::StockReconciliationService;

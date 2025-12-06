@@ -2,6 +2,10 @@
 //!
 //! This module defines the API routes and creates the main router.
 
+mod quality;
+mod replenishment;
+mod reports;
+
 // Standard library/external crates
 use async_trait::async_trait;
 use axum::{extract::Extension, http::HeaderValue, routing::get, Router};
@@ -30,9 +34,7 @@ use inventory_service_core::dto::delivery::{
 use inventory_service_core::services::delivery::DeliveryService;
 
 // Inventory-service infra
-use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
+
 use inventory_service_infra::repositories::reconciliation::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
 };
@@ -51,6 +53,7 @@ use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
+use inventory_service_infra::services::putaway::PgPutawayService;
 use inventory_service_infra::services::quality::PgQualityControlPointService;
 use inventory_service_infra::services::replenishment::PgReplenishmentService;
 
@@ -59,6 +62,7 @@ use crate::handlers::category::create_category_routes;
 #[cfg(feature = "delivery")]
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::lot_serial::create_lot_serial_routes;
+use crate::handlers::putaway::create_putaway_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
 use crate::handlers::rma::create_rma_routes;

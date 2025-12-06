@@ -3,7 +3,7 @@ use inventory_service_core::domains::replenishment::{
     CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
 };
 use inventory_service_core::repositories::replenishment::ReorderRuleRepository;
-use inventory_service_core::repositories::stock::StockMoveRepository;
+
 use inventory_service_core::repositories::InventoryLevelRepository;
 use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::AppError;

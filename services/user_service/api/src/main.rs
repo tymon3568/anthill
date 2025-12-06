@@ -215,7 +215,6 @@ async fn main() {
 
     // Public routes (no auth required)
     let public_routes = Router::new()
-        .layer(Extension(combined_state.app.clone()))
         .route(
             "/api/v1/auth/register",
             post(
@@ -247,11 +246,11 @@ async fn main() {
                     AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
                 >,
             ),
-        );
+        )
+        .layer(Extension(combined_state.app.clone()));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
-        .layer(Extension(combined_state.app.clone()))
         .route("/api/v1/users", get(handlers::list_users::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         .route("/api/v1/users/{user_id}", get(handlers::get_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         // Permission checking routes
@@ -263,11 +262,11 @@ async fn main() {
         .route(
             "/api/v1/admin/policies",
             post(handlers::add_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>).delete(handlers::remove_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>),
-        );
+        )
+        .layer(Extension(combined_state.app.clone()));
 
     // Admin role and permission management routes
     let admin_routes = Router::new()
-        .layer(Extension(combined_state.app.clone()))
         // Role management
         .route("/api/v1/admin/roles",
             post(admin_handlers::create_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
@@ -291,7 +290,8 @@ async fn main() {
         // Permission listing
         .route("/api/v1/admin/permissions",
             get(admin_handlers::list_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
-        );
+        )
+        .layer(Extension(combined_state.app.clone()));
 
     // TODO: Re-enable authorization middleware
     // .layer(axum::middleware::from_fn_with_state(
@@ -301,7 +301,6 @@ async fn main() {
 
     // Profile routes (require authentication)
     let profile_routes = Router::new()
-        .layer(Extension(combined_state.profile.clone()))
         .route("/api/v1/users/profile",
             get(profile_handlers::get_profile::<ProfileServiceImpl>)
             .put(profile_handlers::update_profile::<ProfileServiceImpl>)
@@ -325,7 +324,8 @@ async fn main() {
         )
         .route("/api/v1/users/profiles/{user_id}/verification",
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
-        );
+        )
+        .layer(Extension(combined_state.profile.clone()));
 
     // Combine all API routes with single unified state
     let api_routes = public_routes
@@ -335,10 +335,10 @@ async fn main() {
 
     // Build application with routes and Swagger UI
     let app = Router::new()
-        .layer(Extension(combined_state))
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
+        .layer(Extension(combined_state))
         // CORS configuration
         .layer({
             let origins = config.get_cors_origins();

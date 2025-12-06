@@ -11,8 +11,10 @@ use inventory_service_core::models::{
     ConfirmPutawayRequest, ConfirmPutawayResponse, CreateStockMoveRequest, PutawayRequest,
     PutawayRule, PutawaySuggestion, StorageLocation,
 };
-use inventory_service_core::repositories::putaway::{PutawayRepository, PutawayService};
-use inventory_service_core::repositories::StockMoveRepository;
+use inventory_service_core::repositories::putaway::{
+    PutawayRepository, PutawayService, TransactionalPutawayRepository,
+};
+
 use shared_error::AppError;
 
 use crate::repositories::stock::PgStockMoveRepository;
@@ -119,7 +121,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
         &self,
         tenant_id: &Uuid,
         request: &ConfirmPutawayRequest,
-        user_id: &Uuid,
+        _user_id: &Uuid,
     ) -> Result<ConfirmPutawayResponse, AppError> {
         let mut stock_moves_created = Vec::new();
         let mut total_quantity = 0i64;
@@ -187,7 +189,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
             // Create stock move within transaction
             let (move_id, new_tx) = self
                 .stock_move_repo
-                .create_with_tx(tx, &stock_move, *tenant_id)
+                .create_with_tx(tx, stock_move, *tenant_id)
                 .await?;
             stock_moves_created.push(move_id);
             tx = new_tx;
@@ -198,8 +200,6 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
                 .get_location_by_id(tenant_id, &allocation.location_id)
                 .await?
                 .ok_or_else(|| {
-                    // Rollback transaction on error
-                    let _ = tx.rollback().await;
                     AppError::NotFound(format!(
                         "Storage location {} was deleted during putaway",
                         allocation.location_id
@@ -214,12 +214,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
                     &allocation.location_id,
                     new_stock,
                 )
-                .await
-                .map_err(|e| {
-                    // Rollback transaction on error
-                    let _ = tx.rollback().await;
-                    e
-                })?;
+                .await?;
         }
 
         // Commit transaction

@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, Query, State},
+    http::StatusCode,
     Json,
 };
 use inventory_service_core::domains::quality::{
@@ -11,6 +12,14 @@ use shared_auth::extractors::AuthUser;
 use uuid::Uuid;
 
 use crate::state::AppState;
+
+#[derive(utoipa::ToSchema)]
+pub struct ErrorResponse {
+    /// Error message
+    pub error: String,
+    /// Error code
+    pub code: String,
+}
 
 #[derive(Deserialize)]
 pub struct ListQcPointsQuery {
@@ -28,20 +37,20 @@ pub struct ListQcPointsQuery {
     request_body = CreateQualityControlPoint,
     responses(
         (status = 201, body = QualityControlPoint),
-        (status = 400, body = ErrorResp),
-        (status = 401, body = ErrorResp),
-        (status = 500, body = ErrorResp)
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn create_qc_point(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Json(qc_point): Json<CreateQualityControlPoint>,
 ) -> Result<(StatusCode, Json<QualityControlPoint>), AppError> {
     let created = state
         .quality_service
-        .create_qc_point(user.tenant_id, qc_point)
+        .create_qc_point(auth_user.tenant_id, qc_point)
         .await?;
 
     Ok((StatusCode::CREATED, Json(created)))
@@ -58,20 +67,20 @@ pub async fn create_qc_point(
     ),
     responses(
         (status = 200, body = QualityControlPoint),
-        (status = 404, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn get_qc_point(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(qc_point_id): Path<Uuid>,
 ) -> Result<Json<QualityControlPoint>, AppError> {
     let qc_point = state
         .quality_service
-        .get_qc_point(user.tenant_id, qc_point_id)
+        .get_qc_point(auth_user.tenant_id, qc_point_id)
         .await?
         .ok_or_else(|| {
             AppError::NotFound(format!("Quality control point {} not found", qc_point_id))
@@ -90,33 +99,36 @@ pub async fn get_qc_point(
     ),
     responses(
         (status = 200, body = Vec<QualityControlPoint>),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn list_qc_points(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Query(query): Query<ListQcPointsQuery>,
 ) -> Result<Json<Vec<QualityControlPoint>>, AppError> {
     let qc_points = if let Some(product_id) = query.product_id {
         state
             .quality_service
-            .list_qc_points_for_product(user.tenant_id, product_id)
+            .list_qc_points_for_product(auth_user.tenant_id, product_id)
             .await?
     } else if let Some(warehouse_id) = query.warehouse_id {
         state
             .quality_service
-            .list_qc_points_for_warehouse(user.tenant_id, warehouse_id)
+            .list_qc_points_for_warehouse(auth_user.tenant_id, warehouse_id)
             .await?
     } else if query.active_only.unwrap_or(true) {
         state
             .quality_service
-            .list_active_qc_points(user.tenant_id)
+            .list_active_qc_points(auth_user.tenant_id)
             .await?
     } else {
-        state.quality_service.list_qc_points(user.tenant_id).await?
+        state
+            .quality_service
+            .list_qc_points(auth_user.tenant_id)
+            .await?
     };
     Ok(Json(qc_points))
 }
@@ -133,22 +145,22 @@ pub async fn list_qc_points(
     request_body = UpdateQualityControlPoint,
     responses(
         (status = 200, body = QualityControlPoint),
-        (status = 404, body = shared_error::ErrorResponse),
-        (status = 400, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 404, body = ErrorResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn update_qc_point(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(qc_point_id): Path<Uuid>,
     Json(updates): Json<UpdateQualityControlPoint>,
 ) -> Result<Json<QualityControlPoint>, AppError> {
     let updated = state
         .quality_service
-        .update_qc_point(user.tenant_id, qc_point_id, updates)
+        .update_qc_point(auth_user.tenant_id, qc_point_id, updates)
         .await?;
     Ok(Json(updated))
 }
@@ -164,20 +176,20 @@ pub async fn update_qc_point(
     ),
     responses(
         (status = 204, description = "Quality control point deactivated"),
-        (status = 404, body = shared_error::ErrorResponse),
-        (status = 401, body = shared_error::ErrorResponse),
-        (status = 500, body = shared_error::ErrorResponse)
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
     ),
     security(("bearer_auth" = []))
 )]
 pub async fn delete_qc_point(
     State(state): State<AppState>,
-    AuthUser(user): AuthUser,
+    auth_user: AuthUser,
     Path(qc_point_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
     state
         .quality_service
-        .delete_qc_point(user.tenant_id, qc_point_id)
+        .delete_qc_point(auth_user.tenant_id, qc_point_id)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
