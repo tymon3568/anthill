@@ -1,4 +1,4 @@
-use axum::extract::{DefaultBodyLimit, FromRef};
+use axum::extract::DefaultBodyLimit;
 use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::{
@@ -172,20 +172,6 @@ async fn main() {
     struct CombinedState {
         app: AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>,
         profile: ProfileAppState<ProfileServiceImpl>,
-    }
-
-    impl FromRef<CombinedState>
-        for AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>
-    {
-        fn from_ref(state: &CombinedState) -> Self {
-            state.app.clone()
-        }
-    }
-
-    impl FromRef<CombinedState> for ProfileAppState<ProfileServiceImpl> {
-        fn from_ref(state: &CombinedState) -> Self {
-            state.profile.clone()
-        }
     }
 
     impl shared_auth::extractors::JwtSecretProvider for CombinedState {

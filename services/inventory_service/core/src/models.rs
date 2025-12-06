@@ -779,6 +779,7 @@ pub struct ConfirmPutawayRequest {
 pub struct PutawayAllocation {
     pub location_id: Uuid,
     pub quantity: i64,
+    pub unit_cost: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -96,9 +96,7 @@ CREATE INDEX idx_storage_locations_tenant_warehouse
     ON storage_locations(tenant_id, warehouse_id)
     WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_storage_locations_tenant_code
-    ON storage_locations(tenant_id, location_code)
-    WHERE deleted_at IS NULL;
+
 
 CREATE INDEX idx_storage_locations_tenant_type
     ON storage_locations(tenant_id, location_type)

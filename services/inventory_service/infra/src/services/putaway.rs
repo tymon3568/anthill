@@ -176,7 +176,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
                 destination_location_id: Some(allocation.location_id),
                 move_type: "putaway".to_string(),
                 quantity: allocation.quantity,
-                unit_cost: None, // TODO: Get from GRN
+                unit_cost: allocation.unit_cost, // Use unit_cost from allocation
                 reference_type: request.reference_type.clone(),
                 reference_id: request.reference_id,
                 lot_serial_id: None,
@@ -281,11 +281,15 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> PgPuta
 
         // Penalize locations that are close to capacity
         if let Some(capacity) = location.capacity {
-            let utilization_ratio = location.current_stock as f64 / capacity as f64;
-            if utilization_ratio > 0.9 {
-                total_score -= 20; // High penalty for near-full locations
-            } else if utilization_ratio > 0.7 {
-                total_score -= 10; // Medium penalty
+            if capacity == 0 {
+                total_score -= 20; // Full location (zero capacity)
+            } else {
+                let utilization_ratio = location.current_stock as f64 / capacity as f64;
+                if utilization_ratio > 0.9 {
+                    total_score -= 20; // High penalty for near-full locations
+                } else if utilization_ratio > 0.7 {
+                    total_score -= 10; // Medium penalty
+                }
             }
         }
 

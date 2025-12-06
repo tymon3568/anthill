@@ -51,9 +51,13 @@ impl PgReplenishmentService {
                 0
             }
         } else {
-            // Sum across all warehouses if no specific warehouse
-            // TODO: Implement aggregation across warehouses
-            0 // Placeholder, need to add method to trait
+            // TODO: Implement aggregation across warehouses once supported at the repository level.
+            // For now we assume reorder rules are warehouse-specific; warn loudly if this is hit.
+            tracing::warn!(
+                "calculate_projected_quantity called without warehouse_id; \
+cross-warehouse aggregation not implemented – treating available as 0"
+            );
+            0
         };
 
         // Projected quantity = available + incoming - reserved
