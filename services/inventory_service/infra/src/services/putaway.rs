@@ -21,13 +21,13 @@ use crate::repositories::stock::PgStockMoveRepository;
 
 /// Implementation of PutawayService
 pub struct PgPutawayService<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> {
-    putaway_repo: R,
+    putaway_repo: Arc<R>,
     stock_move_repo: PgStockMoveRepository,
 }
 
 impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> PgPutawayService<R> {
     /// Create new service instance
-    pub fn new(putaway_repo: R, stock_move_repo: PgStockMoveRepository) -> Self {
+    pub fn new(putaway_repo: Arc<R>, stock_move_repo: PgStockMoveRepository) -> Self {
         Self {
             putaway_repo,
             stock_move_repo,
