@@ -93,14 +93,7 @@ CREATE INDEX idx_picking_methods_tenant_created_at
 -- ==================================
 -- FUNCTIONS
 -- ==================================
-
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Note: update_updated_at_column() function is defined in initial_extensions.sql
 
 -- ==================================
 -- TRIGGERS

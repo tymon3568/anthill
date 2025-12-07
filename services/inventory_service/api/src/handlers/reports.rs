@@ -173,11 +173,11 @@ pub async fn get_stock_ledger(
     "#;
 
     let entries = sqlx::query_as::<_, StockLedgerEntry>(sql)
-        .bind(&tenant_id)
-        .bind(&query.product_id)
-        .bind(&query.warehouse_id)
-        .bind(&query.date_from)
-        .bind(&query.date_to)
+        .bind(tenant_id)
+        .bind(query.product_id)
+        .bind(query.warehouse_id)
+        .bind(query.date_from)
+        .bind(query.date_to)
         .fetch_all(&pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to fetch stock ledger: {}", e)))?;
@@ -250,8 +250,8 @@ pub async fn get_stock_aging(
     "#;
 
     let entries = sqlx::query_as::<_, StockAgingEntry>(sql)
-        .bind(&tenant_id)
-        .bind(&query.warehouse_id)
+        .bind(tenant_id)
+        .bind(query.warehouse_id)
         .fetch_all(&pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to fetch stock aging: {}", e)))?;
@@ -343,8 +343,8 @@ pub async fn get_inventory_turnover(
     "#;
 
     let entries = sqlx::query_as::<_, InventoryTurnoverEntry>(sql)
-        .bind(&tenant_id)
-        .bind(&period_days)
+        .bind(tenant_id)
+        .bind(period_days)
         .fetch_all(&pool)
         .await
         .map_err(|e| {
@@ -412,8 +412,8 @@ pub async fn get_low_stock(
     "#;
 
     let entries = sqlx::query_as::<_, LowStockEntry>(sql)
-        .bind(&tenant_id)
-        .bind(&query.warehouse_id)
+        .bind(tenant_id)
+        .bind(query.warehouse_id)
         .fetch_all(&pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to fetch low stock: {}", e)))?;
@@ -491,9 +491,9 @@ pub async fn get_dead_stock(
     "#;
 
     let entries = sqlx::query_as::<_, DeadStockEntry>(sql)
-        .bind(&tenant_id)
-        .bind(&days_threshold)
-        .bind(&query.warehouse_id)
+        .bind(tenant_id)
+        .bind(days_threshold)
+        .bind(query.warehouse_id)
         .fetch_all(&pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to fetch dead stock: {}", e)))?;

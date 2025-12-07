@@ -68,6 +68,7 @@ use crate::handlers::category::create_category_routes;
 #[cfg(feature = "delivery")]
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::lot_serial::create_lot_serial_routes;
+use crate::handlers::picking::create_picking_routes;
 use crate::handlers::putaway::create_putaway_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
@@ -451,6 +452,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
         .nest("/api/v1/warehouse/putaway", putaway_routes)
+        .nest("/api/v1/warehouse/picking", create_picking_routes())
         .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes())
         .nest("/api/v1/inventory/quality", create_quality_routes())
         .nest("/api/v1/inventory/replenishment", create_replenishment_routes());
@@ -466,8 +468,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(Extension(authz_state));
 
     // Apply global layers
-    let router = protected_routes.layer(cors);
-    router
+    protected_routes.layer(cors)
 }
 
 // function moved

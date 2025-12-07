@@ -3,8 +3,19 @@
 -- Dependencies: storage_locations table (20251205000001), products table (20250110000017), product_categories table (20250110000021), warehouses table (20250110000023)
 -- Created: 2025-12-05
 
--- Ensure product_categories has unique constraint for composite FK
-ALTER TABLE product_categories ADD CONSTRAINT product_categories_tenant_category_unique UNIQUE (tenant_id, category_id);
+-- Ensure product_categories has unique constraint for composite FK (safely)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'product_categories_tenant_category_unique'
+    AND table_name = 'product_categories'
+  ) THEN
+    ALTER TABLE product_categories
+    ADD CONSTRAINT product_categories_tenant_category_unique
+    UNIQUE (tenant_id, category_id);
+  END IF;
+END $$;
 
 -- ==================================
 -- PUTAWAY_RULES TABLE (Putaway Rules for Automated Location Assignment)
@@ -139,14 +150,7 @@ CREATE INDEX idx_putaway_rules_tenant_active
 -- ==================================
 -- FUNCTIONS
 -- ==================================
-
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Note: update_updated_at_column() function is defined in initial_extensions.sql
 
 -- ==================================
 -- TRIGGERS

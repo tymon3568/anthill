@@ -7,11 +7,11 @@ ALTER TABLE stock_moves ADD COLUMN lot_serial_id UUID;
 -- Add composite index for tenant isolation and lot_serial_id queries
 CREATE INDEX idx_stock_moves_tenant_lot_serial_id ON stock_moves (tenant_id, lot_serial_id);
 
--- Add foreign key constraint (lot_serial_id is globally unique as PK)
+-- Add foreign key constraint with tenant isolation
 ALTER TABLE stock_moves
     ADD CONSTRAINT fk_stock_moves_lot_serial
-    FOREIGN KEY (lot_serial_id)
-    REFERENCES lots_serial_numbers(lot_serial_id);
+    FOREIGN KEY (tenant_id, lot_serial_id)
+    REFERENCES lots_serial_numbers(tenant_id, lot_serial_id);
 
 -- Optional: Add comment for documentation
 COMMENT ON COLUMN stock_moves.lot_serial_id IS 'References lots_serial_numbers.lot_serial_id for lot-tracked products';
