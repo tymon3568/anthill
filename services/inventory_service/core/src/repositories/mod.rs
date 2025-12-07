@@ -3,6 +3,7 @@
 //! This module contains PostgreSQL implementations of the repository traits.
 
 pub mod category;
+pub mod picking_method;
 pub mod putaway;
 pub mod quality;
 pub mod replenishment;
@@ -37,6 +38,7 @@ pub use delivery_order::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
 };
 pub use lot_serial::LotSerialRepository;
+pub use picking_method::PickingMethodRepository;
 pub use product::ProductRepository;
 pub use putaway::{PutawayRepository, PutawayService};
 pub use quality::QualityControlPointRepository;

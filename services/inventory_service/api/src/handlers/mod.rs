@@ -2,6 +2,7 @@ pub mod category;
 pub mod delivery;
 pub mod health;
 pub mod lot_serial;
+pub mod picking;
 pub mod putaway;
 pub mod quality;
 pub mod receipt;

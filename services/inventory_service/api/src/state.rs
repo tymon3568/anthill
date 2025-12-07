@@ -9,6 +9,7 @@ use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::lot_serial::LotSerialService;
+use inventory_service_core::services::picking_method::PickingMethodService;
 use inventory_service_core::services::product::ProductService;
 use inventory_service_core::services::quality::QualityControlPointService;
 use inventory_service_core::services::receipt::ReceiptService;
@@ -27,6 +28,7 @@ use shared_kanidm_client::KanidmClient;
 pub struct AppState {
     pub category_service: Arc<dyn CategoryService>,
     pub lot_serial_service: Arc<dyn LotSerialService>,
+    pub picking_method_service: Arc<dyn PickingMethodService>,
     pub product_service: Arc<dyn ProductService>,
     pub valuation_service: Arc<dyn ValuationService>,
     pub warehouse_repository: Arc<dyn WarehouseRepository>,
@@ -49,6 +51,7 @@ impl Clone for AppState {
         Self {
             category_service: self.category_service.clone(),
             lot_serial_service: self.lot_serial_service.clone(),
+            picking_method_service: self.picking_method_service.clone(),
             product_service: self.product_service.clone(),
             valuation_service: self.valuation_service.clone(),
             warehouse_repository: self.warehouse_repository.clone(),

@@ -5,6 +5,7 @@
 pub mod category;
 pub mod delivery;
 pub mod lot_serial;
+pub mod picking_method;
 pub mod product;
 pub mod putaway;
 pub mod quality;
@@ -23,6 +24,7 @@ mod category_tests;
 pub use category::CategoryServiceImpl;
 // pub use delivery::DeliveryServiceImpl;
 pub use lot_serial::LotSerialServiceImpl;
+pub use picking_method::PickingMethodServiceImpl;
 pub use product::ProductServiceImpl;
 pub use putaway::PgPutawayService;
 pub use quality::PgQualityControlPointService;
