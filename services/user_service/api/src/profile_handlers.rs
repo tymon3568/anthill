@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Multipart, Path, State},
+    extract::{Extension, Multipart, Path},
     http::StatusCode,
     Json,
 };
@@ -51,7 +51,7 @@ impl<S: ProfileService> JwtSecretProvider for ProfileAppState<S> {
     )
 )]
 pub async fn get_profile<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
 ) -> Result<Json<ProfileResponse>, AppError> {
     let profile = state
@@ -80,7 +80,7 @@ pub async fn get_profile<S: ProfileService>(
     )
 )]
 pub async fn update_profile<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
     Json(request): Json<UpdateProfileRequest>,
 ) -> Result<Json<ProfileResponse>, AppError> {
@@ -111,7 +111,7 @@ pub async fn update_profile<S: ProfileService>(
     )
 )]
 pub async fn upload_avatar<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
     mut multipart: Multipart,
 ) -> Result<Json<UploadAvatarResponse>, AppError> {
@@ -217,7 +217,7 @@ pub async fn upload_avatar<S: ProfileService>(
     )
 )]
 pub async fn update_visibility<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
     Json(request): Json<ProfileVisibilityRequest>,
 ) -> Result<StatusCode, AppError> {
@@ -244,7 +244,7 @@ pub async fn update_visibility<S: ProfileService>(
     )
 )]
 pub async fn get_completeness<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
 ) -> Result<Json<ProfileCompletenessResponse>, AppError> {
     let completeness = state
@@ -271,7 +271,7 @@ pub async fn get_completeness<S: ProfileService>(
     )
 )]
 pub async fn search_profiles<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
     Json(request): Json<ProfileSearchRequest>,
 ) -> Result<Json<ProfileSearchResponse>, AppError> {
@@ -303,7 +303,7 @@ pub async fn search_profiles<S: ProfileService>(
     )
 )]
 pub async fn get_public_profile<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
     Path(user_id): Path<Uuid>,
 ) -> Result<Json<PublicProfileResponse>, AppError> {
@@ -336,7 +336,7 @@ pub async fn get_public_profile<S: ProfileService>(
     )
 )]
 pub async fn update_verification<S: ProfileService>(
-    State(state): State<ProfileAppState<S>>,
+    Extension(state): Extension<ProfileAppState<S>>,
     auth_user: AuthUser,
     Path(user_id): Path<Uuid>,
     Json(request): Json<UpdateVerificationRequest>,

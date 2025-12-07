@@ -1,9 +1,9 @@
-use axum::extract::{DefaultBodyLimit, FromRef};
+use axum::extract::DefaultBodyLimit;
 use axum::http::Method;
 use axum::routing::{delete, get, post, put};
 use axum::{
     http::{header, HeaderValue},
-    Router,
+    Extension, Router,
 };
 use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
@@ -174,20 +174,6 @@ async fn main() {
         profile: ProfileAppState<ProfileServiceImpl>,
     }
 
-    impl FromRef<CombinedState>
-        for AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>
-    {
-        fn from_ref(state: &CombinedState) -> Self {
-            state.app.clone()
-        }
-    }
-
-    impl FromRef<CombinedState> for ProfileAppState<ProfileServiceImpl> {
-        fn from_ref(state: &CombinedState) -> Self {
-            state.profile.clone()
-        }
-    }
-
     impl shared_auth::extractors::JwtSecretProvider for CombinedState {
         fn get_jwt_secret(&self) -> &str {
             &self.app.jwt_secret
@@ -215,15 +201,44 @@ async fn main() {
 
     // Public routes (no auth required)
     let public_routes = Router::new()
-        .route("/api/v1/auth/register", post(handlers::register))
-        .route("/api/v1/auth/login", post(handlers::login))
-        .route("/api/v1/auth/refresh", post(handlers::refresh_token))
-        .route("/api/v1/auth/logout", post(handlers::logout));
+        .route(
+            "/api/v1/auth/register",
+            post(
+                handlers::register::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
+        .route(
+            "/api/v1/auth/login",
+            post(
+                handlers::login::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
+        .route(
+            "/api/v1/auth/refresh",
+            post(
+                handlers::refresh_token::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
+        .route(
+            "/api/v1/auth/logout",
+            post(
+                handlers::logout::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
+        .layer(Extension(combined_state.app.clone()));
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
-        .route("/api/v1/users", get(handlers::list_users))
-        .route("/api/v1/users/{user_id}", get(handlers::get_user))
+        .route("/api/v1/users", get(handlers::list_users::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
+        .route("/api/v1/users/{user_id}", get(handlers::get_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         // Permission checking routes
         .route("/api/v1/users/permissions/check", get(permission_handlers::check_permission::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
         .route("/api/v1/users/permissions", get(permission_handlers::get_user_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>))
@@ -232,8 +247,9 @@ async fn main() {
         // Low-level policy management (for advanced use cases)
         .route(
             "/api/v1/admin/policies",
-            post(handlers::add_policy).delete(handlers::remove_policy),
-        );
+            post(handlers::add_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>).delete(handlers::remove_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>),
+        )
+        .layer(Extension(combined_state.app.clone()));
 
     // Admin role and permission management routes
     let admin_routes = Router::new()
@@ -260,7 +276,8 @@ async fn main() {
         // Permission listing
         .route("/api/v1/admin/permissions",
             get(admin_handlers::list_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
-        );
+        )
+        .layer(Extension(combined_state.app.clone()));
 
     // TODO: Re-enable authorization middleware
     // .layer(axum::middleware::from_fn_with_state(
@@ -293,7 +310,8 @@ async fn main() {
         )
         .route("/api/v1/users/profiles/{user_id}/verification",
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
-        );
+        )
+        .layer(Extension(combined_state.profile.clone()));
 
     // Combine all API routes with single unified state
     let api_routes = public_routes
@@ -306,7 +324,7 @@ async fn main() {
         .route("/health", get(handlers::health_check))
         .merge(api_routes)
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", openapi::ApiDoc::openapi()))
-        .with_state(combined_state)
+        .layer(Extension(combined_state))
         // CORS configuration
         .layer({
             let origins = config.get_cors_origins();

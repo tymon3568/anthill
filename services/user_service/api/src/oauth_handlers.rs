@@ -1,4 +1,4 @@
-use axum::{extract::State, Json};
+use axum::{extract::Extension, Json};
 use shared_error::AppError;
 use shared_kanidm_client::{KanidmOAuth2Client, PkceState};
 use tracing::{debug, warn};
@@ -31,7 +31,7 @@ use crate::handlers::AppState;
     )
 )]
 pub async fn oauth_authorize<S: AuthService>(
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Json(payload): Json<OAuth2AuthorizeReq>,
 ) -> Result<Json<OAuth2AuthorizeResp>, AppError> {
     debug!("OAuth2 authorize request received");
@@ -76,7 +76,7 @@ pub async fn oauth_authorize<S: AuthService>(
     )
 )]
 pub async fn oauth_callback<S: AuthService>(
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Json(payload): Json<OAuth2CallbackReq>,
 ) -> Result<Json<OAuth2CallbackResp>, AppError> {
     debug!("OAuth2 callback received with code");
@@ -216,7 +216,7 @@ async fn map_tenant_from_groups<S: AuthService>(
     )
 )]
 pub async fn oauth_refresh<S: AuthService>(
-    State(state): State<AppState<S>>,
+    Extension(state): Extension<AppState<S>>,
     Json(payload): Json<OAuth2RefreshReq>,
 ) -> Result<Json<OAuth2RefreshResp>, AppError> {
     debug!("OAuth2 refresh token request received");
