@@ -1,11 +1,10 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Extension, Path},
     http::StatusCode,
     Json,
 };
-use inventory_service_core::{
-    domains::replenishment::{CreateReorderRule, ReplenishmentCheckResult, UpdateReorderRule},
-    services::replenishment::ReplenishmentService,
+use inventory_service_core::domains::replenishment::{
+    CreateReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
 };
 use serde::Deserialize;
 use shared_auth::AuthUser;
@@ -39,7 +38,7 @@ pub struct ErrorResponse {
     security(("bearer_auth" = []))
 )]
 pub async fn create_reorder_rule(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Json(rule): Json<CreateReorderRule>,
 ) -> Result<Json<inventory_service_core::domains::replenishment::ReorderRule>, AppError> {
@@ -68,7 +67,7 @@ pub async fn create_reorder_rule(
     security(("bearer_auth" = []))
 )]
 pub async fn get_reorder_rule(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(rule_id): Path<Uuid>,
 ) -> Result<Json<inventory_service_core::domains::replenishment::ReorderRule>, AppError> {
@@ -99,7 +98,7 @@ pub async fn get_reorder_rule(
     security(("bearer_auth" = []))
 )]
 pub async fn update_reorder_rule(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(rule_id): Path<Uuid>,
     Json(updates): Json<UpdateReorderRule>,
@@ -129,7 +128,7 @@ pub async fn update_reorder_rule(
     security(("bearer_auth" = []))
 )]
 pub async fn delete_reorder_rule(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(rule_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
@@ -158,7 +157,7 @@ pub async fn delete_reorder_rule(
     security(("bearer_auth" = []))
 )]
 pub async fn list_reorder_rules_for_product(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(product_id): Path<Uuid>,
     axum::extract::Query(params): axum::extract::Query<WarehouseFilterQuery>,
@@ -184,7 +183,7 @@ pub async fn list_reorder_rules_for_product(
     security(("bearer_auth" = []))
 )]
 pub async fn run_replenishment_check(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
 ) -> Result<Json<Vec<ReplenishmentCheckResult>>, AppError> {
     let results = state
@@ -213,7 +212,7 @@ pub async fn run_replenishment_check(
     security(("bearer_auth" = []))
 )]
 pub async fn check_product_replenishment(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(product_id): Path<Uuid>,
     axum::extract::Query(params): axum::extract::Query<WarehouseFilterQuery>,

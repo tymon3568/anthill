@@ -4,7 +4,8 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
-use std::collections::HashMap;
+use std::sync::Arc;
+
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::picking_method_dto::{
@@ -17,21 +18,19 @@ use inventory_service_core::services::picking_method::PickingMethodService;
 use inventory_service_core::Result;
 
 /// PostgreSQL implementation of PickingMethodService
-pub struct PickingMethodServiceImpl<R: PickingMethodRepository> {
-    repository: R,
+pub struct PickingMethodServiceImpl {
+    repository: Arc<dyn PickingMethodRepository + Send + Sync>,
 }
 
-impl<R: PickingMethodRepository> PickingMethodServiceImpl<R> {
+impl PickingMethodServiceImpl {
     /// Create new service instance
-    pub fn new(repository: R) -> Self {
+    pub fn new(repository: Arc<dyn PickingMethodRepository + Send + Sync>) -> Self {
         Self { repository }
     }
 }
 
 #[async_trait]
-impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
-    for PickingMethodServiceImpl<R>
-{
+impl PickingMethodService for PickingMethodServiceImpl {
     // ========================================================================
     // Picking Method Management
     // ========================================================================
@@ -94,9 +93,16 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
             .await
     }
 
-    async fn delete_method(&self, tenant_id: Uuid, method_id: Uuid) -> Result<bool> {
+    async fn delete_method(
+        &self,
+        tenant_id: Uuid,
+        method_id: Uuid,
+        deleted_by: Uuid,
+    ) -> Result<bool> {
         // Business logic: check if method is in use, etc.
-        self.repository.delete(tenant_id, method_id).await
+        self.repository
+            .delete(tenant_id, method_id, deleted_by)
+            .await
     }
 
     async fn set_default_method(
@@ -149,6 +155,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
                     request.warehouse_id,
                     request.order_ids,
                     method.config,
+                    method.method_id,
                 )
                 .await
             },
@@ -158,6 +165,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
                     request.warehouse_id,
                     request.order_ids,
                     method.config,
+                    method.method_id,
                 )
                 .await
             },
@@ -167,6 +175,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
                     request.warehouse_id,
                     request.order_ids,
                     method.config,
+                    method.method_id,
                 )
                 .await
             },
@@ -180,9 +189,16 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
         &self,
         tenant_id: Uuid,
         request: ConfirmPickingPlanRequest,
+        confirmed_by: Uuid,
     ) -> Result<bool> {
         // Business logic: validate plan, create picking tasks, update inventory, etc.
         // For now, just return success
+        tracing::info!(
+            tenant_id = %tenant_id,
+            plan_id = %request.plan_id,
+            confirmed_by = %confirmed_by,
+            "confirm_picking_plan: placeholder implementation"
+        );
         Ok(true)
     }
 
@@ -192,10 +208,11 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
     async fn generate_batch_picking_plan(
         &self,
-        tenant_id: Uuid,
+        _tenant_id: Uuid,
         warehouse_id: Uuid,
         order_ids: Vec<Uuid>,
-        batch_config: serde_json::Value,
+        _batch_config: serde_json::Value,
+        method_id: Uuid,
     ) -> Result<PickingPlanResponse> {
         // Batch picking: Group orders by product locations to minimize travel
         // This is a simplified implementation
@@ -207,7 +224,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
         // Placeholder: create mock tasks
         let tasks = vec![PickingTask {
             task_id: Uuid::now_v7(),
-            order_id: order_ids.get(0).copied().unwrap_or(Uuid::nil()),
+            order_id: order_ids.first().copied().unwrap_or(Uuid::nil()),
             product_id: Uuid::nil(),
             product_code: "PROD001".to_string(),
             product_name: "Sample Product".to_string(),
@@ -228,7 +245,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
         Ok(PickingPlanResponse {
             plan_id,
-            method_id: Uuid::nil(), // Would be set properly
+            method_id,
             method_name,
             method_type,
             warehouse_id,
@@ -245,10 +262,11 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
     async fn generate_cluster_picking_plan(
         &self,
-        tenant_id: Uuid,
+        _tenant_id: Uuid,
         warehouse_id: Uuid,
         order_ids: Vec<Uuid>,
-        cluster_config: serde_json::Value,
+        _cluster_config: serde_json::Value,
+        method_id: Uuid,
     ) -> Result<PickingPlanResponse> {
         // Cluster picking: Multiple orders per picker, sort later
         // Simplified implementation
@@ -259,7 +277,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
         let tasks = vec![PickingTask {
             task_id: Uuid::now_v7(),
-            order_id: order_ids.get(0).copied().unwrap_or(Uuid::nil()),
+            order_id: order_ids.first().copied().unwrap_or(Uuid::nil()),
             product_id: Uuid::nil(),
             product_code: "PROD001".to_string(),
             product_name: "Sample Product".to_string(),
@@ -280,7 +298,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
         Ok(PickingPlanResponse {
             plan_id,
-            method_id: Uuid::nil(),
+            method_id,
             method_name,
             method_type,
             warehouse_id,
@@ -297,10 +315,11 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
     async fn generate_wave_picking_plan(
         &self,
-        tenant_id: Uuid,
+        _tenant_id: Uuid,
         warehouse_id: Uuid,
         order_ids: Vec<Uuid>,
-        wave_config: serde_json::Value,
+        _wave_config: serde_json::Value,
+        method_id: Uuid,
     ) -> Result<PickingPlanResponse> {
         // Wave picking: Time-based release of picking work
         // Simplified implementation
@@ -311,7 +330,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
         let tasks = vec![PickingTask {
             task_id: Uuid::now_v7(),
-            order_id: order_ids.get(0).copied().unwrap_or(Uuid::nil()),
+            order_id: order_ids.first().copied().unwrap_or(Uuid::nil()),
             product_id: Uuid::nil(),
             product_code: "PROD001".to_string(),
             product_name: "Sample Product".to_string(),
@@ -332,7 +351,7 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
         Ok(PickingPlanResponse {
             plan_id,
-            method_id: Uuid::nil(),
+            method_id,
             method_name,
             method_type,
             warehouse_id,
@@ -355,9 +374,9 @@ impl<R: PickingMethodRepository + Send + Sync> PickingMethodService
 
     async fn get_method_performance(
         &self,
-        tenant_id: Uuid,
+        _tenant_id: Uuid,
         method_id: Uuid,
-        date_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
+        _date_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
     ) -> Result<Option<serde_json::Value>> {
         // Placeholder: return mock performance data
         let performance = serde_json::json!({

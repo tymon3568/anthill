@@ -87,11 +87,11 @@ CREATE INDEX IF NOT EXISTS idx_tenants_test_slug ON tenants(slug) WHERE slug LIK
 -- Regular index on users.tenant_id for efficient cleanup joins
 CREATE INDEX IF NOT EXISTS idx_users_tenant_test ON users(tenant_id);
 
--- Grant execute permissions
-GRANT EXECUTE ON FUNCTION cleanup_test_data() TO anthill;
-GRANT EXECUTE ON FUNCTION is_test_tenant(UUID) TO anthill;
-GRANT EXECUTE ON FUNCTION snapshot_tenant_data(UUID) TO anthill;
-GRANT EXECUTE ON FUNCTION generate_test_users(UUID, INTEGER) TO anthill;
+-- Grant execute permissions (commented out for dev environment)
+-- GRANT EXECUTE ON FUNCTION cleanup_test_data() TO anthill;
+-- GRANT EXECUTE ON FUNCTION is_test_tenant(UUID) TO anthill;
+-- GRANT EXECUTE ON FUNCTION snapshot_tenant_data(UUID) TO anthill;
+-- GRANT EXECUTE ON FUNCTION generate_test_users(UUID, INTEGER) TO anthill;
 
 -- Comments for documentation
 COMMENT ON FUNCTION cleanup_test_data() IS 'Removes all test data (tenants with slug starting with "test-")';

@@ -5,6 +5,7 @@
 use async_trait::async_trait;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
 
 use inventory_service_core::models::{

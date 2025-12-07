@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
 pub struct QualityControlPoint {
     pub qc_point_id: Uuid,
     pub tenant_id: Uuid,
@@ -15,7 +16,7 @@ pub struct QualityControlPoint {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "qc_point_type", rename_all = "snake_case")]
 pub enum QcPointType {
     Incoming,
@@ -23,7 +24,7 @@ pub enum QcPointType {
     Internal,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CreateQualityControlPoint {
     pub name: String,
     pub r#type: QcPointType,
@@ -31,7 +32,7 @@ pub struct CreateQualityControlPoint {
     pub warehouse_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct UpdateQualityControlPoint {
     pub name: Option<String>,
     pub r#type: Option<QcPointType>,

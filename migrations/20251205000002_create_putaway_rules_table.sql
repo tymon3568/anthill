@@ -3,6 +3,9 @@
 -- Dependencies: storage_locations table (20251205000001), products table (20250110000017), product_categories table (20250110000021), warehouses table (20250110000023)
 -- Created: 2025-12-05
 
+-- Ensure product_categories has unique constraint for composite FK
+ALTER TABLE product_categories ADD CONSTRAINT product_categories_tenant_category_unique UNIQUE (tenant_id, category_id);
+
 -- ==================================
 -- PUTAWAY_RULES TABLE (Putaway Rules for Automated Location Assignment)
 -- ==================================

@@ -190,7 +190,7 @@ pub async fn delete_picking_method(
 ) -> Result<StatusCode, AppError> {
     let deleted = state
         .picking_method_service
-        .delete_method(auth_user.tenant_id, method_id)
+        .delete_method(auth_user.tenant_id, method_id, auth_user.user_id)
         .await?;
 
     if deleted {
@@ -297,7 +297,7 @@ pub async fn confirm_picking_plan(
 
     let success = state
         .picking_method_service
-        .confirm_picking_plan(auth_user.tenant_id, request)
+        .confirm_picking_plan(auth_user.tenant_id, request, auth_user.user_id)
         .await?;
 
     if success {

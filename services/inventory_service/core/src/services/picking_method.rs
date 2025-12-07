@@ -109,10 +109,16 @@ pub trait PickingMethodService: Send + Sync {
     /// # Arguments
     /// * `tenant_id` - Tenant identifier for isolation
     /// * `method_id` - Picking method to delete
+    /// * `deleted_by` - User performing the deletion
     ///
     /// # Returns
     /// Success status
-    async fn delete_method(&self, tenant_id: Uuid, method_id: Uuid) -> Result<bool>;
+    async fn delete_method(
+        &self,
+        tenant_id: Uuid,
+        method_id: Uuid,
+        deleted_by: Uuid,
+    ) -> Result<bool>;
 
     /// Set default picking method for warehouse
     ///
@@ -155,6 +161,7 @@ pub trait PickingMethodService: Send + Sync {
     /// # Arguments
     /// * `tenant_id` - Tenant identifier for isolation
     /// * `request` - Confirmation request
+    /// * `confirmed_by` - User confirming the plan
     ///
     /// # Returns
     /// Success status
@@ -162,6 +169,7 @@ pub trait PickingMethodService: Send + Sync {
         &self,
         tenant_id: Uuid,
         request: ConfirmPickingPlanRequest,
+        confirmed_by: Uuid,
     ) -> Result<bool>;
 
     // ========================================================================
@@ -177,6 +185,7 @@ pub trait PickingMethodService: Send + Sync {
     /// * `warehouse_id` - Warehouse identifier
     /// * `order_ids` - Orders to include in batch
     /// * `batch_config` - Batch-specific configuration
+    /// * `method_id` - Picking method identifier
     ///
     /// # Returns
     /// Optimized batch picking plan
@@ -186,6 +195,7 @@ pub trait PickingMethodService: Send + Sync {
         warehouse_id: Uuid,
         order_ids: Vec<Uuid>,
         batch_config: serde_json::Value,
+        method_id: Uuid,
     ) -> Result<PickingPlanResponse>;
 
     // ========================================================================
@@ -201,6 +211,7 @@ pub trait PickingMethodService: Send + Sync {
     /// * `warehouse_id` - Warehouse identifier
     /// * `order_ids` - Orders to include in cluster
     /// * `cluster_config` - Cluster-specific configuration
+    /// * `method_id` - Picking method identifier
     ///
     /// # Returns
     /// Optimized cluster picking plan
@@ -210,6 +221,7 @@ pub trait PickingMethodService: Send + Sync {
         warehouse_id: Uuid,
         order_ids: Vec<Uuid>,
         cluster_config: serde_json::Value,
+        method_id: Uuid,
     ) -> Result<PickingPlanResponse>;
 
     // ========================================================================
@@ -225,6 +237,7 @@ pub trait PickingMethodService: Send + Sync {
     /// * `warehouse_id` - Warehouse identifier
     /// * `order_ids` - Orders to include in wave
     /// * `wave_config` - Wave-specific configuration
+    /// * `method_id` - Picking method identifier
     ///
     /// # Returns
     /// Optimized wave picking plan
@@ -234,6 +247,7 @@ pub trait PickingMethodService: Send + Sync {
         warehouse_id: Uuid,
         order_ids: Vec<Uuid>,
         wave_config: serde_json::Value,
+        method_id: Uuid,
     ) -> Result<PickingPlanResponse>;
 
     // ========================================================================

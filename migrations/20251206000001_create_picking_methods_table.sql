@@ -55,8 +55,7 @@ CREATE TABLE picking_methods (
         REFERENCES users (tenant_id, user_id) DEFERRABLE INITIALLY DEFERRED,
     CONSTRAINT picking_methods_method_type_check
         CHECK (method_type IN ('batch', 'cluster', 'wave')),
-    CONSTRAINT picking_methods_config_not_null
-        CHECK (config IS NOT NULL),
+
     CONSTRAINT picking_methods_unique_default_per_warehouse
         EXCLUDE (tenant_id WITH =, warehouse_id WITH =, is_default WITH =)
         WHERE (is_default = true AND deleted_at IS NULL)

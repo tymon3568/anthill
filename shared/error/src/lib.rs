@@ -5,6 +5,7 @@ use axum::{
 };
 use serde_json::json;
 use std::fmt;
+use validator::ValidationErrors;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -194,5 +195,11 @@ impl From<std::env::VarError> for AppError {
 impl From<casbin::Error> for AppError {
     fn from(err: casbin::Error) -> Self {
         AppError::Casbin(err)
+    }
+}
+
+impl From<ValidationErrors> for AppError {
+    fn from(err: ValidationErrors) -> Self {
+        AppError::ValidationError(err.to_string())
     }
 }

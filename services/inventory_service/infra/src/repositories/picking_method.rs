@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::picking_method_dto::{
     CreatePickingMethodRequest, PickingMetrics, PickingOptimizationRequest, PickingPlanResponse,
-    PickingTask, UpdatePickingMethodRequest,
+    UpdatePickingMethodRequest,
 };
 use inventory_service_core::domains::inventory::picking_method::PickingMethod;
 use inventory_service_core::repositories::picking_method::PickingMethodRepository;
@@ -42,9 +42,9 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
             PickingMethod,
             r#"
             INSERT INTO picking_methods (
-                tenant_id, name, description, method_type, warehouse_id, config, is_default
+                tenant_id, name, description, method_type, warehouse_id, config, is_default, created_by, updated_by
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
             RETURNING
                 method_id, tenant_id, name, description, method_type, warehouse_id, config,
                 is_active, is_default, created_at, updated_at, deleted_at
@@ -55,7 +55,8 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
             request.method_type,
             request.warehouse_id,
             request.config,
-            request.is_default.unwrap_or(false)
+            request.is_default.unwrap_or(false),
+            created_by
         )
         .fetch_one(&self.pool)
         .await?;
@@ -194,6 +195,7 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
                 config = COALESCE($5, config),
                 is_default = COALESCE($6, is_default),
                 is_active = COALESCE($7, is_active),
+                updated_by = $8,
                 updated_at = NOW()
             WHERE tenant_id = $1 AND method_id = $2 AND deleted_at IS NULL
             RETURNING
@@ -206,7 +208,8 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
             request.description,
             request.config,
             request.is_default,
-            request.is_active
+            request.is_active,
+            updated_by
         )
         .fetch_one(&self.pool)
         .await?;
@@ -214,16 +217,18 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
         Ok(updated)
     }
 
-    async fn delete(&self, tenant_id: Uuid, method_id: Uuid) -> Result<bool> {
+    async fn delete(&self, tenant_id: Uuid, method_id: Uuid, deleted_by: Uuid) -> Result<bool> {
         let result = sqlx::query!(
             r#"
             UPDATE picking_methods SET
                 deleted_at = NOW(),
+                updated_by = $3,
                 updated_at = NOW()
             WHERE tenant_id = $1 AND method_id = $2 AND deleted_at IS NULL
             "#,
             tenant_id,
-            method_id
+            method_id,
+            deleted_by
         )
         .execute(&self.pool)
         .await?;
@@ -238,18 +243,22 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
         method_id: Uuid,
         updated_by: Uuid,
     ) -> Result<bool> {
+        let mut tx = self.pool.begin().await?;
+
         // First, unset all defaults for this warehouse
         sqlx::query!(
             r#"
             UPDATE picking_methods SET
                 is_default = false,
+                updated_by = $3,
                 updated_at = NOW()
             WHERE tenant_id = $1 AND warehouse_id = $2 AND deleted_at IS NULL
             "#,
             tenant_id,
-            warehouse_id
+            warehouse_id,
+            updated_by
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
 
         // Then set the new default
@@ -257,14 +266,18 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
             r#"
             UPDATE picking_methods SET
                 is_default = true,
+                updated_by = $3,
                 updated_at = NOW()
             WHERE tenant_id = $1 AND method_id = $2 AND deleted_at IS NULL
             "#,
             tenant_id,
-            method_id
+            method_id,
+            updated_by
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+
+        tx.commit().await?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -328,11 +341,16 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
     }
 
     async fn validate_method_config(&self, tenant_id: Uuid, method_id: Uuid) -> Result<bool> {
-        // Basic validation: check if method exists and config is valid JSON
         if let Some(method) = self.find_by_id(tenant_id, method_id).await? {
-            // Check if config is valid JSON (it should be since it's stored as JSONB)
-            // Additional validation logic can be added here
-            Ok(true)
+            // Minimal structural validation:
+            // - config must be present
+            // - config must be a JSON object (no arrays / scalars)
+            //
+            // This keeps behavior close to the previous implementation while making it explicit
+            // that obviously invalid shapes are rejected.
+            let is_valid_config = !method.config.is_null() && method.config.is_object();
+
+            Ok(is_valid_config)
         } else {
             Ok(false)
         }

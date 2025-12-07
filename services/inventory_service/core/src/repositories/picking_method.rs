@@ -132,7 +132,7 @@ pub trait PickingMethodRepository: Send + Sync {
     ///
     /// # Returns
     /// Success status
-    async fn delete(&self, tenant_id: Uuid, method_id: Uuid) -> Result<bool>;
+    async fn delete(&self, tenant_id: Uuid, method_id: Uuid, deleted_by: Uuid) -> Result<bool>;
 
     /// Set default picking method for warehouse
     ///

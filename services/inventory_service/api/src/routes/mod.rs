@@ -36,6 +36,7 @@ use inventory_service_core::services::delivery::DeliveryService;
 // Inventory-service infra
 
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+use inventory_service_infra::repositories::picking_method::PickingMethodRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 use inventory_service_infra::repositories::putaway::PgPutawayRepository;
 use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
@@ -57,6 +58,7 @@ use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
+use inventory_service_infra::services::picking_method::PickingMethodServiceImpl;
 use inventory_service_infra::services::putaway::PgPutawayService;
 use inventory_service_infra::services::quality::PgQualityControlPointService;
 use inventory_service_infra::services::replenishment::PgReplenishmentService;
@@ -347,10 +349,19 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         PgStockMoveRepository::new(Arc::new(pool.clone())),
     ));
 
+    // Initialize picking method repositories and services
+    let picking_method_repo: Arc<
+        dyn inventory_service_core::repositories::picking_method::PickingMethodRepository
+            + Send
+            + Sync,
+    > = Arc::new(PickingMethodRepositoryImpl::new(pool.clone()));
+    let picking_method_service = Arc::new(PickingMethodServiceImpl::new(picking_method_repo));
+
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
         lot_serial_service: Arc::new(lot_serial_service),
+        picking_method_service,
         product_service: Arc::new(product_service),
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: warehouse_repo.clone(),

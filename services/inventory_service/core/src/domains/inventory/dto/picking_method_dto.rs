@@ -198,9 +198,6 @@ pub struct ConfirmPickingPlanRequest {
     /// Plan ID to confirm
     pub plan_id: Uuid,
 
-    /// User confirming the plan
-    pub confirmed_by: Uuid,
-
     /// Optional notes
     #[validate(length(max = 1000))]
     pub notes: Option<String>,
