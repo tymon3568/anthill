@@ -108,12 +108,11 @@ impl PickingMethodService for PickingMethodServiceImpl {
     async fn set_default_method(
         &self,
         tenant_id: Uuid,
-        warehouse_id: Uuid,
         method_id: Uuid,
         updated_by: Uuid,
     ) -> Result<bool> {
         self.repository
-            .set_default(tenant_id, warehouse_id, method_id, updated_by)
+            .set_default(tenant_id, method_id, updated_by)
             .await
     }
 

@@ -239,10 +239,18 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
     async fn set_default(
         &self,
         tenant_id: Uuid,
-        warehouse_id: Uuid,
         method_id: Uuid,
         updated_by: Uuid,
     ) -> Result<bool> {
+        // Get the method to derive warehouse_id
+        let method = self
+            .find_by_id(tenant_id, method_id)
+            .await?
+            .ok_or_else(|| {
+                inventory_service_core::AppError::NotFound("Picking method not found".to_string())
+            })?;
+        let warehouse_id = method.warehouse_id;
+
         let mut tx = self.pool.begin().await?;
 
         // First, unset all defaults for this warehouse

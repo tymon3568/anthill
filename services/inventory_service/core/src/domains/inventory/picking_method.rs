@@ -139,9 +139,11 @@ impl PickingMethod {
 
     /// Check if this method supports a specific optimization criteria
     pub fn supports_criteria(&self, criteria: &str) -> bool {
-        // Check config for supported criteria
+        // Check config for supported criteria: accept either an array of strings or a single string
         if let Some(supported_criteria) = self.config.get("supported_criteria") {
-            if let Some(array) = supported_criteria.as_array() {
+            if let Some(s) = supported_criteria.as_str() {
+                return s == criteria;
+            } else if let Some(array) = supported_criteria.as_array() {
                 return array.iter().any(|c| c.as_str() == Some(criteria));
             }
         }

@@ -205,7 +205,8 @@ pub struct ConfirmPickingPlanRequest {
 
 /// Validation functions for request DTOs
 fn validate_picking_method_type_req(method_type: &str) -> Result<(), validator::ValidationError> {
-    match method_type {
+    let normalized = method_type.to_ascii_lowercase();
+    match normalized.as_str() {
         "batch" | "cluster" | "wave" => Ok(()),
         _ => Err(validator::ValidationError::new("invalid_picking_method_type")),
     }

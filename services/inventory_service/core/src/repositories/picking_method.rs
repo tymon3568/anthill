@@ -138,19 +138,13 @@ pub trait PickingMethodRepository: Send + Sync {
     ///
     /// # Arguments
     /// * `tenant_id` - Tenant identifier for isolation
-    /// * `warehouse_id` - Warehouse identifier
-    /// * `method_id` - Method to set as default
+    /// * `method_id` - Method to set as default (warehouse_id derived internally)
     /// * `updated_by` - User making the change
     ///
     /// # Returns
     /// Success status
-    async fn set_default(
-        &self,
-        tenant_id: Uuid,
-        warehouse_id: Uuid,
-        method_id: Uuid,
-        updated_by: Uuid,
-    ) -> Result<bool>;
+    async fn set_default(&self, tenant_id: Uuid, method_id: Uuid, updated_by: Uuid)
+        -> Result<bool>;
 
     // ========================================================================
     // Picking Optimization Operations

@@ -53,7 +53,7 @@ pub async fn create_picking_method(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
     Json(request): Json<CreatePickingMethodRequest>,
-) -> Result<Json<PickingMethodResponse>, AppError> {
+) -> Result<(StatusCode, Json<PickingMethodResponse>), AppError> {
     // Validate request
     request.validate()?;
 
@@ -62,7 +62,7 @@ pub async fn create_picking_method(
         .create_method(auth_user.tenant_id, request, auth_user.user_id)
         .await?;
 
-    Ok(Json(method.into()))
+    Ok((StatusCode::CREATED, Json(method.into())))
 }
 
 /// GET /api/v1/warehouse/picking/methods - List picking methods for warehouse
@@ -222,16 +222,9 @@ pub async fn set_default_method(
     Extension(state): Extension<AppState>,
     Path(method_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {
-    // First get the method to find its warehouse_id
-    let method = state
-        .picking_method_service
-        .get_method(auth_user.tenant_id, method_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Picking method not found".to_string()))?;
-
     let success = state
         .picking_method_service
-        .set_default_method(auth_user.tenant_id, method.warehouse_id, method_id, auth_user.user_id)
+        .set_default_method(auth_user.tenant_id, method_id, auth_user.user_id)
         .await?;
 
     if success {
