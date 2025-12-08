@@ -169,6 +169,8 @@ impl PickingMethodRepository for PickingMethodRepositoryImpl {
                 is_active, is_default, created_at, updated_at, deleted_at
             FROM picking_methods
             WHERE tenant_id = $1 AND warehouse_id = $2 AND is_default = true AND deleted_at IS NULL
+            ORDER BY updated_at DESC
+            LIMIT 1
             "#,
             tenant_id,
             warehouse_id

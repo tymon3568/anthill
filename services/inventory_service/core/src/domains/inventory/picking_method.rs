@@ -43,7 +43,8 @@ pub struct PickingMethod {
 
 /// Validation functions
 fn validate_picking_method_type(method_type: &str) -> Result<(), validator::ValidationError> {
-    match method_type {
+    let normalized = method_type.to_ascii_lowercase();
+    match normalized.as_str() {
         "batch" | "cluster" | "wave" => Ok(()),
         _ => Err(validator::ValidationError::new("invalid_picking_method_type")),
     }
@@ -129,7 +130,8 @@ impl PickingMethod {
 
     /// Get method type display name
     pub fn method_type_display(&self) -> &'static str {
-        match self.method_type.as_str() {
+        let method_type = self.method_type.to_ascii_lowercase();
+        match method_type.as_str() {
             "batch" => "Batch Picking",
             "cluster" => "Cluster Picking",
             "wave" => "Wave Picking",

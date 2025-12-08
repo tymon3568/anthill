@@ -23,8 +23,8 @@ mod category_tests;
 // Re-export services for convenience
 pub use category::CategoryServiceImpl;
 // pub use delivery::DeliveryServiceImpl;
+pub use self::picking_method::PickingMethodServiceImpl;
 pub use lot_serial::LotSerialServiceImpl;
-pub use picking_method::PickingMethodServiceImpl;
 pub use product::ProductServiceImpl;
 pub use putaway::PgPutawayService;
 pub use quality::PgQualityControlPointService;

@@ -51,7 +51,7 @@ impl Clone for AppState {
         Self {
             category_service: self.category_service.clone(),
             lot_serial_service: self.lot_serial_service.clone(),
-            picking_method_service: self.picking_method_service.clone(),
+            picking_method_service: Arc::clone(&self.picking_method_service),
             product_service: self.product_service.clone(),
             valuation_service: self.valuation_service.clone(),
             warehouse_repository: self.warehouse_repository.clone(),

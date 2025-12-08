@@ -146,8 +146,9 @@ impl PickingMethodService for PickingMethodServiceImpl {
                 })?
         };
 
-        // Route to specific optimization based on method type
-        match method.method_type.as_str() {
+        // Route to specific optimization based on method type (case-insensitive)
+        let method_type = method.method_type.to_ascii_lowercase();
+        match method_type.as_str() {
             "batch" => {
                 self.generate_batch_picking_plan(
                     tenant_id,
@@ -190,17 +191,54 @@ impl PickingMethodService for PickingMethodServiceImpl {
         request: ConfirmPickingPlanRequest,
         confirmed_by: Uuid,
     ) -> Result<bool> {
-        // Business logic: validate plan, create picking tasks, update inventory, etc.
-        // For now, just return success
+        // Basic validation: ensure plan_id is valid (not nil)
+        if request.plan_id.is_nil() {
+            return Err(inventory_service_core::AppError::ValidationError(
+                "plan_id cannot be nil".to_string(),
+            ));
+        }
+
+        // TODO: Validate plan exists and belongs to tenant
+        // TODO: Create picking tasks and update inventory
+
         tracing::info!(
             tenant_id = %tenant_id,
             plan_id = %request.plan_id,
             confirmed_by = %confirmed_by,
-            "confirm_picking_plan: placeholder implementation"
+            "confirm_picking_plan: placeholder implementation - basic validation passed"
         );
         Ok(true)
     }
 
+    // ========================================================================
+    // Validation and Analytics
+    // ========================================================================
+
+    async fn validate_method(&self, tenant_id: Uuid, method_id: Uuid) -> Result<bool> {
+        self.repository
+            .validate_method_config(tenant_id, method_id)
+            .await
+    }
+
+    async fn get_method_performance(
+        &self,
+        _tenant_id: Uuid,
+        method_id: Uuid,
+        _date_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
+    ) -> Result<Option<serde_json::Value>> {
+        // Placeholder: return mock performance data
+        let performance = serde_json::json!({
+            "method_id": method_id,
+            "total_plans_generated": 150,
+            "average_efficiency_score": 87.5,
+            "total_distance_saved_meters": 2500.0,
+            "average_time_reduction_percent": 28.0
+        });
+        Ok(Some(performance))
+    }
+}
+
+impl PickingMethodServiceImpl {
     // ========================================================================
     // Batch Picking Operations
     // ========================================================================
@@ -216,6 +254,15 @@ impl PickingMethodService for PickingMethodServiceImpl {
         // Batch picking: Group orders by product locations to minimize travel
         // This is a simplified implementation
 
+        // Validate input
+        if order_ids.is_empty() {
+            return Err(inventory_service_core::AppError::ValidationError(
+                "order_ids cannot be empty".to_string(),
+            ));
+        }
+
+        let some_order_id = order_ids[0];
+
         let plan_id = Uuid::now_v7();
         let method_name = "Batch Picking".to_string();
         let method_type = "batch".to_string();
@@ -223,12 +270,12 @@ impl PickingMethodService for PickingMethodServiceImpl {
         // Placeholder: create mock tasks
         let tasks = vec![PickingTask {
             task_id: Uuid::now_v7(),
-            order_id: order_ids.first().copied().unwrap_or(Uuid::nil()),
-            product_id: Uuid::nil(),
+            order_id: some_order_id,
+            product_id: some_order_id, // TODO: populate real product/location IDs once order lines are wired in
             product_code: "PROD001".to_string(),
             product_name: "Sample Product".to_string(),
             quantity: 10,
-            location_id: Uuid::nil(),
+            location_id: warehouse_id,
             location_code: "A-01-01-01".to_string(),
             sequence: 1,
             estimated_time_seconds: Some(30),
@@ -270,18 +317,27 @@ impl PickingMethodService for PickingMethodServiceImpl {
         // Cluster picking: Multiple orders per picker, sort later
         // Simplified implementation
 
+        // Validate input
+        if order_ids.is_empty() {
+            return Err(inventory_service_core::AppError::ValidationError(
+                "order_ids cannot be empty".to_string(),
+            ));
+        }
+
+        let some_order_id = order_ids[0];
+
         let plan_id = Uuid::now_v7();
         let method_name = "Cluster Picking".to_string();
         let method_type = "cluster".to_string();
 
         let tasks = vec![PickingTask {
             task_id: Uuid::now_v7(),
-            order_id: order_ids.first().copied().unwrap_or(Uuid::nil()),
-            product_id: Uuid::nil(),
+            order_id: some_order_id,
+            product_id: some_order_id, // TODO: populate real product/location IDs once order lines are wired in
             product_code: "PROD001".to_string(),
             product_name: "Sample Product".to_string(),
             quantity: 5,
-            location_id: Uuid::nil(),
+            location_id: warehouse_id,
             location_code: "A-01-01-01".to_string(),
             sequence: 1,
             estimated_time_seconds: Some(20),
@@ -323,18 +379,27 @@ impl PickingMethodService for PickingMethodServiceImpl {
         // Wave picking: Time-based release of picking work
         // Simplified implementation
 
+        // Validate input
+        if order_ids.is_empty() {
+            return Err(inventory_service_core::AppError::ValidationError(
+                "order_ids cannot be empty".to_string(),
+            ));
+        }
+
+        let some_order_id = order_ids[0];
+
         let plan_id = Uuid::now_v7();
         let method_name = "Wave Picking".to_string();
         let method_type = "wave".to_string();
 
         let tasks = vec![PickingTask {
             task_id: Uuid::now_v7(),
-            order_id: order_ids.first().copied().unwrap_or(Uuid::nil()),
-            product_id: Uuid::nil(),
+            order_id: some_order_id,
+            product_id: some_order_id, // TODO: populate real product/location IDs once order lines are wired in
             product_code: "PROD001".to_string(),
             product_name: "Sample Product".to_string(),
             quantity: 8,
-            location_id: Uuid::nil(),
+            location_id: warehouse_id,
             location_code: "A-01-01-01".to_string(),
             sequence: 1,
             estimated_time_seconds: Some(25),
@@ -359,32 +424,5 @@ impl PickingMethodService for PickingMethodServiceImpl {
             metrics,
             generated_at: Utc::now(),
         })
-    }
-
-    // ========================================================================
-    // Validation and Analytics
-    // ========================================================================
-
-    async fn validate_method(&self, tenant_id: Uuid, method_id: Uuid) -> Result<bool> {
-        self.repository
-            .validate_method_config(tenant_id, method_id)
-            .await
-    }
-
-    async fn get_method_performance(
-        &self,
-        _tenant_id: Uuid,
-        method_id: Uuid,
-        _date_range: Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)>,
-    ) -> Result<Option<serde_json::Value>> {
-        // Placeholder: return mock performance data
-        let performance = serde_json::json!({
-            "method_id": method_id,
-            "total_plans_generated": 150,
-            "average_efficiency_score": 87.5,
-            "total_distance_saved_meters": 2500.0,
-            "average_time_reduction_percent": 28.0
-        });
-        Ok(Some(performance))
     }
 }

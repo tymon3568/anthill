@@ -216,6 +216,9 @@ fn validate_config_not_empty(config: &serde_json::Value) -> Result<(), validator
     if config.is_null() {
         return Err(validator::ValidationError::new("config_cannot_be_null"));
     }
+    if config.as_object().map(|o| o.is_empty()).unwrap_or(false) {
+        return Err(validator::ValidationError::new("config_cannot_be_empty"));
+    }
     Ok(())
 }
 
