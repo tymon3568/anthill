@@ -5,6 +5,7 @@
 pub mod category;
 pub mod delivery;
 pub mod lot_serial;
+pub mod picking_method;
 pub mod product;
 pub mod putaway;
 pub mod quality;
@@ -22,6 +23,7 @@ mod category_tests;
 // Re-export services for convenience
 pub use category::CategoryServiceImpl;
 // pub use delivery::DeliveryServiceImpl;
+pub use self::picking_method::PickingMethodServiceImpl;
 pub use lot_serial::LotSerialServiceImpl;
 pub use product::ProductServiceImpl;
 pub use putaway::PgPutawayService;

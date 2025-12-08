@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::dto::common::validate_zone_type;
 use crate::domains::inventory::BaseEntity;
 
 /// Warehouse zone domain entity representing zones within warehouses
@@ -44,15 +45,6 @@ pub struct WarehouseZone {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
-}
-
-/// Validation functions
-fn validate_zone_type(zone_type: &str) -> Result<(), validator::ValidationError> {
-    match zone_type {
-        "storage" | "picking" | "quarantine" | "receiving" | "shipping" | "bulk" | "damaged"
-        | "returns" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_zone_type")),
-    }
 }
 
 impl BaseEntity for WarehouseZone {

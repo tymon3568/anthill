@@ -2,15 +2,7 @@
 //!
 //! This module contains the Axum handlers for putaway operations.
 
-use axum::{
-    extract::{Extension, Path, Query},
-    http::StatusCode,
-    response::Json,
-    routing::{get, post},
-    Router,
-};
-use uuid::Uuid;
-use validator::Validate;
+use axum::{extract::Extension, response::Json, routing::post, Router};
 
 use inventory_service_core::models::{
     ConfirmPutawayRequest, ConfirmPutawayResponse, PutawayRequest, PutawayResponse,

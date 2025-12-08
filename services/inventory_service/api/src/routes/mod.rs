@@ -36,6 +36,7 @@ use inventory_service_core::services::delivery::DeliveryService;
 // Inventory-service infra
 
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+use inventory_service_infra::repositories::picking_method::PickingMethodRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 use inventory_service_infra::repositories::putaway::PgPutawayRepository;
 use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
@@ -57,6 +58,7 @@ use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
+use inventory_service_infra::services::picking_method::PickingMethodServiceImpl;
 use inventory_service_infra::services::putaway::PgPutawayService;
 use inventory_service_infra::services::quality::PgQualityControlPointService;
 use inventory_service_infra::services::replenishment::PgReplenishmentService;
@@ -66,6 +68,7 @@ use crate::handlers::category::create_category_routes;
 #[cfg(feature = "delivery")]
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::lot_serial::create_lot_serial_routes;
+use crate::handlers::picking::create_picking_routes;
 use crate::handlers::putaway::create_putaway_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
@@ -347,10 +350,19 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         PgStockMoveRepository::new(Arc::new(pool.clone())),
     ));
 
+    // Initialize picking method repositories and services
+    let picking_method_repo: Arc<
+        dyn inventory_service_core::repositories::picking_method::PickingMethodRepository
+            + Send
+            + Sync,
+    > = Arc::new(PickingMethodRepositoryImpl::new(pool.clone()));
+    let picking_method_service = Arc::new(PickingMethodServiceImpl::new(picking_method_repo));
+
     // Create application state
     let state = AppState {
         category_service: Arc::new(category_service),
         lot_serial_service: Arc::new(lot_serial_service),
+        picking_method_service,
         product_service: Arc::new(product_service),
         valuation_service: Arc::new(valuation_service),
         warehouse_repository: warehouse_repo.clone(),
@@ -440,6 +452,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/valuation", valuation_routes)
         .nest("/api/v1/inventory/warehouses", warehouse_routes)
         .nest("/api/v1/warehouse/putaway", putaway_routes)
+        .nest("/api/v1/warehouse/picking", create_picking_routes())
         .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes())
         .nest("/api/v1/inventory/quality", create_quality_routes())
         .nest("/api/v1/inventory/replenishment", create_replenishment_routes());
@@ -455,8 +468,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(Extension(authz_state));
 
     // Apply global layers
-    let router = protected_routes.layer(cors);
-    router
+    protected_routes.layer(cors)
 }
 
 // function moved

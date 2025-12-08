@@ -669,12 +669,13 @@ impl TransactionalPutawayRepository for PgPutawayRepository {
             AppError::DatabaseError(format!("Failed to get location for update: {}", e))
         })?;
 
-        let new_stock = row.current_stock + quantity;
+        let current_stock = row.current_stock.unwrap_or(0);
+        let new_stock = current_stock + quantity;
         if let Some(capacity) = row.capacity {
             if new_stock > capacity {
                 return Err(AppError::ValidationError(format!(
                     "Location capacity exceeded: current {}, adding {}, capacity {}",
-                    row.current_stock, quantity, capacity
+                    current_stock, quantity, capacity
                 )));
             }
         }

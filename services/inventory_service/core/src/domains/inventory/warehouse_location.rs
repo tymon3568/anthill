@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::dto::common::validate_location_type;
 use crate::domains::inventory::BaseEntity;
 
 /// Warehouse location domain entity representing storage positions within warehouses
@@ -47,14 +48,6 @@ pub struct WarehouseLocation {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
-}
-
-/// Validation functions
-fn validate_location_type(location_type: &str) -> Result<(), validator::ValidationError> {
-    match location_type {
-        "bin" | "shelf" | "pallet" | "floor" | "rack" | "container" | "bulk" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_location_type")),
-    }
 }
 
 impl BaseEntity for WarehouseLocation {

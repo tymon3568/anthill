@@ -5,6 +5,7 @@
 pub mod category;
 pub mod delivery_order;
 pub mod lot_serial;
+pub mod picking_method;
 pub mod product;
 pub mod putaway;
 pub mod quality;
@@ -24,6 +25,7 @@ pub use delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository, PgInventoryRepository,
 };
 pub use lot_serial::LotSerialRepositoryImpl;
+pub use picking_method::PickingMethodRepositoryImpl;
 pub use product::ProductRepositoryImpl;
 pub use putaway::PgPutawayRepository;
 pub use quality::PgQualityControlPointRepository;

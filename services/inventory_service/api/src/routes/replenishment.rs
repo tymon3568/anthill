@@ -1,8 +1,6 @@
-use axum::extract::State;
-use axum::routing::{delete, get, post, put, Router};
+use axum::routing::{get, post, Router};
 
 use crate::handlers::replenishment::*;
-use crate::state::AppState;
 
 /// Create replenishment routes
 pub fn create_replenishment_routes() -> Router<()> {

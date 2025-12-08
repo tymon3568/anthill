@@ -7,7 +7,7 @@ ALTER TABLE stock_moves ADD COLUMN lot_serial_id UUID;
 -- Add composite index for tenant isolation and lot_serial_id queries
 CREATE INDEX idx_stock_moves_tenant_lot_serial_id ON stock_moves (tenant_id, lot_serial_id);
 
--- Add composite foreign key constraint for tenant isolation
+-- Add foreign key constraint with tenant isolation
 ALTER TABLE stock_moves
     ADD CONSTRAINT fk_stock_moves_lot_serial
     FOREIGN KEY (tenant_id, lot_serial_id)

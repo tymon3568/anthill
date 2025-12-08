@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     Json,
 };
@@ -21,7 +21,7 @@ pub struct ErrorResponse {
     pub code: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct ListQcPointsQuery {
     pub product_id: Option<Uuid>,
     pub warehouse_id: Option<Uuid>,
@@ -44,7 +44,7 @@ pub struct ListQcPointsQuery {
     security(("bearer_auth" = []))
 )]
 pub async fn create_qc_point(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Json(qc_point): Json<CreateQualityControlPoint>,
 ) -> Result<(StatusCode, Json<QualityControlPoint>), AppError> {
@@ -74,7 +74,7 @@ pub async fn create_qc_point(
     security(("bearer_auth" = []))
 )]
 pub async fn get_qc_point(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(qc_point_id): Path<Uuid>,
 ) -> Result<Json<QualityControlPoint>, AppError> {
@@ -105,7 +105,7 @@ pub async fn get_qc_point(
     security(("bearer_auth" = []))
 )]
 pub async fn list_qc_points(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Query(query): Query<ListQcPointsQuery>,
 ) -> Result<Json<Vec<QualityControlPoint>>, AppError> {
@@ -153,7 +153,7 @@ pub async fn list_qc_points(
     security(("bearer_auth" = []))
 )]
 pub async fn update_qc_point(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(qc_point_id): Path<Uuid>,
     Json(updates): Json<UpdateQualityControlPoint>,
@@ -183,7 +183,7 @@ pub async fn update_qc_point(
     security(("bearer_auth" = []))
 )]
 pub async fn delete_qc_point(
-    State(state): State<AppState>,
+    Extension(state): Extension<AppState>,
     auth_user: AuthUser,
     Path(qc_point_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError> {

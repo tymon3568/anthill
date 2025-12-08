@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::dto::common::{
+    validate_location_type, validate_warehouse_type, validate_zone_type,
+};
+
 /// Request DTO for creating a new warehouse
 #[derive(Debug, Clone, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -21,7 +25,7 @@ pub struct CreateWarehouseRequest {
     pub description: Option<String>,
 
     /// Warehouse type
-    #[validate(custom(function = "validate_warehouse_type_req"))]
+    #[validate(custom(function = "validate_warehouse_type"))]
     pub warehouse_type: String,
 
     /// Parent warehouse ID for hierarchy (optional)
@@ -55,7 +59,7 @@ pub struct CreateWarehouseZoneRequest {
     pub description: Option<String>,
 
     /// Zone type
-    #[validate(custom(function = "validate_zone_type_req"))]
+    #[validate(custom(function = "validate_zone_type"))]
     pub zone_type: String,
 
     /// Zone attributes
@@ -86,7 +90,7 @@ pub struct CreateWarehouseLocationRequest {
     pub description: Option<String>,
 
     /// Location type
-    #[validate(custom(function = "validate_location_type_req"))]
+    #[validate(custom(function = "validate_location_type"))]
     pub location_type: String,
 
     /// Physical coordinates
@@ -279,29 +283,6 @@ pub struct WarehouseTreeResponse {
 
     /// Total count of locations
     pub total_locations: u32,
-}
-
-/// Validation functions for request DTOs
-fn validate_warehouse_type_req(warehouse_type: &str) -> Result<(), validator::ValidationError> {
-    match warehouse_type {
-        "main" | "transit" | "quarantine" | "distribution" | "retail" | "satellite" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_warehouse_type")),
-    }
-}
-
-fn validate_zone_type_req(zone_type: &str) -> Result<(), validator::ValidationError> {
-    match zone_type {
-        "storage" | "picking" | "quarantine" | "receiving" | "shipping" | "bulk" | "damaged"
-        | "returns" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_zone_type")),
-    }
-}
-
-fn validate_location_type_req(location_type: &str) -> Result<(), validator::ValidationError> {
-    match location_type {
-        "bin" | "shelf" | "pallet" | "floor" | "rack" | "container" | "bulk" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_location_type")),
-    }
 }
 
 impl From<crate::domains::inventory::warehouse_zone::WarehouseZone> for WarehouseZoneResponse {
