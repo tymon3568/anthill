@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::dto::common::validate_picking_method_type;
 use crate::domains::inventory::BaseEntity;
 
 /// Picking method domain entity representing a picking strategy configuration
@@ -39,15 +40,6 @@ pub struct PickingMethod {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
-}
-
-/// Validation functions
-fn validate_picking_method_type(method_type: &str) -> Result<(), validator::ValidationError> {
-    let normalized = method_type.to_ascii_lowercase();
-    match normalized.as_str() {
-        "batch" | "cluster" | "wave" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_picking_method_type")),
-    }
 }
 
 impl BaseEntity for PickingMethod {

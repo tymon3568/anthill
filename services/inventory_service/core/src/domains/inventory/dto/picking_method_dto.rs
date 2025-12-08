@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::dto::common::{
+    validate_config_not_empty, validate_picking_method_type,
+};
+
 /// Request DTO for creating a new picking method
 #[derive(Debug, Clone, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -17,7 +21,7 @@ pub struct CreatePickingMethodRequest {
     pub description: Option<String>,
 
     /// Picking method type
-    #[validate(custom(function = "validate_picking_method_type_req"))]
+    #[validate(custom(function = "validate_picking_method_type"))]
     pub method_type: String,
 
     /// Warehouse ID this method applies to
@@ -201,25 +205,6 @@ pub struct ConfirmPickingPlanRequest {
     /// Optional notes
     #[validate(length(max = 1000))]
     pub notes: Option<String>,
-}
-
-/// Validation functions for request DTOs
-fn validate_picking_method_type_req(method_type: &str) -> Result<(), validator::ValidationError> {
-    let normalized = method_type.to_ascii_lowercase();
-    match normalized.as_str() {
-        "batch" | "cluster" | "wave" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_picking_method_type")),
-    }
-}
-
-fn validate_config_not_empty(config: &serde_json::Value) -> Result<(), validator::ValidationError> {
-    if config.is_null() {
-        return Err(validator::ValidationError::new("config_cannot_be_null"));
-    }
-    if config.as_object().map(|o| o.is_empty()).unwrap_or(false) {
-        return Err(validator::ValidationError::new("config_cannot_be_empty"));
-    }
-    Ok(())
 }
 
 impl From<crate::domains::inventory::picking_method::PickingMethod> for PickingMethodResponse {

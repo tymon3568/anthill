@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::dto::common::validate_warehouse_type;
 use crate::domains::inventory::BaseEntity;
 /// Warehouse domain entity representing a warehouse in the hierarchy
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -44,14 +45,6 @@ pub struct Warehouse {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
-}
-
-/// Validation functions
-fn validate_warehouse_type(warehouse_type: &str) -> Result<(), validator::ValidationError> {
-    match warehouse_type {
-        "main" | "transit" | "quarantine" | "distribution" | "retail" | "satellite" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_warehouse_type")),
-    }
 }
 
 impl BaseEntity for Warehouse {

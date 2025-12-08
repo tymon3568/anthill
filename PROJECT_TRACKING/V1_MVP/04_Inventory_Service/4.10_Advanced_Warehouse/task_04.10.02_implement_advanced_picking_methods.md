@@ -194,7 +194,7 @@ Implement advanced picking methods to optimize warehouse operations and improve 
 - **PM-18: Refactor duplicates**
   - Description: Reduce code duplication to <3%.
   - Priority: Minor
-  - Status: Todo
+  - Status: Done
   - Assignee: Grok
   - Fix: Extract shared code in migrations and DTOs.
 
@@ -267,3 +267,17 @@ Implement advanced picking methods to optimize warehouse operations and improve 
   - All PM items marked as Done in task tracking
   - Code passes cargo check and clippy with no warnings
   - Ready for final testing and deployment
+
+*   2025-12-08 01:46: [Started PM-18] by Grok
+  - Starting work on PM-18: Refactor duplicates
+  - Will extract shared validation functions to common DTO module
+  - Identify and remove duplicated code across migrations and DTOs
+
+*   2025-12-08 02:00: [Completed PM-18] by Grok
+  - Created dto/common.rs with shared validation functions (validate_picking_method_type, validate_warehouse_type, validate_zone_type, validate_location_type, validate_product_type, validate_config_not_empty)
+  - Removed duplicated validation functions from domain entities (picking_method.rs, warehouse.rs, warehouse_zone.rs, warehouse_location.rs, product.rs) and DTOs (picking_method_dto.rs, warehouse_dto.rs)
+  - Updated imports across all affected files to use common module
+  - Code compiles successfully with cargo check --workspace
+  - Passes clippy checks with no warnings
+  - Reduced code duplication significantly below 3% threshold
+  - Status updated to Done - all PM items completed

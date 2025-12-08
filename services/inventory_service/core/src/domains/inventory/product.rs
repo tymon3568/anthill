@@ -5,6 +5,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::domains::inventory::dto::common::validate_product_type;
+
 /// Product tracking method for inventory management
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
@@ -101,14 +103,6 @@ pub struct Product {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
-}
-
-/// Validation functions
-fn validate_product_type(product_type: &str) -> Result<(), validator::ValidationError> {
-    match product_type {
-        "goods" | "service" | "consumable" => Ok(()),
-        _ => Err(validator::ValidationError::new("invalid_product_type")),
-    }
 }
 
 impl Product {
