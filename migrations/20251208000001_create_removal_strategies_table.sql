@@ -21,7 +21,7 @@ CREATE TABLE removal_strategies (
 
     -- Strategy identification
     name VARCHAR(100) NOT NULL,
-    type removal_strategy_type NOT NULL,
+    strategy_type removal_strategy_type NOT NULL,
 
     -- Scope: warehouse-wide or product-specific
     warehouse_id UUID,           -- NULL for global strategies, specific warehouse otherwise
@@ -55,9 +55,9 @@ CREATE TABLE removal_strategies (
         CHECK (length(trim(name)) > 0),
     CONSTRAINT removal_strategies_scope_validation
         CHECK (
-            (warehouse_id IS NOT NULL) OR
-            (product_id IS NOT NULL) OR
-            (warehouse_id IS NULL AND product_id IS NULL)
+            (warehouse_id IS NULL AND product_id IS NULL) OR
+            (warehouse_id IS NOT NULL AND product_id IS NULL) OR
+            (warehouse_id IS NULL AND product_id IS NOT NULL)
         )
 );
 

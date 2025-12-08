@@ -24,15 +24,15 @@ pub use receipt::{
 };
 pub use reconciliation::{
     ApproveReconciliationRequest, ApproveReconciliationResponse, CountReconciliationRequest,
-    CreateReconciliationRequest, CreateReconciliationResponse, FinalizeReconciliationRequest,
-    FinalizeReconciliationResponse, ReconciliationAnalyticsResponse, ReconciliationCountItem,
-    ReconciliationDetailResponse, ReconciliationListQuery, ReconciliationListResponse,
-    VarianceAnalysisResponse,
+    CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
+    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
+    ReconciliationCountItem, ReconciliationDetailResponse, ReconciliationListQuery,
+    ReconciliationListResponse, VarianceAnalysisResponse,
 };
 pub use removal_strategy::{
     RemovalStrategyCreateRequest, RemovalStrategyListQuery, RemovalStrategyListResponse,
-    RemovalStrategyResponse, RemovalStrategyUpdateRequest, StrategyAnalyticsResponse,
-    SuggestRemovalRequest, SuggestRemovalResponse,
+    RemovalStrategyResponse, RemovalStrategyUpdateRequest, StockLocationInfo, StockSuggestion,
+    StrategyAnalyticsResponse, SuggestRemovalRequest, SuggestRemovalResponse,
 };
 pub use rma::{
     ApproveRmaRequest, ApproveRmaResponse, CreateRmaRequest, CreateRmaResponse, ReceiveRmaRequest,

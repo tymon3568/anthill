@@ -36,6 +36,8 @@ pub struct RemovalStrategy {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
+    pub created_by: Uuid,
+    pub updated_by: Option<Uuid>,
 }
 
 impl BaseEntity for RemovalStrategy {
@@ -100,6 +102,7 @@ impl RemovalStrategy {
         warehouse_id: Option<Uuid>,
         product_id: Option<Uuid>,
         config: serde_json::Value,
+        created_by: Uuid,
     ) -> Self {
         Self {
             strategy_id: Uuid::now_v7(),
@@ -113,6 +116,8 @@ impl RemovalStrategy {
             created_at: Utc::now(),
             updated_at: Utc::now(),
             deleted_at: None,
+            created_by,
+            updated_by: None,
         }
     }
 
@@ -130,12 +135,12 @@ impl RemovalStrategy {
 
     /// Check if strategy applies to specific warehouse
     pub fn applies_to_warehouse(&self, warehouse_id: Uuid) -> bool {
-        self.warehouse_id.is_none_or(|w| w == warehouse_id)
+        self.warehouse_id.map_or(true, |w_id| w_id == warehouse_id)
     }
 
     /// Check if strategy applies to specific product
     pub fn applies_to_product(&self, product_id: Uuid) -> bool {
-        self.product_id.is_none_or(|p| p == product_id)
+        self.product_id.map_or(true, |p_id| p_id == product_id)
     }
 
     /// Get strategy-specific configuration value

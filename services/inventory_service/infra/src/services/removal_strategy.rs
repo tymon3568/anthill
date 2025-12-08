@@ -4,7 +4,6 @@
 //! using the repository layer for data access.
 
 use async_trait::async_trait;
-use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::repositories::RemovalStrategyRepositoryImpl;
@@ -14,6 +13,7 @@ use inventory_service_core::dto::removal_strategy::{
     RemovalStrategyResponse, RemovalStrategyUpdateRequest, StrategyAnalyticsResponse,
     SuggestRemovalRequest, SuggestRemovalResponse,
 };
+use inventory_service_core::repositories::RemovalStrategyRepository;
 use inventory_service_core::services::RemovalStrategyService;
 use shared_error::AppError;
 
@@ -74,7 +74,7 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
                 tenant_id: s.tenant_id,
                 name: s.name,
                 strategy_type: s.strategy_type,
-                strategy_type_display: s.strategy_type_display(),
+                strategy_type_display: s.strategy_type_display().to_string(),
                 warehouse_id: s.warehouse_id,
                 product_id: s.product_id,
                 active: s.active,
@@ -136,10 +136,8 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
         tenant_id: Uuid,
         warehouse_id: Uuid,
         product_id: Uuid,
-    ) -> Result<
-        Vec<inventory_service_core::repositories::removal_strategy::StockLocationInfo>,
-        AppError,
-    > {
+    ) -> Result<Vec<inventory_service_core::dto::removal_strategy::StockLocationInfo>, AppError>
+    {
         self.repo
             .get_available_stock_locations(tenant_id, warehouse_id, product_id)
             .await

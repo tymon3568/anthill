@@ -54,7 +54,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING
                 strategy_id, tenant_id, name, strategy_type, warehouse_id, product_id,
-                active, config, created_at, updated_at, deleted_at
+                active, config, created_at, updated_at, deleted_at, created_by, updated_by
             "#,
             tenant_id,
             request.name,
@@ -81,7 +81,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             r#"
             SELECT
                 strategy_id, tenant_id, name, strategy_type, warehouse_id, product_id,
-                active, config, created_at, updated_at, deleted_at
+                active, config, created_at, updated_at, deleted_at, created_by, updated_by
             FROM removal_strategies
             WHERE tenant_id = $1 AND strategy_id = $2 AND deleted_at IS NULL
             "#,
@@ -104,7 +104,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             r#"
             SELECT
                 strategy_id, tenant_id, name, strategy_type, warehouse_id, product_id,
-                active, config, created_at, updated_at, deleted_at
+                active, config, created_at, updated_at, deleted_at, created_by, updated_by
             FROM removal_strategies
             WHERE tenant_id = $1 AND name = $2 AND deleted_at IS NULL
             "#,
@@ -160,7 +160,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             r#"
             SELECT
                 rs.strategy_id, rs.tenant_id, rs.name, rs.strategy_type, rs.warehouse_id, rs.product_id,
-                rs.active, rs.config, rs.created_at, rs.updated_at, rs.deleted_at
+                rs.active, rs.config, rs.created_at, rs.updated_at, rs.deleted_at, rs.created_by, rs.updated_by
             FROM removal_strategies rs
             WHERE {}
             ORDER BY rs.created_at DESC
@@ -224,6 +224,8 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
                 deleted_at: row.get("deleted_at"),
+                created_by: row.get("created_by"),
+                updated_by: row.get("updated_by"),
             })
             .fetch_all(&self.pool)
             .await?;
@@ -242,7 +244,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             r#"
             SELECT
                 strategy_id, tenant_id, name, strategy_type, warehouse_id, product_id,
-                active, config, created_at, updated_at, deleted_at
+                active, config, created_at, updated_at, deleted_at, created_by, updated_by
             FROM removal_strategies
             WHERE tenant_id = $1 AND active = true AND deleted_at IS NULL
               AND (warehouse_id IS NULL OR warehouse_id = $2)
@@ -284,11 +286,12 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
                 product_id = COALESCE($6, product_id),
                 active = COALESCE($7, active),
                 config = COALESCE($8, config),
-                updated_at = NOW()
+                updated_at = NOW(),
+                updated_by = $9
             WHERE tenant_id = $1 AND strategy_id = $2 AND deleted_at IS NULL
             RETURNING
                 strategy_id, tenant_id, name, strategy_type, warehouse_id, product_id,
-                active, config, created_at, updated_at, deleted_at
+                active, config, created_at, updated_at, deleted_at, created_by, updated_by
             "#,
             tenant_id,
             strategy_id,
@@ -297,7 +300,8 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             request.warehouse_id,
             request.product_id,
             request.active,
-            request.config
+            request.config,
+            updated_by
         )
         .fetch_one(&self.pool)
         .await?;
@@ -314,11 +318,12 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         let result = sqlx::query!(
             r#"
             UPDATE removal_strategies
-            SET deleted_at = NOW(), updated_at = NOW()
+            SET deleted_at = NOW(), updated_at = NOW(), updated_by = $3
             WHERE tenant_id = $1 AND strategy_id = $2 AND deleted_at IS NULL
             "#,
             tenant_id,
-            strategy_id
+            strategy_id,
+            _deleted_by
         )
         .execute(&self.pool)
         .await?;
@@ -337,15 +342,16 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             RemovalStrategy,
             r#"
             UPDATE removal_strategies
-            SET active = $3, updated_at = NOW()
+            SET active = $3, updated_at = NOW(), updated_by = $4
             WHERE tenant_id = $1 AND strategy_id = $2 AND deleted_at IS NULL
             RETURNING
                 strategy_id, tenant_id, name, strategy_type, warehouse_id, product_id,
-                active, config, created_at, updated_at, deleted_at
+                active, config, created_at, updated_at, deleted_at, created_by, updated_by
             "#,
             tenant_id,
             strategy_id,
-            active
+            active,
+            _updated_by
         )
         .fetch_one(&self.pool)
         .await?;
@@ -555,9 +561,9 @@ impl RemovalStrategyRepositoryImpl {
                 break;
             }
 
-            // Skip items that expire within buffer period
+            // Skip items that expire too soon (within buffer period)
             if let Some(expiry) = location.expiry_date {
-                if expiry <= buffer_date {
+                if expiry < buffer_date {
                     continue;
                 }
             }
@@ -653,9 +659,9 @@ impl RemovalStrategyRepositoryImpl {
         let mut remaining = required_quantity;
         let mut total_suggested = 0;
 
-        // Sort by available quantity (smallest first to minimize packages)
+        // Sort by available quantity (largest first to minimize packages)
         let mut sorted_locations = locations;
-        sorted_locations.sort_by(|a, b| a.available_quantity.cmp(&b.available_quantity));
+        sorted_locations.sort_by(|a, b| b.available_quantity.cmp(&a.available_quantity));
 
         for location in sorted_locations {
             if remaining <= 0 {

@@ -4,8 +4,8 @@ use uuid::Uuid;
 use crate::domains::inventory::removal_strategy::RemovalStrategy;
 use crate::dto::removal_strategy::{
     RemovalStrategyCreateRequest, RemovalStrategyListQuery, RemovalStrategyListResponse,
-    RemovalStrategyUpdateRequest, StrategyAnalyticsResponse, SuggestRemovalRequest,
-    SuggestRemovalResponse,
+    RemovalStrategyUpdateRequest, StockLocationInfo, StrategyAnalyticsResponse,
+    SuggestRemovalRequest, SuggestRemovalResponse,
 };
 use crate::Result;
 
@@ -252,15 +252,4 @@ pub trait RemovalStrategyService: Send + Sync {
         period_start: chrono::DateTime<chrono::Utc>,
         period_end: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<StrategyAnalyticsResponse>>;
-}
-
-/// Information about available stock in a location
-#[derive(Debug, Clone)]
-pub struct StockLocationInfo {
-    pub location_id: Uuid,
-    pub location_code: String,
-    pub available_quantity: i64,
-    pub lot_serial_id: Option<Uuid>,
-    pub expiry_date: Option<chrono::DateTime<chrono::Utc>>,
-    pub last_receipt_date: Option<chrono::DateTime<chrono::Utc>>,
 }

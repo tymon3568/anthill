@@ -2,11 +2,24 @@
 //!
 //! This module contains request and response structures for removal strategy operations.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
 use crate::domains::inventory::dto::common::validate_removal_strategy_type;
+
+/// Information about available stock in a location
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StockLocationInfo {
+    pub location_id: Uuid,
+    pub location_code: String,
+    pub available_quantity: i64,
+    pub lot_serial_id: Option<Uuid>,
+    pub expiry_date: Option<DateTime<Utc>>,
+    pub last_receipt_date: Option<DateTime<Utc>>,
+}
 
 /// Request to create a new removal strategy
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
