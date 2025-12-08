@@ -5,29 +5,29 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.10_Advanced_Warehouse
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** NeedsReview
+**Assignee:** Grok
 **Created Date:** 2025-10-29
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-12-08
 
 ## Detailed Description:
 Implement advanced removal strategies for inventory picking to optimize stock rotation, minimize waste, and ensure product quality. This includes FIFO (First In, First Out), LIFO (Last In, First Out), FEFO (First Expired, First Out), and location-based strategies.
 
 ## Specific Sub-tasks:
-- [ ] 1. Create `removal_strategies` table with columns: `strategy_id`, `tenant_id`, `name`, `type` (fifo, lifo, fefo, closest_location, least_packages), `warehouse_id`, `product_id`, `active`, `config`
-- [ ] 2. Implement FIFO strategy:
+- [x] 1. Create `removal_strategies` table with columns: `strategy_id`, `tenant_id`, `name`, `type` (fifo, lifo, fefo, closest_location, least_packages), `warehouse_id`, `product_id`, `active`, `config`
+- [x] 2. Implement FIFO strategy:
    - Track stock entry dates for each location/product combination
    - Prioritize oldest stock during picking operations
    - Support lot/serial number tracking integration
-- [ ] 3. Implement FEFO strategy:
+- [x] 3. Implement FEFO strategy:
    - Use expiration dates from lot/serial tracking
    - Prioritize soonest-to-expire items
    - Include configurable buffer periods for safety
-- [ ] 4. Implement location-based strategies:
+- [x] 4. Implement location-based strategies:
    - Closest location: Minimize travel distance
    - Least packages: Optimize for package handling efficiency
    - Zone-based prioritization
-- [ ] 5. Create removal strategy engine:
+- [x] 5. Create removal strategy engine:
    - `POST /api/v1/warehouse/removal/suggest` - Get optimal stock to pick
    - Evaluate multiple strategies and select best option
    - Consider current stock levels and location availability
@@ -65,4 +65,15 @@ Implement advanced removal strategies for inventory picking to optimize stock ro
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+* 2025-12-08 02:19: Task claimed by Grok_SoftwareEngineer
+    - Verified all dependencies are Done
+    - Starting work on implementing removal strategies
+    - Status: InProgress
+* 2025-12-08 03:00: Implemented core removal strategies by Grok_SoftwareEngineer
+    - Created removal_strategies table migration
+    - Implemented domain entities, DTOs, repository traits, and service traits
+    - Implemented FIFO, FEFO, closest_location, and least_packages strategies
+    - Created removal strategy engine with suggest_removal functionality
+    - Added PostgreSQL repository and service implementations
+    - Sub-tasks 1-5 completed, 6-7 pending integration and analytics
+    - Status: NeedsReview - core implementation complete, ready for review

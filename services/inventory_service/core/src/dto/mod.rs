@@ -6,6 +6,7 @@ pub mod category;
 pub mod delivery;
 pub mod receipt;
 pub mod reconciliation;
+pub mod removal_strategy;
 pub mod rma;
 pub mod stock_take;
 pub mod transfer;
@@ -23,10 +24,15 @@ pub use receipt::{
 };
 pub use reconciliation::{
     ApproveReconciliationRequest, ApproveReconciliationResponse, CountReconciliationRequest,
-    CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
-    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
-    ReconciliationCountItem, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, VarianceAnalysisResponse,
+    CreateReconciliationRequest, CreateReconciliationResponse, FinalizeReconciliationRequest,
+    FinalizeReconciliationResponse, ReconciliationAnalyticsResponse, ReconciliationCountItem,
+    ReconciliationDetailResponse, ReconciliationListQuery, ReconciliationListResponse,
+    VarianceAnalysisResponse,
+};
+pub use removal_strategy::{
+    RemovalStrategyCreateRequest, RemovalStrategyListQuery, RemovalStrategyListResponse,
+    RemovalStrategyResponse, RemovalStrategyUpdateRequest, StrategyAnalyticsResponse,
+    SuggestRemovalRequest, SuggestRemovalResponse,
 };
 pub use rma::{
     ApproveRmaRequest, ApproveRmaResponse, CreateRmaRequest, CreateRmaResponse, ReceiveRmaRequest,

@@ -6,6 +6,7 @@ pub mod category;
 pub mod picking_method;
 pub mod putaway;
 pub mod quality;
+pub mod removal_strategy;
 pub mod replenishment;
 
 /// Transaction abstraction to avoid sqlx dependency in core
@@ -44,6 +45,7 @@ pub use putaway::{PutawayRepository, PutawayService};
 pub use quality::QualityControlPointRepository;
 pub use receipt::ReceiptRepository;
 pub use reconciliation::{StockReconciliationItemRepository, StockReconciliationRepository};
+pub use removal_strategy::RemovalStrategyRepository;
 pub use replenishment::ReorderRuleRepository;
 pub use rma::{RmaItemRepository, RmaRepository};
 pub use stock::{InventoryLevelRepository, StockMoveRepository};

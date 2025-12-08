@@ -48,6 +48,14 @@ pub fn validate_product_type(product_type: &str) -> Result<(), ValidationError> 
     }
 }
 
+/// Validate removal strategy type (fifo, lifo, fefo, closest_location, least_packages)
+pub fn validate_removal_strategy_type(strategy_type: &str) -> Result<(), ValidationError> {
+    match strategy_type {
+        "fifo" | "lifo" | "fefo" | "closest_location" | "least_packages" => Ok(()),
+        _ => Err(ValidationError::new("invalid_removal_strategy_type")),
+    }
+}
+
 /// Validate that JSON config is not null or empty object
 pub fn validate_config_not_empty(config: &serde_json::Value) -> Result<(), ValidationError> {
     if config.is_null() {
