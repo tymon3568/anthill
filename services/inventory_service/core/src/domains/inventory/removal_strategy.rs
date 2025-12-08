@@ -134,11 +134,13 @@ impl RemovalStrategy {
     }
 
     /// Check if strategy applies to specific warehouse
+    #[allow(clippy::unnecessary_map_or)]
     pub fn applies_to_warehouse(&self, warehouse_id: Uuid) -> bool {
         self.warehouse_id.map_or(true, |w_id| w_id == warehouse_id)
     }
 
     /// Check if strategy applies to specific product
+    #[allow(clippy::unnecessary_map_or)]
     pub fn applies_to_product(&self, product_id: Uuid) -> bool {
         self.product_id.map_or(true, |p_id| p_id == product_id)
     }

@@ -80,7 +80,7 @@ CREATE INDEX idx_removal_strategies_tenant_product
     WHERE deleted_at IS NULL AND product_id IS NOT NULL;
 
 CREATE INDEX idx_removal_strategies_tenant_type
-    ON removal_strategies(tenant_id, type, active)
+    ON removal_strategies(tenant_id, strategy_type, active)
     WHERE deleted_at IS NULL;
 
 -- Unique constraint for strategy names per tenant
@@ -112,7 +112,7 @@ COMMENT ON TABLE removal_strategies IS 'Removal strategy configurations for inve
 COMMENT ON COLUMN removal_strategies.strategy_id IS 'UUID v7 primary key (timestamp-based)';
 COMMENT ON COLUMN removal_strategies.tenant_id IS 'Multi-tenant isolation field';
 COMMENT ON COLUMN removal_strategies.name IS 'Human-readable strategy name';
-COMMENT ON COLUMN removal_strategies.type IS 'Strategy type: fifo/lifo/fefo/closest_location/least_packages';
+COMMENT ON COLUMN removal_strategies.strategy_type IS 'Strategy type: fifo/lifo/fefo/closest_location/least_packages';
 COMMENT ON COLUMN removal_strategies.warehouse_id IS 'Warehouse scope (NULL for global)';
 COMMENT ON COLUMN removal_strategies.product_id IS 'Product scope (NULL for all products)';
 COMMENT ON COLUMN removal_strategies.active IS 'Whether this strategy is currently active';

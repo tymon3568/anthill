@@ -51,7 +51,7 @@ pub fn validate_product_type(product_type: &str) -> Result<(), ValidationError> 
 /// Validate removal strategy type (fifo, lifo, fefo, closest_location, least_packages)
 pub fn validate_removal_strategy_type(strategy_type: &str) -> Result<(), ValidationError> {
     match strategy_type {
-        "fifo" | "fefo" | "closest_location" | "least_packages" => Ok(()),
+        "fifo" | "lifo" | "fefo" | "closest_location" | "least_packages" => Ok(()),
         _ => Err(ValidationError::new("invalid_removal_strategy_type")),
     }
 }

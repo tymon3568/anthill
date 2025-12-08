@@ -401,6 +401,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         // Apply the selected strategy
         match selected_strategy.strategy_type.as_str() {
             "fifo" => self.apply_fifo_strategy(stock_locations, request.quantity),
+            "lifo" => self.apply_lifo_strategy(stock_locations, request.quantity),
             "fefo" => {
                 self.apply_fefo_strategy(stock_locations, request.quantity, &selected_strategy)
             },
@@ -689,6 +690,49 @@ impl RemovalStrategyRepositoryImpl {
             suggestions,
             total_suggested,
             strategy_applied: "least_packages".to_string(),
+            can_fulfill: remaining <= 0,
+        })
+    }
+
+    fn apply_lifo_strategy(
+        &self,
+        locations: Vec<StockLocationInfo>,
+        required_quantity: i64,
+    ) -> Result<SuggestRemovalResponse> {
+        let mut suggestions = Vec::new();
+        let mut remaining = required_quantity;
+        let mut total_suggested = 0;
+
+        // Sort by last receipt date (newest first)
+        let mut sorted_locations = locations;
+        sorted_locations.sort_by(|a, b| b.last_receipt_date.cmp(&a.last_receipt_date));
+
+        for location in sorted_locations {
+            if remaining <= 0 {
+                break;
+            }
+
+            let suggest_qty = remaining.min(location.available_quantity);
+            if suggest_qty > 0 {
+                suggestions.push(StockSuggestion {
+                    location_id: location.location_id,
+                    location_code: location.location_code.clone(),
+                    available_quantity: location.available_quantity,
+                    suggested_quantity: suggest_qty,
+                    lot_serial_id: location.lot_serial_id,
+                    expiry_date: location.expiry_date,
+                    strategy_used: "lifo".to_string(),
+                    strategy_reason: "Newest stock first".to_string(),
+                });
+                remaining -= suggest_qty;
+                total_suggested += suggest_qty;
+            }
+        }
+
+        Ok(SuggestRemovalResponse {
+            suggestions,
+            total_suggested,
+            strategy_applied: "lifo".to_string(),
             can_fulfill: remaining <= 0,
         })
     }

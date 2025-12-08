@@ -69,18 +69,21 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
 
         let responses = strategies
             .into_iter()
-            .map(|s| RemovalStrategyResponse {
-                strategy_id: s.strategy_id,
-                tenant_id: s.tenant_id,
-                name: s.name,
-                strategy_type: s.strategy_type,
-                strategy_type_display: s.strategy_type_display().to_string(),
-                warehouse_id: s.warehouse_id,
-                product_id: s.product_id,
-                active: s.active,
-                config: s.config,
-                created_at: s.created_at,
-                updated_at: s.updated_at,
+            .map(|s| {
+                let strategy_type_display = s.strategy_type_display().to_string();
+                RemovalStrategyResponse {
+                    strategy_id: s.strategy_id,
+                    tenant_id: s.tenant_id,
+                    name: s.name,
+                    strategy_type: s.strategy_type,
+                    strategy_type_display,
+                    warehouse_id: s.warehouse_id,
+                    product_id: s.product_id,
+                    active: s.active,
+                    config: s.config,
+                    created_at: s.created_at,
+                    updated_at: s.updated_at,
+                }
             })
             .collect();
 
