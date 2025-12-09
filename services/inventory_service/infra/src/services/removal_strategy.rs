@@ -10,9 +10,10 @@ use crate::repositories::RemovalStrategyRepositoryImpl;
 use inventory_service_core::domains::inventory::removal_strategy::RemovalStrategy;
 use inventory_service_core::dto::removal_strategy::{
     RemovalStrategyCreateRequest, RemovalStrategyListQuery, RemovalStrategyListResponse,
-    RemovalStrategyResponse, RemovalStrategyUpdateRequest, StrategyAnalyticsResponse,
-    SuggestRemovalRequest, SuggestRemovalResponse,
+    RemovalStrategyResponse, RemovalStrategyUpdateRequest, StockLocationInfo,
+    StrategyAnalyticsResponse, SuggestRemovalRequest, SuggestRemovalResponse,
 };
+use inventory_service_core::dto::PaginationInfo;
 use inventory_service_core::repositories::RemovalStrategyRepository;
 use inventory_service_core::services::RemovalStrategyService;
 use shared_error::AppError;
@@ -61,7 +62,7 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
     ) -> Result<RemovalStrategyListResponse, AppError> {
         let (strategies, total_count) = self.repo.list(tenant_id, query.clone()).await?;
 
-        let pagination = inventory_service_core::dto::removal_strategy::PaginationInfo::new(
+        let pagination = PaginationInfo::new(
             query.page.unwrap_or(1),
             query.page_size.unwrap_or(20),
             total_count,
@@ -139,8 +140,7 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
         tenant_id: Uuid,
         warehouse_id: Uuid,
         product_id: Uuid,
-    ) -> Result<Vec<inventory_service_core::dto::removal_strategy::StockLocationInfo>, AppError>
-    {
+    ) -> Result<Vec<StockLocationInfo>, AppError> {
         self.repo
             .get_available_stock_locations(tenant_id, warehouse_id, product_id)
             .await
@@ -211,10 +211,10 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
 
     async fn get_strategy_analytics(
         &self,
-        tenant_id: Uuid,
-        strategy_id: Option<Uuid>,
-        period_start: chrono::DateTime<chrono::Utc>,
-        period_end: chrono::DateTime<chrono::Utc>,
+        _tenant_id: Uuid,
+        _strategy_id: Option<Uuid>,
+        _period_start: chrono::DateTime<chrono::Utc>,
+        _period_end: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<StrategyAnalyticsResponse>, AppError> {
         // TODO: Implement analytics query once removal_strategy_usage table is available.
         // For now, explicitly signal that analytics are not yet implemented.
