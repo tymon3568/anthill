@@ -122,8 +122,10 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         tenant_id: uuid::Uuid,
         query: RemovalStrategyListQuery,
     ) -> Result<(Vec<RemovalStrategy>, u64)> {
-        let offset = ((query.page.unwrap_or(1) - 1) * query.page_size.unwrap_or(20)) as i64;
-        let limit = query.page_size.unwrap_or(20) as i64;
+        let page = query.page.unwrap_or(1).max(1);
+        let page_size = query.page_size.unwrap_or(20).max(1);
+        let offset = ((page - 1) * page_size) as i64;
+        let limit = page_size as i64;
 
         let mut conditions = vec![
             "rs.tenant_id = $1".to_string(),
@@ -131,23 +133,23 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         ];
         let mut param_count = 1;
 
-        if let Some(warehouse_id) = query.warehouse_id {
+        if let Some(_warehouse_id) = query.warehouse_id {
             param_count += 1;
             conditions.push(format!("rs.warehouse_id = ${}", param_count));
         }
-        if let Some(product_id) = query.product_id {
+        if let Some(_product_id) = query.product_id {
             param_count += 1;
             conditions.push(format!("rs.product_id = ${}", param_count));
         }
-        if let Some(strategy_type) = &query.strategy_type {
+        if let Some(_strategy_type) = &query.strategy_type {
             param_count += 1;
             conditions.push(format!("rs.strategy_type = ${}", param_count));
         }
-        if let Some(active) = query.active {
+        if let Some(_active) = query.active {
             param_count += 1;
             conditions.push(format!("rs.active = ${}", param_count));
         }
-        if let Some(search) = &query.search {
+        if let Some(_search) = &query.search {
             param_count += 1;
             conditions.push(format!("rs.name ILIKE ${}", param_count));
         }
@@ -475,11 +477,11 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
 
     async fn record_strategy_usage(
         &self,
-        tenant_id: uuid::Uuid,
-        strategy_id: uuid::Uuid,
-        product_id: uuid::Uuid,
-        quantity: i64,
-        pick_time_seconds: Option<f64>,
+        _tenant_id: uuid::Uuid,
+        _strategy_id: uuid::Uuid,
+        _product_id: uuid::Uuid,
+        _quantity: i64,
+        _pick_time_seconds: Option<f64>,
     ) -> Result<bool> {
         // For now, just return success. In a real implementation, you'd insert into a usage table
         // This would be used for analytics
@@ -499,7 +501,15 @@ impl RemovalStrategyRepositoryImpl {
 
         // Sort by last receipt date (oldest first)
         let mut sorted_locations = locations;
-        sorted_locations.sort_by(|a, b| a.last_receipt_date.cmp(&b.last_receipt_date));
+        sorted_locations.sort_by(|a, b| {
+            let a_date = a
+                .last_receipt_date
+                .unwrap_or(chrono::DateTime::<chrono::Utc>::MAX_UTC);
+            let b_date = b
+                .last_receipt_date
+                .unwrap_or(chrono::DateTime::<chrono::Utc>::MAX_UTC);
+            a_date.cmp(&b_date)
+        });
 
         for location in sorted_locations {
             if remaining <= 0 {
@@ -705,7 +715,15 @@ impl RemovalStrategyRepositoryImpl {
 
         // Sort by last receipt date (newest first)
         let mut sorted_locations = locations;
-        sorted_locations.sort_by(|a, b| b.last_receipt_date.cmp(&a.last_receipt_date));
+        sorted_locations.sort_by(|a, b| {
+            let a_date = a
+                .last_receipt_date
+                .unwrap_or(chrono::DateTime::<chrono::Utc>::MIN_UTC);
+            let b_date = b
+                .last_receipt_date
+                .unwrap_or(chrono::DateTime::<chrono::Utc>::MIN_UTC);
+            b_date.cmp(&a_date)
+        });
 
         for location in sorted_locations {
             if remaining <= 0 {

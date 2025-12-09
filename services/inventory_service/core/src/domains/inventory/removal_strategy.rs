@@ -154,7 +154,8 @@ impl RemovalStrategy {
     pub fn fefo_buffer_days(&self) -> i32 {
         self.get_config_value("fefo_buffer_days")
             .and_then(|v| v.as_i64())
-            .unwrap_or(0) as i32
+            .and_then(|days| i32::try_from(days).ok())
+            .unwrap_or(0)
     }
 
     /// Get location priorities for closest_location strategy

@@ -83,3 +83,15 @@ Implement advanced removal strategies for inventory picking to optimize stock ro
     - API integration (sub-task 6) and full analytics (sub-task 7) deferred to future tasks
     - Code pushed to feature branch, ready for merge
     - Status: Done
+* 2025-12-08 05:00: PR review fixes applied by Grok_SoftwareEngineer
+    - Fixed column name mismatch in migration (type -> strategy_type)
+    - Corrected least packages strategy sorting (largest first to minimize locations)
+    - Fixed FEFO buffer logic (skip items expiring too soon)
+    - Updated CHECK constraint to prevent both warehouse and product set
+    - Unified StockLocationInfo types and exports
+    - Added missing audit fields to domain entity and queries
+    - Implemented LIFO strategy and updated validator
+    - Fixed return type mismatches in service
+    - Added back CountReconciliationResponse export
+    - Fixed unstable is_none_or to map_or
+    - Status: Done - all critical issues resolved, PR ready for final review

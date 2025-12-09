@@ -159,18 +159,18 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
 
     async fn select_best_strategy(
         &self,
-        tenant_id: Uuid,
+        _tenant_id: Uuid,
         warehouse_id: Uuid,
         product_id: Uuid,
         strategies: Vec<RemovalStrategy>,
     ) -> Result<(RemovalStrategy, String), AppError> {
         // Simple selection: prefer product-specific, then warehouse-specific, then global
         // In a real implementation, this could be more sophisticated
-        if let Some(strategy) = strategies.iter().find(|s| s.product_id.is_some()) {
+        if let Some(strategy) = strategies.iter().find(|s| s.product_id == Some(product_id)) {
             Ok((strategy.clone(), "Product-specific strategy".to_string()))
-        } else if let Some(strategy) = strategies.iter().find(|s| s.warehouse_id.is_some()) {
+        } else if let Some(strategy) = strategies.iter().find(|s| s.warehouse_id == Some(warehouse_id) && s.product_id.is_none()) {
             Ok((strategy.clone(), "Warehouse-specific strategy".to_string()))
-        } else if let Some(strategy) = strategies.first() {
+        } else if let Some(strategy) = strategies.iter().find(|s| s.warehouse_id.is_none() && s.product_id.is_none()) {
             Ok((strategy.clone(), "Global strategy".to_string()))
         } else {
             Err(AppError::NotFound("No applicable strategies found".to_string()))
@@ -205,10 +205,10 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
 
     async fn get_strategy_analytics(
         &self,
-        tenant_id: Uuid,
-        strategy_id: Option<Uuid>,
-        period_start: chrono::DateTime<chrono::Utc>,
-        period_end: chrono::DateTime<chrono::Utc>,
+        _tenant_id: Uuid,
+        _strategy_id: Option<Uuid>,
+        _period_start: chrono::DateTime<chrono::Utc>,
+        _period_end: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<StrategyAnalyticsResponse>, AppError> {
         // For now, return empty vec. In a real implementation, you'd query usage data
         // This would require a usage tracking table
