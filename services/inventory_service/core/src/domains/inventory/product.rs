@@ -8,22 +8,17 @@ use validator::Validate;
 use crate::domains::inventory::dto::common::validate_product_type;
 
 /// Product tracking method for inventory management
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum ProductTrackingMethod {
     /// No tracking required
+    #[default]
     None,
     /// Lot/batch tracking
     Lot,
     /// Serial number tracking
     Serial,
-}
-
-impl Default for ProductTrackingMethod {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl std::fmt::Display for ProductTrackingMethod {

@@ -168,9 +168,15 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
         // In a real implementation, this could be more sophisticated
         if let Some(strategy) = strategies.iter().find(|s| s.product_id == Some(product_id)) {
             Ok((strategy.clone(), "Product-specific strategy".to_string()))
-        } else if let Some(strategy) = strategies.iter().find(|s| s.warehouse_id == Some(warehouse_id) && s.product_id.is_none()) {
+        } else if let Some(strategy) = strategies
+            .iter()
+            .find(|s| s.warehouse_id == Some(warehouse_id) && s.product_id.is_none())
+        {
             Ok((strategy.clone(), "Warehouse-specific strategy".to_string()))
-        } else if let Some(strategy) = strategies.iter().find(|s| s.warehouse_id.is_none() && s.product_id.is_none()) {
+        } else if let Some(strategy) = strategies
+            .iter()
+            .find(|s| s.warehouse_id.is_none() && s.product_id.is_none())
+        {
             Ok((strategy.clone(), "Global strategy".to_string()))
         } else {
             Err(AppError::NotFound("No applicable strategies found".to_string()))
