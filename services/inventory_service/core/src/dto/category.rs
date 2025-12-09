@@ -11,6 +11,7 @@ use validator::Validate;
 use utoipa::ToSchema;
 
 use crate::domains::category::{Category, CategoryBreadcrumb, CategoryNode};
+use crate::dto::PaginationInfo;
 
 // ============================================================================
 // Request DTOs
@@ -38,7 +39,7 @@ pub struct CategoryCreateRequest {
 
     /// Display order within same level
     #[serde(default)]
-    pub display_order: i32,
+    pub display_order: u32,
 
     /// Icon name/class for UI
     #[validate(length(max = 100))]
@@ -98,7 +99,7 @@ pub struct CategoryUpdateRequest {
     pub code: Option<String>,
 
     /// Display order within same level
-    pub display_order: Option<i32>,
+    pub display_order: Option<u32>,
 
     /// Icon name/class for UI
     #[validate(length(max = 100))]
@@ -174,12 +175,12 @@ pub struct CategoryListQuery {
     /// Page number (1-based)
     #[serde(default = "default_page")]
     #[validate(range(min = 1))]
-    pub page: i32,
+    pub page: u32,
 
     /// Page size
     #[serde(default = "default_page_size")]
     #[validate(range(min = 1, max = 100))]
-    pub page_size: i32,
+    pub page_size: u32,
 
     /// Sort field
     #[serde(default)]
@@ -328,9 +329,9 @@ pub struct CategoryStatsResponse {
     pub level: i32,
     pub product_count: i32,
     pub total_product_count: i32,
-    pub subcategory_count: i32,
-    pub active_product_count: i32,
-    pub inactive_product_count: i32,
+    pub subcategory_count: u32,
+    pub active_product_count: u32,
+    pub inactive_product_count: u32,
 }
 
 /// Bulk operation response
@@ -338,35 +339,8 @@ pub struct CategoryStatsResponse {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct BulkOperationResponse {
     pub success: bool,
-    pub affected_count: i32,
+    pub affected_count: u32,
     pub message: String,
-}
-
-/// Pagination information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct PaginationInfo {
-    pub page: i32,
-    pub page_size: i32,
-    pub total_items: i64,
-    pub total_pages: i32,
-    pub has_next: bool,
-    pub has_prev: bool,
-}
-
-impl PaginationInfo {
-    pub fn new(page: i32, page_size: i32, total_items: i64) -> Self {
-        assert!(page_size > 0, "page_size must be greater than 0");
-        let total_pages = ((total_items as f64) / (page_size as f64)).ceil() as i32;
-        Self {
-            page,
-            page_size,
-            total_items,
-            total_pages,
-            has_next: page < total_pages,
-            has_prev: page > 1,
-        }
-    }
 }
 
 // ============================================================================
@@ -377,11 +351,11 @@ fn default_true() -> bool {
     true
 }
 
-fn default_page() -> i32 {
+fn default_page() -> u32 {
     1
 }
 
-fn default_page_size() -> i32 {
+fn default_page_size() -> u32 {
     20
 }
 

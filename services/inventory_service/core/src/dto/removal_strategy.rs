@@ -8,6 +8,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::domains::inventory::dto::common::validate_removal_strategy_type;
+use crate::dto::PaginationInfo;
 
 /// Information about available stock in a location
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -178,32 +179,6 @@ pub struct StrategyAnalyticsResponse {
     pub total_picked_quantity: i64,
     pub period_start: chrono::DateTime<chrono::Utc>,
     pub period_end: chrono::DateTime<chrono::Utc>,
-}
-
-/// Pagination info (reused from category)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaginationInfo {
-    pub page: u32,
-    pub page_size: u32,
-    pub total_items: u64,
-    pub total_pages: u32,
-    pub has_next: bool,
-    pub has_prev: bool,
-}
-
-impl PaginationInfo {
-    pub fn new(page: u32, page_size: u32, total_items: u64) -> Self {
-        let total_pages = ((total_items as f64) / (page_size as f64)).ceil() as u32;
-        Self {
-            page,
-            page_size,
-            total_items,
-            total_pages,
-            has_next: page < total_pages,
-            has_prev: page > 1,
-        }
-    }
 }
 
 // Default implementations for optional fields

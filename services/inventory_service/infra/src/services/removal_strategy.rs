@@ -211,13 +211,15 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
 
     async fn get_strategy_analytics(
         &self,
-        _tenant_id: Uuid,
-        _strategy_id: Option<Uuid>,
-        _period_start: chrono::DateTime<chrono::Utc>,
-        _period_end: chrono::DateTime<chrono::Utc>,
+        tenant_id: Uuid,
+        strategy_id: Option<Uuid>,
+        period_start: chrono::DateTime<chrono::Utc>,
+        period_end: chrono::DateTime<chrono::Utc>,
     ) -> Result<Vec<StrategyAnalyticsResponse>, AppError> {
-        // For now, return empty vec. In a real implementation, you'd query usage data
-        // This would require a usage tracking table
-        Ok(vec![])
+        // TODO: Implement analytics query once removal_strategy_usage table is available.
+        // For now, explicitly signal that analytics are not yet implemented.
+        Err(AppError::InternalError(
+            "Strategy analytics are not yet implemented".to_string(),
+        ))
     }
 }
