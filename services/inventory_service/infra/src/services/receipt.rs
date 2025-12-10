@@ -76,10 +76,18 @@ where
         // Generate idempotency key from request data
         let idempotency_key = generate_idempotency_key(&request);
 
-        // Acquire distributed locks for all product-warehouse combinations
-        let mut acquired_locks = Vec::new();
+        // Acquire distributed locks for all unique product-warehouse combinations
+        let mut unique_lock_keys = std::collections::HashSet::new();
         for item in &request.items {
-            let lock_key = format!("{}:{}", item.product_id, request.warehouse_id);
+            unique_lock_keys.insert(format!("{}:{}", item.product_id, request.warehouse_id));
+        }
+
+        // Sort the keys for consistent lock acquisition order to prevent deadlocks
+        let mut sorted_lock_keys: Vec<_> = unique_lock_keys.into_iter().collect();
+        sorted_lock_keys.sort();
+
+        let mut acquired_locks = Vec::new();
+        for lock_key in sorted_lock_keys {
             match self
                 .distributed_lock_service
                 .acquire_lock(
@@ -88,10 +96,10 @@ where
                     &lock_key,
                     300, // 5 minutes TTL
                 )
-                .await?
+                .await
             {
-                Some(lock_token) => acquired_locks.push((lock_key, lock_token)),
-                None => {
+                Ok(Some(lock_token)) => acquired_locks.push((lock_key, lock_token)),
+                Ok(None) => {
                     // Failed to acquire lock, release all previously acquired locks
                     for (key, token) in acquired_locks {
                         let _ = self
@@ -100,9 +108,19 @@ where
                             .await; // Ignore errors during cleanup
                     }
                     return Err(AppError::Conflict(format!(
-                        "Unable to acquire lock for product {} in warehouse {}",
-                        item.product_id, request.warehouse_id
+                        "Unable to acquire lock for {}",
+                        lock_key
                     )));
+                },
+                Err(e) => {
+                    // Failed to acquire lock due to error, release all previously acquired locks
+                    for (key, token) in acquired_locks {
+                        let _ = self
+                            .distributed_lock_service
+                            .release_lock(tenant_id, "product_warehouse", &key, &token)
+                            .await; // Ignore errors during cleanup
+                    }
+                    return Err(e);
                 },
             }
         }
