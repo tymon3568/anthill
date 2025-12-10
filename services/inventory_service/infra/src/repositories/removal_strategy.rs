@@ -122,115 +122,82 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         tenant_id: uuid::Uuid,
         query: RemovalStrategyListQuery,
     ) -> Result<(Vec<RemovalStrategy>, u64)> {
-        let page = query.page.unwrap_or(1).max(1);
-        let page_size = query.page_size.unwrap_or(20).max(1);
+        let page = query.page.max(1);
+        let page_size = query.page_size.max(1);
         let offset = ((page - 1) * page_size) as i64;
         let limit = page_size as i64;
 
-        let mut conditions = vec![
-            "rs.tenant_id = $1".to_string(),
-            "rs.deleted_at IS NULL".to_string(),
-        ];
-        let mut param_count = 1;
+        // Build count query
+        let mut count_builder = sqlx::QueryBuilder::new(
+            "SELECT COUNT(*) as count FROM removal_strategies rs WHERE rs.tenant_id = ",
+        );
+        count_builder.push_bind(tenant_id);
+        count_builder.push(" AND rs.deleted_at IS NULL");
 
-        if let Some(_warehouse_id) = query.warehouse_id {
-            param_count += 1;
-            conditions.push(format!("rs.warehouse_id = ${}", param_count));
+        if let Some(warehouse_id) = query.warehouse_id {
+            count_builder.push(" AND rs.warehouse_id = ");
+            count_builder.push_bind(warehouse_id);
         }
-        if let Some(_product_id) = query.product_id {
-            param_count += 1;
-            conditions.push(format!("rs.product_id = ${}", param_count));
+        if let Some(product_id) = query.product_id {
+            count_builder.push(" AND rs.product_id = ");
+            count_builder.push_bind(product_id);
         }
-        if let Some(_strategy_type) = &query.strategy_type {
-            param_count += 1;
-            conditions.push(format!("rs.strategy_type = ${}", param_count));
+        if let Some(strategy_type) = &query.strategy_type {
+            count_builder.push(" AND rs.strategy_type = ");
+            count_builder.push_bind(strategy_type);
         }
-        if let Some(_active) = query.active {
-            param_count += 1;
-            conditions.push(format!("rs.active = ${}", param_count));
+        if let Some(active) = query.active {
+            count_builder.push(" AND rs.active = ");
+            count_builder.push_bind(active);
         }
-        if let Some(_search) = &query.search {
-            param_count += 1;
-            conditions.push(format!("rs.name ILIKE ${}", param_count));
+        if let Some(search) = &query.search {
+            count_builder.push(" AND rs.name ILIKE ");
+            count_builder.push_bind(format!("%{}%", search));
         }
 
-        let where_clause = conditions.join(" AND ");
+        let count_query = count_builder.build_query_as::<(i64,)>();
+        let (count,) = count_query.fetch_one(&self.pool).await?;
 
-        let count_sql =
-            format!("SELECT COUNT(*) as count FROM removal_strategies rs WHERE {}", where_clause);
-        let data_sql = format!(
+        // Build data query
+        let mut data_builder = sqlx::QueryBuilder::new(
             r#"
             SELECT
                 rs.strategy_id, rs.tenant_id, rs.name, rs.strategy_type, rs.warehouse_id, rs.product_id,
                 rs.active, rs.config, rs.created_at, rs.updated_at, rs.deleted_at, rs.created_by, rs.updated_by
             FROM removal_strategies rs
-            WHERE {}
-            ORDER BY rs.created_at DESC
-            LIMIT ${} OFFSET ${}
-            "#,
-            where_clause,
-            param_count + 1,
-            param_count + 2
+            WHERE rs.tenant_id = "#,
         );
+        data_builder.push_bind(tenant_id);
+        data_builder.push(" AND rs.deleted_at IS NULL");
 
-        // Build count query
-        let mut count_query = sqlx::query(&count_sql).bind(tenant_id);
         if let Some(warehouse_id) = query.warehouse_id {
-            count_query = count_query.bind(warehouse_id);
+            data_builder.push(" AND rs.warehouse_id = ");
+            data_builder.push_bind(warehouse_id);
         }
         if let Some(product_id) = query.product_id {
-            count_query = count_query.bind(product_id);
+            data_builder.push(" AND rs.product_id = ");
+            data_builder.push_bind(product_id);
         }
         if let Some(strategy_type) = &query.strategy_type {
-            count_query = count_query.bind(strategy_type);
+            data_builder.push(" AND rs.strategy_type = ");
+            data_builder.push_bind(strategy_type);
         }
         if let Some(active) = query.active {
-            count_query = count_query.bind(active);
+            data_builder.push(" AND rs.active = ");
+            data_builder.push_bind(active);
         }
         if let Some(search) = &query.search {
-            count_query = count_query.bind(format!("%{}%", search));
+            data_builder.push(" AND rs.name ILIKE ");
+            data_builder.push_bind(format!("%{}%", search));
         }
 
-        let count_row = count_query.fetch_one(&self.pool).await?;
-        let count: i64 = count_row.get("count");
+        data_builder.push(" ORDER BY rs.created_at DESC LIMIT ");
+        data_builder.push_bind(limit);
+        data_builder.push(" OFFSET ");
+        data_builder.push_bind(offset);
 
-        // Build data query
-        let mut data_query = sqlx::query(&data_sql).bind(tenant_id);
-        if let Some(warehouse_id) = query.warehouse_id {
-            data_query = data_query.bind(warehouse_id);
-        }
-        if let Some(product_id) = query.product_id {
-            data_query = data_query.bind(product_id);
-        }
-        if let Some(strategy_type) = &query.strategy_type {
-            data_query = data_query.bind(strategy_type);
-        }
-        if let Some(active) = query.active {
-            data_query = data_query.bind(active);
-        }
-        if let Some(search) = &query.search {
-            data_query = data_query.bind(format!("%{}%", search));
-        }
-        data_query = data_query.bind(limit).bind(offset);
-
-        let strategies = data_query
-            .map(|row: PgRow| RemovalStrategy {
-                strategy_id: row.get("strategy_id"),
-                tenant_id: row.get("tenant_id"),
-                name: row.get("name"),
-                strategy_type: row.get("strategy_type"),
-                warehouse_id: row.get("warehouse_id"),
-                product_id: row.get("product_id"),
-                active: row.get("active"),
-                config: row.get("config"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-                deleted_at: row.get("deleted_at"),
-                created_by: row.get("created_by"),
-                updated_by: row.get("updated_by"),
-            })
-            .fetch_all(&self.pool)
-            .await?;
+        let data_query = data_builder.build_query_as::<RemovalStrategy>();
+        let strategies = data_query.fetch_all(&self.pool).await?;
 
         Ok((strategies, count as u64))
     }
@@ -284,12 +251,12 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             SET
                 name = COALESCE($3, name),
                 strategy_type = COALESCE($4, strategy_type),
-                warehouse_id = COALESCE($5, warehouse_id),
-                product_id = COALESCE($6, product_id),
-                active = COALESCE($7, active),
-                config = COALESCE($8, config),
+                warehouse_id = CASE WHEN $5 THEN $6 ELSE warehouse_id END,
+                product_id = CASE WHEN $7 THEN $8 ELSE product_id END,
+                active = COALESCE($9, active),
+                config = COALESCE($10, config),
                 updated_at = NOW(),
-                updated_by = $9
+                updated_by = $11
             WHERE tenant_id = $1 AND strategy_id = $2 AND deleted_at IS NULL
             RETURNING
                 strategy_id, tenant_id, name, strategy_type, warehouse_id, product_id,
@@ -299,7 +266,9 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             strategy_id,
             request.name,
             request.strategy_type,
+            request.warehouse_id_provided,
             request.warehouse_id,
+            request.product_id_provided,
             request.product_id,
             request.active,
             request.config,
@@ -315,7 +284,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         &self,
         tenant_id: uuid::Uuid,
         strategy_id: uuid::Uuid,
-        _deleted_by: uuid::Uuid,
+        deleted_by: uuid::Uuid,
     ) -> Result<bool> {
         let result = sqlx::query!(
             r#"
@@ -325,7 +294,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             "#,
             tenant_id,
             strategy_id,
-            _deleted_by
+            deleted_by
         )
         .execute(&self.pool)
         .await?;
@@ -338,7 +307,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         tenant_id: uuid::Uuid,
         strategy_id: uuid::Uuid,
         active: bool,
-        _updated_by: uuid::Uuid,
+        updated_by: uuid::Uuid,
     ) -> Result<RemovalStrategy> {
         let strategy = sqlx::query_as!(
             RemovalStrategy,
@@ -353,7 +322,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             tenant_id,
             strategy_id,
             active,
-            _updated_by
+            updated_by
         )
         .fetch_one(&self.pool)
         .await?;
@@ -367,9 +336,14 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         request: SuggestRemovalRequest,
     ) -> Result<SuggestRemovalResponse> {
         // Get available stock locations for the product in the warehouse
-        let stock_locations = self
+        let mut stock_locations = self
             .get_available_stock_locations(tenant_id, request.warehouse_id, request.product_id)
             .await?;
+
+        // Filter to preferred locations if specified
+        if let Some(preferred_ids) = &request.preferred_location_ids {
+            stock_locations.retain(|loc| preferred_ids.contains(&loc.location_id));
+        }
 
         if stock_locations.is_empty() {
             return Ok(SuggestRemovalResponse {
@@ -427,24 +401,37 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
     ) -> Result<Vec<StockLocationInfo>> {
         let locations = sqlx::query!(
             r#"
+        WITH latest_moves AS (
+            SELECT
+                tenant_id,
+                destination_location_id,
+                product_id,
+                move_date,
+                ROW_NUMBER() OVER (
+                    PARTITION BY tenant_id, destination_location_id, product_id
+                    ORDER BY move_date DESC
+                ) as rn
+            FROM stock_moves
+            WHERE move_type = 'receipt'
+        )
         SELECT
             wl.location_id,
             wl.location_code,
             COALESCE(il.available_quantity, 0) as available_quantity,
-            NULL::UUID as lot_serial_id,
-            NULL::TIMESTAMPTZ as expiry_date,
-            (SELECT move_date FROM stock_moves
-             WHERE tenant_id = wl.tenant_id
-               AND destination_location_id = wl.location_id
-               AND product_id = $3
-               AND move_type = 'in'
-             ORDER BY move_date DESC
-             LIMIT 1) as last_receipt_date
-        FROM warehouse_locations wl
-        LEFT JOIN inventory_levels il ON il.warehouse_id = wl.warehouse_id
+            lsn.lot_serial_id,
+            lsn.expiry_date,
+            lm.move_date as last_receipt_date
+        FROM storage_locations wl
+        LEFT JOIN inventory_levels il ON il.location_id = wl.location_id
             AND il.tenant_id = wl.tenant_id
             AND il.product_id = $3
             AND il.deleted_at IS NULL
+        LEFT JOIN lots_serial_numbers lsn ON lsn.lot_serial_id = il.lot_serial_id
+            AND lsn.tenant_id = wl.tenant_id
+        LEFT JOIN latest_moves lm ON lm.destination_location_id = wl.location_id
+            AND lm.product_id = $3
+            AND lm.tenant_id = wl.tenant_id
+            AND lm.rn = 1
         WHERE wl.tenant_id = $1
           AND wl.warehouse_id = $2
           AND wl.deleted_at IS NULL

@@ -57,8 +57,14 @@ pub struct RemovalStrategyUpdateRequest {
     /// Optional warehouse scope (null for global)
     pub warehouse_id: Option<Uuid>,
 
+    /// Whether warehouse_id field was explicitly provided (to distinguish from not provided)
+    pub warehouse_id_provided: bool,
+
     /// Optional product scope (null for all products)
     pub product_id: Option<Uuid>,
+
+    /// Whether product_id field was explicitly provided (to distinguish from not provided)
+    pub product_id_provided: bool,
 
     /// Active status
     pub active: Option<bool>,
@@ -86,9 +92,15 @@ pub struct RemovalStrategyListQuery {
     /// Search by name
     pub search: Option<String>,
 
-    /// Pagination
-    pub page: Option<u32>,
-    pub page_size: Option<u32>,
+    /// Page number (1-based)
+    #[serde(default = "default_page")]
+    #[validate(range(min = 1))]
+    pub page: u32,
+
+    /// Items per page
+    #[serde(default = "default_page_size")]
+    #[validate(range(min = 1, max = 100))]
+    pub page_size: u32,
 }
 
 /// Response for a single removal strategy
@@ -176,8 +188,14 @@ pub struct StrategyAnalyticsResponse {
     pub period_end: chrono::DateTime<chrono::Utc>,
 }
 
-// Default implementations for optional fields
-// Removed unused default functions
+// Default implementations for pagination fields
+fn default_page() -> u32 {
+    1
+}
+
+fn default_page_size() -> u32 {
+    20
+}
 
 #[cfg(test)]
 mod tests {
@@ -186,15 +204,25 @@ mod tests {
 
     #[test]
     fn test_removal_strategy_create_request_validation() {
-        // Valid request
-        let request = RemovalStrategyCreateRequest {
+        // Valid FIFO request
+        let fifo_request = RemovalStrategyCreateRequest {
             name: "FIFO Strategy".to_string(),
             strategy_type: "fifo".to_string(),
             warehouse_id: Some(Uuid::new_v4()),
             product_id: None,
             config: json!({"priority": "oldest"}),
         };
-        assert!(request.validate().is_ok());
+        assert!(fifo_request.validate().is_ok());
+
+        // Valid LIFO request
+        let lifo_request = RemovalStrategyCreateRequest {
+            name: "LIFO Strategy".to_string(),
+            strategy_type: "lifo".to_string(),
+            warehouse_id: Some(Uuid::new_v4()),
+            product_id: None,
+            config: json!({"priority": "newest"}),
+        };
+        assert!(lifo_request.validate().is_ok());
 
         // Invalid strategy type
         let invalid_request = RemovalStrategyCreateRequest {
@@ -238,5 +266,53 @@ mod tests {
             force_strategy_id: None,
         };
         assert!(invalid_request.validate().is_err());
+    }
+
+    #[test]
+    fn test_removal_strategy_update_request_explicit_null() {
+        // Test that warehouse_id and product_id can be explicitly set to NULL
+        let update_request = RemovalStrategyUpdateRequest {
+            name: Some("Updated Strategy".to_string()),
+            strategy_type: None,
+            warehouse_id: None,          // Explicitly set to NULL
+            warehouse_id_provided: true, // Flag indicates this was explicitly provided
+            product_id: None,            // Explicitly set to NULL
+            product_id_provided: true,   // Flag indicates this was explicitly provided
+            active: Some(true),
+            config: None,
+        };
+
+        // The request should be valid
+        assert!(update_request.validate().is_ok());
+
+        // Verify the flags are set correctly
+        assert_eq!(update_request.warehouse_id_provided, true);
+        assert_eq!(update_request.product_id_provided, true);
+        assert!(update_request.warehouse_id.is_none());
+        assert!(update_request.product_id.is_none());
+    }
+
+    #[test]
+    fn test_removal_strategy_update_request_partial_update() {
+        // Test that fields not provided are not flagged
+        let update_request = RemovalStrategyUpdateRequest {
+            name: Some("Updated Name".to_string()),
+            strategy_type: None,
+            warehouse_id: None, // Not provided (should not change existing value)
+            warehouse_id_provided: false, // Flag indicates this was NOT explicitly provided
+            product_id: Some(Uuid::new_v4()), // Provided value
+            product_id_provided: true, // Flag indicates this was explicitly provided
+            active: None,
+            config: Some(json!({"key": "value"})),
+        };
+
+        // The request should be valid
+        assert!(update_request.validate().is_ok());
+
+        // Verify the flags distinguish provided vs not provided
+        assert_eq!(update_request.warehouse_id_provided, false);
+        assert_eq!(update_request.product_id_provided, true);
+        assert!(update_request.warehouse_id.is_none()); // Not provided
+        assert!(update_request.product_id.is_some()); // Provided
     }
 }

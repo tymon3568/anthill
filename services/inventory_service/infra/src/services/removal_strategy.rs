@@ -62,11 +62,7 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
     ) -> Result<RemovalStrategyListResponse, AppError> {
         let (strategies, total_count) = self.repo.list(tenant_id, query.clone()).await?;
 
-        let pagination = PaginationInfo::new(
-            query.page.unwrap_or(1),
-            query.page_size.unwrap_or(20),
-            total_count,
-        );
+        let pagination = PaginationInfo::new(query.page, query.page_size, total_count);
 
         let responses = strategies
             .into_iter()

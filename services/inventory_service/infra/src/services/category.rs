@@ -91,7 +91,9 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
             code: request.code,
             path: String::new(), // Will be set by database trigger
             level: 0,            // Will be set by database trigger
-            display_order: request.display_order as i32,
+            display_order: i32::try_from(request.display_order).map_err(|_| {
+                AppError::ValidationError("display_order value too large".to_string())
+            })?,
             icon: request.icon,
             color: request.color,
             image_url: request.image_url,
@@ -209,7 +211,9 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
             existing_category.code = Some(code);
         }
         if let Some(display_order) = request.display_order {
-            existing_category.display_order = display_order as i32;
+            existing_category.display_order = i32::try_from(display_order).map_err(|_| {
+                AppError::ValidationError("display_order value too large".to_string())
+            })?;
         }
         if let Some(icon) = request.icon {
             existing_category.icon = Some(icon);
