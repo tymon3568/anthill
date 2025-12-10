@@ -429,8 +429,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
                     ORDER BY move_date DESC
                 ) as rn
             FROM stock_moves
-            WHERE move_type = 'receipt'
-              AND tenant_id = $1
+            WHERE tenant_id = $1
               AND product_id = $3
         )
         SELECT
@@ -446,16 +445,24 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             AND il.product_id = $3
             AND il.deleted_at IS NULL
         LEFT JOIN (
+            WITH latest_lot_locations AS (
+                SELECT
+                    lot_serial_id,
+                    destination_location_id,
+                    ROW_NUMBER() OVER (PARTITION BY lot_serial_id ORDER BY move_date DESC) as rn
+                FROM stock_moves
+                WHERE tenant_id = $1
+                  AND product_id = $3
+            )
             SELECT
-                sm.destination_location_id as location_id,
+                lll.destination_location_id as location_id,
                 lsn.product_id,
                 lsn.tenant_id,
                 MIN(lsn.expiry_date) as min_expiry
             FROM lots_serial_numbers lsn
-            JOIN stock_moves sm ON sm.lot_serial_id = lsn.lot_serial_id
-            WHERE sm.move_type = 'receipt'
-              AND lsn.deleted_at IS NULL
-            GROUP BY sm.destination_location_id, lsn.product_id, lsn.tenant_id
+            JOIN latest_lot_locations lll ON lll.lot_serial_id = lsn.lot_serial_id AND lll.rn = 1
+            WHERE lsn.deleted_at IS NULL
+            GROUP BY lll.destination_location_id, lsn.product_id, lsn.tenant_id
         ) min_expiry ON min_expiry.location_id = wl.location_id
             AND min_expiry.product_id = $3
             AND min_expiry.tenant_id = $1
