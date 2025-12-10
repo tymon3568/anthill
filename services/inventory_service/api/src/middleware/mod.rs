@@ -1,2 +1,5 @@
 //! Custom middleware for the inventory service
-// No middleware implemented yet
+
+pub mod idempotency;
+
+pub use idempotency::*;

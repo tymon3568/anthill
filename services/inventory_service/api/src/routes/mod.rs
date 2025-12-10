@@ -57,6 +57,7 @@ use inventory_service_infra::repositories::transfer::{
 use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
 use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
+use inventory_service_infra::services::distributed_lock::RedisDistributedLockService;
 use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
 use inventory_service_infra::services::picking_method::PickingMethodServiceImpl;
 use inventory_service_infra::services::putaway::PgPutawayService;
@@ -334,6 +335,16 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         nats_client,
     ));
 
+    // Initialize Redis URL for both idempotency and distributed locking
+    let redis_url =
+        std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+
+    // Initialize distributed lock service
+    let distributed_lock_service = Arc::new(
+        RedisDistributedLockService::new(&redis_url)
+            .expect("Failed to initialize distributed lock service"),
+    );
+
     // Initialize receipt repositories and services
     let receipt_repo =
         inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
@@ -341,6 +352,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let receipt_service = inventory_service_infra::services::receipt::ReceiptServiceImpl::new(
         Arc::new(receipt_repo),
         product_repo.clone(),
+        distributed_lock_service.clone(),
     );
 
     // Initialize putaway repositories and services
@@ -357,6 +369,17 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             + Sync,
     > = Arc::new(PickingMethodRepositoryImpl::new(pool.clone()));
     let picking_method_service = Arc::new(PickingMethodServiceImpl::new(picking_method_repo));
+
+    // Initialize idempotency state
+    let idempotency_config = crate::middleware::IdempotencyConfig {
+        redis_url: redis_url.clone(),
+        ttl_seconds: 24 * 60 * 60, // 24 hours
+        header_name: "x-idempotency-key".to_string(),
+    };
+    let idempotency_state = Arc::new(
+        crate::middleware::IdempotencyState::new(idempotency_config)
+            .expect("Failed to initialize idempotency state"),
+    );
 
     // Create application state
     let state = AppState {
@@ -378,6 +401,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: create_kanidm_client(config),
+        idempotency_state: idempotency_state.clone(),
+        distributed_lock_service: distributed_lock_service.clone(),
     };
 
     // Create AuthzState for middleware
@@ -464,6 +489,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(Extension(pool.clone()))
         .layer(Extension(config.clone()))
         .layer(Extension(state))
+        .layer(axum::middleware::from_fn_with_state(
+            idempotency_state,
+            crate::middleware::idempotency_middleware,
+        ))
         .layer(axum::middleware::from_fn(casbin_middleware))
         .layer(Extension(authz_state));
 

@@ -8,6 +8,7 @@ use inventory_service_core::repositories::putaway::PutawayService;
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::delivery::DeliveryService;
+use inventory_service_core::services::distributed_lock::DistributedLockService;
 use inventory_service_core::services::lot_serial::LotSerialService;
 use inventory_service_core::services::picking_method::PickingMethodService;
 use inventory_service_core::services::product::ProductService;
@@ -23,6 +24,8 @@ use inventory_service_core::services::valuation::ValuationService;
 use shared_auth::enforcer::SharedEnforcer;
 use shared_auth::extractors::{JwtSecretProvider, KanidmClientProvider};
 use shared_kanidm_client::KanidmClient;
+
+use crate::middleware::IdempotencyState;
 
 /// Application state for inventory service
 pub struct AppState {
@@ -41,9 +44,11 @@ pub struct AppState {
     pub replenishment_service: Arc<dyn ReplenishmentService>,
     pub quality_service: Arc<dyn QualityControlPointService>,
     pub putaway_service: Arc<dyn PutawayService>,
+    pub distributed_lock_service: Arc<dyn DistributedLockService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
     pub kanidm_client: KanidmClient,
+    pub idempotency_state: Arc<IdempotencyState>,
 }
 
 impl Clone for AppState {
@@ -64,9 +69,11 @@ impl Clone for AppState {
             replenishment_service: self.replenishment_service.clone(),
             quality_service: self.quality_service.clone(),
             putaway_service: self.putaway_service.clone(),
+            distributed_lock_service: self.distributed_lock_service.clone(),
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),
             kanidm_client: self.kanidm_client.clone(),
+            idempotency_state: self.idempotency_state.clone(),
         }
     }
 }

@@ -1,9 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct QualityControlPoint {
     pub qc_point_id: Uuid,
     pub tenant_id: Uuid,
@@ -16,7 +18,8 @@ pub struct QualityControlPoint {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[sqlx(type_name = "qc_point_type", rename_all = "snake_case")]
 pub enum QcPointType {
     Incoming,
@@ -24,7 +27,8 @@ pub enum QcPointType {
     Internal,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateQualityControlPoint {
     pub name: String,
     pub r#type: QcPointType,
@@ -32,7 +36,8 @@ pub struct CreateQualityControlPoint {
     pub warehouse_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateQualityControlPoint {
     pub name: Option<String>,
     pub r#type: Option<QcPointType>,

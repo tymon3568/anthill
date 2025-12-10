@@ -47,15 +47,15 @@ impl IdempotencyState {
 
     /// Check if a request with the given idempotency key has already been processed
     pub async fn is_processed(&self, key: &str) -> Result<bool, redis::RedisError> {
-        let mut conn = self.redis_client.get_async_connection().await?;
+        let mut conn = self.redis_client.get_multiplexed_async_connection().await?;
         let exists: bool = conn.exists(key).await?;
         Ok(exists)
     }
 
     /// Mark a request as processed with TTL
     pub async fn mark_processed(&self, key: &str) -> Result<(), redis::RedisError> {
-        let mut conn = self.redis_client.get_async_connection().await?;
-        conn.set_ex(key, "processed", self.config.ttl_seconds)
+        let mut conn = self.redis_client.get_multiplexed_async_connection().await?;
+        conn.set_ex::<_, _, ()>(key, "processed", self.config.ttl_seconds)
             .await?;
         Ok(())
     }

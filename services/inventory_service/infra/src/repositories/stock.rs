@@ -242,6 +242,7 @@ impl PgInventoryLevelRepository {
 
     /// Internal helper: Update available quantity within a transaction
     /// This is used by services for transactional orchestration
+    /// Note: Assumes the transaction already holds the necessary locks
     pub async fn update_available_quantity_with_tx<'a>(
         &self,
         mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
@@ -250,6 +251,9 @@ impl PgInventoryLevelRepository {
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<sqlx::Transaction<'a, sqlx::Postgres>, AppError> {
+        // Note: In transactional context, the caller should have already acquired
+        // the necessary locks (e.g., SELECT ... FOR UPDATE) before calling this method
+
         let result = sqlx::query!(
             r#"
             UPDATE inventory_levels
@@ -312,6 +316,37 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError> {
+        // Start a transaction for atomic update with row locking
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        // First, select the row with FOR UPDATE to prevent race conditions
+        let current_level = sqlx::query!(
+            r#"
+            SELECT available_quantity, reserved_quantity
+            FROM inventory_levels
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
+            FOR UPDATE
+            "#,
+            tenant_id,
+            warehouse_id,
+            product_id
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        if current_level.is_none() {
+            return Err(AppError::NotFound(format!(
+                "Inventory level not found for product {} in warehouse {}",
+                product_id, warehouse_id
+            )));
+        }
+
+        // Update the quantity
         sqlx::query!(
             r#"
             UPDATE inventory_levels
@@ -324,9 +359,14 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
             product_id,
             quantity_change
         )
-        .execute(&*self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        // Commit the transaction
+        tx.commit()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }
@@ -339,25 +379,70 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         available_quantity: i64,
         reserved_quantity: i64,
     ) -> Result<(), AppError> {
-        sqlx::query!(
+        // Start a transaction for atomic upsert with row locking
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        // First, try to select and lock the existing row
+        let existing = sqlx::query!(
             r#"
-            INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (tenant_id, warehouse_id, product_id)
-            DO UPDATE SET
-                available_quantity = inventory_levels.available_quantity + EXCLUDED.available_quantity,
-                reserved_quantity = inventory_levels.reserved_quantity + EXCLUDED.reserved_quantity,
-                updated_at = NOW()
+            SELECT available_quantity, reserved_quantity
+            FROM inventory_levels
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
+            FOR UPDATE
             "#,
             tenant_id,
             warehouse_id,
-            product_id,
-            available_quantity,
-            reserved_quantity
+            product_id
         )
-        .execute(&*self.pool)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        if let Some(existing_level) = existing {
+            // Update existing row
+            sqlx::query!(
+                r#"
+                UPDATE inventory_levels
+                SET available_quantity = $4,
+                    reserved_quantity = $5,
+                    updated_at = NOW()
+                WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
+                "#,
+                tenant_id,
+                warehouse_id,
+                product_id,
+                existing_level.available_quantity + available_quantity,
+                existing_level.reserved_quantity + reserved_quantity
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        } else {
+            // Insert new row
+            sqlx::query!(
+                r#"
+                INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity)
+                VALUES ($1, $2, $3, $4, $5)
+                "#,
+                tenant_id,
+                warehouse_id,
+                product_id,
+                available_quantity,
+                reserved_quantity
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        }
+
+        // Commit the transaction
+        tx.commit()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(())
     }

@@ -1,0 +1,326 @@
+//! Distributed locking service implementation
+//!
+//! Redis-based implementation of distributed locking for preventing
+//! race conditions during concurrent stock mutations.
+
+use async_trait::async_trait;
+use redis::AsyncCommands;
+
+use uuid::Uuid;
+
+use inventory_service_core::services::distributed_lock::DistributedLockService;
+use inventory_service_core::Result;
+
+/// Redis-based implementation of DistributedLockService
+pub struct RedisDistributedLockService {
+    redis_client: redis::Client,
+}
+
+impl RedisDistributedLockService {
+    /// Create new service instance
+    pub fn new(redis_url: &str) -> Result<Self> {
+        let redis_client = redis::Client::open(redis_url).map_err(|e| {
+            shared_error::AppError::InternalError(format!("Redis client error: {}", e))
+        })?;
+
+        Ok(Self { redis_client })
+    }
+
+    /// Generate lock key
+    fn lock_key(&self, tenant_id: Uuid, resource_type: &str, resource_id: &str) -> String {
+        format!("lock:{}:{}:{}", tenant_id, resource_type, resource_id)
+    }
+
+    /// Generate unique lock token
+    fn generate_lock_token(&self) -> String {
+        Uuid::now_v7().to_string()
+    }
+}
+
+#[async_trait]
+impl DistributedLockService for RedisDistributedLockService {
+    async fn acquire_lock(
+        &self,
+        tenant_id: Uuid,
+        resource_type: &str,
+        resource_id: &str,
+        ttl_seconds: u32,
+    ) -> Result<Option<String>> {
+        let lock_key = self.lock_key(tenant_id, resource_type, resource_id);
+        let lock_token = self.generate_lock_token();
+
+        let mut conn = self
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis connection error: {}", e))
+            })?;
+
+        // Use Lua script for atomic SET NX EX operation
+        let script = r#"
+            if redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2]) then
+                return "OK"
+            else
+                return nil
+            end
+        "#;
+
+        let result: Option<String> = redis::Script::new(script)
+            .key(&lock_key)
+            .arg(&lock_token)
+            .arg(ttl_seconds)
+            .invoke_async(&mut conn)
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis script error: {}", e))
+            })?;
+
+        match result {
+            Some(_) => Ok(Some(lock_token)),
+            None => Ok(None), // Lock already exists
+        }
+    }
+
+    async fn release_lock(
+        &self,
+        tenant_id: Uuid,
+        resource_type: &str,
+        resource_id: &str,
+        lock_token: &str,
+    ) -> Result<bool> {
+        let lock_key = self.lock_key(tenant_id, resource_type, resource_id);
+
+        let mut conn = self
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis connection error: {}", e))
+            })?;
+
+        // Lua script for atomic check-and-delete
+        let script = r#"
+            if redis.call("GET", KEYS[1]) == ARGV[1] then
+                return redis.call("DEL", KEYS[1])
+            else
+                return 0
+            end
+        "#;
+
+        let result: i32 = redis::Script::new(script)
+            .key(&lock_key)
+            .arg(lock_token)
+            .invoke_async(&mut conn)
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis script error: {}", e))
+            })?;
+
+        Ok(result == 1)
+    }
+
+    async fn is_locked(
+        &self,
+        tenant_id: Uuid,
+        resource_type: &str,
+        resource_id: &str,
+    ) -> Result<bool> {
+        let lock_key = self.lock_key(tenant_id, resource_type, resource_id);
+
+        let mut conn = self
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis connection error: {}", e))
+            })?;
+
+        let exists: bool = conn.exists(&lock_key).await.map_err(|e| {
+            shared_error::AppError::InternalError(format!("Redis exists error: {}", e))
+        })?;
+
+        Ok(exists)
+    }
+
+    async fn extend_lock(
+        &self,
+        tenant_id: Uuid,
+        resource_type: &str,
+        resource_id: &str,
+        lock_token: &str,
+        ttl_seconds: u32,
+    ) -> Result<bool> {
+        let lock_key = self.lock_key(tenant_id, resource_type, resource_id);
+
+        let mut conn = self
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis connection error: {}", e))
+            })?;
+
+        // Lua script for atomic check-and-extend
+        let script = r#"
+            if redis.call("GET", KEYS[1]) == ARGV[1] then
+                return redis.call("EXPIRE", KEYS[1], ARGV[2])
+            else
+                return 0
+            end
+        "#;
+
+        let result: i32 = redis::Script::new(script)
+            .key(&lock_key)
+            .arg(lock_token)
+            .arg(ttl_seconds)
+            .invoke_async(&mut conn)
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis script error: {}", e))
+            })?;
+
+        Ok(result == 1)
+    }
+
+    async fn force_release_lock(
+        &self,
+        tenant_id: Uuid,
+        resource_type: &str,
+        resource_id: &str,
+    ) -> Result<bool> {
+        let lock_key = self.lock_key(tenant_id, resource_type, resource_id);
+
+        let mut conn = self
+            .redis_client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|e| {
+                shared_error::AppError::InternalError(format!("Redis connection error: {}", e))
+            })?;
+
+        let result: i32 = conn.del(&lock_key).await.map_err(|e| {
+            shared_error::AppError::InternalError(format!("Redis del error: {}", e))
+        })?;
+
+        Ok(result == 1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::time::sleep;
+
+    // Note: These tests require a Redis instance running on localhost:6379
+    // In CI/CD, you might want to use testcontainers or mock the Redis client
+
+    #[tokio::test]
+    async fn test_lock_acquisition_and_release() {
+        let service = RedisDistributedLockService::new("redis://localhost:6379").unwrap();
+        let tenant_id = Uuid::now_v7();
+        let resource_type = "product_warehouse";
+        let resource_id = "product123:warehouse456";
+
+        // Acquire lock
+        let lock_token = service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
+            .await
+            .unwrap();
+        assert!(lock_token.is_some());
+
+        // Check if locked
+        let is_locked = service
+            .is_locked(tenant_id, resource_type, resource_id)
+            .await
+            .unwrap();
+        assert!(is_locked);
+
+        // Release lock
+        let released = service
+            .release_lock(tenant_id, resource_type, resource_id, &lock_token.unwrap())
+            .await
+            .unwrap();
+        assert!(released);
+
+        // Check if unlocked
+        let is_locked = service
+            .is_locked(tenant_id, resource_type, resource_id)
+            .await
+            .unwrap();
+        assert!(!is_locked);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_lock_attempts() {
+        let service = RedisDistributedLockService::new("redis://localhost:6379").unwrap();
+        let tenant_id = Uuid::now_v7();
+        let resource_type = "product_warehouse";
+        let resource_id = "product123:warehouse456";
+
+        // First lock acquisition
+        let lock_token1 = service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
+            .await
+            .unwrap();
+        assert!(lock_token1.is_some());
+
+        // Second lock attempt should fail
+        let lock_token2 = service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
+            .await
+            .unwrap();
+        assert!(lock_token2.is_none());
+
+        // Release first lock
+        service
+            .release_lock(tenant_id, resource_type, resource_id, &lock_token1.unwrap())
+            .await
+            .unwrap();
+
+        // Now second attempt should succeed
+        let lock_token3 = service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
+            .await
+            .unwrap();
+        assert!(lock_token3.is_some());
+
+        // Clean up
+        service
+            .release_lock(tenant_id, resource_type, resource_id, &lock_token3.unwrap())
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_lock_expiration() {
+        let service = RedisDistributedLockService::new("redis://localhost:6379").unwrap();
+        let tenant_id = Uuid::now_v7();
+        let resource_type = "product_warehouse";
+        let resource_id = "product123:warehouse456";
+
+        // Acquire lock with short TTL
+        let lock_token = service
+            .acquire_lock(tenant_id, resource_type, resource_id, 1)
+            .await
+            .unwrap();
+        assert!(lock_token.is_some());
+
+        // Wait for expiration
+        sleep(Duration::from_secs(2)).await;
+
+        // Lock should be available again
+        let new_lock_token = service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
+            .await
+            .unwrap();
+        assert!(new_lock_token.is_some());
+
+        // Clean up
+        service
+            .release_lock(tenant_id, resource_type, resource_id, &new_lock_token.unwrap())
+            .await
+            .unwrap();
+    }
+}

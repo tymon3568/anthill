@@ -14,6 +14,7 @@ use inventory_service_core::dto::receipt::{
 };
 use inventory_service_core::repositories::product::ProductRepository;
 use inventory_service_core::repositories::receipt::ReceiptRepository;
+use inventory_service_core::services::distributed_lock::DistributedLockService;
 use inventory_service_core::services::receipt::ReceiptService;
 use shared_error::AppError;
 
@@ -21,37 +22,46 @@ use shared_error::AppError;
 ///
 /// Orchestrates the creation and management of Goods Receipt Notes (GRN)
 /// with proper validation, transaction management, and side effects.
-pub struct ReceiptServiceImpl<R, P> {
+pub struct ReceiptServiceImpl<R, P, L> {
     receipt_repository: Arc<R>,
     product_repository: Arc<P>,
+    distributed_lock_service: Arc<L>,
 }
 
-impl<R, P> ReceiptServiceImpl<R, P>
+impl<R, P, L> ReceiptServiceImpl<R, P, L>
 where
     R: ReceiptRepository + Send + Sync,
     P: ProductRepository + Send + Sync,
+    L: DistributedLockService + Send + Sync,
 {
     /// Create a new ReceiptServiceImpl
     ///
     /// # Arguments
     /// * `receipt_repository` - Repository for receipt operations
     /// * `product_repository` - Repository for product operations
+    /// * `distributed_lock_service` - Service for distributed locking
     ///
     /// # Returns
     /// New ReceiptServiceImpl instance
-    pub fn new(receipt_repository: Arc<R>, product_repository: Arc<P>) -> Self {
+    pub fn new(
+        receipt_repository: Arc<R>,
+        product_repository: Arc<P>,
+        distributed_lock_service: Arc<L>,
+    ) -> Self {
         Self {
             receipt_repository,
             product_repository,
+            distributed_lock_service,
         }
     }
 }
 
 #[async_trait]
-impl<R, P> ReceiptService for ReceiptServiceImpl<R, P>
+impl<R, P, L> ReceiptService for ReceiptServiceImpl<R, P, L>
 where
     R: ReceiptRepository + Send + Sync,
     P: ProductRepository + Send + Sync,
+    L: DistributedLockService + Send + Sync,
 {
     /// Create a new goods receipt note with validation and side effects
     async fn create_receipt(
@@ -66,13 +76,52 @@ where
         // Generate idempotency key from request data
         let idempotency_key = generate_idempotency_key(&request);
 
+        // Acquire distributed locks for all product-warehouse combinations
+        let mut acquired_locks = Vec::new();
+        for item in &request.items {
+            let lock_key = format!("{}:{}", item.product_id, request.warehouse_id);
+            match self
+                .distributed_lock_service
+                .acquire_lock(
+                    tenant_id,
+                    "product_warehouse",
+                    &lock_key,
+                    300, // 5 minutes TTL
+                )
+                .await?
+            {
+                Some(lock_token) => acquired_locks.push((lock_key, lock_token)),
+                None => {
+                    // Failed to acquire lock, release all previously acquired locks
+                    for (key, token) in acquired_locks {
+                        let _ = self
+                            .distributed_lock_service
+                            .release_lock(tenant_id, "product_warehouse", &key, &token)
+                            .await; // Ignore errors during cleanup
+                    }
+                    return Err(AppError::Conflict(format!(
+                        "Unable to acquire lock for product {} in warehouse {}",
+                        item.product_id, request.warehouse_id
+                    )));
+                },
+            }
+        }
+
         // Create receipt, items, stock moves, and outbox event in a single transaction
-        let receipt = self
+        let receipt_result = self
             .receipt_repository
             .create_receipt(tenant_id, user_id, &request, &idempotency_key)
-            .await?;
+            .await;
 
-        Ok(receipt)
+        // Release all acquired locks
+        for (key, token) in acquired_locks {
+            let _ = self
+                .distributed_lock_service
+                .release_lock(tenant_id, "product_warehouse", &key, &token)
+                .await; // Ignore errors during cleanup
+        }
+
+        receipt_result
     }
 
     /// Get a receipt by ID with full details
@@ -346,6 +395,66 @@ mod tests {
         assert!(request.validate().is_ok());
     }
 
+    // Dummy distributed lock service for testing
+    struct DummyDistributedLockService;
+
+    #[async_trait]
+    impl DistributedLockService for DummyDistributedLockService {
+        async fn acquire_lock(
+            &self,
+            _tenant_id: Uuid,
+            _resource_type: &str,
+            _resource_id: &str,
+            _ttl_seconds: u32,
+        ) -> Result<Option<String>, AppError> {
+            // Always succeed for tests
+            Ok(Some("dummy-token".to_string()))
+        }
+
+        async fn release_lock(
+            &self,
+            _tenant_id: Uuid,
+            _resource_type: &str,
+            _resource_id: &str,
+            _lock_token: &str,
+        ) -> Result<bool, AppError> {
+            // Always succeed for tests
+            Ok(true)
+        }
+
+        async fn is_locked(
+            &self,
+            _tenant_id: Uuid,
+            _resource_type: &str,
+            _resource_id: &str,
+        ) -> Result<bool, AppError> {
+            // Never locked for tests
+            Ok(false)
+        }
+
+        async fn extend_lock(
+            &self,
+            _tenant_id: Uuid,
+            _resource_type: &str,
+            _resource_id: &str,
+            _lock_token: &str,
+            _ttl_seconds: u32,
+        ) -> Result<bool, AppError> {
+            // Always succeed for tests
+            Ok(true)
+        }
+
+        async fn force_release_lock(
+            &self,
+            _tenant_id: Uuid,
+            _resource_type: &str,
+            _resource_id: &str,
+        ) -> Result<bool, AppError> {
+            // Always succeed for tests
+            Ok(true)
+        }
+    }
+
     // Dummy repositories for testing service-level validation
     struct DummyReceiptRepository;
 
@@ -569,7 +678,8 @@ mod tests {
         let tenant_id = Uuid::new_v4();
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -601,7 +711,8 @@ mod tests {
         let tenant_id = Uuid::new_v4();
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
         let request = ReceiptCreateRequest {
             warehouse_id: Uuid::new_v4(),
             supplier_id: None,
@@ -621,7 +732,8 @@ mod tests {
     async fn test_service_validation_invalid_nil_warehouse() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -655,7 +767,8 @@ mod tests {
     async fn test_service_validation_invalid_nil_product() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -689,7 +802,8 @@ mod tests {
     async fn test_service_validation_invalid_zero_received_quantity() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -723,7 +837,8 @@ mod tests {
     async fn test_service_validation_invalid_negative_expected_quantity() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -757,7 +872,8 @@ mod tests {
     async fn test_service_validation_invalid_negative_unit_cost() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let request = ReceiptCreateRequest {
@@ -791,7 +907,8 @@ mod tests {
     async fn test_service_validation_lot_tracked_requires_lot_number() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         // Uuid::from_u128(1) has as_u128() % 3 == 1, so tracking_method = "lot"
@@ -830,7 +947,8 @@ mod tests {
     async fn test_service_validation_lot_tracked_valid() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let lot_product_id = Uuid::from_u128(1); // tracking_method = "lot"
@@ -864,7 +982,8 @@ mod tests {
     async fn test_service_validation_serial_tracked_requires_serial_numbers() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
@@ -902,7 +1021,8 @@ mod tests {
     async fn test_service_validation_serial_tracked_wrong_count() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
@@ -940,7 +1060,8 @@ mod tests {
     async fn test_service_validation_serial_tracked_not_array() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
@@ -975,7 +1096,8 @@ mod tests {
     async fn test_service_validation_serial_tracked_non_string_elements() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
@@ -1010,7 +1132,8 @@ mod tests {
     async fn test_service_validation_serial_tracked_duplicate_serials() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
@@ -1048,7 +1171,8 @@ mod tests {
     async fn test_service_validation_serial_tracked_valid() {
         let receipt_repo = Arc::new(DummyReceiptRepository);
         let product_repo = Arc::new(DummyProductRepository);
-        let service = ReceiptServiceImpl::new(receipt_repo, product_repo);
+        let lock_service = Arc::new(DummyDistributedLockService);
+        let service = ReceiptServiceImpl::new(receipt_repo, product_repo, lock_service);
 
         let tenant_id = Uuid::new_v4();
         let serial_product_id = Uuid::from_u128(2); // tracking_method = "serial"
