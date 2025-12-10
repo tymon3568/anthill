@@ -430,19 +430,35 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
                 ) as rn
             FROM stock_moves
             WHERE move_type = 'receipt'
+              AND tenant_id = $1
+              AND product_id = $3
         )
         SELECT
             wl.location_id,
             wl.location_code,
             COALESCE(il.available_quantity, 0) as available_quantity,
             NULL::UUID as lot_serial_id,
-            NULL::TIMESTAMPTZ as expiry_date,
+            min_expiry.min_expiry as expiry_date,
             lm.move_date as last_receipt_date
         FROM storage_locations wl
         LEFT JOIN inventory_levels il ON il.warehouse_id = wl.warehouse_id
             AND il.tenant_id = wl.tenant_id
             AND il.product_id = $3
             AND il.deleted_at IS NULL
+        LEFT JOIN (
+            SELECT
+                sm.destination_location_id as location_id,
+                lsn.product_id,
+                lsn.tenant_id,
+                MIN(lsn.expiry_date) as min_expiry
+            FROM lots_serial_numbers lsn
+            JOIN stock_moves sm ON sm.lot_serial_id = lsn.lot_serial_id
+            WHERE sm.move_type = 'receipt'
+              AND lsn.deleted_at IS NULL
+            GROUP BY sm.destination_location_id, lsn.product_id, lsn.tenant_id
+        ) min_expiry ON min_expiry.location_id = wl.location_id
+            AND min_expiry.product_id = $3
+            AND min_expiry.tenant_id = $1
         LEFT JOIN latest_moves lm ON lm.destination_location_id = wl.location_id
             AND lm.product_id = $3
             AND lm.tenant_id = wl.tenant_id
@@ -462,7 +478,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             location_code: row.location_code,
             available_quantity: row.available_quantity.unwrap_or(0),
             lot_serial_id: None,
-            expiry_date: None,
+            expiry_date: row.expiry_date,
             last_receipt_date: Some(row.last_receipt_date),
         })
         .fetch_all(&self.pool)
