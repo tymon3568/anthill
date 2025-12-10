@@ -4,8 +4,8 @@
 //! using PostgreSQL as the data store. It handles all database operations for removal strategies.
 
 use async_trait::async_trait;
-use sqlx::postgres::PgRow;
-use sqlx::{PgPool, Row};
+
+use sqlx::PgPool;
 
 use inventory_service_core::domains::inventory::removal_strategy::RemovalStrategy;
 use inventory_service_core::dto::removal_strategy::{
@@ -196,8 +196,25 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
         data_builder.push(" OFFSET ");
         data_builder.push_bind(offset);
 
-        let data_query = data_builder.build_query_as::<RemovalStrategy>();
-        let strategies = data_query.fetch_all(&self.pool).await?;
+        let data_query = data_builder.build();
+        let strategies = data_query
+            .map(|row: sqlx::postgres::PgRow| RemovalStrategy {
+                strategy_id: row.get("strategy_id"),
+                tenant_id: row.get("tenant_id"),
+                name: row.get("name"),
+                strategy_type: row.get("strategy_type"),
+                warehouse_id: row.get("warehouse_id"),
+                product_id: row.get("product_id"),
+                active: row.get("active"),
+                config: row.get("config"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                deleted_at: row.get("deleted_at"),
+                created_by: row.get("created_by"),
+                updated_by: row.get("updated_by"),
+            })
+            .fetch_all(&self.pool)
+            .await?;
 
         Ok((strategies, count as u64))
     }
@@ -422,7 +439,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             lsn.expiry_date,
             lm.move_date as last_receipt_date
         FROM storage_locations wl
-        LEFT JOIN inventory_levels il ON il.location_id = wl.location_id
+        LEFT JOIN inventory_levels il ON il.warehouse_id = wl.warehouse_id
             AND il.tenant_id = wl.tenant_id
             AND il.product_id = $3
             AND il.deleted_at IS NULL
