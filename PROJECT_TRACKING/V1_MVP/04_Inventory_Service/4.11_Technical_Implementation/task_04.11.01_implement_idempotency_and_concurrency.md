@@ -77,6 +77,13 @@ Implement critical technical features to ensure data integrity and reliability i
     - All changes committed and pushed to feature branch
     - Status: Ready for human review
     - Files modified: stock.rs, idempotency.rs, receipt.rs, Cargo.toml files, task file
+*   2025-12-10 16:00: Applied additional fixes for critical issues
+    - Fixed lock deduplication and sorting in receipt service to prevent deadlocks
+    - Fixed lock leak when acquire_lock returns error by ensuring cleanup of acquired locks
+    - Fixed type mismatch in idempotency middleware TTL (no cast needed)
+    - All changes committed, pushed, and quality gates passed
+    - Status: NeedsReview
+    - Files modified: receipt.rs, idempotency.rs
 
 ## Unresolved PR Review Issues:
 - **Comment ID/Overall**: Race condition in upsert_inventory_level implementation. **Reviewer**: sourcery-ai. **Severity**: Critical. **Suggested Fix**: Use INSERT ... ON CONFLICT instead of SELECT FOR UPDATE followed by conditional UPDATE/INSERT.
