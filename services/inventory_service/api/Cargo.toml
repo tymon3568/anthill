@@ -18,7 +18,7 @@ hyper-util = {version = "0.1.17", features = ["full"]}
 inventory_service_core = {workspace = true, features = ["openapi"]}
 inventory_service_infra = {workspace = true}
 # Redis for caching and distributed locking
-redis = {version = "0.27", features = ["tokio-comp", "connection-manager"]}
+redis = {workspace = true}
 # Serialization
 serde = {workspace = true}
 serde_json = {workspace = true}
