@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use inventory_service_core::domains::inventory::removal_strategy::RemovalStrategy;
 use inventory_service_core::dto::removal_strategy::{
@@ -435,16 +435,14 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             wl.location_id,
             wl.location_code,
             COALESCE(il.available_quantity, 0) as available_quantity,
-            lsn.lot_serial_id,
-            lsn.expiry_date,
+            NULL::UUID as lot_serial_id,
+            NULL::TIMESTAMPTZ as expiry_date,
             lm.move_date as last_receipt_date
         FROM storage_locations wl
         LEFT JOIN inventory_levels il ON il.warehouse_id = wl.warehouse_id
             AND il.tenant_id = wl.tenant_id
             AND il.product_id = $3
             AND il.deleted_at IS NULL
-        LEFT JOIN lots_serial_numbers lsn ON lsn.lot_serial_id = il.lot_serial_id
-            AND lsn.tenant_id = wl.tenant_id
         LEFT JOIN latest_moves lm ON lm.destination_location_id = wl.location_id
             AND lm.product_id = $3
             AND lm.tenant_id = wl.tenant_id
@@ -463,9 +461,9 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             location_id: row.location_id,
             location_code: row.location_code,
             available_quantity: row.available_quantity.unwrap_or(0),
-            lot_serial_id: row.lot_serial_id,
-            expiry_date: row.expiry_date,
-            last_receipt_date: row.last_receipt_date,
+            lot_serial_id: None,
+            expiry_date: None,
+            last_receipt_date: Some(row.last_receipt_date),
         })
         .fetch_all(&self.pool)
         .await?;
