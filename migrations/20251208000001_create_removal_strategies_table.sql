@@ -3,8 +3,7 @@
 -- Dependencies: tenants (20250110000002), warehouses (20250110000023), products (20250110000017)
 -- Created: 2025-12-08
 
--- Define ENUM type for removal strategy types
-CREATE TYPE removal_strategy_type AS ENUM ('fifo', 'lifo', 'fefo', 'closest_location', 'least_packages');
+-- Use VARCHAR with CHECK constraint for removal strategy types
 
 -- ==================================
 -- REMOVAL_STRATEGIES TABLE (Inventory Removal Strategy Configuration)
@@ -21,7 +20,7 @@ CREATE TABLE removal_strategies (
 
     -- Strategy identification
     name VARCHAR(100) NOT NULL,
-    strategy_type removal_strategy_type NOT NULL,
+    strategy_type VARCHAR(20) NOT NULL CHECK (strategy_type IN ('fifo', 'lifo', 'fefo', 'closest_location', 'least_packages')),
 
     -- Scope: warehouse-wide or product-specific
     warehouse_id UUID,           -- NULL for global strategies, specific warehouse otherwise

@@ -27,9 +27,9 @@ pub use receipt::{
 pub use reconciliation::{
     ApproveReconciliationRequest, ApproveReconciliationResponse, CountReconciliationRequest,
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
-    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
-    ReconciliationCountItem, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, VarianceAnalysisResponse,
+    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsQuery,
+    ReconciliationAnalyticsResponse, ReconciliationCountItem, ReconciliationDetailResponse,
+    ReconciliationListQuery, ReconciliationListResponse, VarianceAnalysisResponse,
 };
 pub use removal_strategy::{
     RemovalStrategyCreateRequest, RemovalStrategyListQuery, RemovalStrategyListResponse,

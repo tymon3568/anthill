@@ -36,11 +36,9 @@ pub struct RemovalStrategyCreateRequest {
 
     /// Optional warehouse scope (null for global)
     pub warehouse_id: Option<Uuid>,
-
-    /// Optional product scope (null for all products)
     pub product_id: Option<Uuid>,
 
-    /// Strategy configuration (JSON)
+    /// Configuration
     pub config: serde_json::Value,
 }
 
@@ -85,14 +83,11 @@ pub struct RemovalStrategyListQuery {
     /// Filter by active status
     pub active: Option<bool>,
 
-    /// Search in name
+    /// Search by name
     pub search: Option<String>,
 
     /// Pagination
-    #[validate(range(min = 1))]
     pub page: Option<u32>,
-
-    #[validate(range(min = 1, max = 100))]
     pub page_size: Option<u32>,
 }
 

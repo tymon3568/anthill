@@ -30,3 +30,38 @@ impl PaginationInfo {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pagination_info() {
+        let info = PaginationInfo::new(1, 20, 100);
+        assert_eq!(info.page, 1);
+        assert_eq!(info.page_size, 20);
+        assert_eq!(info.total_items, 100);
+        assert_eq!(info.total_pages, 5);
+        assert!(info.has_next);
+        assert!(!info.has_prev);
+
+        let info = PaginationInfo::new(3, 20, 100);
+        assert!(info.has_next);
+        assert!(info.has_prev);
+
+        let info = PaginationInfo::new(5, 20, 100);
+        assert!(!info.has_next);
+        assert!(info.has_prev);
+
+        // Edge cases
+        let info = PaginationInfo::new(1, 10, 0);
+        assert_eq!(info.total_pages, 0);
+        assert!(!info.has_next);
+        assert!(!info.has_prev);
+
+        let info = PaginationInfo::new(1, 10, 1);
+        assert_eq!(info.total_pages, 1);
+        assert!(!info.has_next);
+        assert!(!info.has_prev);
+    }
+}

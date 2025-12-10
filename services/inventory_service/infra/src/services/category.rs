@@ -91,7 +91,7 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
             code: request.code,
             path: String::new(), // Will be set by database trigger
             level: 0,            // Will be set by database trigger
-            display_order: request.display_order,
+            display_order: request.display_order as i32,
             icon: request.icon,
             color: request.color,
             image_url: request.image_url,
@@ -209,7 +209,7 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
             existing_category.code = Some(code);
         }
         if let Some(display_order) = request.display_order {
-            existing_category.display_order = display_order;
+            existing_category.display_order = display_order as i32;
         }
         if let Some(icon) = request.icon {
             existing_category.icon = Some(icon);
@@ -301,10 +301,10 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
         let category_responses = categories.into_iter().map(CategoryResponse::from).collect();
 
         // Create pagination info
-        let pagination = inventory_service_core::dto::category::PaginationInfo::new(
+        let pagination = inventory_service_core::dto::common::PaginationInfo::new(
             query.page,
             query.page_size,
-            total_count,
+            total_count as u64,
         );
 
         Ok(CategoryListResponse {
@@ -412,7 +412,7 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
 
         Ok(BulkOperationResponse {
             success: true,
-            affected_count: count,
+            affected_count: count as u32,
             message: format!("Moved {} products to category", count),
         })
     }
@@ -505,7 +505,7 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
 
         Ok(BulkOperationResponse {
             success: true,
-            affected_count: count,
+            affected_count: count as u32,
             message: format!("Activated {} categories", count),
         })
     }
@@ -530,7 +530,7 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
 
         Ok(BulkOperationResponse {
             success: true,
-            affected_count: count,
+            affected_count: count as u32,
             message: format!("Deactivated {} categories", count),
         })
     }
@@ -552,7 +552,7 @@ impl<R: CategoryRepository + 'static> CategoryService for CategoryServiceImpl<R>
 
         Ok(BulkOperationResponse {
             success: true,
-            affected_count: count,
+            affected_count: count as u32,
             message: format!("Deleted {} categories", count),
         })
     }

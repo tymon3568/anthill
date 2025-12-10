@@ -427,36 +427,30 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
     ) -> Result<Vec<StockLocationInfo>> {
         let locations = sqlx::query!(
             r#"
-            SELECT
-                wl.location_id,
-                wl.location_code,
-                COALESCE(il.available_quantity, 0) as available_quantity,
-                lsn.lot_serial_id,
-                lsn.expiry_date,
-                sm.move_date as last_receipt_date
-            FROM warehouse_locations wl
-            LEFT JOIN inventory_levels il ON il.location_id = wl.location_id
-                AND il.tenant_id = wl.tenant_id
-                AND il.product_id = $3
-                AND il.deleted_at IS NULL
-            LEFT JOIN lot_serial_numbers lsn ON lsn.lot_serial_id = il.lot_serial_id
-                AND lsn.tenant_id = wl.tenant_id
-            LEFT JOIN stock_moves sm ON sm.move_id = (
-                SELECT move_id FROM stock_moves
-                WHERE tenant_id = wl.tenant_id
-                  AND destination_location_id = wl.location_id
-                  AND product_id = $3
-                  AND move_type = 'in'
-                  AND deleted_at IS NULL
-                ORDER BY move_date DESC
-                LIMIT 1
-            )
-            WHERE wl.tenant_id = $1
-              AND wl.warehouse_id = $2
-              AND wl.deleted_at IS NULL
-              AND COALESCE(il.available_quantity, 0) > 0
-            ORDER BY wl.location_code
-            "#,
+        SELECT
+            wl.location_id,
+            wl.location_code,
+            COALESCE(il.available_quantity, 0) as available_quantity,
+            NULL::UUID as lot_serial_id,
+            NULL::TIMESTAMPTZ as expiry_date,
+            (SELECT move_date FROM stock_moves
+             WHERE tenant_id = wl.tenant_id
+               AND destination_location_id = wl.location_id
+               AND product_id = $3
+               AND move_type = 'in'
+             ORDER BY move_date DESC
+             LIMIT 1) as last_receipt_date
+        FROM warehouse_locations wl
+        LEFT JOIN inventory_levels il ON il.warehouse_id = wl.warehouse_id
+            AND il.tenant_id = wl.tenant_id
+            AND il.product_id = $3
+            AND il.deleted_at IS NULL
+        WHERE wl.tenant_id = $1
+          AND wl.warehouse_id = $2
+          AND wl.deleted_at IS NULL
+          AND COALESCE(il.available_quantity, 0) > 0
+        ORDER BY wl.location_code
+    "#,
             tenant_id,
             warehouse_id,
             product_id

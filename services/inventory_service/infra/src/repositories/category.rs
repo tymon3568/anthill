@@ -784,9 +784,9 @@ impl CategoryRepository for CategoryRepositoryImpl {
             level: category.level,
             product_count: category.product_count,
             total_product_count: category.total_product_count,
-            subcategory_count,
-            active_product_count: active_count,
-            inactive_product_count: inactive_count,
+            subcategory_count: subcategory_count as u32,
+            active_product_count: active_count as u32,
+            inactive_product_count: inactive_count as u32,
         };
 
         Ok(stats)

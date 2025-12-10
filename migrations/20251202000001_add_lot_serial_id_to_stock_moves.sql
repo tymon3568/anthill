@@ -1,6 +1,11 @@
 -- Migration: Add lot_serial_id column to stock_moves table for lot/serial tracking
 -- This enables efficient querying of stock moves by lot_serial_id without relying on JSON batch_info
 
+-- First, add unique constraint to lots_serial_numbers for composite FK
+ALTER TABLE lots_serial_numbers
+    ADD CONSTRAINT uk_lots_serial_numbers_tenant_lot_serial_id
+    UNIQUE (tenant_id, lot_serial_id);
+
 -- Add the column (nullable initially)
 ALTER TABLE stock_moves ADD COLUMN lot_serial_id UUID;
 

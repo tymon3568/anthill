@@ -396,16 +396,17 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         .collect();
 
         #[allow(clippy::manual_div_ceil)]
-        let total_pages = ((count as i32 + query.page_size - 1) / query.page_size).max(1);
+        let total_pages =
+            ((count as i32 + query.page_size as i32 - 1) / query.page_size as i32).max(1);
 
         Ok(ReceiptListResponse {
             receipts,
-            pagination: inventory_service_core::dto::receipt::PaginationInfo {
+            pagination: inventory_service_core::dto::common::PaginationInfo {
                 page: query.page,
                 page_size: query.page_size,
-                total_items: count,
-                total_pages,
-                has_next: query.page < total_pages,
+                total_items: count as u64,
+                total_pages: total_pages as u32,
+                has_next: query.page < total_pages as u32,
                 has_prev: query.page > 1,
             },
         })

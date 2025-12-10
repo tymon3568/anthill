@@ -5,10 +5,11 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::stock_take::{StockTake, StockTakeStatus};
+use inventory_service_core::dto::common::PaginationInfo;
 use inventory_service_core::dto::stock_take::{
     CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest, CreateStockTakeResponse,
-    FinalizeStockTakeRequest, FinalizeStockTakeResponse, PaginationInfo, StockAdjustment,
-    StockTakeDetailResponse, StockTakeListQuery, StockTakeListResponse,
+    FinalizeStockTakeRequest, FinalizeStockTakeResponse, StockAdjustment, StockTakeDetailResponse,
+    StockTakeListQuery, StockTakeListResponse,
 };
 use inventory_service_core::models::CreateStockMoveRequest;
 
@@ -367,9 +368,11 @@ impl StockTakeService for PgStockTakeService {
             stock_takes,
             pagination: PaginationInfo {
                 page: page as u32,
-                limit: limit as u32,
-                total: total as u64,
+                page_size: limit as u32,
+                total_items: total as u64,
                 total_pages,
+                has_next: page < total_pages as i64,
+                has_prev: page > 1,
             },
         })
     }

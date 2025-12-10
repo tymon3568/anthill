@@ -19,7 +19,7 @@
 -- Drop existing constraints
 ALTER TABLE goods_receipts DROP CONSTRAINT goods_receipts_tenant_warehouse_fk;
 ALTER TABLE goods_receipts DROP CONSTRAINT goods_receipts_tenant_created_by_fk;
-ALTER TABLE goods_receipts DROP CONSTRAINT goods_receipts_tenant_receipt_unique;
+-- ALTER TABLE goods_receipts DROP CONSTRAINT goods_receipts_tenant_receipt_unique;
 
 -- Recreate as deferrable
 ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_warehouse_fk
@@ -28,8 +28,8 @@ ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_warehouse_fk
 ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_created_by_fk
     FOREIGN KEY (tenant_id, created_by)
     REFERENCES users (tenant_id, user_id) DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_receipt_unique
-    UNIQUE (tenant_id, receipt_id) DEFERRABLE INITIALLY DEFERRED;
+-- ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_receipt_unique
+--     UNIQUE (tenant_id, receipt_id) DEFERRABLE INITIALLY DEFERRED;
 
 -- ==================================
 -- DELIVERY_ORDERS TABLE
@@ -38,7 +38,7 @@ ALTER TABLE goods_receipts ADD CONSTRAINT goods_receipts_tenant_receipt_unique
 -- Drop existing constraints
 ALTER TABLE delivery_orders DROP CONSTRAINT delivery_orders_tenant_warehouse_fk;
 ALTER TABLE delivery_orders DROP CONSTRAINT delivery_orders_tenant_created_by_fk;
-ALTER TABLE delivery_orders DROP CONSTRAINT delivery_orders_tenant_delivery_unique;
+-- ALTER TABLE delivery_orders DROP CONSTRAINT delivery_orders_tenant_delivery_unique;
 
 -- Recreate as deferrable
 ALTER TABLE delivery_orders ADD CONSTRAINT delivery_orders_tenant_warehouse_fk
@@ -47,8 +47,8 @@ ALTER TABLE delivery_orders ADD CONSTRAINT delivery_orders_tenant_warehouse_fk
 ALTER TABLE delivery_orders ADD CONSTRAINT delivery_orders_tenant_created_by_fk
     FOREIGN KEY (tenant_id, created_by)
     REFERENCES users (tenant_id, user_id) DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE delivery_orders ADD CONSTRAINT delivery_orders_tenant_delivery_unique
-    UNIQUE (tenant_id, delivery_id) DEFERRABLE INITIALLY DEFERRED;
+-- ALTER TABLE delivery_orders ADD CONSTRAINT delivery_orders_tenant_delivery_unique
+--     UNIQUE (tenant_id, delivery_id) DEFERRABLE INITIALLY DEFERRED;
 
 -- ==================================
 -- STOCK_TRANSFERS TABLE
@@ -58,7 +58,7 @@ ALTER TABLE delivery_orders ADD CONSTRAINT delivery_orders_tenant_delivery_uniqu
 ALTER TABLE stock_transfers DROP CONSTRAINT stock_transfers_tenant_source_warehouse_fk;
 ALTER TABLE stock_transfers DROP CONSTRAINT stock_transfers_tenant_destination_warehouse_fk;
 ALTER TABLE stock_transfers DROP CONSTRAINT stock_transfers_tenant_created_by_fk;
-ALTER TABLE stock_transfers DROP CONSTRAINT stock_transfers_tenant_transfer_unique;
+-- ALTER TABLE stock_transfers DROP CONSTRAINT stock_transfers_tenant_transfer_unique;
 
 -- Recreate as deferrable
 ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_source_warehouse_fk
@@ -70,8 +70,8 @@ ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_destination_wa
 ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_created_by_fk
     FOREIGN KEY (tenant_id, created_by)
     REFERENCES users (tenant_id, user_id) DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_transfer_unique
-    UNIQUE (tenant_id, transfer_id) DEFERRABLE INITIALLY DEFERRED;
+-- ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_transfer_unique
+--     UNIQUE (tenant_id, transfer_id) DEFERRABLE INITIALLY DEFERRED;
 
 -- ==================================
 -- STOCK_TAKES TABLE
@@ -79,7 +79,7 @@ ALTER TABLE stock_transfers ADD CONSTRAINT stock_transfers_tenant_transfer_uniqu
 
 -- Drop existing constraints
 ALTER TABLE stock_takes DROP CONSTRAINT stock_takes_number_unique_per_tenant;
-ALTER TABLE stock_takes DROP CONSTRAINT stock_takes_tenant_id_unique;
+-- ALTER TABLE stock_takes DROP CONSTRAINT stock_takes_tenant_id_unique;
 ALTER TABLE stock_takes DROP CONSTRAINT stock_takes_tenant_warehouse_fk;
 ALTER TABLE stock_takes DROP CONSTRAINT stock_takes_tenant_created_by_fk;
 ALTER TABLE stock_takes DROP CONSTRAINT stock_takes_tenant_assigned_to_fk;
@@ -87,8 +87,8 @@ ALTER TABLE stock_takes DROP CONSTRAINT stock_takes_tenant_assigned_to_fk;
 -- Recreate as deferrable
 ALTER TABLE stock_takes ADD CONSTRAINT stock_takes_number_unique_per_tenant
     UNIQUE (tenant_id, stock_take_number) DEFERRABLE INITIALLY DEFERRED;
-ALTER TABLE stock_takes ADD CONSTRAINT stock_takes_tenant_id_unique
-    UNIQUE (tenant_id, stock_take_id) DEFERRABLE INITIALLY DEFERRED;
+-- ALTER TABLE stock_takes ADD CONSTRAINT stock_takes_tenant_id_unique
+--     UNIQUE (tenant_id, stock_take_id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE stock_takes ADD CONSTRAINT stock_takes_tenant_warehouse_fk
     FOREIGN KEY (tenant_id, warehouse_id)
     REFERENCES warehouses (tenant_id, warehouse_id) DEFERRABLE INITIALLY DEFERRED;
@@ -124,13 +124,13 @@ ALTER TABLE stock_take_lines ADD CONSTRAINT stock_take_lines_tenant_counted_by_f
 -- ==================================
 
 -- Drop existing constraints
-ALTER TABLE stock_adjustments DROP CONSTRAINT stock_adjustments_unique_move;
+-- ALTER TABLE stock_adjustments DROP CONSTRAINT stock_adjustments_unique_move;
 ALTER TABLE stock_adjustments DROP CONSTRAINT stock_adjustments_tenant_move_fk;
 ALTER TABLE stock_adjustments DROP CONSTRAINT stock_adjustments_tenant_warehouse_fk;
 
 -- Recreate as deferrable
-ALTER TABLE stock_adjustments ADD CONSTRAINT stock_adjustments_unique_move
-    UNIQUE (tenant_id, move_id) DEFERRABLE INITIALLY DEFERRED;
+-- ALTER TABLE stock_adjustments ADD CONSTRAINT stock_adjustments_unique_move
+--     UNIQUE (tenant_id, move_id) DEFERRABLE INITIALLY DEFERRED;
 ALTER TABLE stock_adjustments ADD CONSTRAINT stock_adjustments_tenant_move_fk
     FOREIGN KEY (tenant_id, move_id)
     REFERENCES stock_moves (tenant_id, move_id) DEFERRABLE INITIALLY DEFERRED;

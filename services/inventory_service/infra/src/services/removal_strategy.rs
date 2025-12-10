@@ -141,9 +141,24 @@ impl RemovalStrategyService for RemovalStrategyServiceImpl {
         warehouse_id: Uuid,
         product_id: Uuid,
     ) -> Result<Vec<StockLocationInfo>, AppError> {
-        self.repo
+        let repo_locations = self
+            .repo
             .get_available_stock_locations(tenant_id, warehouse_id, product_id)
-            .await
+            .await?;
+
+        let service_locations = repo_locations
+            .into_iter()
+            .map(|loc| StockLocationInfo {
+                location_id: loc.location_id,
+                location_code: loc.location_code,
+                available_quantity: loc.available_quantity,
+                lot_serial_id: loc.lot_serial_id,
+                expiry_date: loc.expiry_date,
+                last_receipt_date: loc.last_receipt_date,
+            })
+            .collect();
+
+        Ok(service_locations)
     }
 
     async fn get_applicable_strategies(

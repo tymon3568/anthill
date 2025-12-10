@@ -3,7 +3,19 @@
 //! This module contains validation functions that are used in multiple places
 //! to reduce code duplication and ensure consistency.
 
+use serde::{Deserialize, Serialize};
+use sqlx::Type;
 use validator::ValidationError;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[sqlx(type_name = "removal_strategy_type", rename_all = "snake_case")]
+pub enum RemovalStrategyType {
+    Fifo,
+    Lifo,
+    Fefo,
+    ClosestLocation,
+    LeastPackages,
+}
 
 /// Validate picking method type (batch, cluster, wave)
 /// Case-insensitive validation
