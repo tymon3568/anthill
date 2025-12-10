@@ -3,7 +3,19 @@
 //! This module contains validation functions that are used in multiple places
 //! to reduce code duplication and ensure consistency.
 
+use serde::{Deserialize, Serialize};
+use sqlx::Type;
 use validator::ValidationError;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[sqlx(type_name = "removal_strategy_type", rename_all = "snake_case")]
+pub enum RemovalStrategyType {
+    Fifo,
+    Lifo,
+    Fefo,
+    ClosestLocation,
+    LeastPackages,
+}
 
 /// Validate picking method type (batch, cluster, wave)
 /// Case-insensitive validation
@@ -45,6 +57,15 @@ pub fn validate_product_type(product_type: &str) -> Result<(), ValidationError> 
     match product_type {
         "goods" | "service" | "consumable" => Ok(()),
         _ => Err(ValidationError::new("invalid_product_type")),
+    }
+}
+
+/// Validate removal strategy type (fifo, lifo, fefo, closest_location, least_packages)
+pub fn validate_removal_strategy_type(strategy_type: &str) -> Result<(), ValidationError> {
+    let normalized = strategy_type.to_ascii_lowercase();
+    match normalized.as_str() {
+        "fifo" | "lifo" | "fefo" | "closest_location" | "least_packages" => Ok(()),
+        _ => Err(ValidationError::new("invalid_removal_strategy_type")),
     }
 }
 

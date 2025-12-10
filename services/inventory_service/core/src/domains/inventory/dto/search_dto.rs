@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::dto::PaginationInfo;
+
 /// Product search request DTO
 #[derive(Debug, Clone, Deserialize, Validate)]
 #[serde(rename_all = "camelCase")]
@@ -142,19 +144,6 @@ pub struct ProductSearchResult {
     /// Timestamps
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-}
-
-/// Pagination information
-#[derive(Debug, Clone, Serialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PaginationInfo {
-    pub page: u32,
-    pub limit: u32,
-    pub total_count: u64,
-    pub total_pages: u32,
-    pub has_next: bool,
-    pub has_prev: bool,
 }
 
 /// Search facets for filtering UI

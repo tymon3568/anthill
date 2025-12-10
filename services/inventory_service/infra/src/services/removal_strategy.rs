@@ -1,0 +1,236 @@
+//! Removal strategy service implementation
+//!
+//! This module provides the concrete implementation of the RemovalStrategyService trait
+//! using the repository layer for data access.
+
+use async_trait::async_trait;
+use uuid::Uuid;
+
+use crate::repositories::RemovalStrategyRepositoryImpl;
+use inventory_service_core::domains::inventory::removal_strategy::RemovalStrategy;
+use inventory_service_core::dto::removal_strategy::{
+    RemovalStrategyCreateRequest, RemovalStrategyListQuery, RemovalStrategyListResponse,
+    RemovalStrategyResponse, RemovalStrategyUpdateRequest, StockLocationInfo,
+    StrategyAnalyticsResponse, SuggestRemovalRequest, SuggestRemovalResponse,
+};
+use inventory_service_core::dto::PaginationInfo;
+use inventory_service_core::repositories::RemovalStrategyRepository;
+use inventory_service_core::services::RemovalStrategyService;
+use shared_error::AppError;
+
+pub struct RemovalStrategyServiceImpl {
+    repo: RemovalStrategyRepositoryImpl,
+}
+
+impl RemovalStrategyServiceImpl {
+    pub fn new(repo: RemovalStrategyRepositoryImpl) -> Self {
+        Self { repo }
+    }
+}
+
+#[async_trait]
+impl RemovalStrategyService for RemovalStrategyServiceImpl {
+    async fn create_strategy(
+        &self,
+        tenant_id: Uuid,
+        request: RemovalStrategyCreateRequest,
+        created_by: Uuid,
+    ) -> Result<RemovalStrategy, AppError> {
+        self.repo.create(tenant_id, request, created_by).await
+    }
+
+    async fn get_strategy(
+        &self,
+        tenant_id: Uuid,
+        strategy_id: Uuid,
+    ) -> Result<Option<RemovalStrategy>, AppError> {
+        self.repo.find_by_id(tenant_id, strategy_id).await
+    }
+
+    async fn get_strategy_by_name(
+        &self,
+        tenant_id: Uuid,
+        name: &str,
+    ) -> Result<Option<RemovalStrategy>, AppError> {
+        self.repo.find_by_name(tenant_id, name).await
+    }
+
+    async fn list_strategies(
+        &self,
+        tenant_id: Uuid,
+        query: RemovalStrategyListQuery,
+    ) -> Result<RemovalStrategyListResponse, AppError> {
+        let (strategies, total_count) = self.repo.list(tenant_id, query.clone()).await?;
+
+        let pagination = PaginationInfo::new(query.page, query.page_size, total_count);
+
+        let responses = strategies
+            .into_iter()
+            .map(|s| {
+                let strategy_type_display = s.strategy_type_display().to_string();
+                RemovalStrategyResponse {
+                    strategy_id: s.strategy_id,
+                    tenant_id: s.tenant_id,
+                    name: s.name,
+                    strategy_type: s.strategy_type,
+                    strategy_type_display,
+                    warehouse_id: s.warehouse_id,
+                    product_id: s.product_id,
+                    active: s.active,
+                    config: s.config,
+                    created_at: s.created_at,
+                    updated_at: s.updated_at,
+                }
+            })
+            .collect();
+
+        Ok(RemovalStrategyListResponse {
+            strategies: responses,
+            pagination,
+        })
+    }
+
+    async fn update_strategy(
+        &self,
+        tenant_id: Uuid,
+        strategy_id: Uuid,
+        request: RemovalStrategyUpdateRequest,
+        updated_by: Uuid,
+    ) -> Result<RemovalStrategy, AppError> {
+        self.repo
+            .update(tenant_id, strategy_id, request, updated_by)
+            .await
+    }
+
+    async fn delete_strategy(
+        &self,
+        tenant_id: Uuid,
+        strategy_id: Uuid,
+        deleted_by: Uuid,
+    ) -> Result<bool, AppError> {
+        self.repo.delete(tenant_id, strategy_id, deleted_by).await
+    }
+
+    async fn toggle_strategy_active(
+        &self,
+        tenant_id: Uuid,
+        strategy_id: Uuid,
+        active: bool,
+        updated_by: Uuid,
+    ) -> Result<RemovalStrategy, AppError> {
+        self.repo
+            .toggle_active(tenant_id, strategy_id, active, updated_by)
+            .await
+    }
+
+    async fn suggest_removal(
+        &self,
+        tenant_id: Uuid,
+        request: SuggestRemovalRequest,
+    ) -> Result<SuggestRemovalResponse, AppError> {
+        self.repo.suggest_removal(tenant_id, request).await
+    }
+
+    async fn get_available_stock_locations(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+    ) -> Result<Vec<StockLocationInfo>, AppError> {
+        let repo_locations = self
+            .repo
+            .get_available_stock_locations(tenant_id, warehouse_id, product_id)
+            .await?;
+
+        let service_locations = repo_locations
+            .into_iter()
+            .map(|loc| StockLocationInfo {
+                location_id: loc.location_id,
+                location_code: loc.location_code,
+                available_quantity: loc.available_quantity,
+                lot_serial_id: loc.lot_serial_id,
+                expiry_date: loc.expiry_date,
+                last_receipt_date: loc.last_receipt_date,
+            })
+            .collect();
+
+        Ok(service_locations)
+    }
+
+    async fn get_applicable_strategies(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+    ) -> Result<Vec<RemovalStrategy>, AppError> {
+        self.repo
+            .find_active_for_scope(tenant_id, warehouse_id, product_id)
+            .await
+    }
+
+    async fn select_best_strategy(
+        &self,
+        _tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+        strategies: Vec<RemovalStrategy>,
+    ) -> Result<(RemovalStrategy, String), AppError> {
+        // Simple selection: prefer product-specific, then warehouse-specific, then global
+        // In a real implementation, this could be more sophisticated
+        if let Some(strategy) = strategies.iter().find(|s| s.product_id == Some(product_id)) {
+            Ok((strategy.clone(), "Product-specific strategy".to_string()))
+        } else if let Some(strategy) = strategies
+            .iter()
+            .find(|s| s.warehouse_id == Some(warehouse_id) && s.product_id.is_none())
+        {
+            Ok((strategy.clone(), "Warehouse-specific strategy".to_string()))
+        } else if let Some(strategy) = strategies
+            .iter()
+            .find(|s| s.warehouse_id.is_none() && s.product_id.is_none())
+        {
+            Ok((strategy.clone(), "Global strategy".to_string()))
+        } else {
+            Err(AppError::NotFound("No applicable strategies found".to_string()))
+        }
+    }
+
+    async fn validate_strategy(
+        &self,
+        tenant_id: Uuid,
+        strategy_id: Uuid,
+    ) -> Result<bool, AppError> {
+        // Basic validation: check if strategy exists and is active
+        if let Some(strategy) = self.repo.find_by_id(tenant_id, strategy_id).await? {
+            Ok(strategy.active)
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn record_strategy_usage(
+        &self,
+        tenant_id: Uuid,
+        strategy_id: Uuid,
+        product_id: Uuid,
+        quantity: i64,
+        pick_time_seconds: Option<f64>,
+    ) -> Result<bool, AppError> {
+        self.repo
+            .record_strategy_usage(tenant_id, strategy_id, product_id, quantity, pick_time_seconds)
+            .await
+    }
+
+    async fn get_strategy_analytics(
+        &self,
+        _tenant_id: Uuid,
+        _strategy_id: Option<Uuid>,
+        _period_start: chrono::DateTime<chrono::Utc>,
+        _period_end: chrono::DateTime<chrono::Utc>,
+    ) -> Result<Vec<StrategyAnalyticsResponse>, AppError> {
+        // TODO: Implement analytics query once removal_strategy_usage table is available.
+        // For now, explicitly signal that analytics are not yet implemented.
+        Err(AppError::InternalError(
+            "Strategy analytics are not yet implemented".to_string(),
+        ))
+    }
+}

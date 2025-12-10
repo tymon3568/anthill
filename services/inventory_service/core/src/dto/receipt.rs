@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::dto::PaginationInfo;
+
 /// Request to create a new Goods Receipt Note
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct ReceiptCreateRequest {
@@ -184,12 +186,12 @@ pub struct ReceiptListQuery {
     /// Page number (1-based)
     #[serde(default = "default_page")]
     #[validate(range(min = 1))]
-    pub page: i32,
+    pub page: u32,
 
     /// Items per page
     #[serde(default = "default_page_size")]
     #[validate(range(min = 1, max = 100))]
-    pub page_size: i32,
+    pub page_size: u32,
 
     /// Filter by warehouse
     pub warehouse_id: Option<Uuid>,
@@ -260,32 +262,14 @@ pub struct ReceiptSummaryResponse {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// Pagination information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaginationInfo {
-    /// Current page number
-    pub page: i32,
+// ============================================================================
+// Helper functions and constants
+// ============================================================================
 
-    /// Items per page
-    pub page_size: i32,
-
-    /// Total number of items
-    pub total_items: i64,
-
-    /// Total number of pages
-    pub total_pages: i32,
-
-    /// Whether there are more pages
-    pub has_next: bool,
-
-    /// Whether there are previous pages
-    pub has_prev: bool,
-}
-
-fn default_page() -> i32 {
+fn default_page() -> u32 {
     1
 }
 
-fn default_page_size() -> i32 {
+fn default_page_size() -> u32 {
     20
 }

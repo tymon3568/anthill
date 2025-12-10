@@ -38,8 +38,9 @@ impl ProductRepository for ProductRepositoryImpl {
         request: ProductSearchRequest,
     ) -> Result<ProductSearchResponse> {
         use inventory_service_core::domains::inventory::dto::search_dto::{
-            PaginationInfo, ProductSearchResult, SearchFacets, SearchMeta,
+            ProductSearchResult, SearchFacets, SearchMeta,
         };
+        use inventory_service_core::dto::common::PaginationInfo;
 
         let start_time = std::time::Instant::now();
 
@@ -287,8 +288,8 @@ impl ProductRepository for ProductRepositoryImpl {
         let total_pages = ((total_count as u32 + limit - 1) / limit).max(1);
         let pagination = PaginationInfo {
             page,
-            limit,
-            total_count: total_count as u64,
+            page_size: limit,
+            total_items: total_count as u64,
             total_pages,
             has_next: page < total_pages,
             has_prev: page > 1,

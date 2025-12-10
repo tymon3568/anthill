@@ -310,6 +310,7 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
     }
 
     /// List receipts with pagination and filtering
+    #[allow(clippy::manual_div_ceil)]
     async fn list_receipts(
         &self,
         tenant_id: Uuid,
@@ -395,15 +396,17 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
         })
         .collect();
 
-        #[allow(clippy::manual_div_ceil)]
-        let total_pages = ((count as i32 + query.page_size - 1) / query.page_size).max(1);
+        let count_u64 = count as u64;
+        let page_size_u64 = query.page_size as u64;
+        let total_pages_u64 = count_u64.div_ceil(page_size_u64);
+        let total_pages = total_pages_u64.max(1) as u32;
 
         Ok(ReceiptListResponse {
             receipts,
-            pagination: inventory_service_core::dto::receipt::PaginationInfo {
+            pagination: inventory_service_core::dto::common::PaginationInfo {
                 page: query.page,
                 page_size: query.page_size,
-                total_items: count,
+                total_items: count as u64,
                 total_pages,
                 has_next: query.page < total_pages,
                 has_prev: query.page > 1,

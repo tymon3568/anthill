@@ -10,6 +10,7 @@ use uuid::Uuid;
 use validator::Validate;
 
 use crate::domains::inventory::stock_take::{StockTake, StockTakeLine, StockTakeStatus};
+use crate::dto::PaginationInfo;
 
 /// Request to create a new stock take session
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -114,20 +115,6 @@ pub struct StockTakeListResponse {
     pub stock_takes: Vec<StockTake>,
     /// Pagination info
     pub pagination: PaginationInfo,
-}
-
-/// Pagination information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct PaginationInfo {
-    /// Current page
-    pub page: u32,
-    /// Items per page
-    pub limit: u32,
-    /// Total items
-    pub total: u64,
-    /// Total pages
-    pub total_pages: u32,
 }
 
 /// Response for getting a single stock take with lines

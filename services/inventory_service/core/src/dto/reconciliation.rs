@@ -13,6 +13,7 @@ use super::stock_take::StockAdjustment;
 use crate::domains::inventory::reconciliation::{
     CycleType, ReconciliationStatus, StockReconciliation, StockReconciliationItem,
 };
+use crate::dto::PaginationInfo;
 
 /// Request to create a new reconciliation session
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -151,20 +152,6 @@ pub struct ReconciliationListResponse {
     pub reconciliations: Vec<StockReconciliation>,
     /// Pagination info
     pub pagination: PaginationInfo,
-}
-
-/// Pagination information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct PaginationInfo {
-    /// Current page
-    pub page: u32,
-    /// Items per page
-    pub limit: u32,
-    /// Total items
-    pub total: u64,
-    /// Total pages
-    pub total_pages: u32,
 }
 
 /// Response for getting a single reconciliation with items

@@ -2,6 +2,7 @@ pub mod dto;
 pub mod picking_method;
 pub mod product;
 pub mod reconciliation;
+pub mod removal_strategy;
 pub mod stock_take;
 pub mod transfer;
 pub mod valuation;

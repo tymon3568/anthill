@@ -6,13 +6,13 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::reconciliation::ReconciliationStatus;
+use inventory_service_core::dto::common::PaginationInfo;
 use inventory_service_core::dto::reconciliation::{
     ApproveReconciliationRequest, ApproveReconciliationResponse, CountReconciliationRequest,
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
-    FinalizeReconciliationRequest, FinalizeReconciliationResponse, PaginationInfo,
-    ReconciliationAnalyticsResponse, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, ScanBarcodeRequest, ScanBarcodeResponse, VarianceAnalysisResponse,
-    VarianceRange,
+    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
+    ReconciliationDetailResponse, ReconciliationListQuery, ReconciliationListResponse,
+    ScanBarcodeRequest, ScanBarcodeResponse, VarianceAnalysisResponse, VarianceRange,
 };
 use inventory_service_core::dto::stock_take::StockAdjustment;
 use inventory_service_core::models::CreateStockMoveRequest;
@@ -471,9 +471,11 @@ impl StockReconciliationService for PgStockReconciliationService {
             reconciliations,
             pagination: PaginationInfo {
                 page: page as u32,
-                limit: limit as u32,
-                total: total as u64,
+                page_size: limit as u32,
+                total_items: total as u64,
                 total_pages,
+                has_next: page < total_pages as i64,
+                has_prev: page > 1,
             },
         })
     }
