@@ -6,6 +6,8 @@ chrono = {workspace = true}
 inventory_service_core = {workspace = true}
 # BigDecimal casting
 num-traits = "0.2"
+# Redis for distributed locking
+redis = {workspace = true}
 # Regex matching
 regex = {workspace = true}
 # Decimal numbers

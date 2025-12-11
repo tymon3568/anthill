@@ -5,6 +5,7 @@
 
 pub mod category;
 pub mod delivery;
+pub mod distributed_lock;
 pub mod lot_serial;
 pub mod picking_method;
 pub mod product;
@@ -20,6 +21,7 @@ pub mod valuation;
 
 // Re-export main types for convenience
 pub use category::CategoryService;
+pub use distributed_lock::DistributedLockService;
 pub use picking_method::PickingMethodService;
 pub use quality::QualityControlPointService;
 // pub use delivery::DeliveryService;

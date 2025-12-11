@@ -1,9 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 /// Reorder rule for automated stock replenishment
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReorderRule {
     pub rule_id: Uuid,
     pub tenant_id: Uuid,
@@ -20,7 +23,8 @@ pub struct ReorderRule {
 }
 
 /// DTO for creating a new reorder rule
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateReorderRule {
     pub product_id: Uuid,
     pub warehouse_id: Option<Uuid>,
@@ -32,7 +36,8 @@ pub struct CreateReorderRule {
 }
 
 /// DTO for updating a reorder rule
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateReorderRule {
     pub reorder_point: Option<i64>,
     pub min_quantity: Option<i64>,
@@ -42,7 +47,8 @@ pub struct UpdateReorderRule {
 }
 
 /// Result of replenishment check
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReplenishmentCheckResult {
     pub product_id: Uuid,
     pub warehouse_id: Option<Uuid>,

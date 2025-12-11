@@ -242,6 +242,7 @@ impl PgInventoryLevelRepository {
 
     /// Internal helper: Update available quantity within a transaction
     /// This is used by services for transactional orchestration
+    /// Note: Assumes the transaction already holds the necessary locks
     pub async fn update_available_quantity_with_tx<'a>(
         &self,
         mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
@@ -250,6 +251,9 @@ impl PgInventoryLevelRepository {
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<sqlx::Transaction<'a, sqlx::Postgres>, AppError> {
+        // Note: In transactional context, the caller should have already acquired
+        // the necessary locks (e.g., SELECT ... FOR UPDATE) before calling this method
+
         let result = sqlx::query!(
             r#"
             UPDATE inventory_levels
@@ -312,22 +316,23 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError> {
-        sqlx::query!(
-            r#"
-            UPDATE inventory_levels
-            SET available_quantity = available_quantity + $4,
-                updated_at = NOW()
-            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
-            "#,
-            tenant_id,
-            warehouse_id,
-            product_id,
-            quantity_change
-        )
-        .execute(&*self.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        tx = self
+            .update_available_quantity_with_tx(
+                tx,
+                tenant_id,
+                warehouse_id,
+                product_id,
+                quantity_change,
+            )
+            .await?;
+        tx.commit()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 
@@ -339,14 +344,19 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         available_quantity: i64,
         reserved_quantity: i64,
     ) -> Result<(), AppError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
         sqlx::query!(
             r#"
             INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity)
             VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (tenant_id, warehouse_id, product_id)
+            ON CONFLICT (tenant_id, warehouse_id, product_id) WHERE deleted_at IS NULL
             DO UPDATE SET
-                available_quantity = inventory_levels.available_quantity + EXCLUDED.available_quantity,
-                reserved_quantity = inventory_levels.reserved_quantity + EXCLUDED.reserved_quantity,
+                available_quantity = EXCLUDED.available_quantity,
+                reserved_quantity = EXCLUDED.reserved_quantity,
                 updated_at = NOW()
             "#,
             tenant_id,
@@ -355,10 +365,12 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
             available_quantity,
             reserved_quantity
         )
-        .execute(&*self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-
+        tx.commit()
+            .await
+            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 }
