@@ -38,6 +38,8 @@ Implement the Transactional Outbox pattern to ensure reliable, at-least-once del
 - [ ] Extract shared helper for duplicate insert logic in event.rs (Severity: Style, Reviewers: CodeAnt)
 - [x] Remove unused Event base struct in events.rs (Severity: Style, Reviewers: CodeRabbit)
 - [x] Decouple EventRepository from concrete sqlx Transaction type (Severity: Warning, Reviewers: CodeRabbit)
+- [x] Fix retry logic to reset status to 'pending' for failed events (Severity: Critical, Reviewers: CodeRabbit)
+- [x] Add defensive status check to UPDATE query in worker (Severity: Warning, Reviewers: CodeRabbit)
 
 ## Dependencies:
 *   (Requires NATS to be part of the infrastructure)
@@ -74,4 +76,13 @@ Implement the Transactional Outbox pattern to ensure reliable, at-least-once del
     - Prevents race conditions between multiple workers
     - Status: Done
     - Files modified: services/inventory_service/api/src/worker.rs, migrations/20251211005338_add_in_progress_status_to_event_outbox.sql
+*   2025-12-11 08:00: Fixed retry logic bug where failed events stayed in 'in_progress' status [TaskID: 04.11.02]
+    - Modified non-terminal retry branches to reset status to 'pending' so events can be retried
+    - Applied to both serialization and publish failure retries
+    - Status: Done
+    - Files modified: services/inventory_service/api/src/worker.rs
+*   2025-12-11 09:00: Added defensive status check to UPDATE query in worker [TaskID: 04.11.02]
+    - Added "AND status = 'pending'" to outer WHERE clause to prevent claiming already changed rows
+    - Status: Done
+    - Files modified: services/inventory_service/api/src/worker.rs
 *   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)

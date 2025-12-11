@@ -75,7 +75,7 @@ async fn process_pending_events(
             WHERE status = 'pending'
             ORDER BY created_at ASC
             LIMIT $1
-        )
+        ) AND status = 'pending'
         RETURNING id, tenant_id, event_type, event_data as "event_data: _", retry_count
         "#,
         config.batch_size as i64
@@ -142,7 +142,7 @@ async fn process_event(
                 sqlx::query!(
                     r#"
                     UPDATE event_outbox
-                    SET retry_count = $2, error_message = $3, updated_at = NOW()
+                    SET status = 'pending', retry_count = $2, error_message = $3, updated_at = NOW()
                     WHERE id = $1
                     "#,
                     event.id,
@@ -214,7 +214,7 @@ async fn process_event(
                 sqlx::query!(
                     r#"
                     UPDATE event_outbox
-                    SET retry_count = $2, error_message = $3, updated_at = NOW()
+                    SET status = 'pending', retry_count = $2, error_message = $3, updated_at = NOW()
                     WHERE id = $1
                     "#,
                     event.id,
