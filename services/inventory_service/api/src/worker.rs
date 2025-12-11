@@ -62,7 +62,6 @@ async fn process_pending_events(
     nats_client: &Client,
     config: &OutboxWorkerConfig,
 ) -> Result<(), AppError> {
-    // Fetch pending events ordered by creation time
     let events = sqlx::query_as!(
         EventRow,
         r#"
@@ -73,7 +72,7 @@ async fn process_pending_events(
         LIMIT $1
         FOR UPDATE SKIP LOCKED
         "#,
-        config.batch_size
+        config.batch_size as i64
     )
     .fetch_all(pool)
     .await?;
@@ -81,8 +80,6 @@ async fn process_pending_events(
     if events.is_empty() {
         return Ok(());
     }
-
-    info!("Processing {} pending events", events.len());
 
     for event in events {
         if let Err(e) = process_event(pool, nats_client, config, &event).await {
@@ -100,11 +97,67 @@ async fn process_event(
     config: &OutboxWorkerConfig,
     event: &EventRow,
 ) -> Result<(), AppError> {
-    let subject = format!("{}.{}", config.nats_subject_prefix, event.event_type);
+    let subject =
+        format!("{}.{}.{}", config.nats_subject_prefix, event.tenant_id, event.event_type);
+
+    // Start a transaction for atomic event processing
+    let mut tx = pool.begin().await?;
+
+    // Serialize event payload
+    let event_bytes = match serde_json::to_vec(&event.event_data) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            // Treat serialization failure as retryable
+            let new_retry_count = event.retry_count + 1;
+            if new_retry_count >= config.max_retries {
+                sqlx::query!(
+                    r#"
+                    UPDATE event_outbox
+                    SET status = 'failed', retry_count = $2, error_message = $3, updated_at = NOW()
+                    WHERE id = $1
+                    "#,
+                    event.id,
+                    new_retry_count,
+                    format!(
+                        "Failed to serialize event after {} retries: {}",
+                        config.max_retries, e
+                    )
+                )
+                .execute(&mut *tx)
+                .await?;
+                tx.commit().await?;
+                error!(
+                    "Event {} for tenant {} failed permanently due to serialization error after {} retries",
+                    event.id, event.tenant_id, config.max_retries
+                );
+            } else {
+                sqlx::query!(
+                    r#"
+                    UPDATE event_outbox
+                    SET retry_count = $2, error_message = $3, updated_at = NOW()
+                    WHERE id = $1
+                    "#,
+                    event.id,
+                    new_retry_count,
+                    format!("Serialization attempt {} failed: {}", new_retry_count, e)
+                )
+                .execute(&mut *tx)
+                .await?;
+                tx.commit().await?;
+                warn!(
+                    "Event {} for tenant {} serialization failed, retry count: {}",
+                    event.id, event.tenant_id, new_retry_count
+                );
+            }
+            return Ok(());
+        },
+    };
 
     // Publish to NATS
-    let event_bytes = serde_json::to_vec(&event.event_data)?;
-    match nats_client.publish(&subject, event_bytes.into()).await {
+    match nats_client
+        .publish(subject.clone(), event_bytes.into())
+        .await
+    {
         Ok(_) => {
             // Mark as published
             sqlx::query!(
@@ -115,10 +168,14 @@ async fn process_event(
                 "#,
                 event.id
             )
-            .execute(pool)
+            .execute(&mut *tx)
             .await?;
 
-            info!("Published event {} to subject {}", event.id, subject);
+            tx.commit().await?;
+            info!(
+                "Published event {} for tenant {} to subject {}",
+                event.id, event.tenant_id, subject
+            );
         },
         Err(e) => {
             // Increment retry count
@@ -136,12 +193,13 @@ async fn process_event(
                     new_retry_count,
                     format!("Failed to publish after {} retries: {}", config.max_retries, e)
                 )
-                .execute(pool)
+                .execute(&mut *tx)
                 .await?;
 
+                tx.commit().await?;
                 error!(
-                    "Event {} failed permanently after {} retries",
-                    event.id, config.max_retries
+                    "Event {} for tenant {} failed permanently after {} retries",
+                    event.id, event.tenant_id, config.max_retries
                 );
             } else {
                 // Update retry count
@@ -155,10 +213,14 @@ async fn process_event(
                     new_retry_count,
                     format!("Publish attempt {} failed: {}", new_retry_count, e)
                 )
-                .execute(pool)
+                .execute(&mut *tx)
                 .await?;
 
-                warn!("Event {} publish failed, retry count: {}", event.id, new_retry_count);
+                tx.commit().await?;
+                warn!(
+                    "Event {} for tenant {} publish failed, retry count: {}",
+                    event.id, event.tenant_id, new_retry_count
+                );
             }
         },
     }

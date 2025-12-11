@@ -6,13 +6,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Base event structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Event {
-    pub event_type: String,
-    pub event_data: serde_json::Value,
-}
-
 /// Inventory updated event
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InventoryUpdatedEvent {

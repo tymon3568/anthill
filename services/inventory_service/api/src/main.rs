@@ -30,36 +30,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize event consumers and outbox worker (if NATS is configured)
     if let Some(nats_url) = &config.nats_url {
-        // Connect to NATS
         let nats_client = match async_nats::connect(nats_url).await {
             Ok(client) => {
                 tracing::info!("Connected to NATS at {}", nats_url);
-                client
+                Some(client)
             },
             Err(e) => {
                 tracing::error!("Failed to connect to NATS: {}", e);
                 tracing::warn!("Service will start without event processing capabilities");
-                return Ok(());
+                None
             },
         };
 
-        // Initialize event consumers
-        if let Err(e) =
-            inventory_service_api::consumers::init_event_consumers(pool.clone(), nats_url).await
-        {
-            tracing::error!("Failed to initialize NATS event consumers: {}", e);
-        } else {
-            tracing::info!("NATS event consumers initialized successfully");
-        }
-
-        // Start outbox worker
-        let worker_config = worker::OutboxWorkerConfig::default();
-        tokio::spawn(async move {
-            if let Err(e) = worker::start_outbox_worker(pool, nats_client, worker_config).await {
-                tracing::error!("Outbox worker failed: {}", e);
+        if let Some(nats_client) = nats_client {
+            // Initialize event consumers
+            if let Err(e) =
+                inventory_service_api::consumers::init_event_consumers(pool.clone(), nats_url).await
+            {
+                tracing::error!("Failed to initialize NATS event consumers: {}", e);
+            } else {
+                tracing::info!("NATS event consumers initialized successfully");
             }
-        });
-        tracing::info!("Outbox worker started");
+
+            // Start outbox worker
+            let worker_config = worker::OutboxWorkerConfig::default();
+            let worker_pool = pool.clone();
+            tokio::spawn(async move {
+                if let Err(e) =
+                    worker::start_outbox_worker(worker_pool, nats_client, worker_config).await
+                {
+                    tracing::error!("Outbox worker failed: {}", e);
+                }
+            });
+            tracing::info!("Outbox worker started");
+        }
     }
 
     // Create the application router
