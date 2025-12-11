@@ -8,12 +8,16 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use super::event::EventRepositoryImpl;
 use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptItemResponse, ReceiptListQuery, ReceiptListResponse,
     ReceiptResponse, ReceiptSummaryResponse,
 };
+use inventory_service_core::events::{event_types, GoodsReceiptValidatedEvent, ReceiptItemEvent};
 use inventory_service_core::repositories::receipt::ReceiptRepository;
+use serde_json;
 use shared_error::AppError;
+use std::sync::Arc;
 
 /// PostgreSQL implementation of ReceiptRepository
 ///
@@ -21,6 +25,7 @@ use shared_error::AppError;
 /// using SQLx for database interactions with PostgreSQL.
 pub struct ReceiptRepositoryImpl {
     pool: PgPool,
+    event_repo: Arc<EventRepositoryImpl>,
 }
 
 impl ReceiptRepositoryImpl {
@@ -28,11 +33,12 @@ impl ReceiptRepositoryImpl {
     ///
     /// # Arguments
     /// * `pool` - PostgreSQL connection pool
+    /// * `event_repo` - Event repository for outbox
     ///
     /// # Returns
     /// New ReceiptRepositoryImpl instance
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool, event_repo: Arc<EventRepositoryImpl>) -> Self {
+        Self { pool, event_repo }
     }
 }
 
@@ -548,8 +554,30 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             }
         }
 
-        // TODO: Publish receipt completed event to outbox/NATS
-        // For now, this is a placeholder until outbox pattern is implemented
+        // Publish event
+        let event = GoodsReceiptValidatedEvent {
+            receipt_id,
+            items: items
+                .iter()
+                .map(|item| ReceiptItemEvent {
+                    product_id: item.product_id,
+                    variant_id: None,
+                    quantity_received: item.received_quantity,
+                    warehouse_id: receipt.warehouse_id,
+                    location_id: None,
+                    lot_serial_id: None,
+                })
+                .collect(),
+        };
+        let event_data = serde_json::to_value(event)?;
+        self.event_repo
+            .insert_event_in_tx(
+                tenant_id,
+                event_types::GOODS_RECEIPT_VALIDATED,
+                event_data,
+                &mut tx,
+            )
+            .await?;
 
         tx.commit().await?;
 
