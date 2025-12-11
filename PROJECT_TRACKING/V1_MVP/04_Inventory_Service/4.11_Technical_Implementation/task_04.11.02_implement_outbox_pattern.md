@@ -15,7 +15,7 @@ Implement the Transactional Outbox pattern to ensure reliable, at-least-once del
 
 ## Specific Sub-tasks:
 - [x] 1. Create a SQL migration for the `event_outbox` table.
-- [ ] 2. Modify business logic (e.g., in GRN validation, DO shipping) to write events to the `event_outbox` table within the same database transaction as the main data change.
+- [x] 2. Modify business logic (e.g., in GRN validation, DO shipping) to write events to the `event_outbox` table within the same database transaction as the main data change.
 - [ ] 3. Create a background worker (e.g., a separate thread or process) that periodically polls the `event_outbox` table for `pending` events.
 - [ ] 4. The worker should attempt to publish the event to NATS. On success, it updates the event's status to `published`.
 
@@ -40,4 +40,5 @@ Implement the Transactional Outbox pattern to ensure reliable, at-least-once del
 ---
 *   2025-12-11 00:53: Starting work on task_04.11.02_implement_outbox_pattern.md
 *   2025-12-11 00:53: Completed sub-task 1: Created event_outbox table migration.
+*   2025-12-11 00:53: Completed sub-task 2: Modified business logic to publish events to outbox in validate_receipt and ship_items.
 *   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
