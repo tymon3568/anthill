@@ -68,4 +68,10 @@ Implement the Transactional Outbox pattern to ensure reliable, at-least-once del
     - Index matches the worker's SELECT query filtering on status='pending' and ordering by created_at
     - Status: Done
     - Files modified: migrations/20251211005337_create_event_outbox_table.sql
+*   2025-12-11 07:00: Implemented atomic claim pattern to prevent double processing [TaskID: 04.11.02]
+    - Changed polling query to UPDATE ... SET status = 'in_progress' ... RETURNING ... for atomic claims
+    - Added new migration to include 'in_progress' status in CHECK constraint
+    - Prevents race conditions between multiple workers
+    - Status: Done
+    - Files modified: services/inventory_service/api/src/worker.rs, migrations/20251211005338_add_in_progress_status_to_event_outbox.sql
 *   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)

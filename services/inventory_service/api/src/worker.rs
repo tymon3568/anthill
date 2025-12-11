@@ -56,21 +56,27 @@ pub async fn start_outbox_worker(
     }
 }
 
-/// Process pending events from the outbox
+/// Process pending events from the outbox using atomic claim pattern
 async fn process_pending_events(
     pool: &PgPool,
     nats_client: &Client,
     config: &OutboxWorkerConfig,
 ) -> Result<(), AppError> {
+    // Atomically claim pending events by setting status to 'in_progress'
+    // This prevents double processing by multiple workers
     let events = sqlx::query_as!(
         EventRow,
         r#"
-        SELECT id, tenant_id, event_type, event_data as "event_data: _", retry_count
-        FROM event_outbox
-        WHERE status = 'pending'
-        ORDER BY created_at ASC
-        LIMIT $1
-        FOR UPDATE SKIP LOCKED
+        UPDATE event_outbox
+        SET status = 'in_progress', updated_at = NOW()
+        WHERE id IN (
+            SELECT id
+            FROM event_outbox
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+            LIMIT $1
+        )
+        RETURNING id, tenant_id, event_type, event_data as "event_data: _", retry_count
         "#,
         config.batch_size as i64
     )
@@ -80,6 +86,8 @@ async fn process_pending_events(
     if events.is_empty() {
         return Ok(());
     }
+
+    info!("Claimed {} events for processing", events.len());
 
     for event in events {
         if let Err(e) = process_event(pool, nats_client, config, &event).await {
