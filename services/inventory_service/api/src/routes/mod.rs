@@ -336,8 +336,17 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     ));
 
     // Initialize Redis URL for both idempotency and distributed locking
-    let redis_url =
-        std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+    let redis_url = if is_production {
+        config
+            .redis_url
+            .clone()
+            .expect("REDIS_URL must be configured in production")
+    } else {
+        config
+            .redis_url
+            .clone()
+            .unwrap_or_else(|| "redis://localhost:6379".to_string())
+    };
 
     // Initialize distributed lock service
     let distributed_lock_service = Arc::new(

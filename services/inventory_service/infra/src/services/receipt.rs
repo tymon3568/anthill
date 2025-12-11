@@ -94,7 +94,7 @@ where
                     tenant_id,
                     "product_warehouse",
                     &lock_key,
-                    300, // 5 minutes TTL
+                    30, // 30 seconds TTL - reduced to minimize lock leak impact on panic
                 )
                 .await
             {
@@ -126,6 +126,7 @@ where
         }
 
         // Create receipt, items, stock moves, and outbox event in a single transaction
+        // NOTE: Lock release is not panic-safe - if create_receipt panics, locks will be held until TTL expires
         let receipt_result = self
             .receipt_repository
             .create_receipt(tenant_id, user_id, &request, &idempotency_key)

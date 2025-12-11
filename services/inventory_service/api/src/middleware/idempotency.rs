@@ -55,7 +55,7 @@ impl IdempotencyState {
     /// Mark a request as processed with TTL
     pub async fn mark_processed(&self, key: &str) -> Result<(), redis::RedisError> {
         let mut conn = self.redis_client.get_multiplexed_async_connection().await?;
-        conn.set_ex::<_, _, ()>(key, "processed", self.config.ttl_seconds)
+        conn.set_ex::<_, _, ()>(key, "processed", self.config.ttl_seconds as usize)
             .await?;
         Ok(())
     }

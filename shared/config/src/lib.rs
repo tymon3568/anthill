@@ -48,6 +48,9 @@ pub struct Config {
     /// NATS server URL (optional - for event-driven messaging)
     pub nats_url: Option<String>,
 
+    /// Redis server URL (optional - for caching and distributed locking)
+    pub redis_url: Option<String>,
+
     /// Casbin model configuration file path
     #[serde(default = "default_casbin_model_path")]
     pub casbin_model_path: String,
