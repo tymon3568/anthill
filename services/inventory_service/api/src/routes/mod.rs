@@ -36,6 +36,7 @@ use inventory_service_core::services::delivery::DeliveryService;
 // Inventory-service infra
 
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+
 use inventory_service_infra::repositories::picking_method::PickingMethodRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
 use inventory_service_infra::repositories::putaway::PgPutawayRepository;

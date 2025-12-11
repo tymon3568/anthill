@@ -5,6 +5,7 @@
 //! Goods Receipt Notes (GRN) and related stock movements.
 
 use async_trait::async_trait;
+use serde_json;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -12,6 +13,8 @@ use inventory_service_core::dto::receipt::{
     ReceiptCreateRequest, ReceiptItemResponse, ReceiptListQuery, ReceiptListResponse,
     ReceiptResponse, ReceiptSummaryResponse,
 };
+use inventory_service_core::events::{event_types, GoodsReceiptValidatedEvent, ReceiptItemEvent};
+
 use inventory_service_core::repositories::receipt::ReceiptRepository;
 use shared_error::AppError;
 
@@ -440,10 +443,17 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
     ) -> Result<ReceiptResponse, AppError> {
         let mut tx = self.pool.begin().await?;
 
-        // Check if receipt exists and get current status
-        let receipt = sqlx::query!(
+        // Check if receipt exists and get current status and warehouse_id
+        #[derive(sqlx::FromRow)]
+        struct ReceiptStatus {
+            status: String,
+            warehouse_id: Uuid,
+        }
+
+        let receipt = sqlx::query_as!(
+            ReceiptStatus,
             r#"
-            SELECT status
+            SELECT status, warehouse_id
             FROM goods_receipts
             WHERE tenant_id = $1 AND receipt_id = $2 AND deleted_at IS NULL
             "#,
@@ -517,7 +527,6 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
                 .await?;
 
                 // Update or insert inventory valuation
-                // Update inventory valuation
                 sqlx::query!(
                     r#"
                     INSERT INTO inventory_valuations (
@@ -548,8 +557,38 @@ impl ReceiptRepository for ReceiptRepositoryImpl {
             }
         }
 
-        // TODO: Publish receipt completed event to outbox/NATS
-        // For now, this is a placeholder until outbox pattern is implemented
+        // Publish event
+        let event = GoodsReceiptValidatedEvent {
+            receipt_id,
+            items: items
+                .iter()
+                .map(|item| ReceiptItemEvent {
+                    product_id: item.product_id,
+                    variant_id: None,
+                    quantity_received: item.received_quantity,
+                    warehouse_id: receipt.warehouse_id,
+                    location_id: None,
+                    lot_serial_id: None,
+                })
+                .collect(),
+        };
+        let event_data = serde_json::to_value(event)
+            .map_err(|e| AppError::InternalError(format!("Failed to serialize event: {}", e)))?;
+        let event_id = Uuid::now_v7();
+        sqlx::query!(
+            r#"
+            INSERT INTO event_outbox (
+                id, tenant_id, event_type, event_data, status, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, 'pending', NOW(), NOW())
+            "#,
+            event_id,
+            tenant_id,
+            event_types::GOODS_RECEIPT_VALIDATED,
+            event_data
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
 

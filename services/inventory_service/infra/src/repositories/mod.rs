@@ -4,6 +4,7 @@
 
 pub mod category;
 pub mod delivery_order;
+pub mod event;
 pub mod lot_serial;
 pub mod picking_method;
 pub mod product;
@@ -25,6 +26,7 @@ pub use category::CategoryRepositoryImpl;
 pub use delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository, PgInventoryRepository,
 };
+pub use event::EventRepositoryImpl;
 pub use lot_serial::LotSerialRepositoryImpl;
 pub use picking_method::PickingMethodRepositoryImpl;
 pub use product::ProductRepositoryImpl;

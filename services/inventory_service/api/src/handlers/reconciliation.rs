@@ -25,13 +25,13 @@ pub fn create_reconciliation_routes() -> Router {
     Router::new()
         .route("/", post(create_reconciliation))
         .route("/analytics", get(get_reconciliation_analytics))
-        .route("/:reconciliation_id/count", post(count_reconciliation))
-        .route("/:reconciliation_id/scan", post(scan_barcode))
-        .route("/:reconciliation_id/finalize", post(finalize_reconciliation))
-        .route("/:reconciliation_id/approve", post(approve_reconciliation))
-        .route("/:reconciliation_id/variance", get(get_variance_analysis))
+        .route("/{reconciliation_id}/count", post(count_reconciliation))
+        .route("/{reconciliation_id}/scan", post(scan_barcode))
+        .route("/{reconciliation_id}/finalize", post(finalize_reconciliation))
+        .route("/{reconciliation_id}/approve", post(approve_reconciliation))
+        .route("/{reconciliation_id}/variance", get(get_variance_analysis))
         .route("/", get(list_reconciliations))
-        .route("/:reconciliation_id", get(get_reconciliation))
+        .route("/{reconciliation_id}", get(get_reconciliation))
 }
 
 /// POST /api/v1/inventory/reconciliations - Start reconciliation
