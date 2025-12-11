@@ -5,7 +5,7 @@
 **Phase:** 04_Inventory_Service
 **Module:** 4.11_Technical_Implementation
 **Priority:** High
-**Status:** NeedsReview
+**Status:** Done
 **Assignee:** Grok_Agent
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-12-11
@@ -63,4 +63,9 @@ Implement the Transactional Outbox pattern to ensure reliable, at-least-once del
 *   2025-12-11 04:00: Remaining critical issue: sqlx Transaction Executor trait bound errors persist; attempted fixes with generic executors and sqlx::query but compilation fails; may need to define custom transaction abstraction or adjust sqlx usage by Grok_Agent
 *   2025-12-11 05:00: Fixed sqlx Transaction Executor trait bound errors by removing transactional method from EventRepository trait and handling event insertion directly in infra using sqlx; decoupled core from sqlx types; code compiles successfully by Grok_Agent
 *   2025-12-11 05:30: All PR review issues resolved, code compiles cleanly with cargo check and clippy; transactional outbox implementation complete and ready for user review by Grok_Agent
+*   2025-12-11 06:00: Added optimized database index for event polling query [TaskID: 04.11.02]
+    - Added idx_event_outbox_status_created index on (status, created_at, id) to improve polling performance
+    - Index matches the worker's SELECT query filtering on status='pending' and ordering by created_at
+    - Status: Done
+    - Files modified: migrations/20251211005337_create_event_outbox_table.sql
 *   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)

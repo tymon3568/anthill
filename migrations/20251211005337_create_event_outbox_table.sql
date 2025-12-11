@@ -17,5 +17,9 @@ CREATE TABLE event_outbox (
 -- Index for efficient polling of pending events per tenant
 CREATE INDEX idx_event_outbox_tenant_status_created ON event_outbox (tenant_id, status, created_at);
 
+-- Index for efficient polling of pending events ordered by created_at
+-- Matches queries filtering on status (e.g. 'pending') and ordering by created_at
+CREATE INDEX idx_event_outbox_status_created ON event_outbox (status, created_at, id);
+
 -- Index for cleanup of old published events
 CREATE INDEX idx_event_outbox_published_at ON event_outbox (published_at) WHERE status = 'published';
