@@ -22,6 +22,7 @@ pub use repositories::quality::PgQualityControlPointRepository;
 pub use repositories::removal_strategy::RemovalStrategyRepositoryImpl;
 pub use repositories::replenishment::PgReorderRuleRepository;
 pub use repositories::valuation::ValuationRepositoryImpl;
+pub use services::cache::{RedisCache, SharedCache, SharedInventoryCache, SharedProductCache};
 pub use services::product::ProductServiceImpl;
 pub use services::putaway::PgPutawayService;
 pub use services::quality::PgQualityControlPointService;
