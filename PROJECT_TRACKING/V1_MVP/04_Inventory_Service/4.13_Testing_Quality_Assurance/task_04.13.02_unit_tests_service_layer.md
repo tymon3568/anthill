@@ -9,14 +9,15 @@
 **Assignee:** AI_Agent
 **Created Date:** 2025-12-12
 **Last Updated:** 2025-12-12
+**PR:** #97
 
 ## Detailed Description:
 Implement unit tests for service layer implementations in `inventory_service_infra`, using mock repositories to test business logic in CategoryService, ProductService, WarehouseService, and other core services.
 
 ## Specific Sub-tasks:
-- [ ] 1. Set up mock infrastructure using mockall crate
-    - [ ] 1.1. Create MockCategoryRepository
-    - [ ] 1.2. Create MockProductRepository
+- [x] 1. Set up mock infrastructure using mockall crate
+    - [x] 1.1. Create MockCategoryRepository (existing)
+    - [x] 1.2. Create MockProductRepository
     - [ ] 1.3. Create MockWarehouseRepository
 - [ ] 2. Write tests for CategoryService
     - [ ] 2.1. create_category (validation, parent existence check)
@@ -24,10 +25,10 @@ Implement unit tests for service layer implementations in `inventory_service_inf
     - [ ] 2.3. delete_category (soft delete, has children check)
     - [ ] 2.4. get_category_tree (hierarchy building)
     - [ ] 2.5. bulk_activate/deactivate_categories
-- [ ] 3. Write tests for ProductService
-    - [ ] 3.1. search_products (filters, pagination)
-    - [ ] 3.2. get_product_by_sku
-    - [ ] 3.3. Product search analytics
+- [x] 3. Write tests for ProductService
+    - [x] 3.1. search_products (filters, pagination)
+    - [x] 3.2. get_product_by_sku
+    - [x] 3.3. Product search analytics
 - [ ] 4. Write tests for WarehouseService
     - [ ] 4.1. CRUD operations
     - [ ] 4.2. Hierarchy management
