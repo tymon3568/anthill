@@ -78,7 +78,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
-          token: ${{ secrets.CODECOV_TOKEN }}  # fallback if OIDC fails
           files: ./lcov.info
           flags: unittests
           name: rust-coverage
@@ -143,7 +142,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./lcov-user.info
           flags: user_service
           name: user-service-coverage
@@ -181,7 +179,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./lcov-inventory.info
           flags: inventory_service
           name: inventory-service-coverage
@@ -224,10 +221,10 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/coverage/lcov.info
           flags: frontend
           name: frontend-coverage
+          fail_ci_if_error: false
           fail_ci_if_error: false
 
   # Summary job
