@@ -1,6 +1,9 @@
 [dependencies]
 # Async traits
 async-trait = {workspace = true}
+# Redis connection pooling
+bb8 = "0.8"
+bb8-redis = "0.15"
 chrono = {workspace = true}
 # Internal crates
 inventory_service_core = {workspace = true}
@@ -12,6 +15,8 @@ redis = {workspace = true}
 regex = {workspace = true}
 # Decimal numbers
 rust_decimal = {workspace = true}
+# Serialization
+serde = {workspace = true}
 # JSON serialization
 serde_json = {workspace = true}
 # Hashing for idempotency keys

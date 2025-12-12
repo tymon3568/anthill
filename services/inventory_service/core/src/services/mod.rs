@@ -3,6 +3,7 @@
 //! This module contains trait definitions for business logic operations.
 //! No implementations here - pure interfaces.
 
+pub mod cache;
 pub mod category;
 pub mod delivery;
 pub mod distributed_lock;
@@ -25,6 +26,7 @@ pub use distributed_lock::DistributedLockService;
 pub use picking_method::PickingMethodService;
 pub use quality::QualityControlPointService;
 // pub use delivery::DeliveryService;
+pub use cache::{CacheService, InventoryCache, ProductCache};
 pub use lot_serial::LotSerialService;
 pub use product::ProductService;
 pub use receipt::ReceiptService;
