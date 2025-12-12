@@ -60,12 +60,8 @@ function testStockReservation() {
     const success = check(response, {
         'reservation status 200, 201, or 409': (r) => r.status === 200 || r.status === 201 || r.status === 409,
         'reservation has id': (r) => {
-            try {
-                const body = JSON.parse(r.body);
-                return body.reservation_id !== undefined;
-            } catch {
-                return false;
-            }
+            const body = r.json();
+            return body && body.reservation_id !== undefined;
         },
     });
 
@@ -126,12 +122,8 @@ function testStockLevel() {
     const success = check(response, {
         'level query status 200': (r) => r.status === 200,
         'level has quantity': (r) => {
-            try {
-                const body = JSON.parse(r.body);
-                return body.available_quantity !== undefined;
-            } catch {
-                return false;
-            }
+            const body = r.json();
+            return body && body.available_quantity !== undefined;
         },
     });
 

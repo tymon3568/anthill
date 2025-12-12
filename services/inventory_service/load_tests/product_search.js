@@ -57,12 +57,8 @@ export default function () {
     const success = check(response, {
         'status is 200': (r) => r.status === 200,
         'response has products': (r) => {
-            try {
-                const body = JSON.parse(r.body);
-                return body.products !== undefined;
-            } catch {
-                return false;
-            }
+            const body = r.json();
+            return body && body.products !== undefined;
         },
         'response time < 200ms': (r) => r.timings.duration < 200,
     });
@@ -71,13 +67,9 @@ export default function () {
 
     // Track results count
     if (response.status === 200) {
-        try {
-            const body = JSON.parse(response.body);
-            if (body.products) {
-                resultsReturned.add(body.products.length);
-            }
-        } catch {
-            // Ignore parse errors
+        const body = response.json();
+        if (body && body.products) {
+            resultsReturned.add(body.products.length);
         }
     }
 

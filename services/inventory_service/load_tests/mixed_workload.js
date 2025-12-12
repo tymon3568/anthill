@@ -32,7 +32,7 @@ export const options = {
 
 // Generate unique idempotency key
 function generateIdempotencyKey() {
-    return `k6-mixed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `k6-mixed-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 // ============================================================================

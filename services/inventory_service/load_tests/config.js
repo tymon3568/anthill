@@ -128,11 +128,17 @@ export function randomProductId() {
     return products[Math.floor(Math.random() * products.length)];
 }
 
-// Generate random stock move request
+// Generate random stock move request with guaranteed different warehouses
 export function randomStockMoveRequest() {
+    const fromWarehouse = randomWarehouseId();
+    let toWarehouse = randomWarehouseId();
+    // Ensure from and to warehouses are different
+    while (toWarehouse === fromWarehouse) {
+        toWarehouse = randomWarehouseId();
+    }
     return {
-        from_warehouse_id: randomWarehouseId(),
-        to_warehouse_id: randomWarehouseId(),
+        from_warehouse_id: fromWarehouse,
+        to_warehouse_id: toWarehouse,
         product_id: randomProductId(),
         quantity: Math.floor(Math.random() * 100) + 1,
         reason: 'load_test',
