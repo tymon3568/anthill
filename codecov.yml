@@ -46,29 +46,35 @@ flags:
       - shared/
     carryforward: true
 
-  user-service:
+  ci-all-tests:
     paths:
-      - services/user-service/
+      - services/
+      - shared/
     carryforward: true
 
-  inventory-service:
+  user_service:
     paths:
-      - services/inventory-service/
+      - services/user_service/
     carryforward: true
 
-  order-service:
+  inventory_service:
     paths:
-      - services/order-service/
+      - services/inventory_service/
     carryforward: true
 
-  payment-service:
+  order_service:
     paths:
-      - services/payment-service/
+      - services/order_service/
     carryforward: true
 
-  integration-service:
+  payment_service:
     paths:
-      - services/integration-service/
+      - services/payment_service/
+    carryforward: true
+
+  integration_service:
+    paths:
+      - services/integration_service/
     carryforward: true
 
   frontend:
@@ -96,3 +102,20 @@ ignore:
 # GitHub integration
 github_checks:
   annotations: true
+
+# Component management for better grouping
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: 70%
+  individual_components:
+    - component_id: rust-backend
+      name: Rust Backend Services
+      paths:
+        - services/**
+        - shared/**
+    - component_id: frontend
+      name: SvelteKit Frontend
+      paths:
+        - frontend/src/**

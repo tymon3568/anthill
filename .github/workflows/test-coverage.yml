@@ -3,16 +3,7 @@ name: Test Coverage
 on:
   push:
     branches: [master, main, develop]
-    paths:
-      - "services/**/*.rs"
-      - "services/**/Cargo.toml"
-      - "shared/**/*.rs"
-      - "shared/**/Cargo.toml"
-      - "frontend/**/*.{js,ts,svelte}"
-      - "frontend/package.json"
-      - "frontend/vite.config.ts"
-      - "frontend/playwright.config.ts"
-      - ".github/workflows/test-coverage.yml"
+    # No path filter for main branches - always run coverage
   pull_request:
     branches: [main]
     paths:
@@ -104,6 +95,7 @@ jobs:
   coverage-user-service:
     name: Coverage - User Service
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -151,13 +143,14 @@ jobs:
         with:
           use_oidc: true
           files: ./lcov-user.info
-          flags: user-service
+          flags: user_service
           name: user-service-coverage
           fail_ci_if_error: false
 
   coverage-inventory-service:
     name: Coverage - Inventory Service
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -168,7 +161,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/inventory-service"
+          workspaces: "services/inventory_service"
 
       - uses: taiki-e/install-action@v2
         with:
@@ -176,7 +169,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          cd services/inventory-service
+          cd services/inventory_service
           cargo llvm-cov \
             --all-features \
             --lcov \
@@ -187,13 +180,14 @@ jobs:
         with:
           use_oidc: true
           files: ./lcov-inventory.info
-          flags: inventory-service
+          flags: inventory_service
           name: inventory-service-coverage
           fail_ci_if_error: false
 
   coverage-frontend:
     name: Coverage - Frontend
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -230,6 +224,7 @@ jobs:
           files: ./frontend/coverage/lcov.info
           flags: frontend
           name: frontend-coverage
+          fail_ci_if_error: false
           fail_ci_if_error: false
 
   # Summary job

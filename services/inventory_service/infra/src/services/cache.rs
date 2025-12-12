@@ -67,7 +67,7 @@ impl CacheService for RedisCache {
     {
         let mut conn = self.get_connection().await?;
         let data: Option<String> = conn
-            .get(key.as_ref())
+            .get::<_, Option<String>>(key.as_ref())
             .await
             .map_err(|e| AppError::InternalError(format!("Redis get error: {}", e)))?;
 
