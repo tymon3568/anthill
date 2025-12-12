@@ -98,7 +98,7 @@ cargo install cargo-llvm-cov
 cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
 
 # Specific service
-cd services/user-service
+cd services/user_service
 cargo llvm-cov --all-features --lcov --output-path ../../lcov-user.info
 
 # HTML report (for local viewing)

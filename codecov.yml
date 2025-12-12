@@ -46,29 +46,29 @@ flags:
       - shared/
     carryforward: true
 
-  user-service:
+  user_service:
     paths:
-      - services/user-service/
+      - services/user_service/
     carryforward: true
 
-  inventory-service:
+  inventory_service:
     paths:
-      - services/inventory-service/
+      - services/inventory_service/
     carryforward: true
 
-  order-service:
+  order_service:
     paths:
-      - services/order-service/
+      - services/order_service/
     carryforward: true
 
-  payment-service:
+  payment_service:
     paths:
-      - services/payment-service/
+      - services/payment_service/
     carryforward: true
 
-  integration-service:
+  integration_service:
     paths:
-      - services/integration-service/
+      - services/integration_service/
     carryforward: true
 
   frontend:

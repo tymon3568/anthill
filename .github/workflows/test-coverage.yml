@@ -151,7 +151,7 @@ jobs:
         with:
           use_oidc: true
           files: ./lcov-user.info
-          flags: user-service
+          flags: user_service
           name: user-service-coverage
           fail_ci_if_error: false
 
@@ -168,7 +168,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/inventory-service"
+          workspaces: "services/inventory_service"
 
       - uses: taiki-e/install-action@v2
         with:
@@ -176,7 +176,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          cd services/inventory-service
+          cd services/inventory_service
           cargo llvm-cov \
             --all-features \
             --lcov \
@@ -187,7 +187,7 @@ jobs:
         with:
           use_oidc: true
           files: ./lcov-inventory.info
-          flags: inventory-service
+          flags: inventory_service
           name: inventory-service-coverage
           fail_ci_if_error: false
 
