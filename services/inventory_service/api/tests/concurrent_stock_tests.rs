@@ -59,6 +59,12 @@ const INCREMENT_AMOUNT: i64 = 10;
 #[allow(dead_code)]
 /// Decrement amount per operation
 const DECREMENT_AMOUNT: i64 = 5;
+#[allow(dead_code)]
+/// Receipt amount for mixed operations test
+const MIXED_RECEIPT_AMOUNT: i64 = 50;
+#[allow(dead_code)]
+/// Transfer amount for mixed operations test
+const MIXED_TRANSFER_AMOUNT: i64 = 30;
 
 // ============================================================================
 // Test Configuration
@@ -520,7 +526,7 @@ mod concurrent_move_tests {
         let dest_qty = app.db().get_inventory_level(tenant_id, dest_wh, product_id).await;
 
         assert_eq!(source_qty, Some(0), "Source should be empty");
-        assert_eq!(dest_qty, Some(100), "Destination should have 100 units");
+        assert_eq!(dest_qty, Some(INITIAL_INVENTORY_STANDARD), "Destination should have {} units", INITIAL_INVENTORY_STANDARD);
 
         app.cleanup().await;
     }
@@ -582,14 +588,14 @@ mod concurrent_move_tests {
         let wh2 = app.db().create_test_warehouse(tenant_id, "MIX-WH2", "Warehouse 2").await;
         let product_id = app.db().create_test_product(tenant_id, "MIX-001", "Mixed Product").await;
 
-        // Initial: 100 at WH1, 0 at WH2
-        app.db().set_inventory_level(tenant_id, wh1, product_id, 100).await;
+        // Initial: INITIAL_INVENTORY_STANDARD at WH1, 0 at WH2
+        app.db().set_inventory_level(tenant_id, wh1, product_id, INITIAL_INVENTORY_STANDARD).await;
         app.db().set_inventory_level(tenant_id, wh2, product_id, 0).await;
 
         let db_pool = app.db().pool.clone();
         let mut handles: JoinSet<bool> = JoinSet::new();
 
-        // Receipt to WH1: +50
+        // Receipt to WH1: +MIXED_RECEIPT_AMOUNT
         {
             let pool = db_pool.clone();
             let t_id = tenant_id;
@@ -598,12 +604,13 @@ mod concurrent_move_tests {
             handles.spawn(async move {
                 sqlx::query(
                     "UPDATE inventory_levels
-                     SET available_quantity = available_quantity + 50, updated_at = NOW()
+                     SET available_quantity = available_quantity + $4, updated_at = NOW()
                      WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
                 )
                 .bind(t_id)
                 .bind(w_id)
                 .bind(p_id)
+                .bind(MIXED_RECEIPT_AMOUNT)
                 .execute(&pool)
                 .await
                 .is_ok()
@@ -644,12 +651,13 @@ mod concurrent_move_tests {
                 // Deduct from source
                 let deduct_result = sqlx::query(
                     "UPDATE inventory_levels
-                     SET available_quantity = available_quantity - 30, updated_at = NOW()
+                     SET available_quantity = available_quantity - $4, updated_at = NOW()
                      WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
                 )
                 .bind(t_id)
                 .bind(src)
                 .bind(p_id)
+                .bind(MIXED_TRANSFER_AMOUNT)
                 .execute(&mut *tx)
                 .await;
 
@@ -661,12 +669,13 @@ mod concurrent_move_tests {
                 // Add to destination
                 let add_result = sqlx::query(
                     "UPDATE inventory_levels
-                     SET available_quantity = available_quantity + 30, updated_at = NOW()
+                     SET available_quantity = available_quantity + $4, updated_at = NOW()
                      WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
                 )
                 .bind(t_id)
                 .bind(dst)
                 .bind(p_id)
+                .bind(MIXED_TRANSFER_AMOUNT)
                 .execute(&mut *tx)
                 .await;
 
@@ -696,13 +705,15 @@ mod concurrent_move_tests {
         assert!(all_succeeded, "All concurrent operations should succeed");
 
         // Verify final states
-        // WH1: 100 + 50 - 30 = 120
-        // WH2: 0 + 30 = 30
+        // WH1: INITIAL_INVENTORY_STANDARD + MIXED_RECEIPT_AMOUNT - MIXED_TRANSFER_AMOUNT
+        // WH2: 0 + MIXED_TRANSFER_AMOUNT
+        let expected_wh1 = INITIAL_INVENTORY_STANDARD + MIXED_RECEIPT_AMOUNT - MIXED_TRANSFER_AMOUNT;
+        let expected_wh2 = MIXED_TRANSFER_AMOUNT;
         let wh1_qty = app.db().get_inventory_level(tenant_id, wh1, product_id).await;
         let wh2_qty = app.db().get_inventory_level(tenant_id, wh2, product_id).await;
 
-        assert_eq!(wh1_qty, Some(120), "WH1 should have 120 units");
-        assert_eq!(wh2_qty, Some(30), "WH2 should have 30 units");
+        assert_eq!(wh1_qty, Some(expected_wh1), "WH1 should have {} units", expected_wh1);
+        assert_eq!(wh2_qty, Some(expected_wh2), "WH2 should have {} units", expected_wh2);
 
         app.cleanup().await;
     }
