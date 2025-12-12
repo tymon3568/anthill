@@ -20,7 +20,7 @@ CREATE INDEX idx_products_tenant_sellable
 -- Composite index for product search with filters
 CREATE INDEX idx_products_tenant_type_active
     ON products(tenant_id, product_type, is_active)
-    WHERE deleted_at IS NULL;
+    WHERE deleted_at IS NULL AND is_active = true;
 
 -- ==================================
 -- ADVANCED INDEXES for STOCK_MOVES TABLE
@@ -55,9 +55,9 @@ CREATE INDEX idx_inventory_levels_tenant_available_stock
     ON inventory_levels(tenant_id, product_id, available_quantity DESC)
     WHERE deleted_at IS NULL AND available_quantity > 0;
 
--- Index for low stock alerts
+-- Index for products with reservations
 CREATE INDEX idx_inventory_levels_tenant_reserved
-    ON inventory_levels(tenant_id, reserved_quantity DESC)
+    ON inventory_levels(tenant_id, product_id, reserved_quantity DESC)
     WHERE deleted_at IS NULL AND reserved_quantity > 0;
 
 -- ==================================

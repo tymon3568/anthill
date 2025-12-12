@@ -30,6 +30,7 @@ CREATE TABLE daily_stock_snapshots (
     -- Audit fields
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
 
     -- Constraints
     CONSTRAINT daily_stock_snapshots_unique_per_tenant_product_date
@@ -52,8 +53,7 @@ CREATE INDEX idx_daily_stock_snapshots_tenant_product_date
 CREATE INDEX idx_daily_stock_snapshots_tenant_date
     ON daily_stock_snapshots(tenant_id, snapshot_date DESC);
 
-CREATE INDEX idx_daily_stock_snapshots_tenant_product
-    ON daily_stock_snapshots(tenant_id, product_id);
+
 
 -- ==================================
 -- TRIGGERS
@@ -92,20 +92,21 @@ BEGIN
             closing_quantity
         )
         SELECT
-            sm.tenant_id,
-            sm.product_id,
+            prev.tenant_id,
+            prev.product_id,
             v_date,
-            COALESCE(prev.closing_quantity, 0),
+            prev.closing_quantity,
             COALESCE(SUM(sm.quantity), 0),
-            COALESCE(prev.closing_quantity, 0) + COALESCE(SUM(sm.quantity), 0)
-        FROM stock_moves sm
-        LEFT JOIN daily_stock_snapshots prev ON
-            prev.tenant_id = sm.tenant_id
-            AND prev.product_id = sm.product_id
-            AND prev.snapshot_date = v_date - INTERVAL '1 day'
-        WHERE sm.tenant_id = p_tenant_id
-            AND DATE(sm.move_date) = v_date
-        GROUP BY sm.tenant_id, sm.product_id, prev.closing_quantity
+            prev.closing_quantity + COALESCE(SUM(sm.quantity), 0)
+        FROM daily_stock_snapshots prev
+        LEFT JOIN stock_moves sm ON
+            sm.tenant_id = prev.tenant_id
+            AND sm.product_id = prev.product_id
+            AND sm.move_date >= v_date::timestamptz
+            AND sm.move_date < (v_date + INTERVAL '1 day')::timestamptz
+        WHERE prev.tenant_id = p_tenant_id
+            AND prev.snapshot_date = (v_date - 1)::date
+        GROUP BY prev.tenant_id, prev.product_id, prev.closing_quantity
         ON CONFLICT (tenant_id, product_id, snapshot_date)
         DO UPDATE SET
             opening_quantity = EXCLUDED.opening_quantity,
