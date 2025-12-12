@@ -70,10 +70,13 @@ const MIXED_TRANSFER_AMOUNT: i64 = 30;
 // Test Configuration
 // ============================================================================
 
+/// Default test database URL (used when DATABASE_URL env not set)
+const DEFAULT_TEST_DB_URL: &str = "postgres://anthill:anthill@localhost:5433/anthill_test";
+
 fn test_config() -> Config {
     Config {
         database_url: std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://anthill:anthill@localhost:5433/anthill_test".to_string()
+            DEFAULT_TEST_DB_URL.to_string()
         }),
         jwt_secret: std::env::var("JWT_SECRET")
             .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string()),
@@ -105,7 +108,7 @@ struct TestDatabase {
 impl TestDatabase {
     async fn new() -> Self {
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            "postgres://anthill:anthill@localhost:5433/anthill_test".to_string()
+            DEFAULT_TEST_DB_URL.to_string()
         });
 
         let pool = PgPool::connect(&database_url)
@@ -572,8 +575,22 @@ mod concurrent_move_tests {
             });
         }
 
-        // Wait for all receipts
-        while let Some(_) = handles.join_next().await {}
+        // Wait for all receipts and ensure no task failed
+        let mut failure_count = 0;
+        while let Some(join_result) = handles.join_next().await {
+            match join_result {
+                Ok(task_ok) => {
+                    if !task_ok {
+                        failure_count += 1;
+                    }
+                }
+                Err(join_error) => {
+                    eprintln!("join error in concurrent receipt task: {join_error}");
+                    failure_count += 1;
+                }
+            }
+        }
+        assert_eq!(failure_count, 0, "All concurrent receipt tasks must succeed");
 
         // Verify final quantity: should be exactly 100 (10 * 10)
         let expected_qty = (CONCURRENT_RECEIPT_TASKS as i64) * RECEIPT_AMOUNT;
@@ -902,8 +919,23 @@ mod consistency_tests {
             });
         }
 
-        // Wait for all operations
-        while let Some(_) = handles.join_next().await {}
+        // Wait for all concurrent operations and ensure no failures
+        let mut failure_count = 0;
+        while let Some(join_result) = handles.join_next().await {
+            match join_result {
+                Ok(task_result) => {
+                    if task_result.is_err() { // Check if the SQL operation itself failed
+                        eprintln!("SQL operation failed: {}", task_result.unwrap_err());
+                        failure_count += 1;
+                    }
+                }
+                Err(join_error) => {
+                    eprintln!("join error in consistency task: {join_error}");
+                    failure_count += 1;
+                }
+            }
+        }
+        assert_eq!(failure_count, 0, "All concurrent operations must succeed");
 
         // Final: 1000 + (20 * 10) - (10 * 5) = 1000 + 200 - 50 = 1150
         let expected_final = INITIAL_INVENTORY_LARGE
