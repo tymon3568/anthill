@@ -283,4 +283,163 @@ mod tests {
         assert!(response.success);
         assert_eq!(response.affected_count, 2);
     }
+
+    // =========================================================================
+    // Additional Tests for Better Coverage
+    // =========================================================================
+
+    #[tokio::test]
+    async fn test_get_category_not_found() {
+        let mut mock_repo = MockCategoryRepositoryImpl::new();
+        let tenant_id = Uuid::new_v4();
+        let category_id = Uuid::new_v4();
+
+        mock_repo
+            .expect_find_by_id()
+            .with(eq(tenant_id), eq(category_id))
+            .returning(|_, _| Ok(None));
+
+        let service = CategoryServiceImpl::new(mock_repo);
+
+        let result = service.get_category(tenant_id, category_id).await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AppError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn test_delete_category_cannot_delete() {
+        let mut mock_repo = MockCategoryRepositoryImpl::new();
+        let tenant_id = Uuid::new_v4();
+        let category_id = Uuid::new_v4();
+
+        // Category has children or products, cannot delete
+        mock_repo
+            .expect_can_delete()
+            .with(eq(tenant_id), eq(category_id))
+            .returning(|_, _| Ok(false));
+
+        let service = CategoryServiceImpl::new(mock_repo);
+
+        let result = service.delete_category(tenant_id, category_id).await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AppError::ValidationError(_)));
+    }
+
+    #[tokio::test]
+    async fn test_create_category_parent_not_exists() {
+        let mut mock_repo = MockCategoryRepositoryImpl::new();
+        let tenant_id = Uuid::new_v4();
+        let parent_id = Uuid::new_v4();
+
+        // Parent category does not exist
+        mock_repo
+            .expect_exists()
+            .with(eq(tenant_id), eq(parent_id))
+            .returning(|_, _| Ok(false));
+
+        let service = CategoryServiceImpl::new(mock_repo);
+
+        let request = CategoryCreateRequest {
+            parent_category_id: Some(parent_id),
+            name: "Child Category".to_string(),
+            description: None,
+            code: None,
+            display_order: 0,
+            icon: None,
+            color: None,
+            image_url: None,
+            is_active: true,
+            is_visible: true,
+            slug: None,
+            meta_title: None,
+            meta_description: None,
+            meta_keywords: None,
+        };
+
+        let result = service.create_category(tenant_id, request).await;
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AppError::NotFound(_)));
+    }
+
+    #[tokio::test]
+    async fn test_get_category_tree_success() {
+        let mut mock_repo = MockCategoryRepositoryImpl::new();
+        let tenant_id = Uuid::new_v4();
+
+        let root_category = create_test_category();
+        let root_node = CategoryNode::new(root_category);
+
+        mock_repo
+            .expect_get_tree()
+            .with(eq(tenant_id), eq(None))
+            .returning(move |_, _| Ok(vec![root_node.clone()]));
+
+        let service = CategoryServiceImpl::new(mock_repo);
+
+        let result = service.get_category_tree(tenant_id, None, None).await;
+        assert!(result.is_ok());
+        let tree = result.unwrap();
+        assert_eq!(tree.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_bulk_deactivate_categories() {
+        let mut mock_repo = MockCategoryRepositoryImpl::new();
+        let tenant_id = Uuid::new_v4();
+        let category_ids = vec![Uuid::new_v4(), Uuid::new_v4()];
+
+        mock_repo
+            .expect_bulk_deactivate()
+            .with(eq(tenant_id), eq(category_ids.clone()))
+            .returning(|_, _| Ok(2));
+
+        let service = CategoryServiceImpl::new(mock_repo);
+
+        let result = service
+            .bulk_deactivate_categories(tenant_id, category_ids)
+            .await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert!(response.success);
+        assert_eq!(response.affected_count, 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_children_success() {
+        let mut mock_repo = MockCategoryRepositoryImpl::new();
+        let tenant_id = Uuid::new_v4();
+        let parent_id = Uuid::new_v4();
+        let child = create_test_category();
+
+        mock_repo
+            .expect_get_children()
+            .with(eq(tenant_id), eq(parent_id))
+            .returning(move |_, _| Ok(vec![child.clone()]));
+
+        let service = CategoryServiceImpl::new(mock_repo);
+
+        let result = service.get_children(tenant_id, parent_id).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_search_categories_success() {
+        let mut mock_repo = MockCategoryRepositoryImpl::new();
+        let tenant_id = Uuid::new_v4();
+        let category = create_test_category();
+
+        mock_repo
+            .expect_search()
+            .with(eq(tenant_id), eq("test"), eq(10))
+            .returning(move |_, _, _| Ok(vec![category.clone()]));
+
+        let service = CategoryServiceImpl::new(mock_repo);
+
+        let result = service.search_categories(tenant_id, "test", 10).await;
+        assert!(result.is_ok());
+        let categories = result.unwrap();
+        assert_eq!(categories.len(), 1);
+        assert_eq!(categories[0].name, "Test Category");
+    }
 }

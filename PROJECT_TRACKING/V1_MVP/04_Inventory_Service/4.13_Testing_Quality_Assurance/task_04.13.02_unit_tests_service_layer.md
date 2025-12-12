@@ -19,12 +19,12 @@ Implement unit tests for service layer implementations in `inventory_service_inf
     - [x] 1.1. Create MockCategoryRepository (existing)
     - [x] 1.2. Create MockProductRepository
     - [ ] 1.3. Create MockWarehouseRepository
-- [ ] 2. Write tests for CategoryService
-    - [ ] 2.1. create_category (validation, parent existence check)
-    - [ ] 2.2. update_category (field updates, name uniqueness)
-    - [ ] 2.3. delete_category (soft delete, has children check)
-    - [ ] 2.4. get_category_tree (hierarchy building)
-    - [ ] 2.5. bulk_activate/deactivate_categories
+- [x] 2. Write tests for CategoryService
+    - [x] 2.1. create_category (validation, parent existence check)
+    - [x] 2.2. update_category (field updates, name uniqueness)
+    - [x] 2.3. delete_category (soft delete, has children check)
+    - [x] 2.4. get_category_tree (hierarchy building)
+    - [x] 2.5. bulk_activate/deactivate_categories
 - [x] 3. Write tests for ProductService
     - [x] 3.1. search_products (filters, pagination)
     - [x] 3.2. get_product_by_sku
