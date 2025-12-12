@@ -168,7 +168,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "services/inventory-service"
+          workspaces: "services/inventory_service"
 
       - uses: taiki-e/install-action@v2
         with:
@@ -176,7 +176,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          cd services/inventory-service
+          cd services/inventory_service
           cargo llvm-cov \
             --all-features \
             --lcov \
