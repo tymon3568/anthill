@@ -5,8 +5,8 @@
 
 use async_trait::async_trait;
 use bb8::Pool;
+use bb8_redis::redis::AsyncCommands;
 use bb8_redis::RedisConnectionManager;
-use redis::AsyncCommands;
 use serde_json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -67,7 +67,7 @@ impl CacheService for RedisCache {
     {
         let mut conn = self.get_connection().await?;
         let data: Option<String> = conn
-            .get(key.as_ref())
+            .get::<_, Option<String>>(key.as_ref())
             .await
             .map_err(|e| AppError::InternalError(format!("Redis get error: {}", e)))?;
 
