@@ -2,7 +2,7 @@
 //!
 //! Run: cargo bench --package inventory_service_core --bench inventory_benchmarks
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use uuid::Uuid;
 
 // ============================================================================
@@ -452,34 +452,35 @@ fn bench_valuation_calculations(c: &mut Criterion) {
     });
 
     group.bench_function("fifo_consume_quantity", |b| {
-        let mut layers_clone = layers.clone();
         let quantity_to_consume = 50i64;
 
-        b.iter(|| {
-            let mut remaining = quantity_to_consume;
-            let mut total_cost = 0i64;
-            let mut layers_copy = layers_clone.clone();
+        b.iter_batched(
+            || layers.clone(),
+            |mut layers_copy| {
+                let mut remaining = quantity_to_consume;
+                let mut total_cost = 0i64;
 
-            for layer in layers_copy.iter_mut() {
-                if remaining <= 0 {
-                    break;
+                for layer in layers_copy.iter_mut() {
+                    if remaining <= 0 {
+                        break;
+                    }
+                    let take = remaining.min(layer.quantity);
+                    total_cost += take * layer.unit_cost_cents;
+                    layer.quantity -= take;
+                    remaining -= take;
                 }
-                let take = remaining.min(layer.quantity);
-                total_cost += take * layer.unit_cost_cents;
-                layer.quantity -= take;
-                remaining -= take;
-            }
 
-            black_box(total_cost)
-        });
+                black_box(total_cost)
+            },
+            BatchSize::SmallInput,
+        );
     });
 
-    // AVCO (Average Cost) calculation
+    // AVCO (Average Cost) calculation - includes sum calculation for accurate benchmarking
     group.bench_function("avco_calculate", |b| {
-        let total_quantity: i64 = layers.iter().map(|l| l.quantity).sum();
-        let total_value: i64 = layers.iter().map(|l| l.quantity * l.unit_cost_cents).sum();
-
         b.iter(|| {
+            let total_quantity: i64 = layers.iter().map(|l| l.quantity).sum();
+            let total_value: i64 = layers.iter().map(|l| l.quantity * l.unit_cost_cents).sum();
             let avg_cost = if total_quantity > 0 {
                 total_value / total_quantity
             } else {

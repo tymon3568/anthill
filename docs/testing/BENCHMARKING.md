@@ -114,7 +114,7 @@ cargo bench --package inventory_service_core --bench inventory_benchmarks
 - Category path parsing (depth 5): ~1-2 µs
 - Tree building (781 nodes, optimized): ~50-100 µs
 - FIFO total value: ~40 ns
-- AVCO calculation: ~500 ps
+- AVCO calculation (with sum): ~40-80 ns
 - HashMap lookup: ~17 ns
 - Vec with capacity: ~20-70 ns
 

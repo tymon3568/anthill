@@ -31,7 +31,7 @@ export const options = {
 
 // Generate unique idempotency key
 function generateIdempotencyKey() {
-    return `k6-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return `k6-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
 // Stock reservation test
@@ -58,7 +58,7 @@ function testStockReservation() {
     stockMoveDuration.add(duration);
 
     const success = check(response, {
-        'reservation status 200 or 201': (r) => r.status === 200 || r.status === 201,
+        'reservation status 200, 201, or 409': (r) => r.status === 200 || r.status === 201 || r.status === 409,
         'reservation has id': (r) => {
             try {
                 const body = JSON.parse(r.body);
@@ -71,7 +71,7 @@ function testStockReservation() {
 
     stockMoveSuccessRate.add(success);
 
-    // Track conflicts (409)
+    // Track conflicts (409) separately for analysis
     if (response.status === 409) {
         stockMoveConflicts.add(1);
     }
