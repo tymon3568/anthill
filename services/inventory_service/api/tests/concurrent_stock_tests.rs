@@ -346,7 +346,7 @@ mod reservation_tests {
 
             handles.spawn(async move {
                 // Simulate reservation by updating reserved_quantity
-                // Uses SELECT FOR UPDATE to prevent race conditions
+                // Uses conditional UPDATE to prevent race conditions
                 let result = sqlx::query(
                     "UPDATE inventory_levels
                      SET reserved_quantity = reserved_quantity + $4,
