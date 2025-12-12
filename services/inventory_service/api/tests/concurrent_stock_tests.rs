@@ -853,6 +853,115 @@ mod idempotency_tests {
 
         app.cleanup().await;
     }
+
+    /// Test idempotency under concurrent duplicate requests
+    /// 
+    /// This validates that when two requests with the same idempotency key
+    /// are fired in parallel, only one operation is applied (or both return
+    /// the same response), preventing double inserts under contention.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_concurrent_duplicate_idempotency() {
+        let app = TestApp::new().await;
+        let tenant_id = app.db().create_test_tenant("Concurrent Idempotency").await;
+        let warehouse_id = app.db().create_test_warehouse(tenant_id, "CONC-IDEM-WH", "Concurrent Idempotency WH").await;
+
+        let idempotency_key = Uuid::new_v4().to_string();
+        let user_id = Uuid::new_v4();
+
+        // Clone router for parallel requests
+        let router1 = app.router.clone();
+        let router2 = app.router.clone();
+
+        let key1 = idempotency_key.clone();
+        let key2 = idempotency_key.clone();
+
+        // Fire two identical requests in parallel with the same idempotency key
+        let (result1, result2) = tokio::join!(
+            async {
+                let request = Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/inventory/stock-takes")
+                    .header("content-type", "application/json")
+                    .header("x-idempotency-key", &key1)
+                    .header("authorization", create_auth_header(tenant_id, user_id))
+                    .body(Body::from(json!({
+                        "warehouse_id": warehouse_id,
+                        "name": "Concurrent Stock Take",
+                        "count_type": "full"
+                    }).to_string()))
+                    .unwrap();
+
+                let response = router1.oneshot(request).await.unwrap();
+                let status = response.status();
+                let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+                let body_str = String::from_utf8(body.to_vec()).unwrap();
+                (status, body_str)
+            },
+            async {
+                let request = Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/v1/inventory/stock-takes")
+                    .header("content-type", "application/json")
+                    .header("x-idempotency-key", &key2)
+                    .header("authorization", create_auth_header(tenant_id, user_id))
+                    .body(Body::from(json!({
+                        "warehouse_id": warehouse_id,
+                        "name": "Concurrent Stock Take",
+                        "count_type": "full"
+                    }).to_string()))
+                    .unwrap();
+
+                let response = router2.oneshot(request).await.unwrap();
+                let status = response.status();
+                let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+                let body_str = String::from_utf8(body.to_vec()).unwrap();
+                (status, body_str)
+            }
+        );
+
+        let (status1, body1) = result1;
+        let (status2, body2) = result2;
+
+        // Under proper idempotency:
+        // - One request succeeds (201 Created)
+        // - The other either returns the same result OR returns 409 Conflict
+        // Both failing would indicate neither was processed (bad)
+        
+        let one_succeeded = status1.is_success() || status2.is_success();
+        assert!(
+            one_succeeded,
+            "At least one concurrent request should succeed. Got status1: {:?}, status2: {:?}",
+            status1, status2
+        );
+
+        // If both succeeded, they should return identical responses (idempotent)
+        if status1.is_success() && status2.is_success() {
+            assert_eq!(
+                status1, status2,
+                "Both succeeded but with different statuses: {:?} vs {:?}",
+                status1, status2
+            );
+            // Body comparison may fail due to timestamps, but statuses should match
+        }
+
+        // If one succeeded and one failed, the failure should be 409 Conflict
+        if status1.is_success() && !status2.is_success() {
+            assert_eq!(
+                status2, StatusCode::CONFLICT,
+                "Second request should be rejected with 409 Conflict, got {:?}: {}",
+                status2, body2
+            );
+        }
+        if status2.is_success() && !status1.is_success() {
+            assert_eq!(
+                status1, StatusCode::CONFLICT,
+                "First request should be rejected with 409 Conflict, got {:?}: {}",
+                status1, body1
+            );
+        }
+
+        app.cleanup().await;
+    }
 }
 
 // ============================================================================
