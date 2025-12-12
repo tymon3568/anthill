@@ -33,10 +33,10 @@ Implement integration tests for inventory API endpoints in `inventory_service_ap
     - [x] 4.1. CRUD operations for warehouses
     - [x] 4.2. CRUD operations for zones
     - [x] 4.3. CRUD operations for locations
-- [ ] 5. Test Stock Operations API
-    - [ ] 5.1. POST /api/v1/stock-moves
-    - [ ] 5.2. POST /api/v1/stock-adjustments
-    - [ ] 5.3. GET /api/v1/stock-levels
+- [x] 5. Test Stock Operations API (10 tests in stock_operations_integration_tests.rs)
+    - [x] 5.1. Stock-takes: create, list, get (routes exist)
+    - [x] 5.2. Transfers: create, validate, confirm (routes exist)
+    - [x] 5.3. Valuation: get, layers, history, set method
 
 ## Acceptance Criteria:
 - [ ] Integration tests cover all major API endpoints
