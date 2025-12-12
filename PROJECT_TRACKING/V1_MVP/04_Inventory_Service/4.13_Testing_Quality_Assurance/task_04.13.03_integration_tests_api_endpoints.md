@@ -9,6 +9,7 @@
 **Assignee:** AI_Agent
 **Created Date:** 2025-10-21
 **Last Updated:** 2025-12-12
+**Related PR:** [#98](https://github.com/tymon3568/anthill/pull/98)
 
 ## Detailed Description:
 Implement integration tests for inventory API endpoints in `inventory_service_api`, testing full HTTP request/response cycles with a test database.
