@@ -314,7 +314,16 @@ impl TestApp {
 }
 
 fn create_auth_header(tenant_id: Uuid, user_id: Uuid) -> String {
-    format!("Bearer mock-jwt-{}-{}", tenant_id, user_id)
+    use shared_jwt::{encode_jwt, Claims};
+    
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string());
+    
+    let claims = Claims::new_access(user_id, tenant_id, "admin".to_string(), 3600);
+    let token = encode_jwt(&claims, &jwt_secret)
+        .expect("Failed to encode JWT token for test");
+    
+    format!("Bearer {}", token)
 }
 
 // ============================================================================
