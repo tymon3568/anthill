@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use inventory_service_core::domains::inventory::product::ProductTrackingMethod;
-use inventory_service_core::models::{LotSerial, LotSerialStatus, LotSerialTrackingType};
+use inventory_service_core::models::{LotSerialStatus, LotSerialTrackingType};
 use inventory_service_core::repositories::lot_serial::LotSerialRepository;
 use inventory_service_core::repositories::product::ProductRepository;
 use inventory_service_core::repositories::InventoryRepository;
@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 mod helpers;
 
-use helpers::{create_test_user, setup_test_database};
+use helpers::setup_test_database;
 
 #[sqlx::test]
 async fn test_fefo_reservation_picks_earliest_expiry_first() {

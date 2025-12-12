@@ -7,7 +7,6 @@
 //! - Approve reconciliation
 //! - Analytics and reporting
 
-/*
 use std::sync::Arc;
 
 use axum::{
@@ -34,6 +33,7 @@ mod helpers;
 
 use helpers::{create_test_app, create_test_user, setup_test_database};
 
+#[ignore = "Reconciliation tests require full test app setup"]
 #[tokio::test]
 async fn test_complete_reconciliation_workflow() {
     // Setup
@@ -239,6 +239,7 @@ async fn test_complete_reconciliation_workflow() {
     assert_eq!(response.status(), StatusCode::OK);
 }
 
+#[ignore = "Reconciliation tests require full test app setup"]
 #[tokio::test]
 async fn test_reconciliation_validation_errors() {
     // Setup
@@ -294,6 +295,7 @@ async fn test_reconciliation_validation_errors() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
+#[ignore = "Reconciliation tests require full test app setup"]
 #[tokio::test]
 async fn test_reconciliation_business_rules() {
     // Setup
@@ -375,6 +377,7 @@ async fn test_reconciliation_business_rules() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
+#[ignore = "Reconciliation tests require full test app setup"]
 #[tokio::test]
 async fn test_reconciliation_analytics_and_reporting() {
     // Setup
@@ -461,4 +464,3 @@ async fn test_reconciliation_analytics_and_reporting() {
     assert!(list_response["pagination"]["total"].is_number());
     assert!(list_response["reconciliations"].is_array());
 }
-*/

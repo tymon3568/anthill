@@ -210,10 +210,17 @@ mod tests {
     async fn test_get_warehouse() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Get").await;
-        let warehouse_id = app
-            .db()
-            .create_test_warehouse(tenant_id, "GET-WH", "Get Test Warehouse", None)
-            .await;
+        let warehouse_id = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
+            warehouse_id,
+            tenant_id,
+            "GET-WH",
+            "Get Test Warehouse"
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create test warehouse for GET test");
 
         let uri = format!("/api/v1/inventory/warehouses/{}", warehouse_id);
         let request = Request::builder()
@@ -237,12 +244,29 @@ mod tests {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse List").await;
 
-        app.db()
-            .create_test_warehouse(tenant_id, "LIST-01", "Warehouse A", None)
-            .await;
-        app.db()
-            .create_test_warehouse(tenant_id, "LIST-02", "Warehouse B", None)
-            .await;
+        let warehouse_id_1 = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
+            warehouse_id_1,
+            tenant_id,
+            "LIST-01",
+            "Warehouse A"
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create test warehouse LIST-01 for list test");
+
+        let warehouse_id_2 = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
+            warehouse_id_2,
+            tenant_id,
+            "LIST-02",
+            "Warehouse B"
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create test warehouse LIST-02 for list test");
 
         let request = Request::builder()
             .method(Method::GET)
@@ -265,10 +289,17 @@ mod tests {
     async fn test_update_warehouse() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Update").await;
-        let warehouse_id = app
-            .db()
-            .create_test_warehouse(tenant_id, "UPD-WH", "Original Name", None)
-            .await;
+        let warehouse_id = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
+            warehouse_id,
+            tenant_id,
+            "UPD-WH",
+            "Original Name"
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create test warehouse for UPDATE test");
 
         let update_body = json!({
             "code": "UPD-WH",
@@ -298,10 +329,17 @@ mod tests {
     async fn test_delete_warehouse() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Delete").await;
-        let warehouse_id = app
-            .db()
-            .create_test_warehouse(tenant_id, "DEL-WH", "To Delete", None)
-            .await;
+        let warehouse_id = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
+            warehouse_id,
+            tenant_id,
+            "DEL-WH",
+            "To Delete"
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create test warehouse for DELETE test");
 
         let uri = format!("/api/v1/inventory/warehouses/{}", warehouse_id);
         let request = Request::builder()
@@ -323,16 +361,43 @@ mod tests {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Hierarchy").await;
 
-        let parent_id = app
-            .db()
-            .create_test_warehouse(tenant_id, "PARENT", "Parent Warehouse", None)
-            .await;
-        app.db()
-            .create_test_warehouse(tenant_id, "CHILD-01", "Child A", Some(parent_id))
-            .await;
-        app.db()
-            .create_test_warehouse(tenant_id, "CHILD-02", "Child B", Some(parent_id))
-            .await;
+        let parent_id = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
+            parent_id,
+            tenant_id,
+            "PARENT",
+            "Parent Warehouse"
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create parent test warehouse");
+
+        let child_id_1 = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, parent_warehouse_id, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())",
+            child_id_1,
+            tenant_id,
+            "CHILD-01",
+            "Child A",
+            parent_id
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create child test warehouse 1");
+
+        let child_id_2 = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, parent_warehouse_id, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())",
+            child_id_2,
+            tenant_id,
+            "CHILD-02",
+            "Child B",
+            parent_id
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create child test warehouse 2");
 
         let request = Request::builder()
             .method(Method::GET)
@@ -376,10 +441,17 @@ mod tests {
     async fn test_create_zone() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Zone Create").await;
-        let warehouse_id = app
-            .db()
-            .create_test_warehouse(tenant_id, "ZONE-WH", "Zone Test Warehouse", None)
-            .await;
+        let warehouse_id = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
+            warehouse_id,
+            tenant_id,
+            "ZONE-WH",
+            "Zone Test Warehouse"
+        )
+        .execute(&app.db().pool)
+        .await
+        .expect("Failed to create test warehouse for zone test");
 
         let request_body = json!({
             "zone_code": "ZONE-A",

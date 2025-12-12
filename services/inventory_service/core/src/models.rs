@@ -234,7 +234,7 @@ pub struct DeliveryOrderItemResponse {
     pub delivered_quantity: i64,
     pub uom_id: Option<Uuid>,
     pub batch_number: Option<String>,
-    pub expiry_date: Option<chrono::DateTime<chrono::Utc>>,
+    pub expiry_date: Option<chrono::NaiveDate>,
     pub unit_price: Option<i64>,
     pub line_total: Option<i64>,
     pub notes: Option<String>,

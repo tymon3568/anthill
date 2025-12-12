@@ -4,14 +4,19 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use uuid::Uuid;
 use validator::Validate;
 
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
+use regex::Regex;
+
 use crate::domains::category::{Category, CategoryBreadcrumb, CategoryNode};
 use crate::dto::PaginationInfo;
+
+static COLOR_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
 
 // ============================================================================
 // Request DTOs
@@ -46,6 +51,7 @@ pub struct CategoryCreateRequest {
     pub icon: Option<String>,
 
     /// Hex color code (e.g., #FF5733)
+    #[validate(regex(path = "COLOR_REGEX"))]
     pub color: Option<String>,
 
     /// Category image URL
@@ -105,6 +111,7 @@ pub struct CategoryUpdateRequest {
     pub icon: Option<String>,
 
     /// Hex color code
+    #[validate(regex(path = "COLOR_REGEX"))]
     pub color: Option<String>,
 
     /// Category image URL
