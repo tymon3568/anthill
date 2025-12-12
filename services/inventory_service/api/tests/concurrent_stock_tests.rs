@@ -22,28 +22,41 @@ use uuid::Uuid;
 // Test Constants
 // ============================================================================
 
+// These constants are used across multiple test modules conditionally
+#[allow(dead_code)]
 /// Initial inventory quantity for basic tests
 const INITIAL_INVENTORY_STANDARD: i64 = 100;
+#[allow(dead_code)]
 /// Initial inventory for high-volume tests
 const INITIAL_INVENTORY_LARGE: i64 = 1000;
+#[allow(dead_code)]
 /// Standard reservation amount per concurrent task
 const RESERVATION_AMOUNT: i64 = 15;
+#[allow(dead_code)]
 /// Standard transfer amount per concurrent task
 const TRANSFER_AMOUNT: i64 = 25;
+#[allow(dead_code)]
 /// Concurrent receipt addition amount
 const RECEIPT_AMOUNT: i64 = 10;
+#[allow(dead_code)]
 /// Number of concurrent reservation tasks
 const CONCURRENT_RESERVATION_TASKS: usize = 10;
+#[allow(dead_code)]
 /// Number of concurrent transfer tasks
 const CONCURRENT_TRANSFER_TASKS: usize = 5;
+#[allow(dead_code)]
 /// Number of concurrent receipt tasks
 const CONCURRENT_RECEIPT_TASKS: usize = 10;
+#[allow(dead_code)]
 /// Number of concurrent increment operations
 const CONCURRENT_INCREMENT_OPS: usize = 20;
+#[allow(dead_code)]
 /// Number of concurrent decrement operations
 const CONCURRENT_DECREMENT_OPS: usize = 10;
+#[allow(dead_code)]
 /// Increment amount per operation
 const INCREMENT_AMOUNT: i64 = 10;
+#[allow(dead_code)]
 /// Decrement amount per operation
 const DECREMENT_AMOUNT: i64 = 5;
 
@@ -185,6 +198,38 @@ impl TestDatabase {
         result.map(|(qty,)| qty)
     }
 
+    /// Get reserved quantity for inventory item
+    async fn get_reserved_quantity(&self, tenant_id: Uuid, warehouse_id: Uuid, product_id: Uuid) -> Option<i64> {
+        let result: Option<(i64,)> = sqlx::query_as(
+            "SELECT reserved_quantity FROM inventory_levels
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+        )
+        .bind(tenant_id)
+        .bind(warehouse_id)
+        .bind(product_id)
+        .fetch_optional(&self.pool)
+        .await
+        .expect("Failed to get reserved quantity");
+
+        result.map(|(qty,)| qty)
+    }
+
+    /// Update reserved quantity for inventory item
+    async fn update_reserved_quantity(&self, tenant_id: Uuid, warehouse_id: Uuid, product_id: Uuid, quantity: i64) {
+        sqlx::query(
+            "UPDATE inventory_levels
+             SET reserved_quantity = $4, updated_at = NOW()
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+        )
+        .bind(tenant_id)
+        .bind(warehouse_id)
+        .bind(product_id)
+        .bind(quantity)
+        .execute(&self.pool)
+        .await
+        .expect("Failed to update reserved quantity");
+    }
+
     async fn cleanup(&self) {
         let tenant_ids = self.test_tenants.lock().await.clone();
 
@@ -323,20 +368,10 @@ mod reservation_tests {
         assert!(successful_reservations <= max_reservations,
             "Too many reservations succeeded: {}, expected <= {}", successful_reservations, max_reservations);
 
-        // Verify final state
-        let final_reserved: Option<(i64,)> = sqlx::query_as(
-            "SELECT reserved_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
-        )
-        .bind(tenant_id)
-        .bind(warehouse_id)
-        .bind(product_id)
-        .fetch_optional(&app.db().pool)
-        .await
-        .unwrap();
-
-        if let Some((reserved,)) = final_reserved {
-            assert!(reserved <= 100, "Over-reservation detected: {} > 100", reserved);
+        // Verify final state using helper method
+        let final_reserved = app.db().get_reserved_quantity(tenant_id, warehouse_id, product_id).await;
+        if let Some(reserved) = final_reserved {
+            assert!(reserved <= INITIAL_INVENTORY_STANDARD, "Over-reservation detected: {} > {}", reserved, INITIAL_INVENTORY_STANDARD);
         }
 
         app.cleanup().await;
@@ -353,31 +388,11 @@ mod reservation_tests {
         // Set initial inventory: 50 units
         app.db().set_inventory_level(tenant_id, warehouse_id, product_id, 50).await;
 
-        // Reserve 30 units
-        sqlx::query(
-            "UPDATE inventory_levels
-             SET reserved_quantity = 30, updated_at = NOW()
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
-        )
-        .bind(tenant_id)
-        .bind(warehouse_id)
-        .bind(product_id)
-        .execute(&app.db().pool)
-        .await
-        .unwrap();
+        // Reserve 30 units using helper
+        app.db().update_reserved_quantity(tenant_id, warehouse_id, product_id, 30).await;
 
-        // Release 30 units
-        sqlx::query(
-            "UPDATE inventory_levels
-             SET reserved_quantity = 0, updated_at = NOW()
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
-        )
-        .bind(tenant_id)
-        .bind(warehouse_id)
-        .bind(product_id)
-        .execute(&app.db().pool)
-        .await
-        .unwrap();
+        // Release all reserved units
+        app.db().update_reserved_quantity(tenant_id, warehouse_id, product_id, 0).await;
 
         // Re-reserve 50 units (full amount now available)
         let result = sqlx::query(
