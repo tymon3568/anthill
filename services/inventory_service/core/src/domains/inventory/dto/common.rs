@@ -90,18 +90,11 @@ mod tests {
     // =========================================================================
 
     #[test]
-    fn test_validate_product_type_goods() {
-        assert!(validate_product_type("goods").is_ok());
-    }
-
-    #[test]
-    fn test_validate_product_type_service() {
-        assert!(validate_product_type("service").is_ok());
-    }
-
-    #[test]
-    fn test_validate_product_type_consumable() {
-        assert!(validate_product_type("consumable").is_ok());
+    fn test_validate_product_type_valid() {
+        let valid_types = ["goods", "service", "consumable"];
+        for t in valid_types {
+            assert!(validate_product_type(t).is_ok(), "Failed for type: {}", t);
+        }
     }
 
     #[test]

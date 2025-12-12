@@ -251,9 +251,12 @@ mod tests {
     #[test]
     fn test_warehouse_new_generates_uuid_v7() {
         let warehouse = create_test_warehouse();
-        let uuid_str = warehouse.warehouse_id.to_string();
-        let version_char = uuid_str.chars().nth(14).unwrap();
-        assert_eq!(version_char, '7', "Warehouse should use UUID v7");
+        // Use uuid crate's API to verify version instead of string parsing
+        assert_eq!(
+            warehouse.warehouse_id.get_version(),
+            Some(uuid::Version::SortRand),
+            "Warehouse should use UUID v7"
+        );
     }
 
     // =========================================================================
@@ -433,23 +436,6 @@ mod tests {
         assert!(warehouse.updated_at > original);
     }
 
-    // =========================================================================
-    // Warehouse Type Validation Tests
-    // =========================================================================
-
-    #[test]
-    fn test_validate_warehouse_type_valid() {
-        assert!(validate_warehouse_type("main").is_ok());
-        assert!(validate_warehouse_type("transit").is_ok());
-        assert!(validate_warehouse_type("quarantine").is_ok());
-        assert!(validate_warehouse_type("distribution").is_ok());
-        assert!(validate_warehouse_type("retail").is_ok());
-        assert!(validate_warehouse_type("satellite").is_ok());
-    }
-
-    #[test]
-    fn test_validate_warehouse_type_invalid() {
-        let result = validate_warehouse_type("invalid");
-        assert!(result.is_err());
-    }
+    // Note: validate_warehouse_type tests are in domains/inventory/dto/common.rs
+    // to avoid duplication and centralize validation testing
 }

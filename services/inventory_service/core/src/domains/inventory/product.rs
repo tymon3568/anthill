@@ -330,11 +330,12 @@ mod tests {
     #[test]
     fn test_product_new_generates_uuid_v7() {
         let product = create_test_product();
-        // UUID v7 starts with a timestamp, so the version byte should indicate v7
-        // Version is encoded in bits 48-51 (the 13th character in hex string)
-        let uuid_str = product.product_id.to_string();
-        let version_char = uuid_str.chars().nth(14).unwrap();
-        assert_eq!(version_char, '7', "Product should use UUID v7");
+        // Use uuid crate's API to verify version instead of string parsing
+        assert_eq!(
+            product.product_id.get_version(),
+            Some(uuid::Version::SortRand),
+            "Product should use UUID v7"
+        );
     }
 
     // =========================================================================
