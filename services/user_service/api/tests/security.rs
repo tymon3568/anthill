@@ -234,7 +234,7 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
             >),
         )
         .route(
-            "/api/v1/users/:user_id",
+            "/api/v1/users/{user_id}",
             get(user_service_api::handlers::get_user::<
                 user_service_infra::auth::AuthServiceImpl<
                     user_service_infra::auth::PgUserRepository,
@@ -388,7 +388,7 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
             >),
         )
         .route(
-            "/api/v1/users/:user_id",
+            "/api/v1/users/{user_id}",
             get(user_service_api::handlers::get_user::<
                 user_service_infra::auth::AuthServiceImpl<
                     user_service_infra::auth::PgUserRepository,
@@ -525,7 +525,7 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
             >),
         )
         .route(
-            "/api/v1/users/:user_id",
+            "/api/v1/users/{user_id}",
             get(user_service_api::handlers::get_user::<
                 user_service_infra::auth::AuthServiceImpl<
                     user_service_infra::auth::PgUserRepository,

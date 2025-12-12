@@ -2,15 +2,9 @@ use std::sync::Arc;
 
 use inventory_service_core::domains::inventory::product::ProductTrackingMethod;
 use inventory_service_core::models::{LotSerialStatus, LotSerialTrackingType};
-use inventory_service_core::repositories::lot_serial::LotSerialRepository;
-use inventory_service_core::repositories::product::ProductRepository;
-use inventory_service_core::repositories::InventoryRepository;
 use inventory_service_infra::repositories::delivery_order::PgInventoryRepository;
 use inventory_service_infra::repositories::lot_serial::LotSerialRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-use shared_config::Config;
-use shared_db::init_pool;
-use sqlx::PgPool;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -54,7 +48,7 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot as ProductTrackingMethod
+        ProductTrackingMethod::Lot
     )
     .execute(&pool)
     .await
@@ -87,12 +81,12 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "LOT001",
         50,
         50,
         chrono::Utc::now() + chrono::Duration::days(7), // expires in...
-        LotSerialStatus::Active as LotSerialStatus
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -106,12 +100,12 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "LOT002",
         30,
         30,
         chrono::Utc::now() + chrono::Duration::days(14), // expires ...
-        LotSerialStatus::Active as LotSerialStatus
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -125,12 +119,12 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "LOT003",
         20,
         20,
         chrono::Utc::now() + chrono::Duration::days(30), // expires ...
-        LotSerialStatus::Active as LotSerialStatus
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -225,7 +219,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot as ProductTrackingMethod
+        ProductTrackingMethod::Lot
     )
     .execute(&pool)
     .await
@@ -254,12 +248,12 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "EXPIRED001",
         50,
         50,
         chrono::Utc::now() - chrono::Duration::days(2), // safely ex...
-        LotSerialStatus::Active as LotSerialStatus
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -274,12 +268,12 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "VALID001",
         30,
         30,
         chrono::Utc::now() + chrono::Duration::days(30), // expires in 30 days
-        LotSerialStatus::Active as LotSerialStatus
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -362,7 +356,7 @@ async fn test_quarantine_expired_lots() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot as ProductTrackingMethod
+        ProductTrackingMethod::Lot
     )
     .execute(&pool)
     .await
@@ -391,12 +385,12 @@ async fn test_quarantine_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "EXPIRED001",
         50,
         25, // partially consumed
         chrono::Utc::now() - chrono::Duration::days(2), // safely ex...
-        LotSerialStatus::Active as LotSerialStatus
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -411,12 +405,12 @@ async fn test_quarantine_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "VALID001",
         30,
         30,
         chrono::Utc::now() + chrono::Duration::days(30),
-        LotSerialStatus::Active as LotSerialStatus
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await

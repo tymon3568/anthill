@@ -5,7 +5,8 @@
 
 -- Alter the expiry_date column from DATE to TIMESTAMPTZ
 ALTER TABLE delivery_order_items
-ALTER COLUMN expiry_date TYPE TIMESTAMPTZ;
+ALTER COLUMN expiry_date TYPE TIMESTAMPTZ
+USING (expiry_date::timestamp AT TIME ZONE 'UTC');
 
 -- Update the index to use TIMESTAMPTZ (though the index name stays the same)
 -- The existing index should automatically adapt to the new type

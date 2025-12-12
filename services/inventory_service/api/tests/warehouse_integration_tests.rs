@@ -212,12 +212,12 @@ mod tests {
         let tenant_id = app.db().create_test_tenant("Warehouse Get").await;
         let warehouse_id = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
-            warehouse_id,
-            tenant_id,
-            "GET-WH",
-            "Get Test Warehouse"
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())"
         )
+        .bind(warehouse_id)
+        .bind(tenant_id)
+        .bind("GET-WH")
+        .bind("Get Test Warehouse")
         .execute(&app.db().pool)
         .await
         .expect("Failed to create test warehouse for GET test");
@@ -246,24 +246,24 @@ mod tests {
 
         let warehouse_id_1 = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
-            warehouse_id_1,
-            tenant_id,
-            "LIST-01",
-            "Warehouse A"
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())"
         )
+        .bind(warehouse_id_1)
+        .bind(tenant_id)
+        .bind("LIST-01")
+        .bind("Warehouse A")
         .execute(&app.db().pool)
         .await
         .expect("Failed to create test warehouse LIST-01 for list test");
 
         let warehouse_id_2 = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
-            warehouse_id_2,
-            tenant_id,
-            "LIST-02",
-            "Warehouse B"
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())"
         )
+        .bind(warehouse_id_2)
+        .bind(tenant_id)
+        .bind("LIST-02")
+        .bind("Warehouse B")
         .execute(&app.db().pool)
         .await
         .expect("Failed to create test warehouse LIST-02 for list test");
@@ -291,12 +291,12 @@ mod tests {
         let tenant_id = app.db().create_test_tenant("Warehouse Update").await;
         let warehouse_id = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
-            warehouse_id,
-            tenant_id,
-            "UPD-WH",
-            "Original Name"
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())"
         )
+        .bind(warehouse_id)
+        .bind(tenant_id)
+        .bind("UPD-WH")
+        .bind("Original Name")
         .execute(&app.db().pool)
         .await
         .expect("Failed to create test warehouse for UPDATE test");
@@ -331,12 +331,12 @@ mod tests {
         let tenant_id = app.db().create_test_tenant("Warehouse Delete").await;
         let warehouse_id = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
-            warehouse_id,
-            tenant_id,
-            "DEL-WH",
-            "To Delete"
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())"
         )
+        .bind(warehouse_id)
+        .bind(tenant_id)
+        .bind("DEL-WH")
+        .bind("To Delete")
         .execute(&app.db().pool)
         .await
         .expect("Failed to create test warehouse for DELETE test");
@@ -363,38 +363,38 @@ mod tests {
 
         let parent_id = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
-            parent_id,
-            tenant_id,
-            "PARENT",
-            "Parent Warehouse"
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())"
         )
+        .bind(parent_id)
+        .bind(tenant_id)
+        .bind("PARENT")
+        .bind("Parent Warehouse")
         .execute(&app.db().pool)
         .await
         .expect("Failed to create parent test warehouse");
 
         let child_id_1 = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, parent_warehouse_id, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())",
-            child_id_1,
-            tenant_id,
-            "CHILD-01",
-            "Child A",
-            parent_id
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, parent_warehouse_id, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())"
         )
+        .bind(child_id_1)
+        .bind(tenant_id)
+        .bind("CHILD-01")
+        .bind("Child A")
+        .bind(parent_id)
         .execute(&app.db().pool)
         .await
         .expect("Failed to create child test warehouse 1");
 
         let child_id_2 = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, parent_warehouse_id, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())",
-            child_id_2,
-            tenant_id,
-            "CHILD-02",
-            "Child B",
-            parent_id
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, parent_warehouse_id, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())"
         )
+        .bind(child_id_2)
+        .bind(tenant_id)
+        .bind("CHILD-02")
+        .bind("Child B")
+        .bind(parent_id)
         .execute(&app.db().pool)
         .await
         .expect("Failed to create child test warehouse 2");
@@ -443,12 +443,12 @@ mod tests {
         let tenant_id = app.db().create_test_tenant("Zone Create").await;
         let warehouse_id = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())",
-            warehouse_id,
-            tenant_id,
-            "ZONE-WH",
-            "Zone Test Warehouse"
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, is_active, created_at, updated_at) VALUES ($1, $2, $3, $4, true, NOW(), NOW())"
         )
+        .bind(warehouse_id)
+        .bind(tenant_id)
+        .bind("ZONE-WH")
+        .bind("Zone Test Warehouse")
         .execute(&app.db().pool)
         .await
         .expect("Failed to create test warehouse for zone test");

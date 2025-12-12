@@ -379,7 +379,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
                 uom_id, batch_number, expiry_date,
                 unit_price, line_total, notes, created_at, updated_at
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $11, $12, $13, $14, $15
             )
             "#,
             delivery_item.delivery_item_id,
@@ -414,7 +414,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
-                uom_id, batch_number, expiry_date,
+                uom_id, batch_number, expiry_date::timestamptz as expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND deleted_at IS NULL
@@ -438,7 +438,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
-                uom_id, batch_number, expiry_date,
+                uom_id, batch_number, expiry_date::timestamptz as expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
@@ -457,7 +457,7 @@ impl DeliveryOrderItemRepository for PgDeliveryOrderItemRepository {
             r#"
             UPDATE delivery_order_items SET
                 ordered_quantity = $4, picked_quantity = $5, delivered_quantity = $6,
-                uom_id = $7, batch_number = $8, expiry_date = $9,
+                uom_id = $7, batch_number = $8, expiry_date = $9::timestamptz,
                 unit_price = $10, line_total = $11, notes = $12, updated_at = $13
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND delivery_id = $3 AND deleted_at IS NULL
             "#,
@@ -509,7 +509,7 @@ impl PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
-                uom_id, batch_number, expiry_date,
+                uom_id, batch_number, expiry_date::timestamptz as expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND deleted_at IS NULL
@@ -534,7 +534,7 @@ impl PgDeliveryOrderItemRepository {
             SELECT
                 delivery_item_id, delivery_id, tenant_id, product_id,
                 ordered_quantity, picked_quantity, delivered_quantity,
-                uom_id, batch_number, expiry_date,
+                uom_id, batch_number, expiry_date::timestamptz as expiry_date,
                 unit_price, line_total, notes, created_at, updated_at, deleted_at
             FROM delivery_order_items
             WHERE tenant_id = $1 AND delivery_id = $2 AND deleted_at IS NULL
@@ -557,7 +557,7 @@ impl PgDeliveryOrderItemRepository {
             r#"
             UPDATE delivery_order_items SET
                 ordered_quantity = $4, picked_quantity = $5, delivered_quantity = $6,
-                uom_id = $7, batch_number = $8, expiry_date = $9,
+                uom_id = $7, batch_number = $8, expiry_date = $9::timestamptz,
                 unit_price = $10, line_total = $11, notes = $12, updated_at = $13
             WHERE tenant_id = $1 AND delivery_item_id = $2 AND delivery_id = $3 AND deleted_at IS NULL
             "#,

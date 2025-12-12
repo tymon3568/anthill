@@ -165,7 +165,7 @@ pub struct DeliveryOrderItem {
     pub delivered_quantity: i64,
     pub uom_id: Option<Uuid>,
     pub batch_number: Option<String>,
-    pub expiry_date: Option<chrono::NaiveDate>,
+    pub expiry_date: Option<DateTime<Utc>>,
     pub unit_price: Option<i64>,
     pub line_total: Option<i64>,
     pub notes: Option<String>,
@@ -234,12 +234,12 @@ pub struct DeliveryOrderItemResponse {
     pub delivered_quantity: i64,
     pub uom_id: Option<Uuid>,
     pub batch_number: Option<String>,
-    pub expiry_date: Option<chrono::NaiveDate>,
+    pub expiry_date: Option<DateTime<Utc>>,
     pub unit_price: Option<i64>,
     pub line_total: Option<i64>,
     pub notes: Option<String>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
