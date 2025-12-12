@@ -37,8 +37,6 @@ CREATE TABLE daily_stock_snapshots (
     deleted_at TIMESTAMPTZ,
 
     -- Constraints
-    CONSTRAINT daily_stock_snapshots_unique_per_tenant_product_date
-        UNIQUE (tenant_id, product_id, snapshot_date),
     CONSTRAINT daily_stock_snapshots_positive_quantities
         CHECK (opening_quantity >= 0 AND closing_quantity >= 0),
     CONSTRAINT daily_stock_snapshots_closing_equals_opening_plus_movements
@@ -56,6 +54,11 @@ CREATE INDEX idx_daily_stock_snapshots_tenant_date
 -- Filtered index for active snapshots
 CREATE INDEX idx_daily_stock_snapshots_tenant_product_active
     ON daily_stock_snapshots(tenant_id, product_id)
+    WHERE deleted_at IS NULL;
+
+-- Unique index for active snapshots (soft-delete compatible)
+CREATE UNIQUE INDEX idx_daily_stock_snapshots_unique_active
+    ON daily_stock_snapshots(tenant_id, product_id, snapshot_date)
     WHERE deleted_at IS NULL;
 
 
