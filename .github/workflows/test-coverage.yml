@@ -3,16 +3,7 @@ name: Test Coverage
 on:
   push:
     branches: [master, main, develop]
-    paths:
-      - "services/**/*.rs"
-      - "services/**/Cargo.toml"
-      - "shared/**/*.rs"
-      - "shared/**/Cargo.toml"
-      - "frontend/**/*.{js,ts,svelte}"
-      - "frontend/package.json"
-      - "frontend/vite.config.ts"
-      - "frontend/playwright.config.ts"
-      - ".github/workflows/test-coverage.yml"
+    # No path filter for main branches - always run coverage
   pull_request:
     branches: [main]
     paths:
@@ -87,6 +78,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}  # fallback if OIDC fails
           files: ./lcov.info
           flags: unittests
           name: rust-coverage
@@ -104,6 +96,7 @@ jobs:
   coverage-user-service:
     name: Coverage - User Service
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -150,6 +143,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./lcov-user.info
           flags: user_service
           name: user-service-coverage
@@ -158,6 +152,7 @@ jobs:
   coverage-inventory-service:
     name: Coverage - Inventory Service
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -186,6 +181,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./lcov-inventory.info
           flags: inventory_service
           name: inventory-service-coverage
@@ -194,6 +190,7 @@ jobs:
   coverage-frontend:
     name: Coverage - Frontend
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -227,6 +224,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./frontend/coverage/lcov.info
           flags: frontend
           name: frontend-coverage

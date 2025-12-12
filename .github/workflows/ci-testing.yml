@@ -391,9 +391,10 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
+          use_oidc: true
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./lcov.info
-          flags: all-tests
+          flags: ci-all-tests
           name: comprehensive-coverage
           fail_ci_if_error: false
           verbose: true
