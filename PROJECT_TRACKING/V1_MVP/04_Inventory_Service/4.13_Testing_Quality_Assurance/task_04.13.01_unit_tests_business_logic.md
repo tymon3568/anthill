@@ -37,7 +37,7 @@ Implement comprehensive unit tests for core inventory domain entities in `invent
 - [x] Unit tests pass in cargo test --package inventory_service_core (97 tests)
 - [x] Test coverage includes all domain entities
 - [x] Edge cases and error conditions tested
-- [ ] Tests run in CI/CD pipeline (awaiting merge)
+- [x] Tests run in CI/CD pipeline (PR #96 merged)
 
 ## Dependencies:
 * None - testing existing domain entities
