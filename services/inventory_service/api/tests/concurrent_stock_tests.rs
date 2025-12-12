@@ -617,7 +617,7 @@ mod concurrent_move_tests {
             });
         }
 
-        // Transfer 30 from WH1 to WH2
+        // Transfer MIXED_TRANSFER_AMOUNT from WH1 to WH2
         {
             let pool = db_pool.clone();
             let t_id = tenant_id;
@@ -625,14 +625,10 @@ mod concurrent_move_tests {
             let dst = wh2;
             let p_id = product_id;
             handles.spawn(async move {
-                let tx_result = pool.begin().await;
-                let mut tx = match tx_result {
-                    Ok(tx) => tx,
-                    Err(_) => return false,
-                };
+                let mut tx = pool.begin().await.unwrap();
 
-                // Lock source
-                let lock_result: Result<Option<(i64,)>, _> = sqlx::query_as(
+                // Lock and check source inventory
+                let available: Option<(i64,)> = sqlx::query_as(
                     "SELECT available_quantity FROM inventory_levels
                      WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
                      FOR UPDATE"
@@ -641,50 +637,47 @@ mod concurrent_move_tests {
                 .bind(src)
                 .bind(p_id)
                 .fetch_optional(&mut *tx)
-                .await;
+                .await
+                .unwrap();
 
-                if lock_result.is_err() {
-                    let _ = tx.rollback().await;
-                    return false;
+                if let Some((qty,)) = available {
+                    if qty >= MIXED_TRANSFER_AMOUNT {
+                        // Deduct from source
+                        sqlx::query(
+                            "UPDATE inventory_levels
+                             SET available_quantity = available_quantity - $4, updated_at = NOW()
+                             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+                        )
+                        .bind(t_id)
+                        .bind(src)
+                        .bind(p_id)
+                        .bind(MIXED_TRANSFER_AMOUNT)
+                        .execute(&mut *tx)
+                        .await
+                        .unwrap();
+
+                        // Add to destination (INSERT ON CONFLICT for robustness)
+                        sqlx::query(
+                            "INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at, updated_at)
+                             VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
+                             ON CONFLICT (tenant_id, warehouse_id, product_id)
+                             DO UPDATE SET available_quantity = inventory_levels.available_quantity + $4, updated_at = NOW()"
+                        )
+                        .bind(t_id)
+                        .bind(dst)
+                        .bind(p_id)
+                        .bind(MIXED_TRANSFER_AMOUNT)
+                        .execute(&mut *tx)
+                        .await
+                        .unwrap();
+
+                        tx.commit().await.unwrap();
+                        return true;
+                    }
                 }
 
-                // Deduct from source
-                let deduct_result = sqlx::query(
-                    "UPDATE inventory_levels
-                     SET available_quantity = available_quantity - $4, updated_at = NOW()
-                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
-                )
-                .bind(t_id)
-                .bind(src)
-                .bind(p_id)
-                .bind(MIXED_TRANSFER_AMOUNT)
-                .execute(&mut *tx)
-                .await;
-
-                if deduct_result.is_err() {
-                    let _ = tx.rollback().await;
-                    return false;
-                }
-
-                // Add to destination
-                let add_result = sqlx::query(
-                    "UPDATE inventory_levels
-                     SET available_quantity = available_quantity + $4, updated_at = NOW()
-                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
-                )
-                .bind(t_id)
-                .bind(dst)
-                .bind(p_id)
-                .bind(MIXED_TRANSFER_AMOUNT)
-                .execute(&mut *tx)
-                .await;
-
-                if add_result.is_err() {
-                    let _ = tx.rollback().await;
-                    return false;
-                }
-
-                tx.commit().await.is_ok()
+                tx.rollback().await.unwrap();
+                false
             });
         }
 
