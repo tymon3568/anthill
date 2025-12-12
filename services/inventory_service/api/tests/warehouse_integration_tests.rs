@@ -4,11 +4,11 @@
 
 use axum::{
     body::{to_bytes, Body},
-    http::{Request, StatusCode},
+    http::{Method, Request, StatusCode},
     Router,
 };
 use inventory_service_api::create_app;
-use serde_json::{self, json, Value};
+use serde_json::{json, Value};
 use shared_config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -16,14 +16,40 @@ use tokio::sync::Mutex;
 use tower::ServiceExt;
 use uuid::Uuid;
 
-/// Test database manager for warehouse tests
-pub struct WarehouseTestDatabase {
+// ============================================================================
+// Shared Test Infrastructure (inline to avoid pre-existing helpers.rs issues)
+// ============================================================================
+
+fn test_config() -> Config {
+    Config {
+        database_url: std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://anthill:anthill@localhost:5433/anthill_test".to_string()
+        }),
+        jwt_secret: std::env::var("JWT_SECRET")
+            .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string()),
+        jwt_expiration: 900,
+        jwt_refresh_expiration: 604800,
+        host: "0.0.0.0".to_string(),
+        port: 8001,
+        cors_origins: None,
+        kanidm_url: Some("http://localhost:8080".to_string()),
+        kanidm_client_id: Some("test-client".to_string()),
+        kanidm_client_secret: Some("test-secret".to_string()),
+        kanidm_redirect_url: Some("http://localhost:8001/oauth/callback".to_string()),
+        nats_url: None,
+        redis_url: None,
+        casbin_model_path: "shared/auth/model.conf".to_string(),
+        max_connections: Some(10),
+    }
+}
+
+struct TestDatabase {
     pool: PgPool,
     test_tenants: Arc<Mutex<Vec<Uuid>>>,
 }
 
-impl WarehouseTestDatabase {
-    pub async fn new() -> Self {
+impl TestDatabase {
+    async fn new() -> Self {
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
             "postgres://anthill:anthill@localhost:5433/anthill_test".to_string()
         });
@@ -38,11 +64,7 @@ impl WarehouseTestDatabase {
         }
     }
 
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
-    }
-
-    pub async fn create_test_tenant(&self, name: &str) -> Uuid {
+    async fn create_test_tenant(&self, name: &str) -> Uuid {
         let tenant_id = Uuid::now_v7();
         let slug = format!("test-{}-{}", name.to_lowercase().replace(' ', "-"), tenant_id);
 
@@ -61,7 +83,7 @@ impl WarehouseTestDatabase {
         tenant_id
     }
 
-    pub async fn create_test_warehouse(
+    async fn create_test_warehouse(
         &self,
         tenant_id: Uuid,
         code: &str,
@@ -86,11 +108,10 @@ impl WarehouseTestDatabase {
         warehouse_id
     }
 
-    pub async fn cleanup(&self) {
+    async fn cleanup(&self) {
         let tenant_ids = self.test_tenants.lock().await.clone();
 
         for tenant_id in tenant_ids {
-            // Clean up in reverse dependency order - use runtime query
             let _ = sqlx::query("DELETE FROM warehouse_locations WHERE tenant_id = $1")
                 .bind(tenant_id)
                 .execute(&self.pool)
@@ -113,43 +134,21 @@ impl WarehouseTestDatabase {
     }
 }
 
-/// Test application context for warehouse tests
-pub struct WarehouseTestApp {
+struct TestApp {
     router: Router,
-    db: WarehouseTestDatabase,
+    db: TestDatabase,
 }
 
-impl WarehouseTestApp {
-    pub async fn new() -> Self {
-        let db = WarehouseTestDatabase::new().await;
-
-        let config = Config {
-            database_url: std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-                "postgres://anthill:anthill@localhost:5433/anthill_test".to_string()
-            }),
-            jwt_secret: std::env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string()),
-            jwt_expiration: 900,
-            jwt_refresh_expiration: 604800,
-            host: "0.0.0.0".to_string(),
-            port: 8001,
-            cors_origins: None,
-            kanidm_url: Some("http://localhost:8080".to_string()),
-            kanidm_client_id: Some("test-client".to_string()),
-            kanidm_client_secret: Some("test-secret".to_string()),
-            kanidm_redirect_url: Some("http://localhost:8001/oauth/callback".to_string()),
-            nats_url: None,
-            redis_url: None,
-            casbin_model_path: "shared/auth/model.conf".to_string(),
-            max_connections: Some(10),
-        };
-
+impl TestApp {
+    async fn new() -> Self {
+        let db = TestDatabase::new().await;
+        let config = test_config();
         let router = create_app(config).await;
 
         Self { router, db }
     }
 
-    pub async fn send_request(&self, request: Request<Body>) -> (StatusCode, String) {
+    async fn send_request(&self, request: Request<Body>) -> (StatusCode, String) {
         let response = self.router.clone().oneshot(request).await.unwrap();
         let status = response.status();
         let body = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
@@ -157,23 +156,30 @@ impl WarehouseTestApp {
         (status, body_str)
     }
 
-    pub fn db(&self) -> &WarehouseTestDatabase {
+    fn db(&self) -> &TestDatabase {
         &self.db
     }
+
+    async fn cleanup(&self) {
+        self.db.cleanup().await;
+    }
 }
+
+fn create_auth_header(tenant_id: Uuid, user_id: Uuid) -> String {
+    format!("Bearer mock-jwt-{}-{}", tenant_id, user_id)
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::Method;
-
-    fn create_auth_header(tenant_id: Uuid, user_id: Uuid) -> String {
-        format!("Bearer mock-jwt-{}-{}", tenant_id, user_id)
-    }
 
     #[tokio::test]
     async fn test_create_warehouse() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Create").await;
 
         let request_body = json!({
@@ -197,12 +203,12 @@ mod tests {
         assert_eq!(response["code"].as_str().unwrap(), "WH-001");
         assert_eq!(response["name"].as_str().unwrap(), "Main Warehouse");
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 
     #[tokio::test]
     async fn test_get_warehouse() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Get").await;
         let warehouse_id = app.db().create_test_warehouse(tenant_id, "GET-WH", "Get Test Warehouse", None).await;
 
@@ -220,15 +226,14 @@ mod tests {
         let response: Value = serde_json::from_str(&body).unwrap();
         assert_eq!(response["code"].as_str().unwrap(), "GET-WH");
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 
     #[tokio::test]
     async fn test_list_warehouses() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse List").await;
 
-        // Create test warehouses
         app.db().create_test_warehouse(tenant_id, "LIST-01", "Warehouse A", None).await;
         app.db().create_test_warehouse(tenant_id, "LIST-02", "Warehouse B", None).await;
 
@@ -246,12 +251,12 @@ mod tests {
         let warehouses = response.as_array().unwrap();
         assert!(warehouses.len() >= 2);
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 
     #[tokio::test]
     async fn test_update_warehouse() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Update").await;
         let warehouse_id = app.db().create_test_warehouse(tenant_id, "UPD-WH", "Original Name", None).await;
 
@@ -276,12 +281,12 @@ mod tests {
         let response: Value = serde_json::from_str(&body).unwrap();
         assert_eq!(response["name"].as_str().unwrap(), "Updated Name");
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 
     #[tokio::test]
     async fn test_delete_warehouse() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Delete").await;
         let warehouse_id = app.db().create_test_warehouse(tenant_id, "DEL-WH", "To Delete", None).await;
 
@@ -297,17 +302,15 @@ mod tests {
 
         assert_eq!(status, StatusCode::NO_CONTENT);
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 
     #[tokio::test]
     async fn test_warehouse_hierarchy() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Hierarchy").await;
 
-        // Create parent warehouse
         let parent_id = app.db().create_test_warehouse(tenant_id, "PARENT", "Parent Warehouse", None).await;
-        // Create child warehouses
         app.db().create_test_warehouse(tenant_id, "CHILD-01", "Child A", Some(parent_id)).await;
         app.db().create_test_warehouse(tenant_id, "CHILD-02", "Child B", Some(parent_id)).await;
 
@@ -325,12 +328,12 @@ mod tests {
         let warehouses = response["warehouses"].as_array().unwrap();
         assert!(!warehouses.is_empty());
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 
     #[tokio::test]
     async fn test_warehouse_not_found() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Not Found").await;
 
         let fake_id = Uuid::new_v4();
@@ -346,12 +349,12 @@ mod tests {
 
         assert_eq!(status, StatusCode::NOT_FOUND);
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 
     #[tokio::test]
     async fn test_create_zone() {
-        let app = WarehouseTestApp::new().await;
+        let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Zone Create").await;
         let warehouse_id = app.db().create_test_warehouse(tenant_id, "ZONE-WH", "Zone Test Warehouse", None).await;
 
@@ -377,6 +380,6 @@ mod tests {
         let response: Value = serde_json::from_str(&body).unwrap();
         assert_eq!(response["zone_code"].as_str().unwrap(), "ZONE-A");
 
-        app.db().cleanup().await;
+        app.cleanup().await;
     }
 }
