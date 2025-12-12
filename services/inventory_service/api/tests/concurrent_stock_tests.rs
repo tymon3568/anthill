@@ -236,6 +236,15 @@ impl TestDatabase {
         .expect("Failed to update reserved quantity");
     }
 
+    /// Add quantity to inventory (INSERT ON CONFLICT pattern) - used for transfer destinations
+    /// Returns a static SQL string for use in transactions
+    fn upsert_inventory_sql() -> &'static str {
+        "INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
+         ON CONFLICT (tenant_id, warehouse_id, product_id)
+         DO UPDATE SET available_quantity = inventory_levels.available_quantity + $4, updated_at = NOW()"
+    }
+
     async fn cleanup(&self) {
         let tenant_ids = self.test_tenants.lock().await.clone();
 
@@ -486,10 +495,7 @@ mod concurrent_move_tests {
 
                         // Add to destination
                         sqlx::query(
-                            "INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at, updated_at)
-                             VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
-                             ON CONFLICT (tenant_id, warehouse_id, product_id)
-                             DO UPDATE SET available_quantity = inventory_levels.available_quantity + $4, updated_at = NOW()"
+                            TestDatabase::upsert_inventory_sql()
                         )
                         .bind(t_id)
                         .bind(dst)
@@ -658,10 +664,7 @@ mod concurrent_move_tests {
 
                         // Add to destination (INSERT ON CONFLICT for robustness)
                         sqlx::query(
-                            "INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at, updated_at)
-                             VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
-                             ON CONFLICT (tenant_id, warehouse_id, product_id)
-                             DO UPDATE SET available_quantity = inventory_levels.available_quantity + $4, updated_at = NOW()"
+                            TestDatabase::upsert_inventory_sql()
                         )
                         .bind(t_id)
                         .bind(dst)
