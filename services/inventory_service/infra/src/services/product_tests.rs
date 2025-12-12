@@ -225,8 +225,7 @@ mod tests {
         mock_repo
             .expect_search_products()
             .returning(move |_, req| {
-                assert!(req.query.is_some());
-                assert_eq!(req.query.unwrap(), "laptop");
+                assert_eq!(req.query, Some("laptop".to_string()));
                 Ok(search_response.clone())
             });
 
