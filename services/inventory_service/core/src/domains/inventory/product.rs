@@ -246,3 +246,262 @@ mod openapi {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    /// Helper function to create a test product with default values
+    fn create_test_product() -> Product {
+        Product::new(
+            Uuid::new_v4(),
+            "TEST-SKU-001".to_string(),
+            "Test Product".to_string(),
+            "goods".to_string(),
+            "USD".to_string(),
+        )
+    }
+
+    // =========================================================================
+    // ProductTrackingMethod Enum Tests
+    // =========================================================================
+
+    #[test]
+    fn test_tracking_method_display() {
+        assert_eq!(ProductTrackingMethod::None.to_string(), "none");
+        assert_eq!(ProductTrackingMethod::Lot.to_string(), "lot");
+        assert_eq!(ProductTrackingMethod::Serial.to_string(), "serial");
+    }
+
+    #[test]
+    fn test_tracking_method_from_str_valid() {
+        assert_eq!(ProductTrackingMethod::from_str("none").unwrap(), ProductTrackingMethod::None);
+        assert_eq!(ProductTrackingMethod::from_str("lot").unwrap(), ProductTrackingMethod::Lot);
+        assert_eq!(
+            ProductTrackingMethod::from_str("serial").unwrap(),
+            ProductTrackingMethod::Serial
+        );
+    }
+
+    #[test]
+    fn test_tracking_method_from_str_invalid() {
+        let result = ProductTrackingMethod::from_str("invalid");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid tracking method"));
+    }
+
+    #[test]
+    fn test_tracking_method_default() {
+        assert_eq!(ProductTrackingMethod::default(), ProductTrackingMethod::None);
+    }
+
+    // =========================================================================
+    // Product Creation Tests
+    // =========================================================================
+
+    #[test]
+    fn test_product_new_creates_with_correct_defaults() {
+        let tenant_id = Uuid::new_v4();
+        let product = Product::new(
+            tenant_id,
+            "SKU-001".to_string(),
+            "Widget".to_string(),
+            "goods".to_string(),
+            "USD".to_string(),
+        );
+
+        assert_eq!(product.tenant_id, tenant_id);
+        assert_eq!(product.sku, "SKU-001");
+        assert_eq!(product.name, "Widget");
+        assert_eq!(product.product_type, "goods");
+        assert_eq!(product.currency_code, "USD");
+        assert!(product.is_active);
+        assert!(product.is_sellable);
+        assert!(product.is_purchaseable);
+        assert!(product.track_inventory);
+        assert_eq!(product.tracking_method, ProductTrackingMethod::None);
+        assert!(product.description.is_none());
+        assert!(product.deleted_at.is_none());
+    }
+
+    #[test]
+    fn test_product_new_generates_uuid_v7() {
+        let product = create_test_product();
+        // UUID v7 starts with a timestamp, so the version byte should indicate v7
+        // Version is encoded in bits 48-51 (the 13th character in hex string)
+        let uuid_str = product.product_id.to_string();
+        let version_char = uuid_str.chars().nth(14).unwrap();
+        assert_eq!(version_char, '7', "Product should use UUID v7");
+    }
+
+    // =========================================================================
+    // Product Business Logic Tests
+    // =========================================================================
+
+    #[test]
+    fn test_is_deleted_when_not_deleted() {
+        let product = create_test_product();
+        assert!(!product.is_deleted());
+    }
+
+    #[test]
+    fn test_is_deleted_when_deleted() {
+        let mut product = create_test_product();
+        product.deleted_at = Some(Utc::now());
+        assert!(product.is_deleted());
+    }
+
+    #[test]
+    fn test_is_available_for_sale_all_conditions_true() {
+        let product = create_test_product();
+        assert!(product.is_available_for_sale());
+    }
+
+    #[test]
+    fn test_is_available_for_sale_when_inactive() {
+        let mut product = create_test_product();
+        product.is_active = false;
+        assert!(!product.is_available_for_sale());
+    }
+
+    #[test]
+    fn test_is_available_for_sale_when_not_sellable() {
+        let mut product = create_test_product();
+        product.is_sellable = false;
+        assert!(!product.is_available_for_sale());
+    }
+
+    #[test]
+    fn test_is_available_for_sale_when_deleted() {
+        let mut product = create_test_product();
+        product.deleted_at = Some(Utc::now());
+        assert!(!product.is_available_for_sale());
+    }
+
+    #[test]
+    fn test_is_available_for_purchase_all_conditions_true() {
+        let product = create_test_product();
+        assert!(product.is_available_for_purchase());
+    }
+
+    #[test]
+    fn test_is_available_for_purchase_when_inactive() {
+        let mut product = create_test_product();
+        product.is_active = false;
+        assert!(!product.is_available_for_purchase());
+    }
+
+    #[test]
+    fn test_is_available_for_purchase_when_not_purchaseable() {
+        let mut product = create_test_product();
+        product.is_purchaseable = false;
+        assert!(!product.is_available_for_purchase());
+    }
+
+    #[test]
+    fn test_is_available_for_purchase_when_deleted() {
+        let mut product = create_test_product();
+        product.deleted_at = Some(Utc::now());
+        assert!(!product.is_available_for_purchase());
+    }
+
+    #[test]
+    fn test_display_name_format() {
+        let mut product = create_test_product();
+        product.name = "Test Widget".to_string();
+        product.sku = "WDG-001".to_string();
+        assert_eq!(product.display_name(), "Test Widget (WDG-001)");
+    }
+
+    #[test]
+    fn test_mark_deleted_sets_timestamp() {
+        let mut product = create_test_product();
+        let before = Utc::now();
+        product.mark_deleted();
+        let after = Utc::now();
+
+        assert!(product.deleted_at.is_some());
+        let deleted_at = product.deleted_at.unwrap();
+        assert!(deleted_at >= before && deleted_at <= after);
+    }
+
+    #[test]
+    fn test_mark_deleted_updates_updated_at() {
+        let mut product = create_test_product();
+        let original_updated_at = product.updated_at;
+
+        // Small delay to ensure timestamp difference
+        sleep(Duration::from_millis(10));
+        product.mark_deleted();
+
+        assert!(product.updated_at > original_updated_at);
+    }
+
+    #[test]
+    fn test_touch_updates_timestamp() {
+        let mut product = create_test_product();
+        let original_updated_at = product.updated_at;
+
+        // Small delay to ensure timestamp difference
+        sleep(Duration::from_millis(10));
+        product.touch();
+
+        assert!(product.updated_at > original_updated_at);
+    }
+
+    // =========================================================================
+    // Edge Cases and Combined Conditions
+    // =========================================================================
+
+    #[test]
+    fn test_product_all_optional_fields_none() {
+        let product = create_test_product();
+        assert!(product.description.is_none());
+        assert!(product.item_group_id.is_none());
+        assert!(product.default_uom_id.is_none());
+        assert!(product.sale_price.is_none());
+        assert!(product.cost_price.is_none());
+        assert!(product.weight_grams.is_none());
+        assert!(product.dimensions.is_none());
+        assert!(product.attributes.is_none());
+    }
+
+    #[test]
+    fn test_product_with_pricing() {
+        let mut product = create_test_product();
+        product.sale_price = Some(1999); // $19.99 in cents
+        product.cost_price = Some(999); // $9.99 in cents
+
+        assert_eq!(product.sale_price, Some(1999));
+        assert_eq!(product.cost_price, Some(999));
+    }
+
+    #[test]
+    fn test_product_service_type() {
+        let product = Product::new(
+            Uuid::new_v4(),
+            "SVC-001".to_string(),
+            "Consulting Service".to_string(),
+            "service".to_string(),
+            "USD".to_string(),
+        );
+
+        assert_eq!(product.product_type, "service");
+    }
+
+    #[test]
+    fn test_product_consumable_type() {
+        let product = Product::new(
+            Uuid::new_v4(),
+            "CSM-001".to_string(),
+            "Office Supplies".to_string(),
+            "consumable".to_string(),
+            "USD".to_string(),
+        );
+
+        assert_eq!(product.product_type, "consumable");
+    }
+}
