@@ -22,6 +22,10 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "--cfg uuid_unstable"
+
+permissions:
+  contents: read
+  id-token: write
   # Test database configuration
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
@@ -391,9 +395,9 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: ./lcov.info
-          flags: all-tests
+          flags: ci-all-tests
           name: comprehensive-coverage
           fail_ci_if_error: false
           verbose: true
