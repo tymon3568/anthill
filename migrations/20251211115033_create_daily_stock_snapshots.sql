@@ -17,7 +17,11 @@ CREATE TABLE daily_stock_snapshots (
     tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
 
     -- Product reference
-    product_id UUID NOT NULL REFERENCES products(product_id),
+    product_id UUID NOT NULL,
+
+    -- Composite foreign key for tenant isolation
+    CONSTRAINT fk_daily_stock_snapshots_product
+        FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id),
 
     -- Snapshot date (date of the snapshot, e.g., '2025-12-11')
     snapshot_date DATE NOT NULL,
@@ -45,13 +49,14 @@ CREATE TABLE daily_stock_snapshots (
 -- INDEXES for Performance
 -- ==================================
 
--- Primary lookup index
-CREATE INDEX idx_daily_stock_snapshots_tenant_product_date
-    ON daily_stock_snapshots(tenant_id, product_id, snapshot_date DESC);
-
 -- Query optimization indexes
 CREATE INDEX idx_daily_stock_snapshots_tenant_date
     ON daily_stock_snapshots(tenant_id, snapshot_date DESC);
+
+-- Filtered index for active snapshots
+CREATE INDEX idx_daily_stock_snapshots_tenant_product_active
+    ON daily_stock_snapshots(tenant_id, product_id)
+    WHERE deleted_at IS NULL;
 
 
 
@@ -92,21 +97,26 @@ BEGIN
             closing_quantity
         )
         SELECT
-            prev.tenant_id,
-            prev.product_id,
+            sm.tenant_id,
+            sm.product_id,
             v_date,
-            prev.closing_quantity,
+            COALESCE(prev.closing_quantity, 0),
             COALESCE(SUM(sm.quantity), 0),
-            prev.closing_quantity + COALESCE(SUM(sm.quantity), 0)
-        FROM daily_stock_snapshots prev
-        LEFT JOIN stock_moves sm ON
-            sm.tenant_id = prev.tenant_id
-            AND sm.product_id = prev.product_id
-            AND sm.move_date >= v_date::timestamptz
-            AND sm.move_date < (v_date + INTERVAL '1 day')::timestamptz
-        WHERE prev.tenant_id = p_tenant_id
-            AND prev.snapshot_date = (v_date - 1)::date
-        GROUP BY prev.tenant_id, prev.product_id, prev.closing_quantity
+            COALESCE(prev.closing_quantity, 0) + COALESCE(SUM(sm.quantity), 0)
+        FROM stock_moves sm
+        LEFT JOIN LATERAL (
+            SELECT dss.closing_quantity
+            FROM daily_stock_snapshots dss
+            WHERE dss.tenant_id = sm.tenant_id
+              AND dss.product_id = sm.product_id
+              AND dss.snapshot_date < v_date
+            ORDER BY dss.snapshot_date DESC
+            LIMIT 1
+        ) prev ON TRUE
+        WHERE sm.tenant_id = p_tenant_id
+          AND sm.move_date >= v_date::timestamptz
+          AND sm.move_date < (v_date + INTERVAL '1 day')::timestamptz
+        GROUP BY sm.tenant_id, sm.product_id, prev.closing_quantity
         ON CONFLICT (tenant_id, product_id, snapshot_date)
         DO UPDATE SET
             opening_quantity = EXCLUDED.opening_quantity,

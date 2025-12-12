@@ -89,7 +89,10 @@ impl CacheService for RedisCache {
             .map_err(|e| AppError::InternalError(format!("JSON serialize error: {}", e)))?;
 
         match ttl {
-            Some(duration) => conn.set_ex(key.as_ref(), json, duration.as_secs()).await,
+            Some(duration) => {
+                let secs = duration.as_secs().max(1);
+                conn.set_ex(key.as_ref(), json, secs).await
+            },
             None => conn.set(key.as_ref(), json).await,
         }
         .map_err(|e| AppError::InternalError(format!("Redis set error: {}", e)))

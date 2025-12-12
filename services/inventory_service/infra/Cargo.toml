@@ -1,6 +1,9 @@
 [dependencies]
 # Async traits
 async-trait = {workspace = true}
+# Redis connection pooling
+bb8 = "0.8"
+bb8-redis = "0.15"
 chrono = {workspace = true}
 # Internal crates
 inventory_service_core = {workspace = true}
@@ -8,9 +11,6 @@ inventory_service_core = {workspace = true}
 num-traits = "0.2"
 # Redis for distributed locking
 redis = {workspace = true}
-# Redis connection pooling
-bb8 = "0.8"
-bb8-redis = "0.15"
 # Regex matching
 regex = {workspace = true}
 # Decimal numbers
