@@ -46,6 +46,12 @@ flags:
       - shared/
     carryforward: true
 
+  ci-all-tests:
+    paths:
+      - services/
+      - shared/
+    carryforward: true
+
   user_service:
     paths:
       - services/user_service/
@@ -96,3 +102,20 @@ ignore:
 # GitHub integration
 github_checks:
   annotations: true
+
+# Component management for better grouping
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: 70%
+  individual_components:
+    - component_id: rust-backend
+      name: Rust Backend Services
+      paths:
+        - services/**
+        - shared/**
+    - component_id: frontend
+      name: SvelteKit Frontend
+      paths:
+        - frontend/src/**
