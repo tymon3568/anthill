@@ -74,7 +74,7 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         tenant_repo: None,
     };
 
-    user_service_api::create_router(state)
+    user_service_api::create_router(&state)
 }
 
 /// Helper to create JWT for authenticated requests

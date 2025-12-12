@@ -1,5 +1,6 @@
 use axum::{
     body::Body,
+    extract::Extension,
     http::{Request, StatusCode},
     response::Response,
     routing::get,
@@ -222,9 +223,27 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
     };
 
     let app = Router::new()
-        .route("/api/v1/users", get(user_service_api::handlers::list_users))
-        .route("/api/v1/users/:user_id", get(user_service_api::handlers::get_user))
-        .with_state(state);
+        .route(
+            "/api/v1/users",
+            get(user_service_api::handlers::list_users::<
+                user_service_infra::auth::AuthServiceImpl<
+                    user_service_infra::auth::PgUserRepository,
+                    user_service_infra::auth::PgTenantRepository,
+                    user_service_infra::auth::PgSessionRepository,
+                >,
+            >),
+        )
+        .route(
+            "/api/v1/users/:user_id",
+            get(user_service_api::handlers::get_user::<
+                user_service_infra::auth::AuthServiceImpl<
+                    user_service_infra::auth::PgUserRepository,
+                    user_service_infra::auth::PgTenantRepository,
+                    user_service_infra::auth::PgSessionRepository,
+                >,
+            >),
+        )
+        .layer(Extension(state));
 
     // Create JWT tokens
     let token_a = create_test_jwt(user_a.user_id, tenant_a.tenant_id, &user_a.role);
@@ -358,9 +377,27 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
     };
 
     let app = Router::new()
-        .route("/api/v1/users", get(user_service_api::handlers::list_users))
-        .route("/api/v1/users/:user_id", get(user_service_api::handlers::get_user))
-        .with_state(state);
+        .route(
+            "/api/v1/users",
+            get(user_service_api::handlers::list_users::<
+                user_service_infra::auth::AuthServiceImpl<
+                    user_service_infra::auth::PgUserRepository,
+                    user_service_infra::auth::PgTenantRepository,
+                    user_service_infra::auth::PgSessionRepository,
+                >,
+            >),
+        )
+        .route(
+            "/api/v1/users/:user_id",
+            get(user_service_api::handlers::get_user::<
+                user_service_infra::auth::AuthServiceImpl<
+                    user_service_infra::auth::PgUserRepository,
+                    user_service_infra::auth::PgTenantRepository,
+                    user_service_infra::auth::PgSessionRepository,
+                >,
+            >),
+        )
+        .layer(Extension(state));
 
     // Create JWT tokens
     let token_admin_a = create_test_jwt(admin_a.user_id, tenant_a.tenant_id, &admin_a.role);
@@ -477,9 +514,27 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
     };
 
     let app = Router::new()
-        .route("/api/v1/users", get(user_service_api::handlers::list_users))
-        .route("/api/v1/users/:user_id", get(user_service_api::handlers::get_user))
-        .with_state(state);
+        .route(
+            "/api/v1/users",
+            get(user_service_api::handlers::list_users::<
+                user_service_infra::auth::AuthServiceImpl<
+                    user_service_infra::auth::PgUserRepository,
+                    user_service_infra::auth::PgTenantRepository,
+                    user_service_infra::auth::PgSessionRepository,
+                >,
+            >),
+        )
+        .route(
+            "/api/v1/users/:user_id",
+            get(user_service_api::handlers::get_user::<
+                user_service_infra::auth::AuthServiceImpl<
+                    user_service_infra::auth::PgUserRepository,
+                    user_service_infra::auth::PgTenantRepository,
+                    user_service_infra::auth::PgSessionRepository,
+                >,
+            >),
+        )
+        .layer(Extension(state));
 
     // Create JWT tokens
     let token_a1 = create_test_jwt(user_a1.user_id, tenant_a.tenant_id, &user_a1.role);

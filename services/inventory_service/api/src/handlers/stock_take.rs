@@ -22,10 +22,10 @@ use crate::state::AppState;
 pub fn create_stock_take_routes() -> Router {
     Router::new()
         .route("/", post(create_stock_take))
-        .route("/:stock_take_id/count", post(count_stock_take))
-        .route("/:stock_take_id/finalize", post(finalize_stock_take))
+        .route("/{stock_take_id}/count", post(count_stock_take))
+        .route("/{stock_take_id}/finalize", post(finalize_stock_take))
         .route("/", get(list_stock_takes))
-        .route("/:stock_take_id", get(get_stock_take))
+        .route("/{stock_take_id}", get(get_stock_take))
 }
 
 /// POST /api/v1/inventory/stock-takes - Create a new stock take session

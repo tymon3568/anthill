@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -448,7 +448,8 @@ pub enum LotSerialStatus {
     Active,
     Expired,
     Quarantined,
-    Consumed,
+    Disposed,
+    Reserved,
 }
 
 impl fmt::Display for LotSerialStatus {
@@ -457,7 +458,8 @@ impl fmt::Display for LotSerialStatus {
             LotSerialStatus::Active => "active",
             LotSerialStatus::Expired => "expired",
             LotSerialStatus::Quarantined => "quarantined",
-            LotSerialStatus::Consumed => "consumed",
+            LotSerialStatus::Disposed => "disposed",
+            LotSerialStatus::Reserved => "reserved",
         };
         f.write_str(s)
     }
@@ -471,7 +473,8 @@ impl FromStr for LotSerialStatus {
             "active" => Ok(LotSerialStatus::Active),
             "expired" => Ok(LotSerialStatus::Expired),
             "quarantined" => Ok(LotSerialStatus::Quarantined),
-            "consumed" => Ok(LotSerialStatus::Consumed),
+            "disposed" => Ok(LotSerialStatus::Disposed),
+            "reserved" => Ok(LotSerialStatus::Reserved),
             _ => Err(format!("Unknown lot serial status: {}", s)),
         }
     }
@@ -488,7 +491,7 @@ pub struct LotSerial {
     pub serial_number: Option<String>,
     pub initial_quantity: Option<i64>,
     pub remaining_quantity: Option<i64>,
-    pub expiry_date: Option<NaiveDate>,
+    pub expiry_date: Option<DateTime<Utc>>,
     pub status: LotSerialStatus,
     pub warehouse_id: Option<Uuid>,
     pub location_id: Option<Uuid>,

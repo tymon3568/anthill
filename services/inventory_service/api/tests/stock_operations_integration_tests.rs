@@ -209,7 +209,10 @@ mod stock_take_tests {
     async fn test_create_stock_take() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Stock Take Create").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "ST-WH", "Stock Take Warehouse").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "ST-WH", "Stock Take Warehouse")
+            .await;
 
         let request_body = json!({
             "warehouse_id": warehouse_id,
@@ -291,9 +294,18 @@ mod transfer_tests {
     async fn test_create_transfer() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Transfer Create").await;
-        let source_wh = app.db().create_test_warehouse(tenant_id, "SRC-WH", "Source Warehouse").await;
-        let dest_wh = app.db().create_test_warehouse(tenant_id, "DST-WH", "Destination Warehouse").await;
-        let product_id = app.db().create_test_product(tenant_id, "TRF-001", "Transfer Product").await;
+        let source_wh = app
+            .db()
+            .create_test_warehouse(tenant_id, "SRC-WH", "Source Warehouse")
+            .await;
+        let dest_wh = app
+            .db()
+            .create_test_warehouse(tenant_id, "DST-WH", "Destination Warehouse")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "TRF-001", "Transfer Product")
+            .await;
 
         let request_body = json!({
             "source_warehouse_id": source_wh,
@@ -321,7 +333,11 @@ mod transfer_tests {
         let (status, body) = app.send_request(request).await;
 
         // Should create transfer or return validation error
-        assert!(status == StatusCode::CREATED || status == StatusCode::OK || status == StatusCode::BAD_REQUEST);
+        assert!(
+            status == StatusCode::CREATED
+                || status == StatusCode::OK
+                || status == StatusCode::BAD_REQUEST
+        );
         let _response: Value = serde_json::from_str(&body).unwrap_or(json!({}));
 
         app.cleanup().await;
@@ -331,8 +347,14 @@ mod transfer_tests {
     async fn test_transfer_same_warehouse_error() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Transfer Same WH").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "SAME-WH", "Same Warehouse").await;
-        let product_id = app.db().create_test_product(tenant_id, "TRF-002", "Transfer Product 2").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "SAME-WH", "Same Warehouse")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "TRF-002", "Transfer Product 2")
+            .await;
 
         let request_body = json!({
             "source_warehouse_id": warehouse_id,
@@ -398,7 +420,10 @@ mod valuation_tests {
     async fn test_get_valuation() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Valuation Get").await;
-        let product_id = app.db().create_test_product(tenant_id, "VAL-001", "Valuation Product").await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "VAL-001", "Valuation Product")
+            .await;
 
         let uri = format!("/api/v1/inventory/valuation/{}", product_id);
         let request = Request::builder()
@@ -421,7 +446,10 @@ mod valuation_tests {
     async fn test_get_valuation_layers() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Valuation Layers").await;
-        let product_id = app.db().create_test_product(tenant_id, "VAL-002", "Layers Product").await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "VAL-002", "Layers Product")
+            .await;
 
         let uri = format!("/api/v1/inventory/valuation/{}/layers", product_id);
         let request = Request::builder()
@@ -444,7 +472,10 @@ mod valuation_tests {
     async fn test_get_valuation_history() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Valuation History").await;
-        let product_id = app.db().create_test_product(tenant_id, "VAL-003", "History Product").await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "VAL-003", "History Product")
+            .await;
 
         let uri = format!("/api/v1/inventory/valuation/{}/history", product_id);
         let request = Request::builder()
@@ -467,7 +498,10 @@ mod valuation_tests {
     async fn test_set_valuation_method() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Valuation Method").await;
-        let product_id = app.db().create_test_product(tenant_id, "VAL-004", "Method Product").await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "VAL-004", "Method Product")
+            .await;
 
         let uri = format!("/api/v1/inventory/valuation/{}/method", product_id);
         let request_body = json!({
@@ -485,7 +519,11 @@ mod valuation_tests {
         let (status, body) = app.send_request(request).await;
 
         // Should set method or return error if not found
-        assert!(status == StatusCode::OK || status == StatusCode::NOT_FOUND || status == StatusCode::BAD_REQUEST);
+        assert!(
+            status == StatusCode::OK
+                || status == StatusCode::NOT_FOUND
+                || status == StatusCode::BAD_REQUEST
+        );
         let _response: Value = serde_json::from_str(&body).unwrap_or(json!({}));
 
         app.cleanup().await;

@@ -75,9 +75,8 @@ const DEFAULT_TEST_DB_URL: &str = "postgres://anthill:anthill@localhost:5433/ant
 
 fn test_config() -> Config {
     Config {
-        database_url: std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            DEFAULT_TEST_DB_URL.to_string()
-        }),
+        database_url: std::env::var("DATABASE_URL")
+            .unwrap_or_else(|_| DEFAULT_TEST_DB_URL.to_string()),
         jwt_secret: std::env::var("JWT_SECRET")
             .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string()),
         jwt_expiration: 900,
@@ -107,9 +106,8 @@ struct TestDatabase {
 
 impl TestDatabase {
     async fn new() -> Self {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            DEFAULT_TEST_DB_URL.to_string()
-        });
+        let database_url =
+            std::env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_TEST_DB_URL.to_string());
 
         let pool = PgPool::connect(&database_url)
             .await
@@ -176,7 +174,13 @@ impl TestDatabase {
         product_id
     }
 
-    async fn set_inventory_level(&self, tenant_id: Uuid, warehouse_id: Uuid, product_id: Uuid, quantity: i64) {
+    async fn set_inventory_level(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+        quantity: i64,
+    ) {
         sqlx::query(
             "INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at, updated_at)
              VALUES ($1, $2, $3, $4, 0, NOW(), NOW())
@@ -192,10 +196,15 @@ impl TestDatabase {
         .expect("Failed to set inventory level");
     }
 
-    async fn get_inventory_level(&self, tenant_id: Uuid, warehouse_id: Uuid, product_id: Uuid) -> Option<i64> {
+    async fn get_inventory_level(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+    ) -> Option<i64> {
         let result: Option<(i64,)> = sqlx::query_as(
             "SELECT available_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
         )
         .bind(tenant_id)
         .bind(warehouse_id)
@@ -208,10 +217,15 @@ impl TestDatabase {
     }
 
     /// Get reserved quantity for inventory item
-    async fn get_reserved_quantity(&self, tenant_id: Uuid, warehouse_id: Uuid, product_id: Uuid) -> Option<i64> {
+    async fn get_reserved_quantity(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+    ) -> Option<i64> {
         let result: Option<(i64,)> = sqlx::query_as(
             "SELECT reserved_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
         )
         .bind(tenant_id)
         .bind(warehouse_id)
@@ -224,11 +238,17 @@ impl TestDatabase {
     }
 
     /// Update reserved quantity for inventory item
-    async fn update_reserved_quantity(&self, tenant_id: Uuid, warehouse_id: Uuid, product_id: Uuid, quantity: i64) {
+    async fn update_reserved_quantity(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_id: Uuid,
+        quantity: i64,
+    ) {
         sqlx::query(
             "UPDATE inventory_levels
              SET reserved_quantity = $4, updated_at = NOW()
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
         )
         .bind(tenant_id)
         .bind(warehouse_id)
@@ -330,11 +350,19 @@ mod reservation_tests {
     async fn test_concurrent_reservations_same_product() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Reservation Conflict").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "RES-WH", "Reservation Warehouse").await;
-        let product_id = app.db().create_test_product(tenant_id, "RES-001", "Reservation Product").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "RES-WH", "Reservation Warehouse")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "RES-001", "Reservation Product")
+            .await;
 
         // Set initial inventory: 100 units
-        app.db().set_inventory_level(tenant_id, warehouse_id, product_id, INITIAL_INVENTORY_STANDARD).await;
+        app.db()
+            .set_inventory_level(tenant_id, warehouse_id, product_id, INITIAL_INVENTORY_STANDARD)
+            .await;
 
         // Spawn 10 concurrent tasks, each trying to reserve 15 units
         // Total requested: 150 units, but only 100 available
@@ -355,7 +383,7 @@ mod reservation_tests {
                      SET reserved_quantity = reserved_quantity + $4,
                          updated_at = NOW()
                      WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
-                     AND available_quantity - reserved_quantity >= $4"
+                     AND available_quantity - reserved_quantity >= $4",
                 )
                 .bind(t_id)
                 .bind(w_id)
@@ -382,13 +410,25 @@ mod reservation_tests {
 
         // Should only allow 6 successful reservations (6 * 15 = 90 <= 100)
         let max_reservations = (INITIAL_INVENTORY_STANDARD / RESERVATION_AMOUNT) as usize;
-        assert!(successful_reservations <= max_reservations,
-            "Too many reservations succeeded: {}, expected <= {}", successful_reservations, max_reservations);
+        assert!(
+            successful_reservations <= max_reservations,
+            "Too many reservations succeeded: {}, expected <= {}",
+            successful_reservations,
+            max_reservations
+        );
 
         // Verify final state using helper method
-        let final_reserved = app.db().get_reserved_quantity(tenant_id, warehouse_id, product_id).await;
+        let final_reserved = app
+            .db()
+            .get_reserved_quantity(tenant_id, warehouse_id, product_id)
+            .await;
         if let Some(reserved) = final_reserved {
-            assert!(reserved <= INITIAL_INVENTORY_STANDARD, "Over-reservation detected: {} > {}", reserved, INITIAL_INVENTORY_STANDARD);
+            assert!(
+                reserved <= INITIAL_INVENTORY_STANDARD,
+                "Over-reservation detected: {} > {}",
+                reserved,
+                INITIAL_INVENTORY_STANDARD
+            );
         }
 
         app.cleanup().await;
@@ -399,24 +439,36 @@ mod reservation_tests {
     async fn test_reserve_release_rereserve() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Reserve Release").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "REL-WH", "Release Warehouse").await;
-        let product_id = app.db().create_test_product(tenant_id, "REL-001", "Release Product").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "REL-WH", "Release Warehouse")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "REL-001", "Release Product")
+            .await;
 
         // Set initial inventory: 50 units
-        app.db().set_inventory_level(tenant_id, warehouse_id, product_id, 50).await;
+        app.db()
+            .set_inventory_level(tenant_id, warehouse_id, product_id, 50)
+            .await;
 
         // Reserve 30 units using helper
-        app.db().update_reserved_quantity(tenant_id, warehouse_id, product_id, 30).await;
+        app.db()
+            .update_reserved_quantity(tenant_id, warehouse_id, product_id, 30)
+            .await;
 
         // Release all reserved units
-        app.db().update_reserved_quantity(tenant_id, warehouse_id, product_id, 0).await;
+        app.db()
+            .update_reserved_quantity(tenant_id, warehouse_id, product_id, 0)
+            .await;
 
         // Re-reserve 50 units (full amount now available)
         let result = sqlx::query(
             "UPDATE inventory_levels
              SET reserved_quantity = 50, updated_at = NOW()
              WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
-             AND available_quantity >= 50"
+             AND available_quantity >= 50",
         )
         .bind(tenant_id)
         .bind(warehouse_id)
@@ -444,12 +496,23 @@ mod concurrent_move_tests {
     async fn test_concurrent_transfers_same_source() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Concurrent Transfer").await;
-        let source_wh = app.db().create_test_warehouse(tenant_id, "SRC-WH", "Source").await;
-        let dest_wh = app.db().create_test_warehouse(tenant_id, "DST-WH", "Destination").await;
-        let product_id = app.db().create_test_product(tenant_id, "TRF-001", "Transfer Product").await;
+        let source_wh = app
+            .db()
+            .create_test_warehouse(tenant_id, "SRC-WH", "Source")
+            .await;
+        let dest_wh = app
+            .db()
+            .create_test_warehouse(tenant_id, "DST-WH", "Destination")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "TRF-001", "Transfer Product")
+            .await;
 
         // Set initial inventory: 100 units at source
-        app.db().set_inventory_level(tenant_id, source_wh, product_id, INITIAL_INVENTORY_STANDARD).await;
+        app.db()
+            .set_inventory_level(tenant_id, source_wh, product_id, INITIAL_INVENTORY_STANDARD)
+            .await;
 
         let db_pool = app.db().pool.clone();
         let mut handles = JoinSet::new();
@@ -470,7 +533,7 @@ mod concurrent_move_tests {
                 let available: Option<(i64,)> = sqlx::query_as(
                     "SELECT available_quantity FROM inventory_levels
                      WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
-                     FOR UPDATE"
+                     FOR UPDATE",
                 )
                 .bind(t_id)
                 .bind(src)
@@ -485,7 +548,7 @@ mod concurrent_move_tests {
                         sqlx::query(
                             "UPDATE inventory_levels
                              SET available_quantity = available_quantity - $4, updated_at = NOW()
-                             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+                             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
                         )
                         .bind(t_id)
                         .bind(src)
@@ -496,16 +559,14 @@ mod concurrent_move_tests {
                         .unwrap();
 
                         // Add to destination
-                        sqlx::query(
-                            TestDatabase::upsert_inventory_sql()
-                        )
-                        .bind(t_id)
-                        .bind(dst)
-                        .bind(p_id)
-                        .bind(TRANSFER_AMOUNT)
-                        .execute(&mut *tx)
-                        .await
-                        .unwrap();
+                        sqlx::query(TestDatabase::upsert_inventory_sql())
+                            .bind(t_id)
+                            .bind(dst)
+                            .bind(p_id)
+                            .bind(TRANSFER_AMOUNT)
+                            .execute(&mut *tx)
+                            .await
+                            .unwrap();
 
                         tx.commit().await.unwrap();
                         return true;
@@ -521,19 +582,36 @@ mod concurrent_move_tests {
         let mut successful = 0;
         while let Some(result) = handles.join_next().await {
             let ok = result.expect("transfer task panicked/cancelled");
-            if ok { successful += 1; }
+            if ok {
+                successful += 1;
+            }
         }
 
         // Only 4 transfers should succeed (4 * 25 = 100)
         let expected_transfers = (INITIAL_INVENTORY_STANDARD / TRANSFER_AMOUNT) as usize;
-        assert_eq!(successful, expected_transfers, "Expected exactly {} successful transfers", expected_transfers);
+        assert_eq!(
+            successful, expected_transfers,
+            "Expected exactly {} successful transfers",
+            expected_transfers
+        );
 
         // Verify final states
-        let source_qty = app.db().get_inventory_level(tenant_id, source_wh, product_id).await;
-        let dest_qty = app.db().get_inventory_level(tenant_id, dest_wh, product_id).await;
+        let source_qty = app
+            .db()
+            .get_inventory_level(tenant_id, source_wh, product_id)
+            .await;
+        let dest_qty = app
+            .db()
+            .get_inventory_level(tenant_id, dest_wh, product_id)
+            .await;
 
         assert_eq!(source_qty, Some(0), "Source should be empty");
-        assert_eq!(dest_qty, Some(INITIAL_INVENTORY_STANDARD), "Destination should have {} units", INITIAL_INVENTORY_STANDARD);
+        assert_eq!(
+            dest_qty,
+            Some(INITIAL_INVENTORY_STANDARD),
+            "Destination should have {} units",
+            INITIAL_INVENTORY_STANDARD
+        );
 
         app.cleanup().await;
     }
@@ -543,11 +621,19 @@ mod concurrent_move_tests {
     async fn test_concurrent_receipts_same_location() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Concurrent Receipt").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "RCV-WH", "Receiving").await;
-        let product_id = app.db().create_test_product(tenant_id, "RCV-001", "Receipt Product").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "RCV-WH", "Receiving")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "RCV-001", "Receipt Product")
+            .await;
 
         // Start with 0 inventory
-        app.db().set_inventory_level(tenant_id, warehouse_id, product_id, 0).await;
+        app.db()
+            .set_inventory_level(tenant_id, warehouse_id, product_id, 0)
+            .await;
 
         let db_pool = app.db().pool.clone();
         let mut handles = JoinSet::new();
@@ -563,7 +649,7 @@ mod concurrent_move_tests {
                 sqlx::query(
                     "UPDATE inventory_levels
                      SET available_quantity = available_quantity + $4, updated_at = NOW()
-                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
                 )
                 .bind(t_id)
                 .bind(w_id)
@@ -583,18 +669,21 @@ mod concurrent_move_tests {
                     if !task_ok {
                         failure_count += 1;
                     }
-                }
+                },
                 Err(join_error) => {
                     eprintln!("join error in concurrent receipt task: {join_error}");
                     failure_count += 1;
-                }
+                },
             }
         }
         assert_eq!(failure_count, 0, "All concurrent receipt tasks must succeed");
 
         // Verify final quantity: should be exactly 100 (10 * 10)
         let expected_qty = (CONCURRENT_RECEIPT_TASKS as i64) * RECEIPT_AMOUNT;
-        let final_qty = app.db().get_inventory_level(tenant_id, warehouse_id, product_id).await;
+        let final_qty = app
+            .db()
+            .get_inventory_level(tenant_id, warehouse_id, product_id)
+            .await;
         assert_eq!(final_qty, Some(expected_qty), "Final quantity should be {}", expected_qty);
 
         app.cleanup().await;
@@ -605,13 +694,26 @@ mod concurrent_move_tests {
     async fn test_mixed_concurrent_operations() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Mixed Operations").await;
-        let wh1 = app.db().create_test_warehouse(tenant_id, "MIX-WH1", "Warehouse 1").await;
-        let wh2 = app.db().create_test_warehouse(tenant_id, "MIX-WH2", "Warehouse 2").await;
-        let product_id = app.db().create_test_product(tenant_id, "MIX-001", "Mixed Product").await;
+        let wh1 = app
+            .db()
+            .create_test_warehouse(tenant_id, "MIX-WH1", "Warehouse 1")
+            .await;
+        let wh2 = app
+            .db()
+            .create_test_warehouse(tenant_id, "MIX-WH2", "Warehouse 2")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "MIX-001", "Mixed Product")
+            .await;
 
         // Initial: INITIAL_INVENTORY_STANDARD at WH1, 0 at WH2
-        app.db().set_inventory_level(tenant_id, wh1, product_id, INITIAL_INVENTORY_STANDARD).await;
-        app.db().set_inventory_level(tenant_id, wh2, product_id, 0).await;
+        app.db()
+            .set_inventory_level(tenant_id, wh1, product_id, INITIAL_INVENTORY_STANDARD)
+            .await;
+        app.db()
+            .set_inventory_level(tenant_id, wh2, product_id, 0)
+            .await;
 
         let db_pool = app.db().pool.clone();
         let mut handles: JoinSet<bool> = JoinSet::new();
@@ -626,7 +728,7 @@ mod concurrent_move_tests {
                 sqlx::query(
                     "UPDATE inventory_levels
                      SET available_quantity = available_quantity + $4, updated_at = NOW()
-                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
                 )
                 .bind(t_id)
                 .bind(w_id)
@@ -652,7 +754,7 @@ mod concurrent_move_tests {
                 let available: Option<(i64,)> = sqlx::query_as(
                     "SELECT available_quantity FROM inventory_levels
                      WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
-                     FOR UPDATE"
+                     FOR UPDATE",
                 )
                 .bind(t_id)
                 .bind(src)
@@ -667,7 +769,7 @@ mod concurrent_move_tests {
                         sqlx::query(
                             "UPDATE inventory_levels
                              SET available_quantity = available_quantity - $4, updated_at = NOW()
-                             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+                             WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
                         )
                         .bind(t_id)
                         .bind(src)
@@ -678,16 +780,14 @@ mod concurrent_move_tests {
                         .unwrap();
 
                         // Add to destination (INSERT ON CONFLICT for robustness)
-                        sqlx::query(
-                            TestDatabase::upsert_inventory_sql()
-                        )
-                        .bind(t_id)
-                        .bind(dst)
-                        .bind(p_id)
-                        .bind(MIXED_TRANSFER_AMOUNT)
-                        .execute(&mut *tx)
-                        .await
-                        .unwrap();
+                        sqlx::query(TestDatabase::upsert_inventory_sql())
+                            .bind(t_id)
+                            .bind(dst)
+                            .bind(p_id)
+                            .bind(MIXED_TRANSFER_AMOUNT)
+                            .execute(&mut *tx)
+                            .await
+                            .unwrap();
 
                         tx.commit().await.unwrap();
                         return true;
@@ -707,7 +807,7 @@ mod concurrent_move_tests {
                     if !success {
                         all_succeeded = false;
                     }
-                }
+                },
                 Err(_) => all_succeeded = false,
             }
         }
@@ -718,10 +818,17 @@ mod concurrent_move_tests {
         // Verify final states
         // WH1: INITIAL_INVENTORY_STANDARD + MIXED_RECEIPT_AMOUNT - MIXED_TRANSFER_AMOUNT
         // WH2: 0 + MIXED_TRANSFER_AMOUNT
-        let expected_wh1 = INITIAL_INVENTORY_STANDARD + MIXED_RECEIPT_AMOUNT - MIXED_TRANSFER_AMOUNT;
+        let expected_wh1 =
+            INITIAL_INVENTORY_STANDARD + MIXED_RECEIPT_AMOUNT - MIXED_TRANSFER_AMOUNT;
         let expected_wh2 = MIXED_TRANSFER_AMOUNT;
-        let wh1_qty = app.db().get_inventory_level(tenant_id, wh1, product_id).await;
-        let wh2_qty = app.db().get_inventory_level(tenant_id, wh2, product_id).await;
+        let wh1_qty = app
+            .db()
+            .get_inventory_level(tenant_id, wh1, product_id)
+            .await;
+        let wh2_qty = app
+            .db()
+            .get_inventory_level(tenant_id, wh2, product_id)
+            .await;
 
         assert_eq!(wh1_qty, Some(expected_wh1), "WH1 should have {} units", expected_wh1);
         assert_eq!(wh2_qty, Some(expected_wh2), "WH2 should have {} units", expected_wh2);
@@ -743,7 +850,10 @@ mod idempotency_tests {
     async fn test_duplicate_request_handling() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Idempotency").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "IDEM-WH", "Idempotency WH").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "IDEM-WH", "Idempotency WH")
+            .await;
 
         let idempotency_key = Uuid::new_v4().to_string();
 
@@ -754,11 +864,14 @@ mod idempotency_tests {
             .header("content-type", "application/json")
             .header("x-idempotency-key", &idempotency_key)
             .header("authorization", create_auth_header(tenant_id, Uuid::new_v4()))
-            .body(Body::from(json!({
-                "warehouse_id": warehouse_id,
-                "name": "Test Stock Take",
-                "count_type": "full"
-            }).to_string()))
+            .body(Body::from(
+                json!({
+                    "warehouse_id": warehouse_id,
+                    "name": "Test Stock Take",
+                    "count_type": "full"
+                })
+                .to_string(),
+            ))
             .unwrap();
 
         let (status1, body1) = app.send_request(request1).await;
@@ -802,7 +915,10 @@ mod idempotency_tests {
     async fn test_different_idempotency_keys() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Idempotency Keys").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "KEY-WH", "Key WH").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "KEY-WH", "Key WH")
+            .await;
 
         // Two requests with different keys
         let key1 = Uuid::new_v4().to_string();
@@ -814,11 +930,14 @@ mod idempotency_tests {
             .header("content-type", "application/json")
             .header("x-idempotency-key", &key1)
             .header("authorization", create_auth_header(tenant_id, Uuid::new_v4()))
-            .body(Body::from(json!({
-                "warehouse_id": warehouse_id,
-                "name": "Stock Take 1",
-                "count_type": "full"
-            }).to_string()))
+            .body(Body::from(
+                json!({
+                    "warehouse_id": warehouse_id,
+                    "name": "Stock Take 1",
+                    "count_type": "full"
+                })
+                .to_string(),
+            ))
             .unwrap();
 
         let request2 = Request::builder()
@@ -827,11 +946,14 @@ mod idempotency_tests {
             .header("content-type", "application/json")
             .header("x-idempotency-key", &key2)
             .header("authorization", create_auth_header(tenant_id, Uuid::new_v4()))
-            .body(Body::from(json!({
-                "warehouse_id": warehouse_id,
-                "name": "Stock Take 2",
-                "count_type": "full"
-            }).to_string()))
+            .body(Body::from(
+                json!({
+                    "warehouse_id": warehouse_id,
+                    "name": "Stock Take 2",
+                    "count_type": "full"
+                })
+                .to_string(),
+            ))
             .unwrap();
 
         let (status1, body1) = app.send_request(request1).await;
@@ -855,7 +977,7 @@ mod idempotency_tests {
     }
 
     /// Test idempotency under concurrent duplicate requests
-    /// 
+    ///
     /// This validates that when two requests with the same idempotency key
     /// are fired in parallel, only one operation is applied (or both return
     /// the same response), preventing double inserts under contention.
@@ -863,7 +985,10 @@ mod idempotency_tests {
     async fn test_concurrent_duplicate_idempotency() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Concurrent Idempotency").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "CONC-IDEM-WH", "Concurrent Idempotency WH").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "CONC-IDEM-WH", "Concurrent Idempotency WH")
+            .await;
 
         let idempotency_key = Uuid::new_v4().to_string();
         let user_id = Uuid::new_v4();
@@ -884,11 +1009,14 @@ mod idempotency_tests {
                     .header("content-type", "application/json")
                     .header("x-idempotency-key", &key1)
                     .header("authorization", create_auth_header(tenant_id, user_id))
-                    .body(Body::from(json!({
-                        "warehouse_id": warehouse_id,
-                        "name": "Concurrent Stock Take",
-                        "count_type": "full"
-                    }).to_string()))
+                    .body(Body::from(
+                        json!({
+                            "warehouse_id": warehouse_id,
+                            "name": "Concurrent Stock Take",
+                            "count_type": "full"
+                        })
+                        .to_string(),
+                    ))
                     .unwrap();
 
                 let response = router1.oneshot(request).await.unwrap();
@@ -904,11 +1032,14 @@ mod idempotency_tests {
                     .header("content-type", "application/json")
                     .header("x-idempotency-key", &key2)
                     .header("authorization", create_auth_header(tenant_id, user_id))
-                    .body(Body::from(json!({
-                        "warehouse_id": warehouse_id,
-                        "name": "Concurrent Stock Take",
-                        "count_type": "full"
-                    }).to_string()))
+                    .body(Body::from(
+                        json!({
+                            "warehouse_id": warehouse_id,
+                            "name": "Concurrent Stock Take",
+                            "count_type": "full"
+                        })
+                        .to_string(),
+                    ))
                     .unwrap();
 
                 let response = router2.oneshot(request).await.unwrap();
@@ -926,7 +1057,7 @@ mod idempotency_tests {
         // - One request succeeds (201 Created)
         // - The other either returns the same result OR returns 409 Conflict
         // Both failing would indicate neither was processed (bad)
-        
+
         let one_succeeded = status1.is_success() || status2.is_success();
         assert!(
             one_succeeded,
@@ -947,16 +1078,20 @@ mod idempotency_tests {
         // If one succeeded and one failed, the failure should be 409 Conflict
         if status1.is_success() && !status2.is_success() {
             assert_eq!(
-                status2, StatusCode::CONFLICT,
+                status2,
+                StatusCode::CONFLICT,
                 "Second request should be rejected with 409 Conflict, got {:?}: {}",
-                status2, body2
+                status2,
+                body2
             );
         }
         if status2.is_success() && !status1.is_success() {
             assert_eq!(
-                status1, StatusCode::CONFLICT,
+                status1,
+                StatusCode::CONFLICT,
                 "First request should be rejected with 409 Conflict, got {:?}: {}",
-                status1, body1
+                status1,
+                body1
             );
         }
 
@@ -977,11 +1112,19 @@ mod consistency_tests {
     async fn test_stock_levels_consistency() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Consistency").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "CON-WH", "Consistency WH").await;
-        let product_id = app.db().create_test_product(tenant_id, "CON-001", "Consistency Product").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "CON-WH", "Consistency WH")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "CON-001", "Consistency Product")
+            .await;
 
         // Initial: 1000 units
-        app.db().set_inventory_level(tenant_id, warehouse_id, product_id, INITIAL_INVENTORY_LARGE).await;
+        app.db()
+            .set_inventory_level(tenant_id, warehouse_id, product_id, INITIAL_INVENTORY_LARGE)
+            .await;
 
         let db_pool = app.db().pool.clone();
         let mut handles = JoinSet::new();
@@ -996,7 +1139,7 @@ mod consistency_tests {
                 sqlx::query(
                     "UPDATE inventory_levels
                      SET available_quantity = available_quantity + $4, updated_at = NOW()
-                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
                 )
                 .bind(t_id)
                 .bind(w_id)
@@ -1017,7 +1160,7 @@ mod consistency_tests {
                 sqlx::query(
                     "UPDATE inventory_levels
                      SET available_quantity = available_quantity - $4, updated_at = NOW()
-                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3"
+                     WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3",
                 )
                 .bind(t_id)
                 .bind(w_id)
@@ -1033,15 +1176,16 @@ mod consistency_tests {
         while let Some(join_result) = handles.join_next().await {
             match join_result {
                 Ok(task_result) => {
-                    if task_result.is_err() { // Check if the SQL operation itself failed
+                    if task_result.is_err() {
+                        // Check if the SQL operation itself failed
                         eprintln!("SQL operation failed: {}", task_result.unwrap_err());
                         failure_count += 1;
                     }
-                }
+                },
                 Err(join_error) => {
                     eprintln!("join error in consistency task: {join_error}");
                     failure_count += 1;
-                }
+                },
             }
         }
         assert_eq!(failure_count, 0, "All concurrent operations must succeed");
@@ -1050,7 +1194,10 @@ mod consistency_tests {
         let expected_final = INITIAL_INVENTORY_LARGE
             + (CONCURRENT_INCREMENT_OPS as i64 * INCREMENT_AMOUNT)
             - (CONCURRENT_DECREMENT_OPS as i64 * DECREMENT_AMOUNT);
-        let final_qty = app.db().get_inventory_level(tenant_id, warehouse_id, product_id).await;
+        let final_qty = app
+            .db()
+            .get_inventory_level(tenant_id, warehouse_id, product_id)
+            .await;
         assert_eq!(final_qty, Some(expected_final), "Final quantity should be {}", expected_final);
 
         app.cleanup().await;
@@ -1061,18 +1208,26 @@ mod consistency_tests {
     async fn test_no_negative_inventory() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("No Negative").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "NEG-WH", "No Neg WH").await;
-        let product_id = app.db().create_test_product(tenant_id, "NEG-001", "No Neg Product").await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "NEG-WH", "No Neg WH")
+            .await;
+        let product_id = app
+            .db()
+            .create_test_product(tenant_id, "NEG-001", "No Neg Product")
+            .await;
 
         // Initial: 50 units
-        app.db().set_inventory_level(tenant_id, warehouse_id, product_id, 50).await;
+        app.db()
+            .set_inventory_level(tenant_id, warehouse_id, product_id, 50)
+            .await;
 
         // Try to deduct 100 (more than available)
         let result = sqlx::query(
             "UPDATE inventory_levels
              SET available_quantity = available_quantity - 100, updated_at = NOW()
              WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3
-             AND available_quantity >= 100"
+             AND available_quantity >= 100",
         )
         .bind(tenant_id)
         .bind(warehouse_id)
@@ -1085,7 +1240,10 @@ mod consistency_tests {
         assert_eq!(result.rows_affected(), 0, "Should not allow negative inventory");
 
         // Verify quantity unchanged
-        let qty = app.db().get_inventory_level(tenant_id, warehouse_id, product_id).await;
+        let qty = app
+            .db()
+            .get_inventory_level(tenant_id, warehouse_id, product_id)
+            .await;
         assert_eq!(qty, Some(50), "Quantity should remain 50");
 
         app.cleanup().await;

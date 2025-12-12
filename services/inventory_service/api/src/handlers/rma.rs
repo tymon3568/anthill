@@ -81,8 +81,8 @@ pub async fn approve_rma(
 pub fn create_rma_routes() -> Router {
     Router::new()
         .route("/", post(create_rma))
-        .route("/:rma_id/approve", post(approve_rma))
-        .route("/:rma_id/receive", post(receive_rma))
+        .route("/{rma_id}/approve", post(approve_rma))
+        .route("/{rma_id}/receive", post(receive_rma))
 }
 
 /// POST /api/v1/inventory/rma/{rma_id}/receive - Process the receipt of returned goods

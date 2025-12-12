@@ -84,7 +84,7 @@ utoipa = {version = "5", features = ["axum_extras", "uuid", "chrono"]}
 utoipa-swagger-ui = {version = "9", features = ["axum"]}
 # UUID & DateTime
 uuid = {version = "1.6", features = ["v4", "v7", "serde"]}
-validator = {version = "0.16", features = ["derive"]}
+validator = {version = "0.20", features = ["derive"]}
 wiremock = "0.6"
 zxcvbn = "3.1"
 

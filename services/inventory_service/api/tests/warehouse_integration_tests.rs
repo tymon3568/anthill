@@ -210,7 +210,10 @@ mod tests {
     async fn test_get_warehouse() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Get").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "GET-WH", "Get Test Warehouse", None).await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "GET-WH", "Get Test Warehouse", None)
+            .await;
 
         let uri = format!("/api/v1/inventory/warehouses/{}", warehouse_id);
         let request = Request::builder()
@@ -234,8 +237,12 @@ mod tests {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse List").await;
 
-        app.db().create_test_warehouse(tenant_id, "LIST-01", "Warehouse A", None).await;
-        app.db().create_test_warehouse(tenant_id, "LIST-02", "Warehouse B", None).await;
+        app.db()
+            .create_test_warehouse(tenant_id, "LIST-01", "Warehouse A", None)
+            .await;
+        app.db()
+            .create_test_warehouse(tenant_id, "LIST-02", "Warehouse B", None)
+            .await;
 
         let request = Request::builder()
             .method(Method::GET)
@@ -258,7 +265,10 @@ mod tests {
     async fn test_update_warehouse() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Update").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "UPD-WH", "Original Name", None).await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "UPD-WH", "Original Name", None)
+            .await;
 
         let update_body = json!({
             "code": "UPD-WH",
@@ -288,7 +298,10 @@ mod tests {
     async fn test_delete_warehouse() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Delete").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "DEL-WH", "To Delete", None).await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "DEL-WH", "To Delete", None)
+            .await;
 
         let uri = format!("/api/v1/inventory/warehouses/{}", warehouse_id);
         let request = Request::builder()
@@ -310,9 +323,16 @@ mod tests {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Warehouse Hierarchy").await;
 
-        let parent_id = app.db().create_test_warehouse(tenant_id, "PARENT", "Parent Warehouse", None).await;
-        app.db().create_test_warehouse(tenant_id, "CHILD-01", "Child A", Some(parent_id)).await;
-        app.db().create_test_warehouse(tenant_id, "CHILD-02", "Child B", Some(parent_id)).await;
+        let parent_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "PARENT", "Parent Warehouse", None)
+            .await;
+        app.db()
+            .create_test_warehouse(tenant_id, "CHILD-01", "Child A", Some(parent_id))
+            .await;
+        app.db()
+            .create_test_warehouse(tenant_id, "CHILD-02", "Child B", Some(parent_id))
+            .await;
 
         let request = Request::builder()
             .method(Method::GET)
@@ -356,7 +376,10 @@ mod tests {
     async fn test_create_zone() {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Zone Create").await;
-        let warehouse_id = app.db().create_test_warehouse(tenant_id, "ZONE-WH", "Zone Test Warehouse", None).await;
+        let warehouse_id = app
+            .db()
+            .create_test_warehouse(tenant_id, "ZONE-WH", "Zone Test Warehouse", None)
+            .await;
 
         let request_body = json!({
             "zone_code": "ZONE-A",

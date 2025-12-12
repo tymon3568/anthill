@@ -66,7 +66,7 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
-    user_service_api::create_router(state)
+    user_service_api::create_router(&state)
 }
 
 /// Helper to make HTTP request

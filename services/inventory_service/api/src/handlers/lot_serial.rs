@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     Json, Router,
 };
-use chrono::{NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -25,7 +25,7 @@ pub struct CreateLotSerialRequest {
     pub serial_number: Option<String>,
     pub initial_quantity: Option<i64>,
     pub remaining_quantity: Option<i64>,
-    pub expiry_date: Option<NaiveDate>,
+    pub expiry_date: Option<DateTime<Utc>>,
     pub status: LotSerialStatus,
 }
 

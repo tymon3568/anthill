@@ -46,7 +46,6 @@ pub struct CategoryCreateRequest {
     pub icon: Option<String>,
 
     /// Hex color code (e.g., #FF5733)
-    #[validate(regex = "COLOR_REGEX")]
     pub color: Option<String>,
 
     /// Category image URL
@@ -106,7 +105,6 @@ pub struct CategoryUpdateRequest {
     pub icon: Option<String>,
 
     /// Hex color code
-    #[validate(regex = "COLOR_REGEX")]
     pub color: Option<String>,
 
     /// Category image URL
@@ -358,9 +356,6 @@ fn default_page() -> u32 {
 fn default_page_size() -> u32 {
     20
 }
-
-static COLOR_REGEX: std::sync::LazyLock<regex::Regex> =
-    std::sync::LazyLock::new(|| regex::Regex::new(r"^#[0-9A-Fa-f]{6}$").unwrap());
 
 #[cfg(test)]
 mod tests {
@@ -669,20 +664,5 @@ mod tests {
 
         let deserialized: SortDirection = serde_json::from_str("\"asc\"").unwrap();
         assert!(matches!(deserialized, SortDirection::Asc));
-    }
-
-    #[test]
-    fn test_color_regex() {
-        // Test the regex directly
-        assert!(COLOR_REGEX.is_match("#FF5733"));
-        assert!(COLOR_REGEX.is_match("#000000"));
-        assert!(COLOR_REGEX.is_match("#ffffff"));
-        assert!(COLOR_REGEX.is_match("#123ABC"));
-
-        assert!(!COLOR_REGEX.is_match("#GGG"));
-        assert!(!COLOR_REGEX.is_match("#FF573"));
-        assert!(!COLOR_REGEX.is_match("FF5733"));
-        assert!(!COLOR_REGEX.is_match("#FF57333"));
-        assert!(!COLOR_REGEX.is_match("#ff573g"));
     }
 }

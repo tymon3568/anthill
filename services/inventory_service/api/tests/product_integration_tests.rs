@@ -189,9 +189,15 @@ mod tests {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Product Search Query").await;
 
-        app.db().create_test_product(tenant_id, "LAPTOP-001", "Gaming Laptop").await;
-        app.db().create_test_product(tenant_id, "LAPTOP-002", "Business Laptop").await;
-        app.db().create_test_product(tenant_id, "PHONE-001", "Smartphone").await;
+        app.db()
+            .create_test_product(tenant_id, "LAPTOP-001", "Gaming Laptop")
+            .await;
+        app.db()
+            .create_test_product(tenant_id, "LAPTOP-002", "Business Laptop")
+            .await;
+        app.db()
+            .create_test_product(tenant_id, "PHONE-001", "Smartphone")
+            .await;
 
         let request = Request::builder()
             .method(Method::GET)
@@ -215,8 +221,12 @@ mod tests {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Product Search Filters").await;
 
-        app.db().create_test_product(tenant_id, "FILTER-001", "Test Product 1").await;
-        app.db().create_test_product(tenant_id, "FILTER-002", "Test Product 2").await;
+        app.db()
+            .create_test_product(tenant_id, "FILTER-001", "Test Product 1")
+            .await;
+        app.db()
+            .create_test_product(tenant_id, "FILTER-002", "Test Product 2")
+            .await;
 
         let request = Request::builder()
             .method(Method::GET)
@@ -239,7 +249,11 @@ mod tests {
 
         for i in 1..=15 {
             app.db()
-                .create_test_product(tenant_id, &format!("PAGE-{:03}", i), &format!("Product {}", i))
+                .create_test_product(
+                    tenant_id,
+                    &format!("PAGE-{:03}", i),
+                    &format!("Product {}", i),
+                )
                 .await;
         }
 
@@ -256,7 +270,9 @@ mod tests {
         let response: Value = serde_json::from_str(&body).unwrap();
         let products = response["products"].as_array().unwrap();
         assert!(products.len() <= 5);
-        assert!(response["pagination"]["has_next"].as_bool().unwrap_or(false));
+        assert!(response["pagination"]["has_next"]
+            .as_bool()
+            .unwrap_or(false));
 
         app.cleanup().await;
     }
@@ -285,8 +301,12 @@ mod tests {
         let app = TestApp::new().await;
         let tenant_id = app.db().create_test_tenant("Search Suggestions").await;
 
-        app.db().create_test_product(tenant_id, "LAPTOP-001", "Gaming Laptop").await;
-        app.db().create_test_product(tenant_id, "LAPTOP-002", "Business Laptop").await;
+        app.db()
+            .create_test_product(tenant_id, "LAPTOP-001", "Gaming Laptop")
+            .await;
+        app.db()
+            .create_test_product(tenant_id, "LAPTOP-002", "Business Laptop")
+            .await;
 
         let request = Request::builder()
             .method(Method::GET)

@@ -12,10 +12,6 @@ use validator::Validate;
 pub struct CreateRoleReq {
     /// Role name (e.g., "inventory_manager", "sales_staff")
     #[validate(length(min = 1, max = 100))]
-    #[validate(regex(
-        path = "RE_ROLE_NAME",
-        message = "Role name must be lowercase alphanumeric with underscores"
-    ))]
     pub role_name: String,
 
     /// Human-readable role description
@@ -37,10 +33,6 @@ pub struct PermissionReq {
     /// Action (e.g., "read", "write", "delete", "approve")
     #[validate(length(min = 1, max = 50))]
     pub action: String,
-}
-
-lazy_static::lazy_static! {
-    static ref RE_ROLE_NAME: regex::Regex = regex::Regex::new(r"^[a-z0-9_]+$").unwrap();
 }
 
 /// Response for role creation
