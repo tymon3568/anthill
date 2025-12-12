@@ -83,11 +83,12 @@ CREATE OR REPLACE FUNCTION populate_daily_stock_snapshots(
 RETURNS INTEGER AS $$
 DECLARE
     v_date DATE;
-    v_count INTEGER := 0;
+    v_rows_affected INTEGER := 0;
+    v_current_rows INTEGER;
 BEGIN
     -- Loop through each date in the range
     FOR v_date IN SELECT generate_series(p_start_date, p_end_date, '1 day'::interval)::date LOOP
-        -- Insert or update snapshots for each product that had movements on this date
+        -- Insert or update snapshots for all products with existing stock (previous snapshot or movements on this date)
         INSERT INTO daily_stock_snapshots (
             tenant_id,
             product_id,
@@ -96,27 +97,42 @@ BEGIN
             total_movements,
             closing_quantity
         )
+        WITH products_to_snapshot AS (
+            SELECT DISTINCT product_id
+            FROM (
+                -- Products with previous snapshot
+                SELECT product_id FROM daily_stock_snapshots
+                WHERE tenant_id = p_tenant_id AND snapshot_date = v_date - INTERVAL '1 day'
+                UNION
+                -- Products with movements on this date
+                SELECT product_id FROM stock_moves
+                WHERE tenant_id = p_tenant_id
+                  AND move_date >= v_date::timestamptz
+                  AND move_date < (v_date + INTERVAL '1 day')::timestamptz
+            ) AS p
+        )
         SELECT
-            sm.tenant_id,
-            sm.product_id,
-            v_date,
-            COALESCE(prev.closing_quantity, 0),
-            COALESCE(SUM(sm.quantity), 0),
-            COALESCE(prev.closing_quantity, 0) + COALESCE(SUM(sm.quantity), 0)
-        FROM stock_moves sm
+            p_tenant_id AS tenant_id,
+            pts.product_id,
+            v_date AS snapshot_date,
+            COALESCE(prev.closing_quantity, 0) AS opening_quantity,
+            COALESCE(SUM(sm.quantity), 0) AS total_movements,
+            COALESCE(prev.closing_quantity, 0) + COALESCE(SUM(sm.quantity), 0) AS closing_quantity
+        FROM products_to_snapshot pts
         LEFT JOIN LATERAL (
             SELECT dss.closing_quantity
             FROM daily_stock_snapshots dss
-            WHERE dss.tenant_id = sm.tenant_id
-              AND dss.product_id = sm.product_id
+            WHERE dss.tenant_id = p_tenant_id
+              AND dss.product_id = pts.product_id
               AND dss.snapshot_date < v_date
             ORDER BY dss.snapshot_date DESC
             LIMIT 1
         ) prev ON TRUE
-        WHERE sm.tenant_id = p_tenant_id
-          AND sm.move_date >= v_date::timestamptz
-          AND sm.move_date < (v_date + INTERVAL '1 day')::timestamptz
-        GROUP BY sm.tenant_id, sm.product_id, prev.closing_quantity
+        LEFT JOIN stock_moves sm ON sm.tenant_id = p_tenant_id
+            AND sm.product_id = pts.product_id
+            AND sm.move_date >= v_date::timestamptz
+            AND sm.move_date < (v_date + INTERVAL '1 day')::timestamptz
+        GROUP BY pts.product_id, prev.closing_quantity
         ON CONFLICT (tenant_id, product_id, snapshot_date)
         DO UPDATE SET
             opening_quantity = EXCLUDED.opening_quantity,
@@ -124,10 +140,11 @@ BEGIN
             closing_quantity = EXCLUDED.closing_quantity,
             updated_at = NOW();
 
-        v_count := v_count + 1;
+        GET DIAGNOSTICS v_current_rows = ROW_COUNT;
+        v_rows_affected := v_rows_affected + v_current_rows;
     END LOOP;
 
-    RETURN v_count;
+    RETURN v_rows_affected;
 END;
 $$ LANGUAGE plpgsql;
 
