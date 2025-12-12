@@ -5,8 +5,8 @@
 
 use async_trait::async_trait;
 use bb8::Pool;
+use bb8_redis::redis::AsyncCommands;
 use bb8_redis::RedisConnectionManager;
-use redis::AsyncCommands;
 use serde_json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -72,7 +72,7 @@ impl CacheService for RedisCache {
             .map_err(|e| AppError::InternalError(format!("Redis get error: {}", e)))?;
 
         match data {
-            Some(json) => serde_json::from_str(&json)
+            Some(json) => serde_json::from_str(json.as_str())
                 .map(Some)
                 .map_err(|e| AppError::InternalError(format!("JSON deserialize error: {}", e))),
             None => Ok(None),

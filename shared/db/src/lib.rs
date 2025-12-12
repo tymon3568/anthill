@@ -1,6 +1,6 @@
 use shared_error::AppError;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
+pub use sqlx::PgPool;
 
 /// Initialize database connection pool
 pub async fn init_pool(database_url: &str, max_connections: u32) -> Result<PgPool, AppError> {
