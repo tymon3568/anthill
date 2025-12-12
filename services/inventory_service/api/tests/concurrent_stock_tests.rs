@@ -371,10 +371,9 @@ mod reservation_tests {
         // Wait for all tasks and count successful reservations
         let mut successful_reservations = 0;
         while let Some(result) = handles.join_next().await {
-            if let Ok(success) = result {
-                if success {
-                    successful_reservations += 1;
-                }
+            let success = result.expect("reservation task panicked/cancelled");
+            if success {
+                successful_reservations += 1;
             }
         }
 
@@ -518,9 +517,8 @@ mod concurrent_move_tests {
         // Wait for all transfers
         let mut successful = 0;
         while let Some(result) = handles.join_next().await {
-            if let Ok(true) = result {
-                successful += 1;
-            }
+            let ok = result.expect("transfer task panicked/cancelled");
+            if ok { successful += 1; }
         }
 
         // Only 4 transfers should succeed (4 * 25 = 100)
