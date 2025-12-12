@@ -206,3 +206,236 @@ mod openapi {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Helper function to create a test warehouse
+    fn create_test_warehouse() -> Warehouse {
+        Warehouse::new(
+            Uuid::new_v4(),
+            "WH-001".to_string(),
+            "Main Warehouse".to_string(),
+            "main".to_string(),
+        )
+    }
+
+    // =========================================================================
+    // Warehouse Creation Tests
+    // =========================================================================
+
+    #[test]
+    fn test_warehouse_new_creates_with_correct_defaults() {
+        let tenant_id = Uuid::new_v4();
+        let warehouse = Warehouse::new(
+            tenant_id,
+            "WH-001".to_string(),
+            "Test Warehouse".to_string(),
+            "main".to_string(),
+        );
+
+        assert_eq!(warehouse.tenant_id, tenant_id);
+        assert_eq!(warehouse.warehouse_code, "WH-001");
+        assert_eq!(warehouse.warehouse_name, "Test Warehouse");
+        assert_eq!(warehouse.warehouse_type, "main");
+        assert!(warehouse.is_active);
+        assert!(warehouse.parent_warehouse_id.is_none());
+        assert!(warehouse.description.is_none());
+        assert!(warehouse.address.is_none());
+        assert!(warehouse.contact_info.is_none());
+        assert!(warehouse.capacity_info.is_none());
+        assert!(warehouse.deleted_at.is_none());
+    }
+
+    #[test]
+    fn test_warehouse_new_generates_uuid_v7() {
+        let warehouse = create_test_warehouse();
+        // Use uuid crate's API to verify version instead of string parsing
+        assert_eq!(
+            warehouse.warehouse_id.get_version(),
+            Some(uuid::Version::SortRand),
+            "Warehouse should use UUID v7"
+        );
+    }
+
+    // =========================================================================
+    // is_root Tests
+    // =========================================================================
+
+    #[test]
+    fn test_is_root_when_no_parent() {
+        let warehouse = create_test_warehouse();
+        assert!(warehouse.is_root());
+    }
+
+    #[test]
+    fn test_is_root_when_has_parent() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.parent_warehouse_id = Some(Uuid::new_v4());
+        assert!(!warehouse.is_root());
+    }
+
+    // =========================================================================
+    // warehouse_type_display Tests
+    // =========================================================================
+
+    #[test]
+    fn test_warehouse_type_display_main() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.warehouse_type = "main".to_string();
+        assert_eq!(warehouse.warehouse_type_display(), "Main Warehouse");
+    }
+
+    #[test]
+    fn test_warehouse_type_display_transit() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.warehouse_type = "transit".to_string();
+        assert_eq!(warehouse.warehouse_type_display(), "Transit Hub");
+    }
+
+    #[test]
+    fn test_warehouse_type_display_quarantine() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.warehouse_type = "quarantine".to_string();
+        assert_eq!(warehouse.warehouse_type_display(), "Quarantine Area");
+    }
+
+    #[test]
+    fn test_warehouse_type_display_distribution() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.warehouse_type = "distribution".to_string();
+        assert_eq!(warehouse.warehouse_type_display(), "Distribution Center");
+    }
+
+    #[test]
+    fn test_warehouse_type_display_retail() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.warehouse_type = "retail".to_string();
+        assert_eq!(warehouse.warehouse_type_display(), "Retail Store");
+    }
+
+    #[test]
+    fn test_warehouse_type_display_satellite() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.warehouse_type = "satellite".to_string();
+        assert_eq!(warehouse.warehouse_type_display(), "Satellite Location");
+    }
+
+    #[test]
+    fn test_warehouse_type_display_unknown() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.warehouse_type = "custom_type".to_string();
+        assert_eq!(warehouse.warehouse_type_display(), "Unknown");
+    }
+
+    // =========================================================================
+    // BaseEntity Trait Tests
+    // =========================================================================
+
+    #[test]
+    fn test_base_entity_id() {
+        let warehouse = create_test_warehouse();
+        assert_eq!(warehouse.id(), warehouse.warehouse_id);
+    }
+
+    #[test]
+    fn test_base_entity_tenant_id() {
+        let warehouse = create_test_warehouse();
+        assert_eq!(BaseEntity::tenant_id(&warehouse), warehouse.tenant_id);
+    }
+
+    #[test]
+    fn test_base_entity_code() {
+        let warehouse = create_test_warehouse();
+        assert_eq!(warehouse.code(), "WH-001");
+    }
+
+    #[test]
+    fn test_base_entity_name() {
+        let warehouse = create_test_warehouse();
+        assert_eq!(BaseEntity::name(&warehouse), "Main Warehouse");
+    }
+
+    #[test]
+    fn test_base_entity_description_none() {
+        let warehouse = create_test_warehouse();
+        assert!(BaseEntity::description(&warehouse).is_none());
+    }
+
+    #[test]
+    fn test_base_entity_description_some() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.description = Some("Test description".to_string());
+        assert_eq!(BaseEntity::description(&warehouse), Some("Test description"));
+    }
+
+    #[test]
+    fn test_base_entity_is_active() {
+        let warehouse = create_test_warehouse();
+        assert!(BaseEntity::is_active(&warehouse));
+    }
+
+    #[test]
+    fn test_base_entity_is_deleted_false() {
+        let warehouse = create_test_warehouse();
+        assert!(!BaseEntity::is_deleted(&warehouse));
+    }
+
+    #[test]
+    fn test_base_entity_is_deleted_true() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.deleted_at = Some(Utc::now());
+        assert!(BaseEntity::is_deleted(&warehouse));
+    }
+
+    #[test]
+    fn test_base_entity_is_active_status() {
+        let warehouse = create_test_warehouse();
+        assert!(warehouse.is_active_status());
+    }
+
+    #[test]
+    fn test_base_entity_is_active_status_when_deleted() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.deleted_at = Some(Utc::now());
+        assert!(!warehouse.is_active_status());
+    }
+
+    #[test]
+    fn test_base_entity_is_active_status_when_inactive() {
+        let mut warehouse = create_test_warehouse();
+        warehouse.is_active = false;
+        assert!(!warehouse.is_active_status());
+    }
+
+    #[test]
+    fn test_base_entity_display_name() {
+        let warehouse = create_test_warehouse();
+        assert_eq!(BaseEntity::display_name(&warehouse), "Main Warehouse (WH-001)");
+    }
+
+    #[test]
+    fn test_base_entity_mark_deleted() {
+        let mut warehouse = create_test_warehouse();
+        let before = Utc::now();
+        warehouse.mark_deleted();
+
+        assert!(warehouse.deleted_at.is_some());
+        assert!(warehouse.deleted_at.unwrap() >= before);
+    }
+
+    #[test]
+    fn test_base_entity_touch() {
+        let mut warehouse = create_test_warehouse();
+        let original = warehouse.updated_at;
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        warehouse.touch();
+
+        assert!(warehouse.updated_at > original);
+    }
+
+    // Note: validate_warehouse_type tests are in domains/inventory/dto/common.rs
+    // to avoid duplication and centralize validation testing
+}

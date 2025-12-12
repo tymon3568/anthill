@@ -79,3 +79,203 @@ pub fn validate_config_not_empty(config: &serde_json::Value) -> Result<(), Valid
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    // =========================================================================
+    // validate_product_type Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_product_type_valid() {
+        let valid_types = ["goods", "service", "consumable"];
+        for t in valid_types {
+            assert!(validate_product_type(t).is_ok(), "Failed for type: {}", t);
+        }
+    }
+
+    #[test]
+    fn test_validate_product_type_invalid() {
+        let result = validate_product_type("invalid");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "invalid_product_type");
+    }
+
+    // =========================================================================
+    // validate_warehouse_type Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_warehouse_type_all_valid() {
+        let valid_types = [
+            "main",
+            "transit",
+            "quarantine",
+            "distribution",
+            "retail",
+            "satellite",
+        ];
+        for t in valid_types {
+            assert!(validate_warehouse_type(t).is_ok(), "Failed for type: {}", t);
+        }
+    }
+
+    #[test]
+    fn test_validate_warehouse_type_invalid() {
+        let result = validate_warehouse_type("unknown");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "invalid_warehouse_type");
+    }
+
+    // =========================================================================
+    // validate_zone_type Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_zone_type_all_valid() {
+        let valid_types = [
+            "storage",
+            "picking",
+            "quarantine",
+            "receiving",
+            "shipping",
+            "bulk",
+            "damaged",
+            "returns",
+        ];
+        for t in valid_types {
+            assert!(validate_zone_type(t).is_ok(), "Failed for type: {}", t);
+        }
+    }
+
+    #[test]
+    fn test_validate_zone_type_invalid() {
+        let result = validate_zone_type("invalid_zone");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "invalid_zone_type");
+    }
+
+    // =========================================================================
+    // validate_location_type Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_location_type_all_valid() {
+        let valid_types = [
+            "bin",
+            "shelf",
+            "pallet",
+            "floor",
+            "rack",
+            "container",
+            "bulk",
+        ];
+        for t in valid_types {
+            assert!(validate_location_type(t).is_ok(), "Failed for type: {}", t);
+        }
+    }
+
+    #[test]
+    fn test_validate_location_type_invalid() {
+        let result = validate_location_type("drawer");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "invalid_location_type");
+    }
+
+    // =========================================================================
+    // validate_picking_method_type Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_picking_method_type_valid() {
+        assert!(validate_picking_method_type("batch").is_ok());
+        assert!(validate_picking_method_type("cluster").is_ok());
+        assert!(validate_picking_method_type("wave").is_ok());
+    }
+
+    #[test]
+    fn test_validate_picking_method_type_case_insensitive() {
+        assert!(validate_picking_method_type("BATCH").is_ok());
+        assert!(validate_picking_method_type("Cluster").is_ok());
+        assert!(validate_picking_method_type("WAVE").is_ok());
+    }
+
+    #[test]
+    fn test_validate_picking_method_type_invalid() {
+        let result = validate_picking_method_type("random");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "invalid_picking_method_type");
+    }
+
+    // =========================================================================
+    // validate_removal_strategy_type Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_removal_strategy_type_valid() {
+        let valid_strategies = ["fifo", "lifo", "fefo", "closest_location", "least_packages"];
+        for s in valid_strategies {
+            assert!(validate_removal_strategy_type(s).is_ok(), "Failed for strategy: {}", s);
+        }
+    }
+
+    #[test]
+    fn test_validate_removal_strategy_type_case_insensitive() {
+        assert!(validate_removal_strategy_type("FIFO").is_ok());
+        assert!(validate_removal_strategy_type("Lifo").is_ok());
+        assert!(validate_removal_strategy_type("FEFO").is_ok());
+    }
+
+    #[test]
+    fn test_validate_removal_strategy_type_invalid() {
+        let result = validate_removal_strategy_type("random_pick");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "invalid_removal_strategy_type");
+    }
+
+    // =========================================================================
+    // validate_config_not_empty Tests
+    // =========================================================================
+
+    #[test]
+    fn test_validate_config_valid_object() {
+        let config = json!({"key": "value"});
+        assert!(validate_config_not_empty(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_config_null_fails() {
+        let config = json!(null);
+        let result = validate_config_not_empty(&config);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "config_cannot_be_null");
+    }
+
+    #[test]
+    fn test_validate_config_empty_object_fails() {
+        let config = json!({});
+        let result = validate_config_not_empty(&config);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().code, "config_cannot_be_empty");
+    }
+
+    #[test]
+    fn test_validate_config_array_allowed() {
+        let config = json!([1, 2, 3]);
+        assert!(validate_config_not_empty(&config).is_ok());
+    }
+
+    #[test]
+    fn test_validate_config_complex_object() {
+        let config = json!({
+            "nested": {
+                "array": [1, 2, 3],
+                "string": "value"
+            }
+        });
+        assert!(validate_config_not_empty(&config).is_ok());
+    }
+}
