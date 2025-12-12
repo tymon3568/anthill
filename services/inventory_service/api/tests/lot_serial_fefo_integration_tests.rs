@@ -34,7 +34,7 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
 
     // Create test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, code, name, created_at) VALUES ($1, $2, $3, $4, NOW())",
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at) VALUES ($1, $2, $3, $4, NOW())",
         warehouse_id,
         tenant_id,
         "TESTWH",
@@ -59,7 +59,7 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
 
     // Create inventory level for the product
     sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
+        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())",
         tenant_id,
         warehouse_id,
@@ -204,7 +204,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
 
     // Create test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, code, name, created_at) VALUES ($1, $2, $3, $4, NOW())",
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at) VALUES ($1, $2, $3, $4, NOW())",
         warehouse_id,
         tenant_id,
         "TESTWH",
@@ -229,7 +229,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
 
     // Create inventory level
     sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
+        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())",
         tenant_id,
         warehouse_id,
@@ -340,7 +340,7 @@ async fn test_quarantine_expired_lots() {
 
     // Create test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, code, name, created_at) VALUES ($1, $2, $3, $4, NOW())",
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at) VALUES ($1, $2, $3, $4, NOW())",
         warehouse_id,
         tenant_id,
         "TESTWH",
@@ -365,7 +365,7 @@ async fn test_quarantine_expired_lots() {
 
     // Create inventory level for consistency
     sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
+        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())",
         tenant_id,
         warehouse_id,

@@ -1,29 +1,22 @@
 use std::sync::Arc;
 
 use axum::Router;
+use shared_auth;
+use shared_kanidm_client;
 use sqlx::PgPool;
 
 use inventory_service_api::routes::DummyDeliveryService;
 
-use inventory_service_infra::repositories::category::PgCategoryRepository;
-use inventory_service_infra::repositories::delivery_order::PgDeliveryOrderItemRepository;
-use inventory_service_infra::repositories::delivery_order::PgDeliveryOrderRepository;
-use inventory_service_infra::repositories::inventory::PgInventoryLevelRepository;
-use inventory_service_infra::repositories::receipt::PgReceiptRepository;
-use inventory_service_infra::repositories::reconciliation::PgStockReconciliationItemRepository;
-use inventory_service_infra::repositories::reconciliation::PgStockReconciliationRepository;
-use inventory_service_infra::repositories::stock::PgStockMoveRepository;
-use inventory_service_infra::repositories::stock_take::PgStockTakeLineRepository;
-use inventory_service_infra::repositories::stock_take::PgStockTakeRepository;
-use inventory_service_infra::repositories::transfer::PgTransferRepository;
-use inventory_service_infra::repositories::valuation::PgValuationRepository;
-use inventory_service_infra::repositories::warehouse::PgWarehouseRepository;
-use inventory_service_infra::services::category::CategoryServiceImpl;
-use inventory_service_infra::services::receipt::ReceiptServiceImpl;
-use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
-use inventory_service_infra::services::stock_take::StockTakeServiceImpl;
-use inventory_service_infra::services::transfer::TransferServiceImpl;
-use inventory_service_infra::services::valuation::ValuationServiceImpl;
+use inventory_service_infra::repositories::{
+    CategoryRepositoryImpl, PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
+    PgInventoryLevelRepository, PgStockMoveRepository, PgStockReconciliationItemRepository,
+    PgStockReconciliationRepository, PgStockTakeLineRepository, PgStockTakeRepository,
+    PgTransferRepository, ReceiptRepositoryImpl, ValuationRepositoryImpl, WarehouseRepositoryImpl,
+};
+use inventory_service_infra::services::{
+    CategoryServiceImpl, PgStockReconciliationService, PgStockTakeService, PgTransferService,
+    ReceiptServiceImpl, ValuationServiceImpl,
+};
 use uuid::Uuid;
 
 use inventory_service_api::handlers::reconciliation::create_reconciliation_routes;
@@ -41,7 +34,10 @@ pub async fn setup_test_database() -> PgPool {
         .unwrap();
 
     // Run migrations
-    sqlx::migrate!("../migrations").run(&pool).await.unwrap();
+    sqlx::migrate!("../../../../migrations")
+        .run(&pool)
+        .await
+        .unwrap();
 
     pool
 }
@@ -71,23 +67,23 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         product_repo,
     ));
 
-    let category_repo = Arc::new(PgCategoryRepository::new(pool.clone()));
+    let category_repo = Arc::new(CategoryRepositoryImpl::new(pool.clone()));
     let category_service = Arc::new(CategoryServiceImpl::new(pool.clone(), category_repo));
     let transfer_repo = Arc::new(PgTransferRepository::new(pool.clone()));
-    let transfer_service = Arc::new(TransferServiceImpl::new(pool.clone(), transfer_repo));
+    let transfer_service = Arc::new(PgTransferService::new(pool.clone(), transfer_repo));
     let stock_take_repo = Arc::new(PgStockTakeRepository::new(shared_pool.clone()));
     let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(shared_pool.clone()));
-    let stock_take_service = Arc::new(StockTakeServiceImpl::new(
+    let stock_take_service = Arc::new(PgStockTakeService::new(
         shared_pool.clone(),
         stock_take_repo,
         stock_take_line_repo,
         Arc::new(PgStockMoveRepository::new(shared_pool.clone())),
         Arc::new(PgInventoryLevelRepository::new(shared_pool.clone())),
     ));
-    let valuation_repo = Arc::new(PgValuationRepository::new(pool.clone()));
+    let valuation_repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
     let valuation_service = Arc::new(ValuationServiceImpl::new(pool.clone(), valuation_repo));
-    let warehouse_repository = Arc::new(PgWarehouseRepository::new(pool.clone()));
-    let receipt_repo = Arc::new(PgReceiptRepository::new(shared_pool.clone()));
+    let warehouse_repository = Arc::new(WarehouseRepositoryImpl::new(pool.clone()));
+    let receipt_repo = Arc::new(ReceiptRepositoryImpl::new(shared_pool.clone()));
     let receipt_service = Arc::new(ReceiptServiceImpl::new(receipt_repo));
 
     // Create app state
@@ -114,31 +110,28 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         receipt_service,
         // Add other required fields
         enforcer: Arc::new(
-            casbin::Enforcer::new(
-                casbin::Model::from_str(
-                    r#"
-    [request_definition]
-    r = sub, obj, act
-    [policy_definition]
-    p = sub, obj, act
-    [policy_effect]
-    e = some(where (p.eft == allow))
-    [matchers]
-    m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
-    "#,
-                )
-                .unwrap(),
-                casbin::adapter::MemoryAdapter::new(vec![]),
+            shared_auth::enforcer::create_enforcer(
+                &std::env::var("DATABASE_URL")
+                    .unwrap_or_else(|_| "postgres://test:test@localhost:5433/test".to_string()),
+                None,
             )
             .await
             .unwrap(),
         ),
         jwt_secret: "test_jwt_secret".to_string(),
-        kanidm_client: Arc::new(shared_kanidm::KanidmClient::new(
-            "http://localhost:8080".to_string(),
-            "test_client".to_string(),
-            "test_secret".to_string(),
-        )),
+        kanidm_client: Arc::new(
+            shared_kanidm_client::KanidmClient::new(shared_kanidm_client::KanidmConfig {
+                kanidm_url: "http://localhost:8080".to_string(),
+                client_id: "test_client".to_string(),
+                client_secret: "test_secret".to_string(),
+                redirect_uri: "http://localhost:8000/callback".to_string(),
+                scopes: vec!["openid".to_string()],
+                skip_jwt_verification: true,
+                allowed_issuers: vec!["http://localhost:8080".to_string()],
+                expected_audience: Some("test_client".to_string()),
+            })
+            .unwrap(),
+        ),
     };
 
     create_reconciliation_routes(app_state)
@@ -200,7 +193,7 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
 
     // Insert test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, code, name, created_at)
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          ON CONFLICT (warehouse_id) DO NOTHING",
         warehouse_id,
@@ -214,9 +207,9 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
 
     // Insert test inventory level
     sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, created_at)
+        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())
-         ON CONFLICT (warehouse_id, product_id) DO UPDATE SET available_quantity = $4",
+         ON CONFLICT (tenant_id, warehouse_id, product_id) DO UPDATE SET available_quantity = $4",
         tenant_id,
         warehouse_id,
         product_id,
