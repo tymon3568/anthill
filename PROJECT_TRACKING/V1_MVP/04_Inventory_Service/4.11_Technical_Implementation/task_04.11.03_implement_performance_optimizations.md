@@ -29,6 +29,15 @@ Implement performance optimization techniques to ensure the Inventory Service re
 ## Related Documents:
 *   (Khu vực dành cho các câu hỏi, thảo luận, hoặc ghi chú trong quá trình thực hiện)
 
+## Issues
+- [x] Fix snapshot population gaps: Function only creates snapshots for products with movements on a given day, leading to gaps in historical data (Severity: Critical, Reviewers: Sourcery, Gemini, CodeAnt, Cubic, Greptile)
+- [x] Fix type casting bug in snapshot join: v_date - INTERVAL '1 day' produces TIMESTAMP instead of DATE, causing incorrect joins (Severity: Critical, Reviewer: Greptile)
+- [x] Optimize DATE() function usage: Using DATE(sm.move_date) prevents index use on move_date column (Severity: Warning, Reviewers: Gemini, CodeAnt, Greptile)
+- [x] Remove redundant index: idx_daily_stock_snapshots_tenant_product is covered by UNIQUE constraint (Severity: Warning, Reviewers: Gemini, CodeAnt)
+- [x] Implement Redis connection pooling: Avoid creating new MultiplexedConnection for each cache operation (Severity: Warning, Reviewers: Sourcery, CodeRabbit, CodeAnt, Cubic)
+- [x] Fix misleading comment: Index for low stock alerts actually targets reserved quantities (Severity: Style, Reviewer: Cubic)
+- [x] Add soft delete column: Consider deleted_at TIMESTAMPTZ for consistency on daily_stock_snapshots table (Severity: Style, Reviewer: CodeRabbit)
+
 ## Notes / Discussion:
 ---
 *   (Khu vực dành cho các câu hỏi, thảo luận, hoặc ghi chú trong quá trình thực hiện)
@@ -61,3 +70,13 @@ Implement performance optimization techniques to ensure the Inventory Service re
     - Fixed Redis API deprecations (used MultiplexedConnection)
     - Files modified: services/inventory_service/core/src/services/cache.rs, services/inventory_service/infra/src/services/cache.rs, services/inventory_service/infra/Cargo.toml
     - All sub-tasks completed, setting status to NeedsReview for user approval.
+*   2025-12-11 13:00: [Added PR issues] by Grok
+    - Added unresolved PR review issues as sub-tasks in Issues section for auto-fix.
+*   2025-12-11 14:00: [Fixed PR issues] by Grok
+    - Resolved critical and warning issues in migrations: fixed snapshot gaps, type casting, DATE usage, removed redundant index, updated comments, added soft delete.
+    - Marked fixed issues as done, setting status to NeedsReview.
+*   2025-12-11 15:00: [Implemented Redis connection pooling] by Grok
+    - Updated RedisCache to use bb8-redis connection pool instead of creating new connections per operation.
+    - Added bb8 and bb8-redis dependencies to Cargo.toml.
+    - Changed RedisCache::new to async and updated get_connection to use pooled connections.
+    - Marked Redis pooling issue as completed.

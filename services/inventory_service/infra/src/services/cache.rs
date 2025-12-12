@@ -4,7 +4,9 @@
 //! to improve performance and reduce database load.
 
 use async_trait::async_trait;
-use redis::{AsyncCommands, Client};
+use bb8::Pool;
+use bb8_redis::RedisConnectionManager;
+use redis::AsyncCommands;
 use serde_json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,24 +19,32 @@ use shared_error::AppError;
 
 /// Redis-based cache implementation
 pub struct RedisCache {
-    client: Client,
+    pool: Pool<RedisConnectionManager>,
 }
 
 impl RedisCache {
-    /// Create a new Redis cache instance
-    pub fn new(redis_url: &str) -> Result<Self, AppError> {
-        let client = Client::open(redis_url)
-            .map_err(|e| AppError::InternalError(format!("Redis connection error: {}", e)))?;
+    /// Create a new Redis cache instance backed by a Redis connection pool
+    pub async fn new(redis_url: &str) -> Result<Self, AppError> {
+        let manager = RedisConnectionManager::new(redis_url).map_err(|e| {
+            AppError::InternalError(format!("Redis connection manager error: {}", e))
+        })?;
 
-        Ok(Self { client })
+        let pool = Pool::builder()
+            .build(manager)
+            .await
+            .map_err(|e| AppError::InternalError(format!("Redis pool creation error: {}", e)))?;
+
+        Ok(Self { pool })
     }
 
-    /// Get async connection
-    async fn get_connection(&self) -> Result<redis::aio::MultiplexedConnection, AppError> {
-        self.client
-            .get_multiplexed_async_connection()
+    /// Get async pooled connection
+    async fn get_connection(
+        &self,
+    ) -> Result<bb8::PooledConnection<'_, RedisConnectionManager>, AppError> {
+        self.pool
+            .get()
             .await
-            .map_err(|e| AppError::InternalError(format!("Redis connection error: {}", e)))
+            .map_err(|e| AppError::InternalError(format!("Redis pool error: {}", e)))
     }
 
     /// Generate cache key for product
