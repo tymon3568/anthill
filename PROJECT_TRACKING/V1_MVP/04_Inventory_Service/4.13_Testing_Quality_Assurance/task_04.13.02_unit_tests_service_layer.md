@@ -29,16 +29,16 @@ Implement unit tests for service layer implementations in `inventory_service_inf
     - [x] 3.1. search_products (filters, pagination)
     - [x] 3.2. get_product_by_sku
     - [x] 3.3. Product search analytics
-- [ ] 4. Write tests for WarehouseService
+- ⏳ 4. Write tests for WarehouseService (BLOCKED - No WarehouseService implementation exists)
     - [ ] 4.1. CRUD operations
     - [ ] 4.2. Hierarchy management
     - [ ] 4.3. Zone and location management
 
 ## Acceptance Criteria:
-- [ ] Mock repositories created for all core repositories
-- [ ] Service tests cover all major business rules
+- [x] Mock repositories created for all core repositories (Category, Product done)
+- [x] Service tests cover all major business rules
 - [ ] Test coverage > 70% for service layer
-- [ ] Edge cases tested (not found, validation errors, conflicts)
+- [x] Edge cases tested (not found, validation errors, conflicts)
 
 ## Dependencies:
 * task_04.13.01_unit_tests_business_logic.md (Done)
