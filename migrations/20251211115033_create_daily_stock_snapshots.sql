@@ -105,13 +105,22 @@ BEGIN
             FROM (
                 -- Products with previous snapshot
                 SELECT product_id FROM daily_stock_snapshots
-                WHERE tenant_id = p_tenant_id AND snapshot_date = v_date - INTERVAL '1 day'
+                WHERE tenant_id = p_tenant_id
+                  AND deleted_at IS NULL
+                  AND snapshot_date = (v_date - 1)::date
                 UNION
                 -- Products with movements on this date
                 SELECT product_id FROM stock_moves
                 WHERE tenant_id = p_tenant_id
                   AND move_date >= v_date::timestamptz
                   AND move_date < (v_date + INTERVAL '1 day')::timestamptz
+                UNION
+                -- Products with existing stock on start date
+                SELECT product_id FROM inventory_levels
+                WHERE tenant_id = p_tenant_id
+                  AND deleted_at IS NULL
+                  AND (available_quantity + reserved_quantity) > 0
+                  AND v_date = p_start_date
             ) AS p
         )
         SELECT
@@ -127,6 +136,7 @@ BEGIN
             FROM daily_stock_snapshots dss
             WHERE dss.tenant_id = p_tenant_id
               AND dss.product_id = pts.product_id
+              AND dss.deleted_at IS NULL
               AND dss.snapshot_date < v_date
             ORDER BY dss.snapshot_date DESC
             LIMIT 1
