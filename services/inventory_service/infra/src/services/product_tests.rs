@@ -222,12 +222,10 @@ mod tests {
 
         let search_response = create_empty_search_response();
 
-        mock_repo
-            .expect_search_products()
-            .returning(move |_, req| {
-                assert_eq!(req.query, Some("laptop".to_string()));
-                Ok(search_response.clone())
-            });
+        mock_repo.expect_search_products().returning(move |_, req| {
+            assert_eq!(req.query, Some("laptop".to_string()));
+            Ok(search_response.clone())
+        });
 
         let service = ProductServiceImpl::new(Arc::new(mock_repo));
 

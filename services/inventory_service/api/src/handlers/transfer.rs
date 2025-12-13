@@ -21,8 +21,8 @@ use crate::state::AppState;
 pub fn create_transfer_routes() -> Router {
     Router::new()
         .route("/", post(create_transfer))
-        .route("/:transfer_id/confirm", post(confirm_transfer))
-        .route("/:transfer_id/receive", post(receive_transfer))
+        .route("/{transfer_id}/confirm", post(confirm_transfer))
+        .route("/{transfer_id}/receive", post(receive_transfer))
 }
 
 /// POST /api/v1/inventory/transfers - Create a new stock transfer

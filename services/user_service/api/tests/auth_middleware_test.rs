@@ -27,6 +27,7 @@ async fn setup_test_app() -> (Router, PgPool, Config) {
         kanidm_client_secret: Some("test".to_string()),
         kanidm_redirect_url: Some("http://localhost:8000/oauth/callback".to_string()),
         nats_url: None,
+        redis_url: None,
         casbin_model_path: "../../../shared/auth/model.conf".to_string(),
         max_connections: None,
     };

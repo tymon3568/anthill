@@ -1,19 +1,16 @@
 use std::sync::Arc;
 
-use inventory_service_core::models::{
-    LotSerial, LotSerialStatus, LotSerialTrackingType, ProductTrackingMethod,
-};
-use inventory_service_core::repositories::lot_serial::LotSerialRepository;
-use inventory_service_core::repositories::product::ProductRepository;
-use inventory_service_infra::repositories::inventory::PgInventoryRepository;
+use inventory_service_core::domains::inventory::product::ProductTrackingMethod;
+use inventory_service_core::models::{LotSerialStatus, LotSerialTrackingType};
+use inventory_service_infra::repositories::delivery_order::PgInventoryRepository;
 use inventory_service_infra::repositories::lot_serial::LotSerialRepositoryImpl;
 use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-use shared_config::Config;
-use shared_db::init_pool;
-use sqlx::PgPool;
+use std::str::FromStr;
 use uuid::Uuid;
 
-use super::helpers::{create_test_user, setup_test_database};
+mod helpers;
+
+use helpers::setup_test_database;
 
 #[sqlx::test]
 async fn test_fefo_reservation_picks_earliest_expiry_first() {
@@ -34,7 +31,7 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
 
     // Create test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, code, name, created_at) VALUES ($1, $2, $3, $4, NOW())",
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at) VALUES ($1, $2, $3, $4, NOW())",
         warehouse_id,
         tenant_id,
         "TESTWH",
@@ -51,7 +48,7 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot as ProductTrackingMethod
+        ProductTrackingMethod::Lot
     )
     .execute(&pool)
     .await
@@ -59,7 +56,7 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
 
     // Create inventory level for the product
     sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
+        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())",
         tenant_id,
         warehouse_id,
@@ -84,12 +81,12 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "LOT001",
         50,
         50,
-        chrono::Utc::now().date_naive() + chrono::Days::new(7), // expires in 7 days
-        LotSerialStatus::Active as LotSerialStatus
+        chrono::Utc::now() + chrono::Duration::days(7), // expires in...
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -103,12 +100,12 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "LOT002",
         30,
         30,
-        chrono::Utc::now().date_naive() + chrono::Days::new(14), // expires in 14 days
-        LotSerialStatus::Active as LotSerialStatus
+        chrono::Utc::now() + chrono::Duration::days(14), // expires ...
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -122,12 +119,12 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "LOT003",
         20,
         20,
-        chrono::Utc::now().date_naive() + chrono::Days::new(30), // expires in 30 days
-        LotSerialStatus::Active as LotSerialStatus
+        chrono::Utc::now() + chrono::Duration::days(30), // expires ...
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -136,7 +133,8 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     // Setup repositories
     let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
     let lot_serial_repo = Arc::new(LotSerialRepositoryImpl::new(pool.clone()));
-    let inventory_repo = PgInventoryRepository::new(pool.clone(), product_repo, lot_serial_repo);
+    let inventory_repo =
+        PgInventoryRepository::new(Arc::new(pool.clone()), product_repo, lot_serial_repo);
 
     // Reserve 40 units (should take 40 from lot1, leaving 10)
     let result = inventory_repo
@@ -204,7 +202,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
 
     // Create test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, code, name, created_at) VALUES ($1, $2, $3, $4, NOW())",
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at) VALUES ($1, $2, $3, $4, NOW())",
         warehouse_id,
         tenant_id,
         "TESTWH",
@@ -221,7 +219,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot as ProductTrackingMethod
+        ProductTrackingMethod::Lot
     )
     .execute(&pool)
     .await
@@ -229,7 +227,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
 
     // Create inventory level
     sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
+        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())",
         tenant_id,
         warehouse_id,
@@ -250,12 +248,12 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "EXPIRED001",
         50,
         50,
-        chrono::Utc::now().date_naive() - chrono::Days::new(2), // safely expired in the past
-        LotSerialStatus::Active as LotSerialStatus
+        chrono::Utc::now() - chrono::Duration::days(2), // safely ex...
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -270,12 +268,12 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "VALID001",
         30,
         30,
-        chrono::Utc::now().date_naive() + chrono::Days::new(30), // expires in 30 days
-        LotSerialStatus::Active as LotSerialStatus
+        chrono::Utc::now() + chrono::Duration::days(30), // expires in 30 days
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -284,7 +282,8 @@ async fn test_fefo_prevents_picking_expired_lots() {
     // Setup repositories
     let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
     let lot_serial_repo = Arc::new(LotSerialRepositoryImpl::new(pool.clone()));
-    let inventory_repo = PgInventoryRepository::new(pool.clone(), product_repo, lot_serial_repo);
+    let inventory_repo =
+        PgInventoryRepository::new(Arc::new(pool.clone()), product_repo, lot_serial_repo);
 
     // Try to reserve 40 units - should fail because only 30 non-expired units are available (expired lot is skipped)
     let result = inventory_repo
@@ -340,7 +339,7 @@ async fn test_quarantine_expired_lots() {
 
     // Create test warehouse
     sqlx::query!(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, code, name, created_at) VALUES ($1, $2, $3, $4, NOW())",
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at) VALUES ($1, $2, $3, $4, NOW())",
         warehouse_id,
         tenant_id,
         "TESTWH",
@@ -357,7 +356,7 @@ async fn test_quarantine_expired_lots() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot as ProductTrackingMethod
+        ProductTrackingMethod::Lot
     )
     .execute(&pool)
     .await
@@ -365,7 +364,7 @@ async fn test_quarantine_expired_lots() {
 
     // Create inventory level for consistency
     sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
+        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW())",
         tenant_id,
         warehouse_id,
@@ -386,12 +385,12 @@ async fn test_quarantine_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "EXPIRED001",
         50,
         25, // partially consumed
-        chrono::Utc::now().date_naive() - chrono::Days::new(2), // safely expired in the past
-        LotSerialStatus::Active as LotSerialStatus
+        chrono::Utc::now() - chrono::Duration::days(2), // safely ex...
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -406,12 +405,12 @@ async fn test_quarantine_expired_lots() {
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot as LotSerialTrackingType,
+        LotSerialTrackingType::Lot,
         "VALID001",
         30,
         30,
-        chrono::Utc::now().date_naive() + chrono::Days::new(30),
-        LotSerialStatus::Active as LotSerialStatus
+        chrono::Utc::now() + chrono::Duration::days(30),
+        LotSerialStatus::Active
     )
     .execute(&pool)
     .await
@@ -429,22 +428,28 @@ async fn test_quarantine_expired_lots() {
     assert_eq!(quarantined_count, 1, "Should quarantine 1 expired lot");
 
     // Check expired lot status changed
-    let expired_lot_after = sqlx::query!(
-        "SELECT status FROM lots_serial_numbers WHERE lot_serial_id = $1",
+    let expired_lot_after: Option<String> = sqlx::query_scalar!(
+        "SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1",
         expired_lot_id
     )
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(expired_lot_after.status, "quarantined", "Expired lot should be quarantined");
+    let expired_lot_status = LotSerialStatus::from_str(&expired_lot_after.unwrap()).unwrap();
+    assert_eq!(
+        expired_lot_status,
+        LotSerialStatus::Quarantined,
+        "Expired lot should be quarantined"
+    );
 
     // Check valid lot remains active
-    let valid_lot_after = sqlx::query!(
-        "SELECT status FROM lots_serial_numbers WHERE lot_serial_id = $1",
+    let valid_lot_after: Option<String> = sqlx::query_scalar!(
+        "SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1",
         valid_lot_id
     )
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(valid_lot_after.status, "active", "Valid lot should remain active");
+    let valid_lot_status = LotSerialStatus::from_str(&valid_lot_after.unwrap()).unwrap();
+    assert_eq!(valid_lot_status, LotSerialStatus::Active, "Valid lot should remain active");
 }

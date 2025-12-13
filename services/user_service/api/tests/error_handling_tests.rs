@@ -7,9 +7,12 @@ mod test_database;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
+    routing::get,
+    Json,
 };
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
+use shared_auth::extractors::AuthUser;
 use test_database::TestDatabaseConfig;
 use tower::ServiceExt;
 
@@ -66,7 +69,11 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
-    user_service_api::create_router(state)
+    // Extend the router with a dummy /api/v1/profile route for auth testing
+    user_service_api::create_router(&state).route(
+        "/api/v1/profile",
+        get(|_: AuthUser| async { Json(serde_json::json!({"message": "profile endpoint"})) }),
+    )
 }
 
 /// Helper to make HTTP request
