@@ -88,6 +88,63 @@ cargo bench --package user_service_core --bench database_benchmarks
 
 ---
 
+### 3. Inventory Benchmarks
+
+**File**: `services/inventory_service/core/benches/inventory_benchmarks.rs`
+
+**Benchmarks**:
+
+| Group | Test | Description |
+|-------|------|-------------|
+| `uuid_generation` | `uuid_v4`, `uuid_v7`, `uuid_v7_batch/*` | UUID generation (single, batch 10/100/1000) |
+| `category_path` | `parse_path_ids/*`, `path_starts_with` | Category path parsing (depth 1/3/5/10) |
+| `category_tree_building` | `simple_*`, `optimized_*` | Tree building algorithms (various sizes) |
+| `tree_traversal` | `count_descendants` | Tree traversal operations |
+| `string_operations` | `sku_format_*`, `uuid_to_string`, etc. | SKU and string operations |
+| `collection_operations` | `vec_*`, `hashmap_*` | Collection allocations and lookups |
+| `valuation_calculations` | `fifo_*`, `avco_*` | Inventory valuation (FIFO, AVCO) |
+
+**Run**:
+```bash
+cargo bench --package inventory_service_core --bench inventory_benchmarks
+```
+
+**Expected Performance** (approximate):
+- UUID v7 generation: ~200-500 ns
+- Category path parsing (depth 5): ~1-2 µs
+- Tree building (781 nodes, optimized): ~50-100 µs
+- FIFO total value: ~40 ns
+- AVCO calculation (with sum): ~40-80 ns
+- HashMap lookup: ~17 ns
+- Vec with capacity: ~20-70 ns
+
+---
+
+### 4. k6 Load Tests (Inventory Service)
+
+**Location**: `services/inventory_service/load_tests/`
+
+**Scripts**:
+
+| Script | Target | Description |
+|--------|--------|-------------|
+| `product_search.js` | 500 req/s | Product search endpoint load test |
+| `stock_moves.js` | 100 req/s | Stock operations (reserve, adjust, query) |
+| `mixed_workload.js` | Mixed | 70% reads / 30% writes simulation |
+
+**Run**:
+```bash
+# Smoke test
+k6 run --env BASE_URL=http://localhost:8082 services/inventory_service/load_tests/product_search.js
+
+# Load test
+k6 run --env STAGE_TYPE=load services/inventory_service/load_tests/mixed_workload.js
+```
+
+**Thresholds**:
+- Product search: p95 < 200ms, error rate < 1%
+- Stock moves: p95 < 500ms, error rate < 0.5%
+
 ## Writing Benchmarks
 
 ### Basic Structure

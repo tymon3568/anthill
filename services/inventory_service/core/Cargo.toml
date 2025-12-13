@@ -1,3 +1,7 @@
+[[bench]]
+harness = false
+name = "inventory_benchmarks"
+
 [dependencies]
 # Async traits
 async-trait = {workspace = true}
@@ -18,6 +22,11 @@ utoipa = {workspace = true, optional = true}
 uuid = {workspace = true}
 # Validation
 validator = {workspace = true}
+
+[dev-dependencies]
+criterion = {workspace = true}
+fake = {workspace = true}
+tokio = {workspace = true}
 
 [features]
 default = []
