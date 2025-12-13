@@ -96,11 +96,8 @@ mod reorder_quantity_tests {
             .expect("Replenishment check should succeed");
 
         assert!(result.needs_replenishment);
-        // max - current = 100 - 45 = 55, which is >= min(30)
-        assert!(
-            result.suggested_order_quantity >= 30,
-            "Should order at least min_quantity"
-        );
+        // Expected: max - current = 100 - 45 = 55, which is >= min(30)
+        assert_eq!(result.suggested_order_quantity, 55);
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }
