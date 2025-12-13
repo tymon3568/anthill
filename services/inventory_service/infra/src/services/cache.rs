@@ -72,7 +72,7 @@ impl CacheService for RedisCache {
             .map_err(|e| AppError::InternalError(format!("Redis get error: {}", e)))?;
 
         match data {
-            Some(json) => serde_json::from_str(&json)
+            Some(json) => serde_json::from_str(json.as_str())
                 .map(Some)
                 .map_err(|e| AppError::InternalError(format!("JSON deserialize error: {}", e))),
             None => Ok(None),

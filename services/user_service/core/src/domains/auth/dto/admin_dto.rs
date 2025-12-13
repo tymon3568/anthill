@@ -1,7 +1,13 @@
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
+
+use regex::Regex;
+
+static ROLE_NAME_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[a-z][a-z0-9_]*$").unwrap());
 
 // ============================================================================
 // Role Management DTOs
@@ -13,7 +19,7 @@ pub struct CreateRoleReq {
     /// Role name (e.g., "inventory_manager", "sales_staff")
     #[validate(length(min = 1, max = 100))]
     #[validate(regex(
-        path = "RE_ROLE_NAME",
+        path = "ROLE_NAME_REGEX",
         message = "Role name must be lowercase alphanumeric with underscores"
     ))]
     pub role_name: String,
@@ -37,10 +43,6 @@ pub struct PermissionReq {
     /// Action (e.g., "read", "write", "delete", "approve")
     #[validate(length(min = 1, max = 50))]
     pub action: String,
-}
-
-lazy_static::lazy_static! {
-    static ref RE_ROLE_NAME: regex::Regex = regex::Regex::new(r"^[a-z0-9_]+$").unwrap();
 }
 
 /// Response for role creation
@@ -111,6 +113,10 @@ pub struct DeleteRoleResp {
 pub struct AssignUserRoleReq {
     /// Role name to assign
     #[validate(length(min = 1, max = 100))]
+    #[validate(regex(
+        path = "ROLE_NAME_REGEX",
+        message = "Role name must be lowercase alphanumeric with underscores"
+    ))]
     pub role_name: String,
 }
 

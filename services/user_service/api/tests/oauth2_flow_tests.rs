@@ -29,6 +29,7 @@ async fn test_oauth_authorize_generates_url() {
         kanidm_client_secret: Some("test-secret".to_string()),
         kanidm_redirect_url: Some("http://localhost:8000/api/v1/auth/oauth/callback".to_string()),
         nats_url: None,
+        redis_url: None,
         casbin_model_path: "./shared/auth/model.conf".to_string(),
         max_connections: None,
     };
@@ -159,6 +160,7 @@ async fn test_user_created_after_oauth() {
         kanidm_client_secret: Some("test-secret".to_string()),
         kanidm_redirect_url: Some("http://localhost:8000/api/v1/auth/oauth/callback".to_string()),
         nats_url: None,
+        redis_url: None,
         casbin_model_path: "./shared/auth/model.conf".to_string(),
         max_connections: None,
     };

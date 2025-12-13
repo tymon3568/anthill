@@ -7,11 +7,18 @@ mod test_database;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
+    Router,
 };
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
+use sqlx::PgPool;
+use std::sync::Arc;
 use test_database::TestDatabaseConfig;
 use tower::ServiceExt;
+use user_service_api::AppState;
+use user_service_infra::auth::{
+    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
+};
 
 /// Test helper to create app router
 async fn create_test_app(db_pool: PgPool) -> Router {
@@ -58,7 +65,7 @@ async fn create_test_app(db_pool: PgPool) -> Router {
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
-    user_service_api::create_router(state)
+    user_service_api::create_router(&state)
 }
 
 /// Helper to make HTTP request
@@ -100,7 +107,7 @@ async fn make_request(
 #[ignore]
 async fn test_complete_registration_to_authenticated_request_flow() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     // Step 1: Create tenant
     let tenant_id = db.create_tenant("Complete Flow Test Corp", None).await;
@@ -148,7 +155,7 @@ async fn test_complete_registration_to_authenticated_request_flow() {
 #[ignore]
 async fn test_login_flow_with_token_refresh() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     let tenant_id = db.create_tenant("Login Flow Test", None).await;
 
@@ -200,7 +207,7 @@ async fn test_login_flow_with_token_refresh() {
 #[ignore]
 async fn test_logout_flow() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     let tenant_id = db.create_tenant("Logout Flow Test", None).await;
 
@@ -251,7 +258,7 @@ async fn test_logout_flow() {
 #[ignore]
 async fn test_rbac_flow_user_to_admin_promotion() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     let tenant_id = db.create_tenant("RBAC Promotion Test", None).await;
 
@@ -333,7 +340,7 @@ async fn test_rbac_flow_user_to_admin_promotion() {
 #[ignore]
 async fn test_rbac_flow_manager_permissions() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     let tenant_id = db.create_tenant("Manager RBAC Test", None).await;
 
@@ -442,7 +449,7 @@ async fn test_jwt_expiration_flow() {
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
-    let app = user_service_api::create_router(state);
+    let app = user_service_api::create_router(&state);
 
     let tenant_id = db.create_tenant("JWT Expiration Test", None).await;
 
@@ -482,7 +489,7 @@ async fn test_jwt_expiration_flow() {
 #[ignore]
 async fn test_invalid_jwt_token_flow() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     // Try with completely invalid token
     let (status, _) =
@@ -507,7 +514,7 @@ async fn test_invalid_jwt_token_flow() {
 #[ignore]
 async fn test_cross_tenant_access_prevention() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     // Create two tenants
     let tenant_a_id = db.create_tenant("Tenant A Auth", None).await;
@@ -561,7 +568,7 @@ async fn test_cross_tenant_access_prevention() {
 #[ignore]
 async fn test_password_change_flow() {
     let db = TestDatabaseConfig::new().await;
-    let app = create_test_app(db.pool()).await;
+    let app = create_test_app(db.pool().clone()).await;
 
     let tenant_id = db.create_tenant("Password Change Test", None).await;
 

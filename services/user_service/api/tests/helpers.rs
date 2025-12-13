@@ -262,7 +262,7 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
 
-    user_service_api::create_router(state)
+    user_service_api::create_router(&state)
 }
 
 /// Make an authenticated HTTP request
