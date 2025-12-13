@@ -45,32 +45,27 @@ export default function () {
         },
     });
 
-    const startTime = Date.now();
     const response = http.post(url, payload, {
         headers: defaultHeaders,
     });
-    const duration = Date.now() - startTime;
 
-    // Record metrics
-    searchDuration.add(duration);
+    // Record metrics - use k6 built-in timing for accuracy
+    searchDuration.add(response.timings.duration);
+
+    // Parse response body once
+    const body = response.status === 200 ? response.json() : null;
 
     const success = check(response, {
         'status is 200': (r) => r.status === 200,
-        'response has products': (r) => {
-            const body = r.json();
-            return body && body.products !== undefined;
-        },
+        'response has products': () => body && body.products !== undefined,
         'response time < 200ms': (r) => r.timings.duration < 200,
     });
 
     searchSuccessRate.add(success);
 
-    // Track results count
-    if (response.status === 200) {
-        const body = response.json();
-        if (body && body.products) {
-            resultsReturned.add(body.products.length);
-        }
+    // Track results count (reuse parsed body)
+    if (body && body.products) {
+        resultsReturned.add(body.products.length);
     }
 
     // Small delay between requests (realistic user behavior)

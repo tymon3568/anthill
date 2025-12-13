@@ -45,7 +45,7 @@ Implement performance tests for inventory operations including bulk imports, que
 
 ## Related Documents:
 * Performance optimization docs
-* [BENCHMARKING.md](file:///home/arch/Project/test/anthill/docs/testing/BENCHMARKING.md)
+* [BENCHMARKING.md](../../../../../docs/testing/BENCHMARKING.md)
 
 ## AI Agent Log:
 * 2025-12-12 20:32: Task claimed by AI_Agent
@@ -72,7 +72,7 @@ Implement performance tests for inventory operations including bulk imports, que
 | Benchmark | Result |
 |-----------|--------|
 | FIFO total value | ~40 ns |
-| AVCO calculation | ~500 ps |
+| AVCO calculation | ~500 ns |
 | HashMap lookup | ~17 ns |
 | String starts_with | ~2.7 ns |
 | Vec fill 1000 UUIDs | ~136 µs |

@@ -317,8 +317,8 @@ fn bench_string_operations(c: &mut Criterion) {
     });
 
     group.bench_function("sku_format_with_uuid", |b| {
-        let uuid = Uuid::now_v7();
         b.iter(|| {
+            let uuid = Uuid::now_v7();
             let uuid_str = uuid.to_string();
             format!("SKU-{}", &uuid_str[..8])
         });

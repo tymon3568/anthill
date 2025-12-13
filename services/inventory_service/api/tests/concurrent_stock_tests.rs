@@ -13,6 +13,7 @@ use serde_json::json;
 use shared_config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tower::ServiceExt;
@@ -65,19 +66,62 @@ const MIXED_RECEIPT_AMOUNT: i64 = 50;
 #[allow(dead_code)]
 /// Transfer amount for mixed operations test
 const MIXED_TRANSFER_AMOUNT: i64 = 30;
+#[allow(dead_code)]
+/// Timeout for JoinSet wait loops to prevent CI hanging on deadlock/stall
+const JOINSET_TIMEOUT_SECS: u64 = 30;
 
 // ============================================================================
 // Test Configuration
 // ============================================================================
 
-/// Default test database URL (used when DATABASE_URL env not set)
-const DEFAULT_TEST_DB_URL: &str = "postgres://anthill:anthill@localhost:5433/anthill_test";
+/// Check if integration tests should run.
+/// Returns Some(database_url) if tests should run, None if they should skip.
+///
+/// Integration tests require either:
+/// - RUN_INVENTORY_INTEGRATION_TESTS=1 to be set, OR
+/// - DATABASE_URL to be explicitly set
+///
+/// When skipping, a clear message is printed so CI shows tests were intentionally skipped.
+fn should_run_integration_tests() -> Option<String> {
+    // Check for explicit opt-in
+    let opt_in = std::env::var("RUN_INVENTORY_INTEGRATION_TESTS")
+        .map(|v| v == "1" || v.to_lowercase() == "true")
+        .unwrap_or(false);
+
+    // Check if DATABASE_URL is explicitly set (not using fallback)
+    let db_url = std::env::var("DATABASE_URL").ok();
+
+    if opt_in || db_url.is_some() {
+        // Tests should run - return the database URL
+        Some(db_url.unwrap_or_else(|| {
+            panic!(
+                "RUN_INVENTORY_INTEGRATION_TESTS=1 is set but DATABASE_URL is not. \
+                 Please set DATABASE_URL to run integration tests."
+            )
+        }))
+    } else {
+        // Skip tests with clear message
+        eprintln!(
+            "SKIPPING integration tests: Set RUN_INVENTORY_INTEGRATION_TESTS=1 and DATABASE_URL to run. \
+             This is expected in CI when database services are not available."
+        );
+        None
+    }
+}
 
 fn test_config() -> Config {
+    // This should only be called after should_run_integration_tests() returns Some
+    let database_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set to run integration tests");
+
+    let redis_url = std::env::var("REDIS_URL").ok();
+    let kanidm_url = std::env::var("KANIDM_URL").ok();
+    let kanidm_client_id = std::env::var("KANIDM_CLIENT_ID").ok();
+    let kanidm_client_secret = std::env::var("KANIDM_CLIENT_SECRET").ok();
+    let kanidm_redirect_url = std::env::var("KANIDM_REDIRECT_URL").ok();
+
     Config {
-        database_url: std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            DEFAULT_TEST_DB_URL.to_string()
-        }),
+        database_url,
         jwt_secret: std::env::var("JWT_SECRET")
             .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string()),
         jwt_expiration: 900,
@@ -85,12 +129,12 @@ fn test_config() -> Config {
         host: "0.0.0.0".to_string(),
         port: 8001,
         cors_origins: None,
-        kanidm_url: Some("http://localhost:8080".to_string()),
-        kanidm_client_id: Some("test-client".to_string()),
-        kanidm_client_secret: Some("test-secret".to_string()),
-        kanidm_redirect_url: Some("http://localhost:8001/oauth/callback".to_string()),
+        kanidm_url,
+        kanidm_client_id,
+        kanidm_client_secret,
+        kanidm_redirect_url,
         nats_url: None,
-        redis_url: Some("redis://localhost:6379".to_string()),
+        redis_url,
         casbin_model_path: "shared/auth/model.conf".to_string(),
         max_connections: Some(10),
     }
@@ -106,19 +150,27 @@ struct TestDatabase {
 }
 
 impl TestDatabase {
-    async fn new() -> Self {
-        let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-            DEFAULT_TEST_DB_URL.to_string()
-        });
+    /// Create a new test database connection.
+    /// Returns None if integration tests should be skipped.
+    async fn try_new() -> Option<Self> {
+        let database_url = should_run_integration_tests()?;
 
         let pool = PgPool::connect(&database_url)
             .await
             .expect("Failed to connect to test database");
 
-        Self {
+        Some(Self {
             pool,
             test_tenants: Arc::new(Mutex::new(Vec::new())),
-        }
+        })
+    }
+
+    /// Create a new test database connection.
+    /// Panics if DATABASE_URL is not set. Use try_new() for graceful skip.
+    async fn new() -> Self {
+        Self::try_new()
+            .await
+            .expect("Integration tests require DATABASE_URL to be set")
     }
 
     async fn create_test_tenant(&self, name: &str) -> Uuid {
@@ -288,12 +340,19 @@ struct TestApp {
 }
 
 impl TestApp {
-    async fn new() -> Self {
-        let db = TestDatabase::new().await;
+    /// Create a new test app. Returns None if integration tests should be skipped.
+    async fn try_new() -> Option<Self> {
+        let db = TestDatabase::try_new().await?;
         let config = test_config();
         let router = create_app(config).await;
 
-        Self { router, db }
+        Some(Self { router, db })
+    }
+
+    async fn new() -> Self {
+        Self::try_new()
+            .await
+            .expect("Integration tests require DATABASE_URL to be set")
     }
 
     async fn send_request(&self, request: Request<Body>) -> (StatusCode, String) {
@@ -315,14 +374,14 @@ impl TestApp {
 
 fn create_auth_header(tenant_id: Uuid, user_id: Uuid) -> String {
     use shared_jwt::{encode_jwt, Claims};
-    
+
     let jwt_secret = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string());
-    
+
     let claims = Claims::new_access(user_id, tenant_id, "admin".to_string(), 3600);
     let token = encode_jwt(&claims, &jwt_secret)
         .expect("Failed to encode JWT token for test");
-    
+
     format!("Bearer {}", token)
 }
 
@@ -380,13 +439,23 @@ mod reservation_tests {
             });
         }
 
-        // Wait for all tasks and count successful reservations
+        // Wait for all tasks with timeout to prevent CI hanging
         let mut successful_reservations = 0;
-        while let Some(result) = handles.join_next().await {
-            let success = result.expect("reservation task panicked/cancelled");
-            if success {
-                successful_reservations += 1;
+        let wait_result = tokio::time::timeout(
+            Duration::from_secs(JOINSET_TIMEOUT_SECS),
+            async {
+                while let Some(result) = handles.join_next().await {
+                    let success = result.expect("reservation task panicked/cancelled");
+                    if success {
+                        successful_reservations += 1;
+                    }
+                }
             }
+        ).await;
+
+        if wait_result.is_err() {
+            handles.shutdown().await;
+            panic!("Test timed out after {}s - possible deadlock or stall", JOINSET_TIMEOUT_SECS);
         }
 
         // Should only allow 6 successful reservations (6 * 15 = 90 <= 100)
@@ -526,11 +595,21 @@ mod concurrent_move_tests {
             });
         }
 
-        // Wait for all transfers
+        // Wait for all transfers with timeout to prevent CI hanging
         let mut successful = 0;
-        while let Some(result) = handles.join_next().await {
-            let ok = result.expect("transfer task panicked/cancelled");
-            if ok { successful += 1; }
+        let wait_result = tokio::time::timeout(
+            Duration::from_secs(JOINSET_TIMEOUT_SECS),
+            async {
+                while let Some(result) = handles.join_next().await {
+                    let ok = result.expect("transfer task panicked/cancelled");
+                    if ok { successful += 1; }
+                }
+            }
+        ).await;
+
+        if wait_result.is_err() {
+            handles.shutdown().await;
+            panic!("Test timed out after {}s - possible deadlock or stall", JOINSET_TIMEOUT_SECS);
         }
 
         // Only 4 transfers should succeed (4 * 25 = 100)
@@ -584,20 +663,30 @@ mod concurrent_move_tests {
             });
         }
 
-        // Wait for all receipts and ensure no task failed
+        // Wait for all receipts with timeout to prevent CI hanging
         let mut failure_count = 0;
-        while let Some(join_result) = handles.join_next().await {
-            match join_result {
-                Ok(task_ok) => {
-                    if !task_ok {
-                        failure_count += 1;
+        let wait_result = tokio::time::timeout(
+            Duration::from_secs(JOINSET_TIMEOUT_SECS),
+            async {
+                while let Some(join_result) = handles.join_next().await {
+                    match join_result {
+                        Ok(task_ok) => {
+                            if !task_ok {
+                                failure_count += 1;
+                            }
+                        }
+                        Err(join_error) => {
+                            eprintln!("join error in concurrent receipt task: {join_error}");
+                            failure_count += 1;
+                        }
                     }
                 }
-                Err(join_error) => {
-                    eprintln!("join error in concurrent receipt task: {join_error}");
-                    failure_count += 1;
-                }
             }
+        ).await;
+
+        if wait_result.is_err() {
+            handles.shutdown().await;
+            panic!("Test timed out after {}s - possible deadlock or stall", JOINSET_TIMEOUT_SECS);
         }
         assert_eq!(failure_count, 0, "All concurrent receipt tasks must succeed");
 
@@ -708,17 +797,27 @@ mod concurrent_move_tests {
             });
         }
 
-        // Wait for all operations and verify they all succeeded
+        // Wait for all operations with timeout to prevent CI hanging
         let mut all_succeeded = true;
-        while let Some(result) = handles.join_next().await {
-            match result {
-                Ok(success) => {
-                    if !success {
-                        all_succeeded = false;
+        let wait_result = tokio::time::timeout(
+            Duration::from_secs(JOINSET_TIMEOUT_SECS),
+            async {
+                while let Some(result) = handles.join_next().await {
+                    match result {
+                        Ok(success) => {
+                            if !success {
+                                all_succeeded = false;
+                            }
+                        }
+                        Err(_) => all_succeeded = false,
                     }
                 }
-                Err(_) => all_succeeded = false,
             }
+        ).await;
+
+        if wait_result.is_err() {
+            handles.shutdown().await;
+            panic!("Test timed out after {}s - possible deadlock or stall", JOINSET_TIMEOUT_SECS);
         }
 
         // All operations must succeed for the test to be valid
@@ -854,17 +953,19 @@ mod idempotency_tests {
             status1, status2
         );
 
-        // Log bodies for debugging if statuses don't match expectations
-        if !status1.is_success() {
-            eprintln!("Request 1 failed with body: {}", body1);
-            eprintln!("Request 2 failed with body: {}", body2);
-        }
+        // Both requests MUST succeed - fail if we get 5xx or unexpected errors
+        assert!(
+            status1.is_success(),
+            "Both requests should succeed with different idempotency keys. \
+             Got status1: {:?}, body1: {}, status2: {:?}, body2: {}",
+            status1, body1, status2, body2
+        );
 
         app.cleanup().await;
     }
 
     /// Test idempotency under concurrent duplicate requests
-    /// 
+    ///
     /// This validates that when two requests with the same idempotency key
     /// are fired in parallel, only one operation is applied (or both return
     /// the same response), preventing double inserts under contention.
@@ -931,41 +1032,34 @@ mod idempotency_tests {
         let (status1, body1) = result1;
         let (status2, body2) = result2;
 
-        // Under proper idempotency:
-        // - One request succeeds (201 Created)
-        // - The other either returns the same result OR returns 409 Conflict
-        // Both failing would indicate neither was processed (bad)
-        
-        let one_succeeded = status1.is_success() || status2.is_success();
+        // Under proper idempotency, exactly one request should succeed and the other
+        // should be rejected with a conflict. Using XOR to enforce this strictly.
+        let s1_success = status1.is_success();
+        let s2_success = status2.is_success();
+
         assert!(
-            one_succeeded,
-            "At least one concurrent request should succeed. Got status1: {:?}, status2: {:?}",
-            status1, status2
+            s1_success ^ s2_success,
+            "Exactly one request should succeed, but got status1: {:?} and status2: {:?}. \
+             Body1: {}, Body2: {}",
+            status1, status2, body1, body2
         );
 
-        // If both succeeded, they should return identical responses (idempotent)
-        if status1.is_success() && status2.is_success() {
+        // The conflicting request must return 409 Conflict
+        if s1_success {
             assert_eq!(
-                status1, status2,
-                "Both succeeded but with different statuses: {:?} vs {:?}",
-                status1, status2
+                status2,
+                StatusCode::CONFLICT,
+                "The conflicting request should return 409 Conflict. Got status2: {:?}, body: {}",
+                status2,
+                body2
             );
-            // Body comparison may fail due to timestamps, but statuses should match
-        }
-
-        // If one succeeded and one failed, the failure should be 409 Conflict
-        if status1.is_success() && !status2.is_success() {
+        } else {
             assert_eq!(
-                status2, StatusCode::CONFLICT,
-                "Second request should be rejected with 409 Conflict, got {:?}: {}",
-                status2, body2
-            );
-        }
-        if status2.is_success() && !status1.is_success() {
-            assert_eq!(
-                status1, StatusCode::CONFLICT,
-                "First request should be rejected with 409 Conflict, got {:?}: {}",
-                status1, body1
+                status1,
+                StatusCode::CONFLICT,
+                "The conflicting request should return 409 Conflict. Got status1: {:?}, body: {}",
+                status1,
+                body1
             );
         }
 
@@ -1037,21 +1131,31 @@ mod consistency_tests {
             });
         }
 
-        // Wait for all concurrent operations and ensure no failures
+        // Wait for all concurrent operations with timeout to prevent CI hanging
         let mut failure_count = 0;
-        while let Some(join_result) = handles.join_next().await {
-            match join_result {
-                Ok(task_result) => {
-                    if task_result.is_err() { // Check if the SQL operation itself failed
-                        eprintln!("SQL operation failed: {}", task_result.unwrap_err());
-                        failure_count += 1;
+        let wait_result = tokio::time::timeout(
+            Duration::from_secs(JOINSET_TIMEOUT_SECS),
+            async {
+                while let Some(join_result) = handles.join_next().await {
+                    match join_result {
+                        Ok(task_result) => {
+                            if task_result.is_err() { // Check if the SQL operation itself failed
+                                eprintln!("SQL operation failed: {}", task_result.unwrap_err());
+                                failure_count += 1;
+                            }
+                        }
+                        Err(join_error) => {
+                            eprintln!("join error in consistency task: {join_error}");
+                            failure_count += 1;
+                        }
                     }
                 }
-                Err(join_error) => {
-                    eprintln!("join error in consistency task: {join_error}");
-                    failure_count += 1;
-                }
             }
+        ).await;
+
+        if wait_result.is_err() {
+            handles.shutdown().await;
+            panic!("Test timed out after {}s - possible deadlock or stall", JOINSET_TIMEOUT_SECS);
         }
         assert_eq!(failure_count, 0, "All concurrent operations must succeed");
 

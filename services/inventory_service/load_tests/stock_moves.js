@@ -57,10 +57,14 @@ function testStockReservation() {
 
     stockMoveDuration.add(duration);
 
+    // Parse response body once
+    const body = (response.status === 200 || response.status === 201) ? response.json() : null;
+
     const success = check(response, {
         'reservation status 200, 201, or 409': (r) => r.status === 200 || r.status === 201 || r.status === 409,
-        'reservation has id': (r) => {
-            const body = r.json();
+        'reservation has id (for 200/201 only)': () => {
+            // 409 conflicts don't need reservation_id - they're expected under contention
+            if (response.status === 409) return true;
             return body && body.reservation_id !== undefined;
         },
     });
@@ -81,7 +85,7 @@ function testStockAdjustment() {
     const payload = JSON.stringify({
         warehouse_id: randomWarehouseId(),
         product_id: randomProductId(),
-        quantity_change: Math.floor(Math.random() * 20) - 10, // -10 to +10
+        quantity_change: Math.floor(Math.random() * 21) - 10, // -10 to +10
         reason: 'load_test_adjustment',
         notes: 'Automated load test',
     });

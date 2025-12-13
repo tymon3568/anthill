@@ -14,17 +14,22 @@
 // Base URL for inventory service API
 export const BASE_URL = __ENV.BASE_URL || 'http://localhost:8082';
 
-// Authentication token (JWT) for API requests
-export const AUTH_TOKEN = __ENV.AUTH_TOKEN || 'test-token';
+// Authentication token (JWT) for API requests - no fake default
+export const AUTH_TOKEN = __ENV.AUTH_TOKEN;
 
 // Test tenant ID
 export const TENANT_ID = __ENV.TENANT_ID || '550e8400-e29b-41d4-a716-446655440001';
 
-// Default headers for all requests
+// Log warning if AUTH_TOKEN is not set
+if (!AUTH_TOKEN) {
+    console.warn('WARNING: AUTH_TOKEN not set. Requests will be sent without Authorization header.');
+}
+
+// Default headers for all requests - Authorization only included when token is present
 export const defaultHeaders = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${AUTH_TOKEN}`,
     'X-Tenant-ID': TENANT_ID,
+    ...(AUTH_TOKEN && { 'Authorization': `Bearer ${AUTH_TOKEN}` }),
 };
 
 // ============================================================================
