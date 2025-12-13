@@ -179,6 +179,59 @@ mod fifo_valuation_tests {
     }
 
     #[tokio::test]
+    async fn test_fifo_delivery_exceeding_available_quantity_fails() {
+        let pool = setup_test_pool().await;
+        let (tenant_id, product_id) = setup_test_tenant_and_product(&pool).await;
+        let service = create_valuation_service(&pool);
+
+        // Set valuation method to FIFO
+        let set_method_request = SetValuationMethodRequest {
+            tenant_id,
+            product_id,
+            valuation_method: ValuationMethod::Fifo,
+        };
+        service
+            .set_valuation_method(set_method_request)
+            .await
+            .expect("Failed to set FIFO method");
+
+        // Receipt: 100 units at $10.00
+        service
+            .process_stock_movement(tenant_id, product_id, 100, Some(1000), None)
+            .await
+            .expect("Receipt should succeed");
+
+        // Attempt to deliver 120 units when only 100 are available
+        let delivery_result = service
+            .process_stock_movement(tenant_id, product_id, -120, None, None)
+            .await;
+
+        // Should fail with an error (insufficient stock)
+        assert!(
+            delivery_result.is_err(),
+            "Delivery exceeding available quantity should fail"
+        );
+
+        // Verify the original quantity is unchanged
+        let valuation = service
+            .get_valuation(
+                inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationRequest {
+                    tenant_id,
+                    product_id,
+                },
+            )
+            .await
+            .expect("Should get valuation");
+
+        assert_eq!(
+            valuation.total_quantity, 100,
+            "Quantity should remain unchanged after failed delivery"
+        );
+
+        cleanup_valuation_test_data(&pool, tenant_id).await;
+    }
+
+    #[tokio::test]
     async fn test_fifo_partial_layer_consumption() {
         let pool = setup_test_pool().await;
         let (tenant_id, product_id) = setup_test_tenant_and_product(&pool).await;
