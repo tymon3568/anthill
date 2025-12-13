@@ -36,7 +36,7 @@ pub async fn setup_test_database() -> PgPool {
 
     // Run migrations
     let migrations_path =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../migrations");
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../migrations");
     let migrator = Migrator::new(migrations_path).await.unwrap();
     migrator.run(&pool).await.unwrap();
 

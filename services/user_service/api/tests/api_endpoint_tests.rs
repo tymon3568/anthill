@@ -140,8 +140,17 @@ async fn test_user_registration_success() {
     let (status, response) =
         make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
 
+    let mut redacted_response = response.clone();
+    if let Some(obj) = redacted_response.as_object_mut() {
+        obj.insert("access_token".to_string(), json!("[REDACTED]"));
+        obj.insert("refresh_token".to_string(), json!("[REDACTED]"));
+    }
+
     println!("📋 Response status: {}", status);
-    println!("📋 Response body: {}", serde_json::to_string_pretty(&response).unwrap());
+    println!(
+        "📋 Response body: {}",
+        serde_json::to_string_pretty(&redacted_response).unwrap()
+    );
 
     assert_eq!(status, StatusCode::CREATED);
     assert!(response["access_token"].is_string());
@@ -216,8 +225,17 @@ async fn test_user_login_success() {
     let (status, response) =
         make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
 
+    let mut redacted_response = response.clone();
+    if let Some(obj) = redacted_response.as_object_mut() {
+        obj.insert("access_token".to_string(), json!("[REDACTED]"));
+        obj.insert("refresh_token".to_string(), json!("[REDACTED]"));
+    }
+
     println!("📋 Login response status: {}", status);
-    println!("📋 Login response body: {}", serde_json::to_string_pretty(&response).unwrap());
+    println!(
+        "📋 Login response body: {}",
+        serde_json::to_string_pretty(&redacted_response).unwrap()
+    );
 
     assert_eq!(status, StatusCode::OK);
     assert!(response["access_token"].is_string());
