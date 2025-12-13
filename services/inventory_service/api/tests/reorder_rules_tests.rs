@@ -145,6 +145,48 @@ mod reorder_quantity_tests {
     }
 
     #[tokio::test]
+    async fn test_reorder_with_missing_inventory_level() {
+        let pool = setup_test_pool().await;
+        let (tenant_id, product_id, warehouse_id) =
+            setup_test_tenant_product_warehouse(&pool).await;
+        let service = create_replenishment_service(&pool);
+
+        // NOTE: no inventory level is created for this product/warehouse on purpose
+        // to validate behavior when the inventory_levels row is missing.
+
+        // Create reorder rule for this product/warehouse
+        let rule = CreateReorderRule {
+            product_id,
+            warehouse_id: Some(warehouse_id),
+            reorder_point: 50,
+            min_quantity: 20,
+            max_quantity: 100,
+            lead_time_days: 7,
+            safety_stock: 10,
+        };
+
+        service
+            .create_reorder_rule(tenant_id, rule)
+            .await
+            .expect("Failed to create reorder rule");
+
+        // Run the replenishment check; missing inventory record should be treated
+        // as zero stock (current_quantity = 0)
+        let result = service
+            .check_product_replenishment(tenant_id, product_id, Some(warehouse_id))
+            .await
+            .expect("Replenishment check with missing inventory should succeed");
+
+        // Expected behavior: same as if current stock were zero
+        assert!(result.needs_replenishment);
+        assert_eq!(result.current_quantity, 0);
+        // Suggested = max - current = 100 - 0 = 100
+        assert_eq!(result.suggested_order_quantity, 100);
+
+        cleanup_reorder_test_data(&pool, tenant_id).await;
+    }
+
+    #[tokio::test]
     async fn test_reorder_with_zero_current_stock() {
         let pool = setup_test_pool().await;
         let (tenant_id, product_id, warehouse_id) =
