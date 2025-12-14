@@ -1,5 +1,7 @@
 #![allow(dead_code, unused_imports, clippy::single_component_path_imports)]
 
+use std::sync::Arc;
+
 use axum::Router;
 use sqlx::{migrate::Migrator, PgPool};
 
@@ -41,7 +43,6 @@ pub async fn setup_test_database() -> PgPool {
     pool
 }
 
-/*
 /// Create test application with minimal services for reconciliation tests
 pub async fn create_test_app(pool: PgPool) -> Router {
     let shared_pool = Arc::new(pool);
@@ -126,7 +127,6 @@ pub async fn create_test_app(pool: PgPool) -> Router {
 
     create_reconciliation_routes().layer(axum::Extension(app_state))
 }
-*/
 
 /// Create a test user for authentication
 pub async fn create_test_user(pool: &PgPool) -> AuthUser {
@@ -210,9 +210,4 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
     .execute(pool)
     .await
     .unwrap();
-}
-
-/// Stub create_test_app for reconciliation tests (tests are #[ignore], so this placeholder satisfies compilation)
-pub async fn create_test_app(_pool: sqlx::PgPool) -> axum::Router {
-    todo!("create_test_app is not implemented - reconciliation tests need full app setup")
 }
