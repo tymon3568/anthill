@@ -199,7 +199,7 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
                 .expect("Failed to insert policy");
             }
         },
-        "user" | _ => {
+        _ => {
             // Regular users can only read
             let policies = vec![
                 ("p", &role_key, &tenant_str, "/api/v1/users", "GET"),
