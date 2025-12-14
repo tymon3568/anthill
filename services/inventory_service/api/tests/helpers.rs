@@ -211,3 +211,8 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
     .await
     .unwrap();
 }
+
+/// Stub create_test_app for reconciliation tests (tests are #[ignore], so this placeholder satisfies compilation)
+pub async fn create_test_app(_pool: sqlx::PgPool) -> axum::Router {
+    todo!("create_test_app is not implemented - reconciliation tests need full app setup")
+}
