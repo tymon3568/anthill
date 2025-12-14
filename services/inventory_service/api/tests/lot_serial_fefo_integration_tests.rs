@@ -104,8 +104,8 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         warehouse_id,
         LotSerialTrackingType::Lot.to_string(),
         "LOT002",
-        50,
-        50,
+        30,
+        30,
         chrono::Utc::now() + chrono::Duration::days(30), // expires ...
         LotSerialStatus::Active.to_string()
     )
@@ -123,8 +123,8 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         warehouse_id,
         LotSerialTrackingType::Lot.to_string(),
         "LOT003",
-        50,
-        50,
+        20,
+        20,
         chrono::Utc::now() + chrono::Duration::days(60), // expires ...
         LotSerialStatus::Active.to_string()
     )
