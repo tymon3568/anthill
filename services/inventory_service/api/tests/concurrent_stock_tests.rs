@@ -3,6 +3,8 @@
 //! Tests for concurrent stock operations to verify database locking,
 //! transaction isolation, and race condition prevention using tokio async tasks.
 
+#![allow(dead_code, clippy::unnecessary_unwrap)]
+
 use axum::{
     body::{to_bytes, Body},
     http::{Method, Request, StatusCode},
