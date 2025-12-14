@@ -113,6 +113,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
+          SQLX_OFFLINE: true
 
   # Job 2: Unit tests (fast, no database)
   unit-tests:
