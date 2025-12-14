@@ -12,6 +12,8 @@ use axum::{extract::Extension, http::HeaderValue, routing::get, Router};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use utoipa::OpenApi;
+
 use uuid::Uuid;
 
 // Tokio for timeout
@@ -472,9 +474,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ]);
 
     // Protected routes (require authentication)
-    let protected_routes = Router::new()
-        .route("/health", get(crate::handlers::health::health_check))
-        .nest("/api/v1/inventory", category_routes);
+    let protected_routes = Router::new().nest("/api/v1/inventory", category_routes);
 
     let protected_routes = protected_routes
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
@@ -506,8 +506,15 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(axum::middleware::from_fn(casbin_middleware))
         .layer(Extension(authz_state));
 
-    // Apply global layers
-    protected_routes.layer(cors)
+    // Build application with routes and Swagger UI
+    Router::new()
+        .route("/health", get(crate::handlers::health::health_check))
+        .merge(protected_routes)
+        .merge(
+            utoipa_swagger_ui::SwaggerUi::new("/docs")
+                .url("/api-docs/openapi.json", crate::openapi::ApiDoc::openapi()),
+        )
+        .layer(cors)
 }
 
 // function moved
