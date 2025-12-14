@@ -99,6 +99,7 @@ pub struct ApiDoc;
 
 /// Export OpenAPI spec to YAML file (only with --features export-spec)
 #[cfg(feature = "export-spec")]
+#[allow(dead_code)]
 pub fn export_spec() -> std::io::Result<()> {
     use std::path::Path;
 
