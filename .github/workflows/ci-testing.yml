@@ -104,7 +104,7 @@ jobs:
           sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
 
           # Generate sqlx metadata for macro expansion
-          cargo sqlx prepare --database-url "${{ env.DATABASE_URL }}"
+          cargo sqlx prepare --workspace --database-url "${{ env.DATABASE_URL }}"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -217,7 +217,7 @@ jobs:
           sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
 
           # Generate sqlx metadata for offline compilation
-          cargo sqlx prepare --database-url "${{ env.DATABASE_URL }}"
+          cargo sqlx prepare --workspace --database-url "${{ env.DATABASE_URL }}"
 
           # Verify database setup
           psql "${{ env.DATABASE_URL }}" -c "\dt" || true
