@@ -22,19 +22,15 @@ fn bench_uuid_generation(c: &mut Criterion) {
 
     // Batch UUID generation
     for count in [10, 100, 1000] {
-        group.bench_with_input(
-            BenchmarkId::new("uuid_v7_batch", count),
-            &count,
-            |b, &count| {
-                b.iter(|| {
-                    let mut ids = Vec::with_capacity(count);
-                    for _ in 0..count {
-                        ids.push(Uuid::now_v7());
-                    }
-                    black_box(ids)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("uuid_v7_batch", count), &count, |b, &count| {
+            b.iter(|| {
+                let mut ids = Vec::with_capacity(count);
+                for _ in 0..count {
+                    ids.push(Uuid::now_v7());
+                }
+                black_box(ids)
+            });
+        });
     }
 
     group.finish();
@@ -65,19 +61,15 @@ fn bench_category_path_operations(c: &mut Criterion) {
     ];
 
     for (name, path) in paths {
-        group.bench_with_input(
-            BenchmarkId::new("parse_path_ids", name),
-            &path,
-            |b, path| {
-                b.iter(|| {
-                    let ids: Vec<Uuid> = path
-                        .split('/')
-                        .filter_map(|s| Uuid::parse_str(s).ok())
-                        .collect();
-                    black_box(ids)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("parse_path_ids", name), &path, |b, path| {
+            b.iter(|| {
+                let ids: Vec<Uuid> = path
+                    .split('/')
+                    .filter_map(|s| Uuid::parse_str(s).ok())
+                    .collect();
+                black_box(ids)
+            });
+        });
     }
 
     // Benchmark path prefix matching (is_ancestor_of check)
@@ -119,7 +111,11 @@ impl BenchCategoryNode {
 
     fn count_descendants(&self) -> usize {
         self.children.len()
-            + self.children.iter().map(|c| c.count_descendants()).sum::<usize>()
+            + self
+                .children
+                .iter()
+                .map(|c| c.count_descendants())
+                .sum::<usize>()
     }
 }
 
@@ -245,11 +241,11 @@ fn bench_tree_building(c: &mut Criterion) {
 
     // Test different tree configurations: (depth, children_per_level)
     let configs = vec![
-        ("small_3x3", 3, 3),     // 13 nodes
-        ("medium_4x4", 4, 4),    // 85 nodes
-        ("deep_10x2", 10, 2),    // 1023 nodes
-        ("wide_3x10", 3, 10),    // 111 nodes
-        ("large_5x5", 5, 5),     // 781 nodes
+        ("small_3x3", 3, 3),  // 13 nodes
+        ("medium_4x4", 4, 4), // 85 nodes
+        ("deep_10x2", 10, 2), // 1023 nodes
+        ("wide_3x10", 3, 10), // 111 nodes
+        ("large_5x5", 5, 5),  // 781 nodes
     ];
 
     for (name, depth, width) in &configs {
@@ -363,30 +359,22 @@ fn bench_collection_operations(c: &mut Criterion) {
 
     // Vec allocation for different sizes
     for size in [10, 100, 1000, 10000] {
-        group.bench_with_input(
-            BenchmarkId::new("vec_with_capacity", size),
-            &size,
-            |b, &size| {
-                b.iter(|| {
-                    let v: Vec<Uuid> = Vec::with_capacity(size);
-                    black_box(v)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("vec_with_capacity", size), &size, |b, &size| {
+            b.iter(|| {
+                let v: Vec<Uuid> = Vec::with_capacity(size);
+                black_box(v)
+            });
+        });
 
-        group.bench_with_input(
-            BenchmarkId::new("vec_fill_uuids", size),
-            &size,
-            |b, &size| {
-                b.iter(|| {
-                    let mut v = Vec::with_capacity(size);
-                    for _ in 0..size {
-                        v.push(Uuid::now_v7());
-                    }
-                    black_box(v)
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("vec_fill_uuids", size), &size, |b, &size| {
+            b.iter(|| {
+                let mut v = Vec::with_capacity(size);
+                for _ in 0..size {
+                    v.push(Uuid::now_v7());
+                }
+                black_box(v)
+            });
+        });
     }
 
     // HashMap operations (for lookups)
@@ -443,10 +431,7 @@ fn bench_valuation_calculations(c: &mut Criterion) {
 
     group.bench_function("fifo_total_value", |b| {
         b.iter(|| {
-            let total: i64 = layers
-                .iter()
-                .map(|l| l.quantity * l.unit_cost_cents)
-                .sum();
+            let total: i64 = layers.iter().map(|l| l.quantity * l.unit_cost_cents).sum();
             black_box(total)
         });
     });

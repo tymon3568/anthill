@@ -55,10 +55,7 @@ mod reorder_quantity_tests {
         // Suggested order quantity should be max - current = 100 - 10 = 90
         assert!(result.needs_replenishment);
         assert_eq!(result.suggested_order_quantity, 90);
-        assert!(
-            result.suggested_order_quantity <= 100,
-            "Should not exceed max_quantity"
-        );
+        assert!(result.suggested_order_quantity <= 100, "Should not exceed max_quantity");
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }
@@ -328,7 +325,7 @@ mod reorder_edge_cases {
         match result.unwrap_err() {
             AppError::NotFound(msg) => {
                 assert!(msg.contains("No reorder rule found") || msg.contains("not found"));
-            }
+            },
             other => panic!("Expected NotFound error, got {:?}", other),
         }
 

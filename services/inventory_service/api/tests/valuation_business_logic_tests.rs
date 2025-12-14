@@ -42,11 +42,7 @@ mod fifo_valuation_tests {
             .process_stock_movement(tenant_id, product_id, 100, Some(1000), None)
             .await;
 
-        assert!(
-            receipt_result.is_ok(),
-            "Receipt should succeed: {:?}",
-            receipt_result.err()
-        );
+        assert!(receipt_result.is_ok(), "Receipt should succeed: {:?}", receipt_result.err());
         let valuation = receipt_result.unwrap();
 
         // Verify valuation updated correctly
@@ -62,10 +58,7 @@ mod fifo_valuation_tests {
         let layers = service.get_valuation_layers(layers_request).await;
         assert!(layers.is_ok());
         let layer_response = layers.unwrap();
-        assert!(
-            !layer_response.layers.is_empty(),
-            "Should have created a cost layer"
-        );
+        assert!(!layer_response.layers.is_empty(), "Should have created a cost layer");
         assert_eq!(layer_response.layers[0].quantity, 100);
         assert_eq!(layer_response.layers[0].unit_cost, 1000);
 
@@ -207,10 +200,7 @@ mod fifo_valuation_tests {
             .await;
 
         // Should fail with an error (insufficient stock)
-        assert!(
-            delivery_result.is_err(),
-            "Delivery exceeding available quantity should fail"
-        );
+        assert!(delivery_result.is_err(), "Delivery exceeding available quantity should fail");
 
         // Verify the original quantity is unchanged
         let valuation = service
@@ -595,10 +585,7 @@ mod valuation_edge_cases {
         };
 
         let result = service.get_valuation(request).await;
-        assert!(
-            result.is_err(),
-            "Should return error for non-existent valuation"
-        );
+        assert!(result.is_err(), "Should return error for non-existent valuation");
     }
 
     #[tokio::test]
