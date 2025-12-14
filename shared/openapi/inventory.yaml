@@ -6,71 +6,72 @@ info:
     name: Anthill Team
     email: tymon3568@gmail.com
   license:
-    name: ''
+    name: ""
   version: 0.1.0
 servers:
-- url: http://localhost:8001
-  description: Local development server
+  - url: http://localhost:8001
+    description: Local development server
 paths: {}
 components:
   schemas:
     CreateLotSerialRequest:
       type: object
       required:
-      - product_id
-      - tracking_type
-      - status
+        - product_id
+        - tracking_type
+        - status
       properties:
         expiry_date:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: date-time
         initial_quantity:
           type:
-          - integer
-          - 'null'
+            - integer
+            - "null"
           format: int64
         lot_number:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
         product_id:
           type: string
           format: uuid
         remaining_quantity:
           type:
-          - integer
-          - 'null'
+            - integer
+            - "null"
           format: int64
         serial_number:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
         status:
-          $ref: '#/components/schemas/LotSerialStatus'
+          $ref: "#/components/schemas/LotSerialStatus"
         tracking_type:
-          $ref: '#/components/schemas/LotSerialTrackingType'
+          $ref: "#/components/schemas/LotSerialTrackingType"
     CreatePickingMethodRequest:
       type: object
       description: Request DTO for creating a new picking method
       required:
-      - name
-      - methodType
-      - warehouseId
-      - config
+        - name
+        - methodType
+        - warehouseId
+        - config
       properties:
         config:
+          type: object
           description: Method configuration (JSON)
         description:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           description: Optional description
         isDefault:
           type:
-          - boolean
-          - 'null'
+            - boolean
+            - "null"
           description: Whether this should be the default method
         methodType:
           type: string
@@ -87,23 +88,23 @@ components:
       properties:
         status:
           oneOf:
-          - type: 'null'
-          - $ref: '#/components/schemas/LotSerialStatus'
+            - type: "null"
+            - $ref: "#/components/schemas/LotSerialStatus"
         tracking_type:
           oneOf:
-          - type: 'null'
-          - $ref: '#/components/schemas/LotSerialTrackingType'
+            - type: "null"
+            - $ref: "#/components/schemas/LotSerialTrackingType"
     LotSerial:
       type: object
       required:
-      - lot_serial_id
-      - tenant_id
-      - product_id
-      - tracking_type
-      - status
-      - created_by
-      - created_at
-      - updated_at
+        - lot_serial_id
+        - tenant_id
+        - product_id
+        - tracking_type
+        - status
+        - created_by
+        - created_at
+        - updated_at
       properties:
         created_at:
           type: string
@@ -113,28 +114,28 @@ components:
           format: uuid
         deleted_at:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: date-time
         expiry_date:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: date-time
         initial_quantity:
           type:
-          - integer
-          - 'null'
+            - integer
+            - "null"
           format: int64
         location_id:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: uuid
         lot_number:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
         lot_serial_id:
           type: string
           format: uuid
@@ -143,97 +144,97 @@ components:
           format: uuid
         remaining_quantity:
           type:
-          - integer
-          - 'null'
+            - integer
+            - "null"
           format: int64
         serial_number:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
         status:
-          $ref: '#/components/schemas/LotSerialStatus'
+          $ref: "#/components/schemas/LotSerialStatus"
         tenant_id:
           type: string
           format: uuid
         tracking_type:
-          $ref: '#/components/schemas/LotSerialTrackingType'
+          $ref: "#/components/schemas/LotSerialTrackingType"
         updated_at:
           type: string
           format: date-time
         updated_by:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: uuid
         warehouse_id:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: uuid
     LotSerialLifecycle:
       type: object
       required:
-      - lot_serial
-      - stock_moves
-      - quality_checks
+        - lot_serial
+        - stock_moves
+        - quality_checks
       properties:
         coa_link:
           type:
-          - string
-          - 'null'
-          description: 'TODO: Populate from quality documents or attachments'
+            - string
+            - "null"
+          description: "TODO: Populate from quality documents or attachments"
         current_location_code:
           type:
-          - string
-          - 'null'
-          description: 'TODO: Populate from location table using lot_serial.location_id'
+            - string
+            - "null"
+          description: "TODO: Populate from location table using lot_serial.location_id"
         current_warehouse_name:
           type:
-          - string
-          - 'null'
-          description: 'TODO: Populate from warehouse table using lot_serial.location_id'
+            - string
+            - "null"
+          description: "TODO: Populate from warehouse table using lot_serial.location_id"
         lot_serial:
-          $ref: '#/components/schemas/LotSerial'
+          $ref: "#/components/schemas/LotSerial"
         purchase_order_number:
           type:
-          - string
-          - 'null'
-          description: 'TODO: Populate from purchase order table'
+            - string
+            - "null"
+          description: "TODO: Populate from purchase order table"
         quality_checks:
           type: array
           items: {}
-          description: 'TODO: Populate from quality_checks table or related records'
+          description: "TODO: Populate from quality_checks table or related records"
         stock_moves:
           type: array
           items:
-            $ref: '#/components/schemas/StockMove'
+            $ref: "#/components/schemas/StockMove"
         supplier_name:
           type:
-          - string
-          - 'null'
-          description: 'TODO: Populate from supplier table via purchase order'
+            - string
+            - "null"
+          description: "TODO: Populate from supplier table via purchase order"
     LotSerialStatus:
       type: string
       enum:
-      - active
-      - expired
-      - quarantined
-      - disposed
-      - reserved
+        - active
+        - expired
+        - quarantined
+        - disposed
+        - reserved
     LotSerialTrackingType:
       type: string
       enum:
-      - lot
-      - serial
+        - lot
+        - serial
     PaginationInfo:
       type: object
       required:
-      - page
-      - pageSize
-      - totalItems
-      - totalPages
-      - hasNext
-      - hasPrev
+        - page
+        - pageSize
+        - totalItems
+        - totalPages
+        - hasNext
+        - hasPrev
       properties:
         hasNext:
           type: boolean
@@ -259,18 +260,19 @@ components:
       type: object
       description: Picking method response DTO
       required:
-      - methodId
-      - tenantId
-      - name
-      - methodType
-      - warehouseId
-      - config
-      - isActive
-      - isDefault
-      - createdAt
-      - updatedAt
+        - methodId
+        - tenantId
+        - name
+        - methodType
+        - warehouseId
+        - config
+        - isActive
+        - isDefault
+        - createdAt
+        - updatedAt
       properties:
         config:
+          type: object
           description: Configuration
         createdAt:
           type: string
@@ -278,8 +280,8 @@ components:
           description: Timestamps
         description:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
         isActive:
           type: boolean
           description: Status flags
@@ -309,7 +311,7 @@ components:
     QuarantineResponse:
       type: object
       required:
-      - quarantined_count
+        - quarantined_count
       properties:
         quarantined_count:
           type: integer
@@ -317,34 +319,38 @@ components:
     StockMove:
       type: object
       required:
-      - move_id
-      - tenant_id
-      - product_id
-      - move_type
-      - quantity
-      - reference_type
-      - reference_id
-      - idempotency_key
-      - move_date
-      - created_at
+        - move_id
+        - tenant_id
+        - product_id
+        - move_type
+        - quantity
+        - reference_type
+        - reference_id
+        - idempotency_key
+        - move_date
+        - created_at
       properties:
-        batch_info: {}
+        batch_info:
+          type: object
+          additionalProperties: true
         created_at:
           type: string
           format: date-time
         destination_location_id:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: uuid
         idempotency_key:
           type: string
         lot_serial_id:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: uuid
-        metadata: {}
+        metadata:
+          type: object
+          additionalProperties: true
         move_date:
           type: string
           format: date-time
@@ -353,8 +359,8 @@ components:
           format: uuid
         move_reason:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
         move_type:
           type: string
         product_id:
@@ -370,21 +376,21 @@ components:
           type: string
         source_location_id:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           format: uuid
         tenant_id:
           type: string
           format: uuid
         total_cost:
           type:
-          - integer
-          - 'null'
+            - integer
+            - "null"
           format: int64
         unit_cost:
           type:
-          - integer
-          - 'null'
+            - integer
+            - "null"
           format: int64
     UpdatePickingMethodRequest:
       type: object
@@ -394,21 +400,21 @@ components:
           description: Method configuration (JSON)
         description:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           description: Description
         isActive:
           type:
-          - boolean
-          - 'null'
+            - boolean
+            - "null"
           description: Whether method is active
         isDefault:
           type:
-          - boolean
-          - 'null'
+            - boolean
+            - "null"
           description: Whether this should be the default method
         name:
           type:
-          - string
-          - 'null'
+            - string
+            - "null"
           description: Method name

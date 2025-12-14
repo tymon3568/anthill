@@ -474,7 +474,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ]);
 
     // Protected routes (require authentication)
-    let protected_routes = Router::new().nest("/api/v1/inventory", category_routes);
+    let protected_routes = Router::new().nest("/api/v1/inventory/categories", category_routes);
 
     let protected_routes = protected_routes
         .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
@@ -507,14 +507,19 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(Extension(authz_state));
 
     // Build application with routes and Swagger UI
-    Router::new()
+    let mut app = Router::new()
         .route("/health", get(crate::handlers::health::health_check))
-        .merge(protected_routes)
-        .merge(
+        .merge(protected_routes);
+
+    // Only expose Swagger UI in non-production environments
+    if !is_production {
+        app = app.merge(
             utoipa_swagger_ui::SwaggerUi::new("/docs")
                 .url("/api-docs/openapi.json", crate::openapi::ApiDoc::openapi()),
-        )
-        .layer(cors)
+        );
+    }
+
+    app.layer(cors)
 }
 
 // function moved

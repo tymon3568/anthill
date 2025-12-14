@@ -16,8 +16,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Export OpenAPI spec if feature is enabled
     #[cfg(feature = "export-spec")]
     {
-        inventory_service_api::openapi::export_spec().expect("Failed to export OpenAPI spec");
-        tracing::info!("📄 OpenAPI spec exported to shared/openapi/inventory.yaml");
+        inventory_service_api::openapi::export_spec()?;
+        println!("📄 OpenAPI spec exported to shared/openapi/inventory.yaml");
     }
 
     // Initialize tracing
