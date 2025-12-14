@@ -52,6 +52,7 @@ fake = {workspace = true}
 http-body-util = "0.1"
 mockall = {workspace = true}
 proptest = {workspace = true}
+shared_jwt = {workspace = true}
 tokio-test = "0.4"
 wiremock = {workspace = true}
 

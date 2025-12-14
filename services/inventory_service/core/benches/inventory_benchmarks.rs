@@ -13,11 +13,11 @@ fn bench_uuid_generation(c: &mut Criterion) {
     let mut group = c.benchmark_group("uuid_generation");
 
     group.bench_function("uuid_v4", |b| {
-        b.iter(|| Uuid::new_v4());
+        b.iter(Uuid::new_v4);
     });
 
     group.bench_function("uuid_v7", |b| {
-        b.iter(|| Uuid::now_v7());
+        b.iter(Uuid::now_v7);
     });
 
     // Batch UUID generation
@@ -92,6 +92,7 @@ fn bench_category_path_operations(c: &mut Criterion) {
 struct BenchCategory {
     id: Uuid,
     parent_id: Option<Uuid>,
+    #[allow(dead_code)]
     level: i32,
 }
 

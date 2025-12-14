@@ -48,6 +48,7 @@ struct TestDatabase {
     test_tenants: Arc<Mutex<Vec<Uuid>>>,
 }
 
+#[allow(dead_code)]
 impl TestDatabase {
     async fn new() -> Self {
         let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {

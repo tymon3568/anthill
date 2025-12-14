@@ -1,8 +1,6 @@
-use std::sync::Arc;
+#![allow(dead_code, unused_imports, clippy::single_component_path_imports)]
 
 use axum::Router;
-use shared_auth;
-use shared_kanidm_client;
 use sqlx::{migrate::Migrator, PgPool};
 
 use inventory_service_api::routes::DummyDeliveryService;

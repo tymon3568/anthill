@@ -286,8 +286,8 @@ mod tests {
         assert!(update_request.validate().is_ok());
 
         // Verify the flags are set correctly
-        assert_eq!(update_request.warehouse_id_provided, true);
-        assert_eq!(update_request.product_id_provided, true);
+        assert!(update_request.warehouse_id_provided);
+        assert!(update_request.product_id_provided);
         assert!(update_request.warehouse_id.is_none());
         assert!(update_request.product_id.is_none());
     }
@@ -310,8 +310,8 @@ mod tests {
         assert!(update_request.validate().is_ok());
 
         // Verify the flags distinguish provided vs not provided
-        assert_eq!(update_request.warehouse_id_provided, false);
-        assert_eq!(update_request.product_id_provided, true);
+        assert!(!update_request.warehouse_id_provided);
+        assert!(update_request.product_id_provided);
         assert!(update_request.warehouse_id.is_none()); // Not provided
         assert!(update_request.product_id.is_some()); // Provided
     }

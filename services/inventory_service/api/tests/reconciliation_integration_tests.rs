@@ -7,6 +7,8 @@
 //! - Approve reconciliation
 //! - Analytics and reporting
 
+#![allow(dead_code, unused_imports)]
+
 use std::sync::Arc;
 
 use axum::{
@@ -31,7 +33,7 @@ use shared_auth::AuthUser;
 // Test utilities
 mod helpers;
 
-use helpers::{create_test_app, create_test_user, setup_test_database};
+use helpers::{create_test_user, setup_test_database};
 
 #[ignore = "Reconciliation tests require full test app setup"]
 #[tokio::test]
