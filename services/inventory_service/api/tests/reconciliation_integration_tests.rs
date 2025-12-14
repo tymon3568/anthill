@@ -7,7 +7,7 @@
 //! - Approve reconciliation
 //! - Analytics and reporting
 
-#![allow(dead_code, unused_imports)]
+#![allow(dead_code, unused_imports, clippy::needless_borrow)]
 
 use std::sync::Arc;
 
