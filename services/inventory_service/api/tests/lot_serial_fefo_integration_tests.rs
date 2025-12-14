@@ -78,17 +78,17 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     // Lot 1: expires soon (should be picked first)
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
-           VALUES ($1, $2, $3, $4, $5::lot_serial_tracking_type, $6, $7, $8, $9, $10::lot_serial_status, NOW())"#,
+           VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
         lot1_id,
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot,
+        LotSerialTrackingType::Lot.to_string(),
         "LOT001",
         50,
         50,
         chrono::Utc::now() + chrono::Duration::days(7), // expires in...
-        LotSerialStatus::Active
+        LotSerialStatus::Active.to_string()
     )
     .execute(&pool)
     .await
@@ -97,17 +97,17 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     // Lot 2: expires later
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
-           VALUES ($1, $2, $3, $4, $5::lot_serial_tracking_type, $6, $7, $8, $9, $10::lot_serial_status, NOW())"#,
+           VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
         lot2_id,
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot,
+        LotSerialTrackingType::Lot.to_string(),
         "LOT002",
-        30,
-        30,
-        chrono::Utc::now() + chrono::Duration::days(14), // expires ...
-        LotSerialStatus::Active
+        50,
+        50,
+        chrono::Utc::now() + chrono::Duration::days(30), // expires ...
+        LotSerialStatus::Active.to_string()
     )
     .execute(&pool)
     .await
@@ -116,17 +116,17 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     // Lot 3: expires latest
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
-           VALUES ($1, $2, $3, $4, $5::lot_serial_tracking_type, $6, $7, $8, $9, $10::lot_serial_status, NOW())"#,
+           VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
         lot3_id,
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot,
+        LotSerialTrackingType::Lot.to_string(),
         "LOT003",
-        20,
-        20,
-        chrono::Utc::now() + chrono::Duration::days(30), // expires ...
-        LotSerialStatus::Active
+        50,
+        50,
+        chrono::Utc::now() + chrono::Duration::days(60), // expires ...
+        LotSerialStatus::Active.to_string()
     )
     .execute(&pool)
     .await
@@ -245,17 +245,17 @@ async fn test_fefo_prevents_picking_expired_lots() {
     let expired_lot_id = Uuid::now_v7();
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
-           VALUES ($1, $2, $3, $4, $5::lot_serial_tracking_type, $6, $7, $8, $9, $10::lot_serial_status, NOW())"#,
+           VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
         expired_lot_id,
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot,
+        LotSerialTrackingType::Lot.to_string(),
         "EXPIRED001",
         50,
         50,
         chrono::Utc::now() - chrono::Duration::days(2), // safely ex...
-        LotSerialStatus::Active
+        LotSerialStatus::Active.to_string()
     )
     .execute(&pool)
     .await
@@ -265,17 +265,17 @@ async fn test_fefo_prevents_picking_expired_lots() {
     let valid_lot_id = Uuid::now_v7();
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
-           VALUES ($1, $2, $3, $4, $5::lot_serial_tracking_type, $6, $7, $8, $9, $10::lot_serial_status, NOW())"#,
+           VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
         valid_lot_id,
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot,
+        LotSerialTrackingType::Lot.to_string(),
         "VALID001",
         30,
         30,
         chrono::Utc::now() + chrono::Duration::days(30), // expires in 30 days
-        LotSerialStatus::Active
+        LotSerialStatus::Active.to_string()
     )
     .execute(&pool)
     .await
@@ -382,17 +382,17 @@ async fn test_quarantine_expired_lots() {
     let expired_lot_id = Uuid::now_v7();
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
-           VALUES ($1, $2, $3, $4, $5::lot_serial_tracking_type, $6, $7, $8, $9, $10::lot_serial_status, NOW())"#,
+           VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
         expired_lot_id,
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot,
+        LotSerialTrackingType::Lot.to_string(),
         "EXPIRED001",
         50,
         25, // partially consumed
         chrono::Utc::now() - chrono::Duration::days(2), // safely ex...
-        LotSerialStatus::Active
+        LotSerialStatus::Active.to_string()
     )
     .execute(&pool)
     .await
@@ -402,17 +402,17 @@ async fn test_quarantine_expired_lots() {
     let valid_lot_id = Uuid::now_v7();
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
-           VALUES ($1, $2, $3, $4, $5::lot_serial_tracking_type, $6, $7, $8, $9, $10::lot_serial_status, NOW())"#,
+           VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
         valid_lot_id,
         tenant_id,
         product_id,
         warehouse_id,
-        LotSerialTrackingType::Lot,
+        LotSerialTrackingType::Lot.to_string(),
         "VALID001",
         30,
         30,
         chrono::Utc::now() + chrono::Duration::days(30),
-        LotSerialStatus::Active
+        LotSerialStatus::Active.to_string()
     )
     .execute(&pool)
     .await
