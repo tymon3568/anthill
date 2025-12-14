@@ -18,14 +18,15 @@ on:
       - "shared/**/Cargo.toml"
       - "migrations/**/*.sql"
 
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "--cfg uuid_unstable"
-
-permissions:
-  contents: read
-  id-token: write
   # Test database configuration
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
