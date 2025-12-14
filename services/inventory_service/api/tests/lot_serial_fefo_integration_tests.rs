@@ -50,7 +50,7 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot
+        ProductTrackingMethod::Lot.to_string()
     )
     .execute(&pool)
     .await
@@ -221,7 +221,7 @@ async fn test_fefo_prevents_picking_expired_lots() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot
+        ProductTrackingMethod::Lot.to_string()
     )
     .execute(&pool)
     .await
@@ -358,7 +358,7 @@ async fn test_quarantine_expired_lots() {
         tenant_id,
         "LOTTEST",
         "Lot Test Product",
-        ProductTrackingMethod::Lot
+        ProductTrackingMethod::Lot.to_string()
     )
     .execute(&pool)
     .await
