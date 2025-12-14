@@ -170,7 +170,7 @@ mod fifo_valuation_tests {
         let layers = service.get_valuation_layers(layers_request).await.unwrap();
 
         // get_valuation_layers returns only active layers (quantity > 0)
-        let active_layers: Vec<_> = layers.layers.iter().filter(|l| l.quantity > 0).collect();
+        let active_layers = &layers.layers;
         assert_eq!(active_layers.len(), 1, "Should have 1 active layer remaining");
         assert_eq!(active_layers[0].quantity, 40);
         assert_eq!(active_layers[0].unit_cost, 2000);
