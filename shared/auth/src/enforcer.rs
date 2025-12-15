@@ -30,12 +30,48 @@ pub async fn create_enforcer(
     database_url: &str,
     model_path: Option<&str>,
 ) -> Result<SharedEnforcer, Box<dyn std::error::Error>> {
-    let model_path = model_path.unwrap_or("shared/auth/model.conf");
-
-    info!("Initializing Casbin enforcer with model: {}", model_path);
+    // Resolve model path - try multiple strategies for finding the model file
+    let resolved_model_path = if let Some(custom_path) = model_path {
+        std::path::PathBuf::from(custom_path)
+    } else {
+        // Try to find the model file in order of precedence:
+        // 1. Relative to CARGO_MANIFEST_DIR (for workspace builds)
+        // 2. Workspace root (two parents up from manifest dir)
+        // 3. Current directory (for CI/test environments)
+        let default_relative = "shared/auth/model.conf";
+        
+        let candidates: Vec<std::path::PathBuf> = vec![
+            // Try workspace root from CARGO_MANIFEST_DIR
+            std::env::var("CARGO_MANIFEST_DIR")
+                .ok()
+                .and_then(|p| {
+                    let path = std::path::PathBuf::from(p);
+                    // Go up to workspace root (service/name/type -> workspace)
+                    path.ancestors()
+                        .find(|p| p.join("Cargo.toml").exists() && p.join("shared").exists())
+                        .map(|p| p.join(default_relative))
+                })
+                .unwrap_or_else(|| std::path::PathBuf::from(default_relative)),
+            // Try current directory
+            std::path::PathBuf::from(default_relative),
+            // Try relative to executable
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.join(default_relative)))
+                .unwrap_or_else(|| std::path::PathBuf::from(default_relative)),
+        ];
+        
+        candidates
+            .into_iter()
+            .find(|p| p.exists())
+            .unwrap_or_else(|| std::path::PathBuf::from(default_relative))
+    };
+    
+    let model_path_str = resolved_model_path.to_string_lossy();
+    info!("Initializing Casbin enforcer with model: {}", model_path_str);
 
     // Load Casbin model
-    let model = DefaultModel::from_file(model_path).await?;
+    let model = DefaultModel::from_file(resolved_model_path.to_str().ok_or("Invalid path")?).await?;
     info!("Casbin model loaded successfully");
 
     // Create SQLx adapter for PostgreSQL
