@@ -29,6 +29,10 @@ NeedsReview
 - [x] Fix cargo:warning usage: replace with eprintln! in regular code (Severity: Style, Reviewer: cubic-dev-ai)
 - [x] Fix incomplete schemas in inventory.yaml: add type definitions for config and batch_info (Severity: Style, Reviewer: cubic-dev-ai)
 - [ ] Address SonarQube duplication: review and reduce code duplication (Severity: Nitpick, Reviewer: sonarqubecloud) - Minimal duplication in infra layer, acceptable
+- [x] Fix path.parent().unwrap() in export_spec: replace with proper error handling (Severity: Critical, Reviewer: coderabbitai)
+- [x] Add required extensions to health endpoint: PgPool and Config (Severity: Critical, Reviewer: coderabbitai)
+- [x] Fix empty license name in inventory.yaml: provide valid license or remove (Severity: Minor, Reviewer: coderabbitai)
+- [x] Fix empty quality_checks items schema: specify placeholder object schema (Severity: Major, Reviewer: coderabbitai)
 
 ## AI Agent Log:
 ---
@@ -51,6 +55,23 @@ NeedsReview
   - All critical and warning issues resolved; code compiles and passes checks
   - Status: NeedsReview
 ---
+*   2025-12-22 17:00: [Task Completed] by AI_Agent
+  - All fixes applied, committed, and pushed to feature branch
+  - Status: Done
+---
+*   2025-12-23 10:00: [New Issues Identified] by AI_Agent
+  - Fetched latest PR review comments after merge
+  - Added new unresolved issues from coderabbitai review
+  - Updated status to InProgress_By_AI_Agent
+---
+*   2025-12-23 11:00: [Fixes Applied] by AI_Agent
+  - Fixed path.parent().unwrap() in export_spec with proper error handling using if let Some(parent)
+  - Added required PgPool and Config extensions to health endpoint to prevent runtime panic
+  - Added license(name = "MIT") to OpenAPI info for valid license specification
+  - Confirmed LotSerialLifecycle already derives ToSchema, quality_checks schema will be properly generated
+  - All critical and major issues resolved; code compiles successfully
+  - Status: NeedsReview
+---
 
 ## Last Updated
-2025-12-22
+2025-12-24

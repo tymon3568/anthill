@@ -507,9 +507,12 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(Extension(authz_state));
 
     // Build application with routes and Swagger UI
-    let mut app = Router::new()
+    let health_route = Router::new()
         .route("/health", get(crate::handlers::health::health_check))
-        .merge(protected_routes);
+        .layer(Extension(pool.clone()))
+        .layer(Extension(config.clone()));
+
+    let mut app = Router::new().merge(health_route).merge(protected_routes);
 
     // Only expose Swagger UI in non-production environments
     if !is_production {

@@ -37,6 +37,7 @@ use inventory_service_core::models::{LotSerial, LotSerialLifecycle};
             name = "Anthill Team",
             email = "team@example.com"
         ),
+        license(name = "MIT"),
     ),
     servers(
         (url = "http://localhost:8001", description = "Local development server"),
@@ -56,7 +57,9 @@ pub fn export_spec() -> Result<(), Box<dyn std::error::Error>> {
     let path =
         Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../shared/openapi/inventory.yaml"));
 
-    std::fs::create_dir_all(path.parent().unwrap())?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
     std::fs::write(path, yaml)?;
 
     eprintln!("📄 OpenAPI spec exported to {:?}", path);
