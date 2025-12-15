@@ -3,6 +3,8 @@
 //! Common utilities for integration tests covering valuation and reorder rules.
 //! This module consolidates duplicate setup/cleanup logic to reduce code duplication.
 
+#![allow(dead_code)]
+
 use sqlx::PgPool;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -44,6 +46,7 @@ use inventory_service_infra::repositories::ValuationRepositoryImpl;
 use inventory_service_infra::services::ValuationServiceImpl;
 
 /// Create a ValuationService instance for testing.
+#[allow(dead_code)]
 pub fn create_valuation_service(pool: &PgPool) -> ValuationServiceImpl {
     // ValuationRepositoryImpl implements all three repository traits
     let repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
@@ -159,6 +162,7 @@ pub async fn create_inventory_level(
 // ============================================================================
 
 /// Clean up valuation-related test data for a tenant.
+#[allow(dead_code)]
 pub async fn cleanup_valuation_test_data(pool: &PgPool, tenant_id: Uuid) {
     // Clean up in reverse dependency order
     let _ = sqlx::query("DELETE FROM valuation_history WHERE tenant_id = $1")

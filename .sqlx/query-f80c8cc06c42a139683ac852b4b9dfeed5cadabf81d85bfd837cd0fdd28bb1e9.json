@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                        DELETE FROM inventory_valuation_layers\n                        WHERE tenant_id = $1 AND product_id = $2 AND quantity = 0\n                        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f80c8cc06c42a139683ac852b4b9dfeed5cadabf81d85bfd837cd0fdd28bb1e9"
+}

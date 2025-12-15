@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE lots_serial_numbers SET\n                status = 'quarantined',\n                updated_at = NOW()\n            WHERE tenant_id = $1\n                AND status = 'active'\n                AND expiry_date < CURRENT_DATE\n                AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7df59de85a850f98a887b12ad549ec0e72f63d378a61c91bc8bbd869c180ea44"
+}

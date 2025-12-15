@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO rma_requests (\n                rma_id, rma_number, tenant_id, customer_id, original_delivery_id,\n                status, return_reason, notes, total_items, total_value, currency_code,\n                created_by, updated_by, created_at, updated_at\n            ) VALUES (\n                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15\n            )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Text",
+        "Text",
+        "Int4",
+        "Int8",
+        "Varchar",
+        "Uuid",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1b69ebf3c3f8bb0ef49fbf6b74c82924cb022fc283e2b81edb90baa694f64028"
+}

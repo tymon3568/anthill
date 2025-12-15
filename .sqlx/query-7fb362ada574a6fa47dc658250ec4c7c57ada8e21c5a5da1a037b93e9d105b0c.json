@@ -1,0 +1,115 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT tenant_id, reconciliation_id, product_id, warehouse_id, location_id,\n                   expected_quantity, counted_quantity, variance, variance_percentage,\n                   unit_cost, variance_value, notes, counted_by, counted_at,\n                   created_at, updated_at\n            FROM stock_reconciliation_items\n            WHERE tenant_id = $1 AND reconciliation_id = $2 AND product_id = $3 AND warehouse_id = $4 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "reconciliation_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "location_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "expected_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "counted_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "variance",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "variance_percentage",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "unit_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 10,
+        "name": "variance_value",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "counted_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 13,
+        "name": "counted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "7fb362ada574a6fa47dc658250ec4c7c57ada8e21c5a5da1a037b93e9d105b0c"
+}

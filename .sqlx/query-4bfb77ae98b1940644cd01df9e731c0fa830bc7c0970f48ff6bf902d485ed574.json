@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE product_categories pc\n            SET\n                product_count = (\n                    SELECT COUNT(*) FROM products\n                    WHERE category_id = pc.category_id\n                      AND tenant_id = pc.tenant_id\n                      AND deleted_at IS NULL\n                ),\n                total_product_count = (\n                    SELECT COUNT(*) FROM products p\n                    JOIN product_categories child ON child.category_id = p.category_id\n                    WHERE (child.path = pc.path OR child.path LIKE pc.path || '/%')\n                      AND p.tenant_id = pc.tenant_id\n                      AND p.deleted_at IS NULL\n                )\n            WHERE pc.tenant_id = $1\n              AND (pc.category_id = $2 OR pc.path LIKE (\n                  SELECT path || '/%' FROM product_categories WHERE category_id = $2\n              ))\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4bfb77ae98b1940644cd01df9e731c0fa830bc7c0970f48ff6bf902d485ed574"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE quality_control_points\n            SET active = false, updated_at = NOW()\n            WHERE tenant_id = $1 AND qc_point_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "781a18aa0a5a9e8257bd9275eb03a700a154cf60643d9add71481029badcacc8"
+}

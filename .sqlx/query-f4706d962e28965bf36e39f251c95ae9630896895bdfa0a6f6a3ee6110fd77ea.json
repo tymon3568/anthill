@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE goods_receipts\n            SET total_quantity = $1, total_value = $2\n            WHERE receipt_id = $3 AND tenant_id = $4\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f4706d962e28965bf36e39f251c95ae9630896895bdfa0a6f6a3ee6110fd77ea"
+}

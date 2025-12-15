@@ -1,0 +1,221 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO stock_transfers (\n                transfer_id, tenant_id, transfer_number, reference_number,\n                source_warehouse_id, destination_warehouse_id, status, transfer_type, priority,\n                transfer_date, expected_ship_date, expected_receive_date,\n                shipping_method, notes, reason, created_by, updated_by,\n                total_quantity, total_value, currency_code\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)\n            RETURNING transfer_id, tenant_id, transfer_number, reference_number,\n                      source_warehouse_id, destination_warehouse_id, status, transfer_type, priority,\n                      transfer_date, expected_ship_date, actual_ship_date,\n                      expected_receive_date, actual_receive_date,\n                      shipping_method, carrier, tracking_number, shipping_cost,\n                      notes, reason, created_by, updated_by, approved_by, approved_at,\n                      total_quantity, total_value, currency_code,\n                      created_at, updated_at, deleted_at, deleted_by\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "transfer_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "transfer_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "reference_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "source_warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "destination_warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "transfer_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "priority",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "transfer_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "expected_ship_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "actual_ship_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "expected_receive_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "actual_receive_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "shipping_method",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "carrier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 16,
+        "name": "tracking_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 17,
+        "name": "shipping_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 18,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 19,
+        "name": "reason",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 20,
+        "name": "created_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 21,
+        "name": "updated_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 22,
+        "name": "approved_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 23,
+        "name": "approved_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 24,
+        "name": "total_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 25,
+        "name": "total_value",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 26,
+        "name": "currency_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 27,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 28,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 29,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 30,
+        "name": "deleted_by",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Varchar",
+        "Text",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "821aacc94f0b840178c04b29cfb30b099e79e856b439ed182498ba546c0d414c"
+}

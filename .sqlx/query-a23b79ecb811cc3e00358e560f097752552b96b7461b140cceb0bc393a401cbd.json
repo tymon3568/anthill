@@ -1,0 +1,113 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                delivery_item_id, delivery_id, tenant_id, product_id,\n                ordered_quantity, picked_quantity, delivered_quantity,\n                uom_id, batch_number, expiry_date::timestamptz as expiry_date,\n                unit_price, line_total, notes, created_at, updated_at, deleted_at\n            FROM delivery_order_items\n            WHERE tenant_id = $1 AND delivery_item_id = $2 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "delivery_item_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "delivery_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "ordered_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "picked_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "delivered_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "uom_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 8,
+        "name": "batch_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "expiry_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "unit_price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "line_total",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      null,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "a23b79ecb811cc3e00358e560f097752552b96b7461b140cceb0bc393a401cbd"
+}

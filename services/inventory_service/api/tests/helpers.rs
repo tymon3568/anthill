@@ -1,26 +1,31 @@
+#![allow(dead_code, unused_imports, clippy::single_component_path_imports)]
+
 use std::sync::Arc;
 
 use axum::Router;
-use shared_auth;
-use shared_kanidm_client;
 use sqlx::{migrate::Migrator, PgPool};
 
 use inventory_service_api::routes::DummyDeliveryService;
 
 use inventory_service_infra::repositories::{
-    CategoryRepositoryImpl, PgDeliveryOrderItemRepository, PgDeliveryOrderRepository,
-    PgInventoryLevelRepository, PgStockMoveRepository, PgStockReconciliationItemRepository,
-    PgStockReconciliationRepository, PgStockTakeLineRepository, PgStockTakeRepository,
-    PgTransferItemRepository, PgTransferRepository, ReceiptRepositoryImpl, ValuationRepositoryImpl,
-    WarehouseRepositoryImpl,
+    CategoryRepositoryImpl, LotSerialRepositoryImpl, PgDeliveryOrderItemRepository,
+    PgDeliveryOrderRepository, PgInventoryLevelRepository, PgPutawayRepository,
+    PgQualityControlPointRepository, PgReorderRuleRepository, PgRmaItemRepository, PgRmaRepository,
+    PgStockMoveRepository, PgStockReconciliationItemRepository, PgStockReconciliationRepository,
+    PgStockTakeLineRepository, PgStockTakeRepository, PgTransferItemRepository,
+    PgTransferRepository, PickingMethodRepositoryImpl, ProductRepositoryImpl,
+    ReceiptRepositoryImpl, ValuationRepositoryImpl, WarehouseRepositoryImpl,
 };
 use inventory_service_infra::services::{
-    CategoryServiceImpl, PgStockReconciliationService, PgStockTakeService, PgTransferService,
-    ReceiptServiceImpl, ValuationServiceImpl,
+    CategoryServiceImpl, LotSerialServiceImpl, PgPutawayService, PgQualityControlPointService,
+    PgReplenishmentService, PgRmaService, PgStockReconciliationService, PgStockTakeService,
+    PgTransferService, PickingMethodServiceImpl, ReceiptServiceImpl, RedisDistributedLockService,
+    ValuationServiceImpl,
 };
 use uuid::Uuid;
 
 use inventory_service_api::handlers::reconciliation::create_reconciliation_routes;
+use inventory_service_api::middleware::IdempotencyConfig;
 use inventory_service_api::state::AppState;
 
 use shared_auth::AuthUser;
@@ -43,65 +48,160 @@ pub async fn setup_test_database() -> PgPool {
     pool
 }
 
-/*
 /// Create test application with minimal services for reconciliation tests
 pub async fn create_test_app(pool: PgPool) -> Router {
-    let shared_pool = Arc::new(pool);
+    // Clone PgPool directly (it's internally Arc-wrapped)
+    let pool_ref = pool.clone();
 
-    // Create repositories needed for reconciliation
-    let reconciliation_repo = Arc::new(PgStockReconciliationRepository::new(shared_pool.clone()));
+    // -- Repositories --
+    // Note: Many of these repos don't implement Clone, so we wrap them in Arc immediately
+    // and DON'T try to clone the impl afterward.
+
+    // Product - both trait object and concrete for different services
+    let product_repo_impl = Arc::new(ProductRepositoryImpl::new(pool_ref.clone()));
+    let product_repo: Arc<dyn inventory_service_core::repositories::product::ProductRepository> =
+        product_repo_impl.clone();
+
+    // Warehouse
+    let warehouse_repo: Arc<dyn inventory_service_core::repositories::WarehouseRepository> =
+        Arc::new(WarehouseRepositoryImpl::new(pool_ref.clone()));
+
+    // Inventory Level - Some repos take Arc<PgPool>, some take PgPool. Check each.
+    let inventory_repo: Arc<dyn inventory_service_core::repositories::InventoryLevelRepository> =
+        Arc::new(PgInventoryLevelRepository::new(Arc::new(pool_ref.clone())));
+
+    // Stock Move
+    let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool_ref.clone())));
+    let stock_move_repo_trait: Arc<dyn inventory_service_core::repositories::StockMoveRepository> =
+        stock_move_repo.clone();
+
+    // Reconciliation
+    let reconciliation_repo =
+        Arc::new(PgStockReconciliationRepository::new(Arc::new(pool_ref.clone())));
     let reconciliation_item_repo =
-        Arc::new(PgStockReconciliationItemRepository::new(shared_pool.clone()));
-    let stock_move_repo = Arc::new(PgStockMoveRepository::new(shared_pool.clone()));
-    let inventory_repo = Arc::new(PgInventoryLevelRepository::new(shared_pool.clone()));
-    let product_repo =
-        Arc::new(inventory_service_infra::repositories::product::ProductRepositoryImpl::new(
-            (*shared_pool).clone(),
-        ));
+        Arc::new(PgStockReconciliationItemRepository::new(Arc::new(pool_ref.clone())));
 
-    // Create reconciliation service
+    // Valuation - single instance, wrap in Arc for each trait
+    let valuation_repo_impl = Arc::new(ValuationRepositoryImpl::new(pool_ref.clone()));
+    let valuation_repo_trait: Arc<
+        dyn inventory_service_core::repositories::valuation::ValuationRepository,
+    > = valuation_repo_impl.clone();
+    let valuation_layer_trait: Arc<
+        dyn inventory_service_core::repositories::valuation::ValuationLayerRepository,
+    > = valuation_repo_impl.clone();
+    let valuation_history_trait: Arc<
+        dyn inventory_service_core::repositories::valuation::ValuationHistoryRepository,
+    > = valuation_repo_impl.clone();
+
+    // Category
+    let category_repo = CategoryRepositoryImpl::new(pool_ref.clone());
+
+    // Picking Method
+    let picking_repo_trait: Arc<
+        dyn inventory_service_core::repositories::picking_method::PickingMethodRepository
+            + Send
+            + Sync,
+    > = Arc::new(PickingMethodRepositoryImpl::new(pool_ref.clone()));
+
+    // Lot Serial
+    let lot_serial_repo_impl = LotSerialRepositoryImpl::new(pool_ref.clone());
+
+    // Receipt
+    let receipt_repo = Arc::new(ReceiptRepositoryImpl::new(pool_ref.clone()));
+
+    // Transfer
+    let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool_ref.clone())));
+    let transfer_item_repo = Arc::new(PgTransferItemRepository::new(Arc::new(pool_ref.clone())));
+
+    // Stock Take
+    let stock_take_repo = Arc::new(PgStockTakeRepository::new(Arc::new(pool_ref.clone())));
+    let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(Arc::new(pool_ref.clone())));
+
+    // RMA
+    let rma_repo = Arc::new(PgRmaRepository::new(Arc::new(pool_ref.clone())));
+    let rma_item_repo = Arc::new(PgRmaItemRepository::new(Arc::new(pool_ref.clone())));
+
+    // Reorder Rule - takes PgPool, not Arc<PgPool>
+    let reorder_repo = Arc::new(PgReorderRuleRepository::new(pool_ref.clone()));
+
+    // Quality - takes PgPool, not Arc<PgPool>
+    let quality_repo = Arc::new(PgQualityControlPointRepository::new(pool_ref.clone()));
+
+    // Putaway - takes PgPool, not Arc<PgPool>
+    let putaway_repo = Arc::new(PgPutawayRepository::new(pool_ref.clone()));
+
+    // -- Services --
+
+    let redis_url =
+        std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://localhost:6379".to_string());
+    let distributed_lock_service = Arc::new(RedisDistributedLockService::new(&redis_url).unwrap());
+
+    // Create a new stock move repo for putaway service (it takes by value)
+    let stock_move_for_putaway = PgStockMoveRepository::new(Arc::new(pool_ref.clone()));
+
+    // Create a new inventory level repo for reconciliation service
+    let inventory_for_reconciliation =
+        Arc::new(PgInventoryLevelRepository::new(Arc::new(pool_ref.clone())));
+
+    // Reconciliation Service
     let reconciliation_service = Arc::new(PgStockReconciliationService::new(
-        shared_pool.clone(),
+        Arc::new(pool_ref.clone()),
         reconciliation_repo,
         reconciliation_item_repo,
-        stock_move_repo,
-        inventory_repo,
-        product_repo,
+        stock_move_repo.clone(),
+        inventory_for_reconciliation,
+        product_repo.clone(),
     ));
 
-    // Create minimal app state with only required fields for reconciliation
+    // Create minimal app state
     let app_state = AppState {
-        category_service: Arc::new(CategoryServiceImpl::new(CategoryRepositoryImpl::new((*shared_pool).clone()))),
-        lot_serial_service: Arc::new(inventory_service_infra::services::lot_serial::LotSerialServiceImpl::new(shared_pool.clone())),
-        picking_method_service: Arc::new(inventory_service_infra::services::picking_method::PickingMethodServiceImpl::new(shared_pool.clone())),
-        product_service: Arc::new(inventory_service_infra::services::product::ProductServiceImpl::new(product_repo)),
-        valuation_service: Arc::new(inventory_service_infra::services::valuation::ValuationServiceImpl::new(shared_pool.clone(), Arc::new(inventory_service_infra::repositories::valuation::ValuationRepositoryImpl::new(shared_pool.clone())))),
-        warehouse_repository: Arc::new(WarehouseRepositoryImpl::new((*shared_pool).clone())),
+        category_service: Arc::new(CategoryServiceImpl::new(category_repo)),
+        lot_serial_service: Arc::new(LotSerialServiceImpl::new(
+            lot_serial_repo_impl,
+            stock_move_repo.clone(),
+            warehouse_repo.clone(),
+        )),
+        picking_method_service: Arc::new(PickingMethodServiceImpl::new(picking_repo_trait)),
+        product_service: Arc::new(
+            inventory_service_infra::services::product::ProductServiceImpl::new(
+                product_repo.clone(),
+            ),
+        ),
+        valuation_service: Arc::new(ValuationServiceImpl::new(
+            valuation_repo_trait,
+            valuation_layer_trait,
+            valuation_history_trait,
+        )),
+        warehouse_repository: warehouse_repo.clone(),
         receipt_service: Arc::new(ReceiptServiceImpl::new(
-            Arc::new(ReceiptRepositoryImpl::new((*shared_pool).clone())),
-            Arc::new(inventory_service_infra::repositories::product::ProductRepositoryImpl::new((*shared_pool).clone())),
-            Arc::new(inventory_service_infra::services::distributed_lock::DistributedLockServiceImpl::new(shared_pool.clone())),
+            receipt_repo,
+            product_repo_impl.clone(), // Needs concrete type, not dyn
+            distributed_lock_service.clone(),
         )),
         delivery_service: Arc::new(DummyDeliveryService {}),
         transfer_service: Arc::new(PgTransferService::new(
-            Arc::new(PgTransferRepository::new(shared_pool.clone())),
-            Arc::new(PgTransferItemRepository::new(shared_pool.clone())),
-            Arc::new(PgStockMoveRepository::new(shared_pool.clone())),
-            Arc::new(PgInventoryLevelRepository::new(shared_pool.clone())),
+            transfer_repo,
+            transfer_item_repo,
+            stock_move_repo.clone(),
+            Arc::new(PgInventoryLevelRepository::new(Arc::new(pool_ref.clone()))),
         )),
         stock_take_service: Arc::new(PgStockTakeService::new(
-            shared_pool.clone(),
-            Arc::new(PgStockTakeRepository::new(shared_pool.clone())),
-            Arc::new(PgStockTakeLineRepository::new(shared_pool.clone())),
-            Arc::new(PgStockMoveRepository::new(shared_pool.clone())),
-            Arc::new(PgInventoryLevelRepository::new(shared_pool.clone())),
+            Arc::new(pool_ref.clone()),
+            stock_take_repo,
+            stock_take_line_repo,
+            stock_move_repo.clone(),
+            Arc::new(PgInventoryLevelRepository::new(Arc::new(pool_ref.clone()))),
         )),
         reconciliation_service,
-        rma_service: Arc::new(inventory_service_infra::services::rma::RmaServiceImpl::new(shared_pool.clone())),
-        replenishment_service: Arc::new(inventory_service_infra::services::replenishment::ReplenishmentServiceImpl::new(shared_pool.clone())),
-        quality_service: Arc::new(inventory_service_infra::services::quality::QualityControlPointServiceImpl::new(shared_pool.clone())),
-        putaway_service: Arc::new(inventory_service_infra::services::putaway::PutawayServiceImpl::new(shared_pool.clone())),
-        distributed_lock_service: Arc::new(inventory_service_infra::services::distributed_lock::DistributedLockServiceImpl::new(shared_pool.clone())),
+        rma_service: Arc::new(PgRmaService::new(rma_repo, rma_item_repo, stock_move_repo_trait)),
+        replenishment_service: Arc::new(PgReplenishmentService::new(
+            reorder_repo,
+            inventory_repo.clone(),
+            None,
+        )),
+        quality_service: Arc::new(PgQualityControlPointService::new(quality_repo)),
+        putaway_service: Arc::new(PgPutawayService::new(putaway_repo, stock_move_for_putaway)),
+        distributed_lock_service,
         enforcer: shared_auth::enforcer::create_enforcer(
             &std::env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "postgres://test:test@localhost:5433/test".to_string()),
@@ -123,12 +223,17 @@ pub async fn create_test_app(pool: PgPool) -> Router {
             },
         )
         .unwrap(),
-        idempotency_state: Arc::new(crate::middleware::IdempotencyState::new()),
+        idempotency_state: Arc::new(
+            inventory_service_api::middleware::IdempotencyState::new(IdempotencyConfig {
+                redis_url: redis_url.clone(),
+                ..Default::default()
+            })
+            .unwrap(),
+        ),
     };
 
     create_reconciliation_routes().layer(axum::Extension(app_state))
 }
-*/
 
 /// Create a test user for authentication
 pub async fn create_test_user(pool: &PgPool) -> AuthUser {
@@ -194,20 +299,6 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
         tenant_id,
         "TESTWH",
         "Test Warehouse"
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-
-    // Insert test inventory level
-    sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, created_at)
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())
-         ON CONFLICT (tenant_id, warehouse_id, product_id) DO UPDATE SET available_quantity = $4",
-        tenant_id,
-        warehouse_id,
-        product_id,
-        100
     )
     .execute(pool)
     .await

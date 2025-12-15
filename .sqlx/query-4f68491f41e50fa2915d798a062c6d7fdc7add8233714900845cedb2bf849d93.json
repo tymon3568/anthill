@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE reorder_rules\n            SET\n                reorder_point = COALESCE($3, reorder_point),\n                min_quantity = COALESCE($4, min_quantity),\n                max_quantity = COALESCE($5, max_quantity),\n                lead_time_days = COALESCE($6, lead_time_days),\n                safety_stock = COALESCE($7, safety_stock),\n                updated_at = NOW()\n            WHERE tenant_id = $1 AND rule_id = $2 AND deleted_at IS NULL\n            RETURNING\n                rule_id, tenant_id, product_id, warehouse_id,\n                reorder_point, min_quantity, max_quantity,\n                lead_time_days, safety_stock,\n                created_at, updated_at, deleted_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rule_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "reorder_point",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "min_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "max_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "lead_time_days",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "safety_stock",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4f68491f41e50fa2915d798a062c6d7fdc7add8233714900845cedb2bf849d93"
+}

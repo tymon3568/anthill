@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*)::INTEGER as count\n            FROM products\n            WHERE tenant_id = $1 AND category_id = $2 AND is_active = true AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "eac6d90dfc80230a7cf9177bf8c97ee120eb0b4a94f73779bf1c6a42ac231d90"
+}
