@@ -73,6 +73,7 @@ jobs:
             --output-path lcov.info
         env:
           RUSTFLAGS: "--cfg uuid_unstable"
+          SQLX_OFFLINE: true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -174,6 +175,8 @@ jobs:
             --all-features \
             --lcov \
             --output-path ../../lcov-inventory.info
+        env:
+          SQLX_OFFLINE: true
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5

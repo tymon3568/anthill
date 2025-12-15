@@ -145,6 +145,8 @@ jobs:
           cargo test --workspace --lib --bins \
             --exclude integration_tests \
             -- --nocapture --test-threads=4
+        env:
+          SQLX_OFFLINE: true
 
       - name: Upload test results
         if: always()
