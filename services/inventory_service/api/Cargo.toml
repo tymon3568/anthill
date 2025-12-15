@@ -30,6 +30,7 @@ shared_db = {workspace = true}
 shared_error = {workspace = true}
 shared_events = {workspace = true}
 shared_kanidm_client = {workspace = true}
+shared_types = {workspace = true}
 # SQLx - database
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
 # Async runtime
@@ -58,7 +59,8 @@ wiremock = {workspace = true}
 [features]
 default = []
 delivery = []
-export-spec = []
+export-spec = ["openapi"]
+openapi = []
 
 # Library for integration tests
 [lib]

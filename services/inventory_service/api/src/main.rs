@@ -74,7 +74,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Create the application router
-    let app = create_router(pool, &config).await;
+    let app = create_router(pool, &config).await?;
 
     // Start the server
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));

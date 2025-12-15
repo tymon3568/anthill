@@ -2,6 +2,9 @@
 //!
 //! This module contains the Axum handlers for product search endpoints.
 
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
+
 use axum::{
     extract::{Extension, Query},
     response::Json,
@@ -18,11 +21,20 @@ use crate::state::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
+/// Error response for OpenAPI documentation
+#[derive(utoipa::ToSchema)]
+pub struct ErrorResponse {
+    /// Error message
+    pub error: String,
+    /// Error code
+    pub code: String,
+}
+
 /// Create the search routes
 pub fn create_search_routes() -> Router {
     Router::new()
-        .route("/search", get(search_products))
-        .route("/suggestions", get(search_suggestions))
+        .route("/products/search", get(search_products))
+        .route("/products/suggestions", get(search_suggestions))
 }
 
 /// GET /api/v1/inventory/products/search - Advanced product search
@@ -58,6 +70,24 @@ pub fn create_search_routes() -> Router {
 /// ```
 /// GET /api/v1/inventory/products/search?query=laptop&categoryIds=123e4567-e89b-12d3-a456-426614174000&priceMin=1000000&sortBy=price&sortOrder=asc&page=1&limit=20
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/products/search",
+    tag = "search",
+    operation_id = "search_products",
+    params(
+        ProductSearchQuery
+    ),
+    responses(
+        (status = 200, description = "Search results with pagination, facets, and metadata", body = ProductSearchResponse),
+        (status = 400, description = "Invalid query parameters", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn search_products(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -98,6 +128,24 @@ pub async fn search_products(
 /// ```
 /// GET /api/v1/inventory/products/suggestions?query=lapt&limit=5
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/products/suggestions",
+    tag = "search",
+    operation_id = "search_suggestions",
+    params(
+        SearchSuggestionsQuery
+    ),
+    responses(
+        (status = 200, description = "List of search suggestions with types and counts", body = SearchSuggestionsResponse),
+        (status = 400, description = "Missing or invalid query parameter", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn search_suggestions(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -119,7 +167,7 @@ pub async fn search_suggestions(
 }
 
 /// Query parameters for product search endpoint
-#[derive(serde::Deserialize)]
+#[derive(utoipa::IntoParams, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProductSearchQuery {
     pub query: Option<String>,
@@ -213,7 +261,7 @@ impl ProductSearchQuery {
 }
 
 /// Query parameters for search suggestions endpoint
-#[derive(serde::Deserialize)]
+#[derive(utoipa::IntoParams, serde::Deserialize)]
 pub struct SearchSuggestionsQuery {
     pub query: String,
     pub limit: Option<u32>,

@@ -10,6 +10,8 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use inventory_service_core::dto::category::{
@@ -78,6 +80,23 @@ pub fn create_category_routes() -> Router {
 ///   "is_active": true
 /// }
 /// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/categories",
+    tag = "categories",
+    operation_id = "create_category",
+    request_body = CategoryCreateRequest,
+    responses(
+        (status = 200, description = "Category created successfully", body = CategoryResponse),
+        (status = 400, description = "Invalid request data"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 409, description = "Category code or slug already exists")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_category(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -120,6 +139,22 @@ pub async fn create_category(
 /// ```
 /// GET /api/v1/inventory/categories?page=1&page_size=10&is_active=true
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories",
+    tag = "categories",
+    operation_id = "list_categories",
+    params(CategoryListQuery),
+    responses(
+        (status = 200, description = "Paginated list of categories", body = CategoryListResponse),
+        (status = 400, description = "Invalid query parameters"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn list_categories(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -155,6 +190,22 @@ pub async fn list_categories(
 /// ```
 /// GET /api/v1/inventory/categories/tree?parent_id=123e4567-e89b-12d3-a456-426614174000&max_depth=3
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/tree",
+    tag = "categories",
+    operation_id = "get_category_tree",
+    params(CategoryTreeQuery),
+    responses(
+        (status = 200, description = "Hierarchical tree structure", body = Vec<CategoryTreeResponse>),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Parent category not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_category_tree(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -189,6 +240,22 @@ pub async fn get_category_tree(
 /// ```
 /// GET /api/v1/inventory/categories/search?q=electronics&limit=10
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/search",
+    tag = "categories",
+    operation_id = "search_categories",
+    params(SearchQuery),
+    responses(
+        (status = 200, description = "Array of matching categories", body = Vec<CategoryResponse>),
+        (status = 400, description = "Missing or invalid search query"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn search_categories(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -223,6 +290,22 @@ pub async fn search_categories(
 /// ```
 /// GET /api/v1/inventory/categories/top?limit=5
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/top",
+    tag = "categories",
+    operation_id = "get_top_categories",
+    params(TopCategoriesQuery),
+    responses(
+        (status = 200, description = "Array of top categories", body = Vec<CategoryResponse>),
+        (status = 400, description = "Invalid limit parameter"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_top_categories(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -257,6 +340,24 @@ pub async fn get_top_categories(
 /// ```
 /// GET /api/v1/inventory/categories/123e4567-e89b-12d3-a456-426614174000
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/{category_id}",
+    tag = "categories",
+    operation_id = "get_category",
+    params(
+        ("category_id" = Uuid, Path, description = "UUID of the category to retrieve")
+    ),
+    responses(
+        (status = 200, description = "Category details", body = CategoryResponse),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Category not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_category(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -300,6 +401,27 @@ pub async fn get_category(
 ///   "is_active": false
 /// }
 /// ```
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/categories/{category_id}",
+    tag = "categories",
+    operation_id = "update_category",
+    params(
+        ("category_id" = Uuid, Path, description = "UUID of the category to update")
+    ),
+    request_body = CategoryUpdateRequest,
+    responses(
+        (status = 200, description = "Updated category details", body = CategoryResponse),
+        (status = 400, description = "Invalid request data"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Category not found"),
+        (status = 409, description = "Updated code or slug conflicts with existing category")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn update_category(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -336,6 +458,25 @@ pub async fn update_category(
 /// ```
 /// DELETE /api/v1/inventory/categories/123e4567-e89b-12d3-a456-426614174000
 /// ```
+#[utoipa::path(
+    delete,
+    path = "/api/v1/inventory/categories/{category_id}",
+    tag = "categories",
+    operation_id = "delete_category",
+    params(
+        ("category_id" = Uuid, Path, description = "UUID of the category to delete")
+    ),
+    responses(
+        (status = 204, description = "Category deleted successfully"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Category not found"),
+        (status = 409, description = "Category cannot be deleted")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn delete_category(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -369,6 +510,24 @@ pub async fn delete_category(
 /// ```
 /// GET /api/v1/inventory/categories/123e4567-e89b-12d3-a456-426614174000/children
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/{category_id}/children",
+    tag = "categories",
+    operation_id = "get_category_children",
+    params(
+        ("category_id" = Uuid, Path, description = "UUID of the parent category")
+    ),
+    responses(
+        (status = 200, description = "Array of child categories", body = Vec<CategoryResponse>),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Parent category not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_children(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -411,6 +570,24 @@ pub async fn get_children(
 ///   {"category_id": "123e4567-e89b-12d3-a456-426614174000", "name": "Smartphones", "slug": "smartphones"}
 /// ]
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/{category_id}/breadcrumbs",
+    tag = "categories",
+    operation_id = "get_category_breadcrumbs",
+    params(
+        ("category_id" = Uuid, Path, description = "UUID of the category to get breadcrumbs for")
+    ),
+    responses(
+        (status = 200, description = "Array of breadcrumb items from root to current category", body = Vec<inventory_service_core::domains::category::CategoryBreadcrumb>),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Category not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_breadcrumbs(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -458,6 +635,24 @@ pub async fn get_breadcrumbs(
 ///   "inactive_product_count": 3
 /// }
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/{category_id}/stats",
+    tag = "categories",
+    operation_id = "get_category_stats",
+    params(
+        ("category_id" = Uuid, Path, description = "UUID of the category to get statistics for")
+    ),
+    responses(
+        (status = 200, description = "Category statistics including counts and breakdowns", body = CategoryStatsResponse),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Category not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_category_stats(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -493,6 +688,24 @@ pub async fn get_category_stats(
 /// ```
 ///
 /// Response: `true` or `false`
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/categories/{category_id}/can-delete",
+    tag = "categories",
+    operation_id = "can_delete_category",
+    params(
+        ("category_id" = Uuid, Path, description = "UUID of the category to check")
+    ),
+    responses(
+        (status = 200, description = "Boolean indicating if category can be deleted", body = bool),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Category not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn can_delete_category(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -532,6 +745,22 @@ pub async fn can_delete_category(
 ///   ]
 /// }
 /// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/categories/bulk/activate",
+    tag = "categories",
+    operation_id = "bulk_activate_categories",
+    request_body = BulkCategoryIds,
+    responses(
+        (status = 200, description = "Operation result with affected count", body = BulkOperationResponse),
+        (status = 400, description = "Invalid category IDs"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn bulk_activate_categories(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -571,6 +800,22 @@ pub async fn bulk_activate_categories(
 ///   ]
 /// }
 /// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/categories/bulk/deactivate",
+    tag = "categories",
+    operation_id = "bulk_deactivate_categories",
+    request_body = BulkCategoryIds,
+    responses(
+        (status = 200, description = "Operation result with affected count", body = BulkOperationResponse),
+        (status = 400, description = "Invalid category IDs"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn bulk_deactivate_categories(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -610,6 +855,22 @@ pub async fn bulk_deactivate_categories(
 ///   ]
 /// }
 /// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/categories/bulk/delete",
+    tag = "categories",
+    operation_id = "bulk_delete_categories",
+    request_body = BulkCategoryIds,
+    responses(
+        (status = 200, description = "Operation result with affected count", body = BulkOperationResponse),
+        (status = 400, description = "Invalid category IDs or categories cannot be deleted"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Admin privileges required")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn bulk_delete_categories(
     RequireAdmin(auth_user): RequireAdmin,
     Extension(state): Extension<AppState>,
@@ -651,6 +912,23 @@ pub async fn bulk_delete_categories(
 ///   "category_id": "456e7890-e89b-12d3-a456-426614174001"
 /// }
 /// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/categories/products/move",
+    tag = "categories",
+    operation_id = "move_products_to_category",
+    request_body = MoveToCategoryRequest,
+    responses(
+        (status = 200, description = "Operation result with number of products moved", body = BulkOperationResponse),
+        (status = 400, description = "Invalid product IDs or target category"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Target category not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn move_products_to_category(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -664,27 +942,27 @@ pub async fn move_products_to_category(
 }
 
 /// Query parameters for category tree endpoint
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct CategoryTreeQuery {
     pub parent_id: Option<Uuid>,
     pub max_depth: Option<i32>,
 }
 
 /// Query parameters for search endpoint
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct SearchQuery {
     pub q: String,
     pub limit: Option<i32>,
 }
 
 /// Query parameters for top categories endpoint
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct TopCategoriesQuery {
     pub limit: Option<i32>,
 }
 
 /// Request body for bulk operations
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct BulkCategoryIds {
     pub category_ids: Vec<Uuid>,
 }

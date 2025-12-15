@@ -3,6 +3,8 @@
 //! This module contains request and response structures for Goods Receipt Note (GRN) operations.
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -10,6 +12,7 @@ use crate::dto::PaginationInfo;
 
 /// Request to create a new Goods Receipt Note
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiptCreateRequest {
     /// Warehouse where goods are being received
     pub warehouse_id: Uuid,
@@ -39,6 +42,7 @@ pub struct ReceiptCreateRequest {
 
 /// Request to create a receipt line item
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiptItemCreateRequest {
     /// Product being received
     pub product_id: Uuid,
@@ -75,6 +79,7 @@ pub struct ReceiptItemCreateRequest {
 
 /// Response containing created receipt details
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiptResponse {
     /// Unique receipt identifier
     pub receipt_id: Uuid,
@@ -133,6 +138,7 @@ pub struct ReceiptResponse {
 
 /// Response containing receipt line item details
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiptItemResponse {
     /// Unique item identifier
     pub receipt_item_id: Uuid,
@@ -182,6 +188,7 @@ pub struct ReceiptItemResponse {
 
 /// Query parameters for listing receipts
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
 pub struct ReceiptListQuery {
     /// Page number (1-based)
     #[serde(default = "default_page")]
@@ -214,6 +221,7 @@ pub struct ReceiptListQuery {
 
 /// Paginated response for receipt listing
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiptListResponse {
     /// List of receipts
     pub receipts: Vec<ReceiptSummaryResponse>,
@@ -224,6 +232,7 @@ pub struct ReceiptListResponse {
 
 /// Summary response for receipt listing (without full items)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiptSummaryResponse {
     /// Unique receipt identifier
     pub receipt_id: Uuid,

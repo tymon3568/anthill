@@ -7,6 +7,7 @@ use crate::dto::PaginationInfo;
 
 /// Product search request DTO
 #[derive(Debug, Clone, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct ProductSearchRequest {
     /// Search query string (full-text search)
@@ -228,6 +229,7 @@ pub struct AppliedFilters {
 
 /// Search suggestions/autocomplete request
 #[derive(Debug, Clone, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct SearchSuggestionsRequest {
     #[validate(length(min = 1, max = 100))]

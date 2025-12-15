@@ -157,10 +157,9 @@ pub struct MoveToCategoryRequest {
 
 /// Query parameters for listing categories
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
 pub struct CategoryListQuery {
     /// Filter by parent category (None for root categories only)
-    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>, format = "uuid"))]
     pub parent_id: Option<Uuid>,
 
     /// Filter by level (0 for root, 1 for first level, etc.)

@@ -9,6 +9,8 @@ use axum::{
     routing::{get, post},
     Router,
 };
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -72,6 +74,22 @@ pub fn create_receipt_routes() -> Router {
 ///   ]
 /// }
 /// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/receipts",
+    tag = "receipts",
+    operation_id = "create_receipt",
+    request_body = ReceiptCreateRequest,
+    responses(
+        (status = 201, description = "Receipt created successfully", body = ReceiptResponse),
+        (status = 400, description = "Invalid request data"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_receipt(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -117,6 +135,22 @@ pub async fn create_receipt(
 /// ```
 /// GET /api/v1/inventory/receipts?page=1&page_size=10&warehouse_id=550e8400-e29b-41d4-a716-446655440000&status=received
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/receipts",
+    tag = "receipts",
+    operation_id = "list_receipts",
+    params(ReceiptListQuery),
+    responses(
+        (status = 200, description = "Paginated list of receipts", body = ReceiptListResponse),
+        (status = 400, description = "Invalid query parameters"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn list_receipts(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -177,6 +211,24 @@ pub async fn list_receipts(
 ///   ]
 /// }
 /// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/receipts/{receipt_id}",
+    tag = "receipts",
+    operation_id = "get_receipt",
+    params(
+        ("receipt_id" = Uuid, Path, description = "UUID of the receipt to retrieve")
+    ),
+    responses(
+        (status = 200, description = "Complete receipt details with all line items", body = ReceiptResponse),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Receipt not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_receipt(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -215,6 +267,25 @@ pub async fn get_receipt(
 /// ```
 ///
 /// Response includes the updated receipt with status 'received'.
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/receipts/{receipt_id}/validate",
+    tag = "receipts",
+    operation_id = "validate_receipt",
+    params(
+        ("receipt_id" = Uuid, Path, description = "UUID of the receipt to validate")
+    ),
+    responses(
+        (status = 200, description = "Receipt successfully validated", body = ReceiptResponse),
+        (status = 400, description = "Receipt is not in a valid state for validation"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Receipt not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn validate_receipt(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
