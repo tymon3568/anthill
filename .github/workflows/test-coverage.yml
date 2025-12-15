@@ -138,6 +138,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
           JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
+          SQLX_OFFLINE: true
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
