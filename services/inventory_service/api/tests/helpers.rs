@@ -57,9 +57,10 @@ pub async fn create_test_app(pool: PgPool) -> Router {
     // Note: Many of these repos don't implement Clone, so we wrap them in Arc immediately
     // and DON'T try to clone the impl afterward.
 
-    // Product
+    // Product - both trait object and concrete for different services
+    let product_repo_impl = Arc::new(ProductRepositoryImpl::new(pool_ref.clone()));
     let product_repo: Arc<dyn inventory_service_core::repositories::product::ProductRepository> =
-        Arc::new(ProductRepositoryImpl::new(pool_ref.clone()));
+        product_repo_impl.clone();
 
     // Warehouse
     let warehouse_repo: Arc<dyn inventory_service_core::repositories::WarehouseRepository> =
@@ -174,7 +175,7 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         warehouse_repository: warehouse_repo.clone(),
         receipt_service: Arc::new(ReceiptServiceImpl::new(
             receipt_repo,
-            product_repo.clone(),
+            product_repo_impl.clone(), // Needs concrete type, not dyn
             distributed_lock_service.clone(),
         )),
         delivery_service: Arc::new(DummyDeliveryService {}),
@@ -298,37 +299,6 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
         tenant_id,
         "TESTWH",
         "Test Warehouse"
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-
-    // Also insert location for the warehouse
-    let location_id = Uuid::now_v7();
-    sqlx::query!(
-        "INSERT INTO locations (location_id, tenant_id, warehouse_id, location_code, location_name, created_at)
-         VALUES ($1, $2, $3, $4, $5, NOW())
-         ON CONFLICT (location_id) DO NOTHING",
-        location_id,
-        tenant_id,
-        warehouse_id,
-        "LOC001",
-        "Test Location"
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-
-    // Insert inventory level with the location
-    sqlx::query!(
-        "INSERT INTO inventory_levels (inventory_level_id, tenant_id, product_id, warehouse_id, location_id, quantity_on_hand, quantity_available, quantity_reserved, created_at)
-         VALUES ($1, $2, $3, $4, $5, 100, 100, 0, NOW())
-         ON CONFLICT DO NOTHING",
-        Uuid::now_v7(),
-        tenant_id,
-        product_id,
-        warehouse_id,
-        location_id
     )
     .execute(pool)
     .await
