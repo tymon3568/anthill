@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH latest_moves AS (\n            SELECT\n                tenant_id,\n                destination_location_id,\n                product_id,\n                move_date,\n                ROW_NUMBER() OVER (\n                    PARTITION BY tenant_id, destination_location_id, product_id\n                    ORDER BY move_date DESC\n                ) as rn\n            FROM stock_moves\n            WHERE tenant_id = $1\n              AND product_id = $3\n        )\n        SELECT\n            wl.location_id,\n            wl.location_code,\n            COALESCE(il.available_quantity, 0) as available_quantity,\n            NULL::UUID as lot_serial_id,\n            min_expiry.min_expiry as expiry_date,\n            lm.move_date as last_receipt_date\n        FROM storage_locations wl\n        LEFT JOIN inventory_levels il ON il.warehouse_id = wl.warehouse_id\n            AND il.tenant_id = wl.tenant_id\n            AND il.product_id = $3\n            AND il.deleted_at IS NULL\n        LEFT JOIN (\n            WITH latest_lot_locations AS (\n                SELECT\n                    lot_serial_id,\n                    destination_location_id,\n                    ROW_NUMBER() OVER (PARTITION BY lot_serial_id ORDER BY move_date DESC) as rn\n                FROM stock_moves\n                WHERE tenant_id = $1\n                  AND product_id = $3\n            )\n            SELECT\n                lll.destination_location_id as location_id,\n                lsn.product_id,\n                lsn.tenant_id,\n                MIN(lsn.expiry_date) as min_expiry\n            FROM lots_serial_numbers lsn\n            JOIN latest_lot_locations lll ON lll.lot_serial_id = lsn.lot_serial_id AND lll.rn = 1\n            WHERE lsn.deleted_at IS NULL\n            GROUP BY lll.destination_location_id, lsn.product_id, lsn.tenant_id\n        ) min_expiry ON min_expiry.location_id = wl.location_id\n            AND min_expiry.product_id = $3\n            AND min_expiry.tenant_id = $1\n        LEFT JOIN latest_moves lm ON lm.destination_location_id = wl.location_id\n            AND lm.product_id = $3\n            AND lm.tenant_id = wl.tenant_id\n            AND lm.rn = 1\n        WHERE wl.tenant_id = $1\n          AND wl.warehouse_id = $2\n          AND wl.deleted_at IS NULL\n          AND COALESCE(il.available_quantity, 0) > 0\n        ORDER BY wl.location_code\n    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "location_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "available_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "lot_serial_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "expiry_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_receipt_date",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "2b3a62ab640c0ba32be26d353acd40bc9802c170efb2caf22073a187ebbbab1b"
+}

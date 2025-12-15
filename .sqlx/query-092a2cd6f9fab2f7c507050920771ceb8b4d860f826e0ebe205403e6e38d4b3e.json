@@ -1,0 +1,162 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                delivery_id, tenant_id, delivery_number, reference_number,\n                warehouse_id, order_id, customer_id,\n                status as \"status: _\",\n                delivery_date, expected_ship_date, actual_ship_date,\n                shipping_method, carrier, tracking_number, shipping_cost,\n                notes, created_by, updated_by, total_quantity, total_value, currency_code,\n                created_at, updated_at, deleted_at\n            FROM delivery_orders\n            WHERE tenant_id = $1 AND deleted_at IS NULL\n            ORDER BY created_at DESC\n            LIMIT $2 OFFSET $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "delivery_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "delivery_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "reference_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "order_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "customer_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 7,
+        "name": "status: _",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "delivery_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "expected_ship_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "actual_ship_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "shipping_method",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "carrier",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "tracking_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "shipping_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 15,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 16,
+        "name": "created_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 17,
+        "name": "updated_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 18,
+        "name": "total_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 19,
+        "name": "total_value",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 20,
+        "name": "currency_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 21,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 22,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 23,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "092a2cd6f9fab2f7c507050920771ceb8b4d860f826e0ebe205403e6e38d4b3e"
+}

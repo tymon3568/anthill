@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT zone_id, tenant_id, warehouse_id, zone_code, zone_name, description, zone_type, zone_attributes, capacity_info, is_active, created_at, updated_at, deleted_at FROM warehouse_zones WHERE tenant_id = $1 AND zone_id = $2 AND deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "zone_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "zone_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "zone_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "zone_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "zone_attributes",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "capacity_info",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "5a5676eb6969507fd583d31ffd1a4fd9ffb3c2a9085876b93556e8db2f4c2211"
+}

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT available_quantity\n            FROM inventory_levels\n            WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "available_quantity",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ac49234a3577bf7b49a89acbd14f8e6b7fe81a290b554ab7822e2347ffdbc311"
+}

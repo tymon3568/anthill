@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                UPDATE event_outbox\n                SET status = 'published', published_at = NOW(), updated_at = NOW()\n                WHERE id = $1\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "79a151b6fe5acd898fb3866248ee8852337c8c3e1d39ce603faf3ebd79337d4a"
+}

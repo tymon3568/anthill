@@ -1,0 +1,143 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT reconciliation_id, tenant_id, reconciliation_number, name, description, status,\n                   cycle_type, warehouse_id, location_filter, product_filter, total_items,\n                   counted_items, total_variance, created_by, created_at, updated_at,\n                   started_at, completed_at, approved_by, approved_at, notes\n            FROM stock_reconciliations\n            WHERE tenant_id = $1 AND reconciliation_id = $2 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reconciliation_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "reconciliation_number",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "cycle_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 8,
+        "name": "location_filter",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "product_filter",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "total_items",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "counted_items",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "total_variance",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 16,
+        "name": "started_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 17,
+        "name": "completed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 18,
+        "name": "approved_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 19,
+        "name": "approved_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 20,
+        "name": "notes",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "2d20e1d2e9a0501c4d23b21d4a2f90b3763f90c0915d8ee8edcb1ed1c42e0bc9"
+}

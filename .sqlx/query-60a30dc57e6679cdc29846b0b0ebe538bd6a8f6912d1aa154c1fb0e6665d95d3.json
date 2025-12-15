@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE stock_reconciliations\n            SET approved_by = $1, approved_at = $2, updated_at = NOW()\n            WHERE tenant_id = $3 AND reconciliation_id = $4 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "60a30dc57e6679cdc29846b0b0ebe538bd6a8f6912d1aa154c1fb0e6665d95d3"
+}

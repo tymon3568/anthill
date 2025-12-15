@@ -1,0 +1,174 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO stock_reconciliations (\n                reconciliation_id, tenant_id, reconciliation_number, name, description, status,\n                cycle_type, warehouse_id, location_filter, product_filter, total_items,\n                counted_items, total_variance, created_by, created_at, updated_at,\n                started_at, completed_at, approved_by, approved_at, notes\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)\n            RETURNING reconciliation_id, tenant_id, reconciliation_number, name, description, status,\n                      cycle_type, warehouse_id, location_filter, product_filter, total_items,\n                      counted_items, total_variance, created_by, created_at, updated_at,\n                      started_at, completed_at, approved_by, approved_at, notes,\n                      deleted_at, deleted_by\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reconciliation_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "reconciliation_number",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "cycle_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 8,
+        "name": "location_filter",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "product_filter",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "total_items",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "counted_items",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 12,
+        "name": "total_variance",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 16,
+        "name": "started_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 17,
+        "name": "completed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 18,
+        "name": "approved_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 19,
+        "name": "approved_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 20,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 21,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 22,
+        "name": "deleted_by",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Jsonb",
+        "Jsonb",
+        "Int4",
+        "Int4",
+        "Int8",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Uuid",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b61f46e3964050abf3dc20ca1e9f06579301fbdc76ada7dff90fda2784249dc5"
+}

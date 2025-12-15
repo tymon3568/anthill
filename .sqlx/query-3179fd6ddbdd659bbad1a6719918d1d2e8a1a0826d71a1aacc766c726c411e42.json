@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE warehouses SET\n                warehouse_code = $3,\n                warehouse_name = $4,\n                description = $5,\n                warehouse_type = $6,\n                parent_warehouse_id = $7,\n                address = $8,\n                contact_info = $9,\n                capacity_info = $10,\n                is_active = $11,\n                updated_at = NOW()\n            WHERE tenant_id = $1 AND warehouse_id = $2 AND deleted_at IS NULL\n            RETURNING\n                warehouse_id, tenant_id, warehouse_code, warehouse_name, description,\n                warehouse_type, parent_warehouse_id, address, contact_info, capacity_info,\n                is_active, created_at, updated_at, deleted_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "warehouse_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "warehouse_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "warehouse_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "parent_warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 7,
+        "name": "address",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "contact_info",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "capacity_info",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 10,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Varchar",
+        "Uuid",
+        "Jsonb",
+        "Jsonb",
+        "Jsonb",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3179fd6ddbdd659bbad1a6719918d1d2e8a1a0826d71a1aacc766c726c411e42"
+}

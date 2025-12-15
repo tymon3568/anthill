@@ -1,0 +1,96 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT receipt_id, receipt_number, reference_number,\n                   warehouse_id, supplier_id, status, receipt_date,\n                   total_quantity, total_value, currency_code,\n                   created_at,\n                   (\n                       SELECT COUNT(*)::INTEGER\n                       FROM goods_receipt_items\n                       WHERE receipt_id = gr.receipt_id AND tenant_id = gr.tenant_id\n                   ) as item_count\n            FROM goods_receipts gr\n            WHERE tenant_id = $1\n              AND deleted_at IS NULL\n              AND ($2::UUID IS NULL OR warehouse_id = $2)\n              AND ($3::UUID IS NULL OR supplier_id = $3)\n              AND ($4::TEXT IS NULL OR status = $4)\n              AND ($5::TEXT IS NULL OR receipt_number ILIKE '%' || $5 || '%' OR reference_number ILIKE '%' || $5 || '%')\n              AND ($6::TIMESTAMPTZ IS NULL OR created_at >= $6)\n              AND ($7::TIMESTAMPTZ IS NULL OR created_at <= $7)\n            ORDER BY created_at DESC\n            LIMIT $8 OFFSET $9\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "receipt_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "receipt_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "reference_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "supplier_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "receipt_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "total_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "total_value",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "currency_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "item_count",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "626732e6c3b3654b139e18ef90d67fbe749e1b660110ff2dbe434289912b783c"
+}

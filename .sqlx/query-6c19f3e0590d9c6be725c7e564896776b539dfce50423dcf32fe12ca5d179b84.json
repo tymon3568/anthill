@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT product_id, received_quantity, unit_cost\n            FROM goods_receipt_items\n            WHERE tenant_id = $1 AND receipt_id = $2 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "received_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "unit_cost",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "6c19f3e0590d9c6be725c7e564896776b539dfce50423dcf32fe12ca5d179b84"
+}

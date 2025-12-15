@@ -1,0 +1,91 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT h.history_id, h.valuation_id, h.tenant_id, h.product_id,\n                   h.valuation_method, h.unit_cost, h.total_quantity, h.total_value,\n                   h.standard_cost, h.changed_at, h.changed_by, h.change_reason\n            FROM inventory_valuation_history h\n            WHERE h.tenant_id = $1 AND h.product_id = $2\n            ORDER BY h.changed_at DESC\n            LIMIT $3 OFFSET $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "history_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "valuation_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "valuation_method",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "unit_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "total_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "total_value",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "standard_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "changed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "changed_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 11,
+        "name": "change_reason",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "1cb765952e887df139c0740153b5cbfb7921cf76e666cb4c80d1649e1e27e8c1"
+}

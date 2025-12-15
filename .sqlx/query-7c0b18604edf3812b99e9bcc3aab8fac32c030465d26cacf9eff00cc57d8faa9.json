@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE stock_reconciliation_items\n            SET counted_quantity = $1, unit_cost = $2, counted_by = $3, counted_at = NOW(), notes = $4, updated_at = NOW()\n            WHERE tenant_id = $5 AND reconciliation_id = $6 AND product_id = $7 AND warehouse_id = $8 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7c0b18604edf3812b99e9bcc3aab8fac32c030465d26cacf9eff00cc57d8faa9"
+}

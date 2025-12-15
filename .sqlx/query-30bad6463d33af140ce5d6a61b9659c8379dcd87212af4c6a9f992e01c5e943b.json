@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                            UPDATE inventory_valuation_layers\n                            SET quantity = quantity - $3, total_value = (quantity - $3) * unit_cost\n                            WHERE layer_id = $1 AND tenant_id = $2 AND quantity >= $3\n                            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "30bad6463d33af140ce5d6a61b9659c8379dcd87212af4c6a9f992e01c5e943b"
+}

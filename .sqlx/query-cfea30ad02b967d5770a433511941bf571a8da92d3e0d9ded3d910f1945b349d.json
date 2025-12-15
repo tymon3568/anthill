@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) as count\n            FROM stock_reconciliations\n            WHERE tenant_id = $1 AND deleted_at IS NULL\n            AND ($2::uuid IS NULL OR warehouse_id = $2)\n            AND ($3::text IS NULL OR status = $3)\n            AND ($4::text IS NULL OR cycle_type = $4)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "cfea30ad02b967d5770a433511941bf571a8da92d3e0d9ded3d910f1945b349d"
+}

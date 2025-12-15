@@ -1,0 +1,96 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO quality_control_points (\n                tenant_id, name, type, product_id, warehouse_id\n            )\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING\n                qc_point_id, tenant_id, name,\n                type as \"qc_type: QcPointType\",\n                product_id, warehouse_id, active,\n                created_at, updated_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "qc_point_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "qc_type: QcPointType",
+        "type_info": {
+          "Custom": {
+            "name": "qc_point_type",
+            "kind": {
+              "Enum": [
+                "incoming",
+                "outgoing",
+                "internal"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        {
+          "Custom": {
+            "name": "qc_point_type",
+            "kind": {
+              "Enum": [
+                "incoming",
+                "outgoing",
+                "internal"
+              ]
+            }
+          }
+        },
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7d11008c125b5228042a52dbb944a40bdabca35487db3d8deb1a948c2262b4da"
+}

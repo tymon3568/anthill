@@ -1,0 +1,137 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO stock_moves (\n                tenant_id, product_id, source_location_id, destination_location_id,\n                move_type, quantity, unit_cost, reference_type, reference_id,\n                lot_serial_id, idempotency_key, move_reason, batch_info, metadata\n            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n            RETURNING\n                move_id, tenant_id, product_id, source_location_id, destination_location_id,\n                move_type, quantity, unit_cost, total_cost, reference_type, reference_id,\n                lot_serial_id, idempotency_key, move_date, move_reason, batch_info, metadata, created_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "move_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "source_location_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "destination_location_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "move_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "unit_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "total_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "reference_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "reference_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 11,
+        "name": "lot_serial_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 12,
+        "name": "idempotency_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "move_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "move_reason",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "batch_info",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 16,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 17,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Text",
+        "Jsonb",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "eba9e0a1ec4073709743a8ffcb8ecee7bd5d5d8a9d6a2f59a31eb0aded7b51e1"
+}

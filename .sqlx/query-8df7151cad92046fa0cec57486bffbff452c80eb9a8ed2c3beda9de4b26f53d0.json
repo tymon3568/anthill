@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT layer_id, tenant_id, product_id, quantity, unit_cost, total_value,\n                   created_at, updated_at\n            FROM inventory_valuation_layers\n            WHERE tenant_id = $1 AND product_id = $2 AND quantity > 0\n            ORDER BY created_at ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "layer_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "unit_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_value",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8df7151cad92046fa0cec57486bffbff452c80eb9a8ed2c3beda9de4b26f53d0"
+}

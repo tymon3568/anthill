@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO delivery_orders (\n                delivery_id, tenant_id, delivery_number, reference_number,\n                warehouse_id, order_id, customer_id,\n                status, delivery_date, expected_ship_date, actual_ship_date,\n                shipping_method, carrier, tracking_number, shipping_cost,\n                notes, created_by, updated_by, total_quantity, total_value, currency_code,\n                created_at, updated_at\n            ) VALUES (\n                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23\n            )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int8",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "29e4f68bced54cffa49baef52c7491383b0b39d735cf2802c15dda8c7c528035"
+}

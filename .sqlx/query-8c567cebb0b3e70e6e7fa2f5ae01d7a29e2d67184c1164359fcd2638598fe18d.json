@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    INSERT INTO inventory_valuation_layers (\n                        tenant_id, product_id, quantity, unit_cost, total_value\n                    )\n                    VALUES ($1, $2, $3, $4, $5)\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8c567cebb0b3e70e6e7fa2f5ae01d7a29e2d67184c1164359fcd2638598fe18d"
+}

@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE inventory_valuations\n            SET valuation_method = $3, current_unit_cost = $4, total_quantity = $5,\n                total_value = $6, standard_cost = $7, updated_by = $8\n            WHERE tenant_id = $1 AND product_id = $2\n            RETURNING valuation_id, tenant_id, product_id, valuation_method,\n                      current_unit_cost, total_quantity, total_value, standard_cost,\n                      last_updated, updated_by\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "valuation_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "valuation_method",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "current_unit_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_quantity",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "total_value",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "standard_cost",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "last_updated",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_by",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "48ca152b55e19eb1a3e9b16bc5a90a3cce6caef531f098f18e4c550f1eba2104"
+}

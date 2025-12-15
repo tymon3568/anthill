@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT sku as text, COUNT(*) as count\n            FROM products\n            WHERE tenant_id = $1\n              AND deleted_at IS NULL\n              AND sku ILIKE $2\n            GROUP BY sku\n            ORDER BY count DESC, sku\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "text",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "35ae2e36d455ebf2ca8e0f91a3902049ad62445c9a942b60dce316e959ff66b4"
+}

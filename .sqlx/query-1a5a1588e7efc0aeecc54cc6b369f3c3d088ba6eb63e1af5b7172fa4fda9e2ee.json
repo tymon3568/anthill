@@ -1,0 +1,149 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                product_id, tenant_id, sku, name, description,\n                product_type, item_group_id, track_inventory, tracking_method,\n                default_uom_id, sale_price, cost_price, currency_code,\n                weight_grams, dimensions, attributes,\n                is_active, is_sellable, is_purchaseable,\n                created_at, updated_at, deleted_at\n            FROM products\n            WHERE tenant_id = $1 AND attributes->>'barcode' = $2 AND deleted_at IS NULL\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "sku",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "product_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "item_group_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 7,
+        "name": "track_inventory",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "tracking_method",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "default_uom_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 10,
+        "name": "sale_price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 11,
+        "name": "cost_price",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "currency_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "weight_grams",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 14,
+        "name": "dimensions",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 15,
+        "name": "attributes",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 16,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 17,
+        "name": "is_sellable",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 18,
+        "name": "is_purchaseable",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 19,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 20,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 21,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1a5a1588e7efc0aeecc54cc6b369f3c3d088ba6eb63e1af5b7172fa4fda9e2ee"
+}

@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                qc_point_id, tenant_id, name,\n                type as \"qc_type: QcPointType\",\n                product_id, warehouse_id, active,\n                created_at, updated_at\n            FROM quality_control_points\n            WHERE tenant_id = $1 AND qc_point_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "qc_point_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "qc_type: QcPointType",
+        "type_info": {
+          "Custom": {
+            "name": "qc_point_type",
+            "kind": {
+              "Enum": [
+                "incoming",
+                "outgoing",
+                "internal"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "product_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "warehouse_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "44fcf96af5c9804df1e85dab0e155258969c035b9411320b0d8d49b7c6893ce7"
+}

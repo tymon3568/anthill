@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE picking_methods SET\n                is_default = true,\n                updated_by = $3,\n                updated_at = NOW()\n            WHERE tenant_id = $1 AND method_id = $2 AND deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "06c6db91c8b97b29024da877567707763ba930a757c0ccd6f56e566d51a43e98"
+}
