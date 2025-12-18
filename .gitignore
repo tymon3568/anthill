@@ -50,3 +50,6 @@ docker-compose.override.yml
 tmp/
 temp/
 *.tmp
+
+# Runtime files
+inventory.pid
