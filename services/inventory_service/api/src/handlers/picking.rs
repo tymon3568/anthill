@@ -38,7 +38,7 @@ pub fn create_picking_routes() -> Router {
 #[utoipa::path(
     post,
     path = "/api/v1/warehouse/picking/methods",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "create_picking_method",
     request_body = CreatePickingMethodRequest,
     responses(
@@ -69,7 +69,7 @@ pub async fn create_picking_method(
 #[utoipa::path(
     get,
     path = "/api/v1/warehouse/picking/methods",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "list_picking_methods",
     params(
         ("warehouse_id" = Uuid, Query, description = "Warehouse ID to filter methods")
@@ -104,7 +104,7 @@ pub async fn list_picking_methods(
 #[utoipa::path(
     get,
     path = "/api/v1/warehouse/picking/methods/{method_id}",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "get_picking_method",
     params(
         ("method_id" = Uuid, Path, description = "Picking method ID")
@@ -135,7 +135,7 @@ pub async fn get_picking_method(
 #[utoipa::path(
     put,
     path = "/api/v1/warehouse/picking/methods/{method_id}",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "update_picking_method",
     params(
         ("method_id" = Uuid, Path, description = "Picking method ID")
@@ -170,7 +170,7 @@ pub async fn update_picking_method(
 #[utoipa::path(
     delete,
     path = "/api/v1/warehouse/picking/methods/{method_id}",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "delete_picking_method",
     params(
         ("method_id" = Uuid, Path, description = "Picking method ID")
@@ -204,7 +204,7 @@ pub async fn delete_picking_method(
 #[utoipa::path(
     put,
     path = "/api/v1/warehouse/picking/methods/{method_id}/default",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "set_default_method",
     params(
         ("method_id" = Uuid, Path, description = "Picking method ID")
@@ -238,7 +238,7 @@ pub async fn set_default_method(
 #[utoipa::path(
     post,
     path = "/api/v1/warehouse/picking/optimize",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "optimize_picking",
     request_body = PickingOptimizationRequest,
     responses(
@@ -269,7 +269,7 @@ pub async fn optimize_picking(
 #[utoipa::path(
     post,
     path = "/api/v1/warehouse/picking/confirm",
-    tag = "warehouse",
+    tag = "picking",
     operation_id = "confirm_picking_plan",
     request_body = ConfirmPickingPlanRequest,
     responses(
