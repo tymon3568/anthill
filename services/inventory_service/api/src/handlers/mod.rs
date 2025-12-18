@@ -3,6 +3,7 @@ pub mod delivery;
 pub mod health;
 pub mod lot_serial;
 pub mod picking;
+pub mod products;
 pub mod putaway;
 pub mod quality;
 pub mod receipt;
@@ -25,3 +26,4 @@ pub use lot_serial::{
 pub use picking::{
     create_picking_method, get_picking_method, list_picking_methods, update_picking_method,
 };
+pub use products::{create_product, delete_product, get_product, list_products, update_product};

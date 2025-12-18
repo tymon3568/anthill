@@ -67,6 +67,24 @@ pub trait ProductService: Send + Sync {
     // CRUD Operations (Future)
     // ========================================================================
 
+    /// Create a new product
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `request` - Product creation data
+    ///
+    /// # Returns
+    /// Created product
+    ///
+    /// # Errors
+    /// - `ValidationError` if request validation fails
+    /// - `Conflict` if SKU already exists
+    async fn create_product(
+        &self,
+        tenant_id: Uuid,
+        request: crate::dto::product::ProductCreateRequest,
+    ) -> Result<Product>;
+
     /// Get product by ID
     ///
     /// # Arguments
@@ -79,6 +97,55 @@ pub trait ProductService: Send + Sync {
     /// # Errors
     /// - `NotFound` if product doesn't exist
     async fn get_product(&self, tenant_id: Uuid, product_id: Uuid) -> Result<Product>;
+
+    /// List products with filtering and pagination
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `query` - List query parameters
+    ///
+    /// # Returns
+    /// Paginated list of products
+    async fn list_products(
+        &self,
+        tenant_id: Uuid,
+        query: crate::dto::product::ProductListQuery,
+    ) -> Result<crate::dto::product::ProductListResponse>;
+
+    /// Update an existing product
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    /// * `request` - Update data
+    ///
+    /// # Returns
+    /// Updated product
+    ///
+    /// # Errors
+    /// - `NotFound` if product doesn't exist
+    /// - `ValidationError` if request validation fails
+    /// - `Conflict` if SKU conflicts with existing product
+    async fn update_product(
+        &self,
+        tenant_id: Uuid,
+        product_id: Uuid,
+        request: crate::dto::product::ProductUpdateRequest,
+    ) -> Result<Product>;
+
+    /// Delete a product (soft delete)
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_id` - Product identifier
+    ///
+    /// # Returns
+    /// Success status
+    ///
+    /// # Errors
+    /// - `NotFound` if product doesn't exist
+    /// - `Conflict` if product has active transactions
+    async fn delete_product(&self, tenant_id: Uuid, product_id: Uuid) -> Result<()>;
 
     /// Get product by SKU
     ///

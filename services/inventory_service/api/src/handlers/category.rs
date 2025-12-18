@@ -82,7 +82,7 @@ pub fn create_category_routes() -> Router {
 /// ```
 #[utoipa::path(
     post,
-    path = "/api/v1/inventory/categories",
+    path = "/api/v1/inventory/categories/",
     tag = "categories",
     operation_id = "create_category",
     request_body = CategoryCreateRequest,
@@ -141,7 +141,7 @@ pub async fn create_category(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories",
+    path = "/api/v1/inventory/categories/",
     tag = "categories",
     operation_id = "list_categories",
     params(CategoryListQuery),
@@ -192,7 +192,7 @@ pub async fn list_categories(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories/tree",
+    path = "/tree",
     tag = "categories",
     operation_id = "get_category_tree",
     params(CategoryTreeQuery),
@@ -242,7 +242,7 @@ pub async fn get_category_tree(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories/search",
+    path = "/search",
     tag = "categories",
     operation_id = "search_categories",
     params(SearchQuery),
@@ -292,7 +292,7 @@ pub async fn search_categories(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories/top",
+    path = "/top",
     tag = "categories",
     operation_id = "get_top_categories",
     params(TopCategoriesQuery),
@@ -512,7 +512,7 @@ pub async fn delete_category(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories/{category_id}/children",
+    path = "/{category_id}/children",
     tag = "categories",
     operation_id = "get_category_children",
     params(
@@ -572,7 +572,7 @@ pub async fn get_children(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories/{category_id}/breadcrumbs",
+    path = "/{category_id}/breadcrumbs",
     tag = "categories",
     operation_id = "get_category_breadcrumbs",
     params(
@@ -637,7 +637,7 @@ pub async fn get_breadcrumbs(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories/{category_id}/stats",
+    path = "/{category_id}/stats",
     tag = "categories",
     operation_id = "get_category_stats",
     params(
@@ -690,7 +690,7 @@ pub async fn get_category_stats(
 /// Response: `true` or `false`
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/categories/{category_id}/can-delete",
+    path = "/{category_id}/can-delete",
     tag = "categories",
     operation_id = "can_delete_category",
     params(
@@ -747,7 +747,7 @@ pub async fn can_delete_category(
 /// ```
 #[utoipa::path(
     post,
-    path = "/api/v1/inventory/categories/bulk/activate",
+    path = "/bulk/activate",
     tag = "categories",
     operation_id = "bulk_activate_categories",
     request_body = BulkCategoryIds,
@@ -802,7 +802,7 @@ pub async fn bulk_activate_categories(
 /// ```
 #[utoipa::path(
     post,
-    path = "/api/v1/inventory/categories/bulk/deactivate",
+    path = "/bulk/deactivate",
     tag = "categories",
     operation_id = "bulk_deactivate_categories",
     request_body = BulkCategoryIds,
@@ -857,7 +857,7 @@ pub async fn bulk_deactivate_categories(
 /// ```
 #[utoipa::path(
     post,
-    path = "/api/v1/inventory/categories/bulk/delete",
+    path = "/bulk/delete",
     tag = "categories",
     operation_id = "bulk_delete_categories",
     request_body = BulkCategoryIds,
@@ -914,7 +914,7 @@ pub async fn bulk_delete_categories(
 /// ```
 #[utoipa::path(
     post,
-    path = "/api/v1/inventory/categories/products/move",
+    path = "/products/move",
     tag = "categories",
     operation_id = "move_products_to_category",
     request_body = MoveToCategoryRequest,

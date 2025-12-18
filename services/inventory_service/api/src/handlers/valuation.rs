@@ -463,27 +463,23 @@ pub async fn revalue_inventory(
 
 // Payload structures for request bodies
 
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[derive(serde::Deserialize)]
+#[derive(utoipa::ToSchema, serde::Deserialize)]
 pub struct SetValuationMethodPayload {
     pub valuation_method: ValuationMethod,
 }
 
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[derive(serde::Deserialize)]
+#[derive(utoipa::ToSchema, serde::Deserialize)]
 pub struct SetStandardCostPayload {
     pub standard_cost: i64,
 }
 
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[derive(serde::Deserialize)]
+#[derive(utoipa::ToSchema, serde::Deserialize)]
 pub struct CostAdjustmentPayload {
     pub adjustment_amount: i64,
     pub reason: String,
 }
 
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-#[derive(serde::Deserialize)]
+#[derive(utoipa::ToSchema, serde::Deserialize)]
 pub struct RevaluationPayload {
     pub new_unit_cost: i64,
     pub reason: String,
@@ -491,7 +487,7 @@ pub struct RevaluationPayload {
 
 // Query parameters
 
-#[derive(utoipa::IntoParams, serde::Deserialize)]
+#[derive(utoipa::IntoParams, utoipa::ToSchema, serde::Deserialize)]
 pub struct HistoryQueryParams {
     pub limit: Option<i64>,
     pub offset: Option<i64>,

@@ -13,14 +13,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Export OpenAPI spec if feature is enabled
-    #[cfg(feature = "export-spec")]
-    {
-        inventory_service_api::openapi::export_spec()?;
-        println!("📄 OpenAPI spec exported to shared/openapi/inventory.yaml");
-    }
-
-    // Initialize tracing
+    // Initialize tracing first to catch early errors
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -29,8 +22,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    tracing::info!("Starting inventory service...");
+
+    // Export OpenAPI spec if feature is enabled
+    #[cfg(feature = "export-spec")]
+    {
+        inventory_service_api::openapi::export_spec()?;
+        println!("📄 OpenAPI spec exported to shared/openapi/inventory.yaml");
+    }
+
     // Load configuration
-    let config = Config::from_env()?;
+    let mut config = Config::from_env()?;
+
+    // Override default port for inventory service
+    if config.port == 3000 {
+        config.port = 8001;
+    }
 
     // Initialize database connection pool
     let pool = init_pool(&config.database_url, config.max_connections.unwrap_or(10)).await?;
@@ -74,7 +81,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Create the application router
-    let app = create_router(pool, &config).await?;
+    let app = create_router(pool, &config).await;
 
     // Start the server
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
@@ -82,6 +89,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
+
+    // tracing::info!("Inventory service config loaded successfully, port: {}", config.port);
 
     Ok(())
 }

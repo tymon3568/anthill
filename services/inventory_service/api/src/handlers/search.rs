@@ -167,7 +167,7 @@ pub async fn search_suggestions(
 }
 
 /// Query parameters for product search endpoint
-#[derive(utoipa::IntoParams, serde::Deserialize)]
+#[derive(utoipa::IntoParams, utoipa::ToSchema, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProductSearchQuery {
     pub query: Option<String>,
@@ -261,7 +261,7 @@ impl ProductSearchQuery {
 }
 
 /// Query parameters for search suggestions endpoint
-#[derive(utoipa::IntoParams, serde::Deserialize)]
+#[derive(utoipa::IntoParams, utoipa::ToSchema, serde::Deserialize)]
 pub struct SearchSuggestionsQuery {
     pub query: String,
     pub limit: Option<u32>,

@@ -5,6 +5,7 @@
 pub mod category;
 pub mod common;
 pub mod delivery;
+pub mod product;
 pub mod receipt;
 pub mod reconciliation;
 pub mod removal_strategy;
@@ -20,6 +21,10 @@ pub use category::{
 };
 // pub use delivery::{PickItemRequest, PickItemsRequest, PickItemsResponse};
 pub use common::PaginationInfo;
+pub use product::{
+    ProductCreateRequest, ProductListQuery, ProductListResponse, ProductResponse,
+    ProductUpdateRequest,
+};
 pub use receipt::{
     ReceiptCreateRequest, ReceiptItemCreateRequest, ReceiptItemResponse, ReceiptListQuery,
     ReceiptListResponse, ReceiptResponse, ReceiptSummaryResponse,
