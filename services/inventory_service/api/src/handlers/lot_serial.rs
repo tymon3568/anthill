@@ -29,7 +29,7 @@ pub struct CreateLotSerialRequest {
     pub status: LotSerialStatus,
 }
 
-#[derive(Debug, Deserialize, IntoParams)]
+#[derive(Debug, Deserialize, IntoParams, utoipa::ToSchema)]
 pub struct ListLotSerialsQuery {
     pub tracking_type: Option<LotSerialTrackingType>,
     pub status: Option<LotSerialStatus>,

@@ -12,16 +12,16 @@ use axum::{extract::Extension, http::HeaderValue, routing::get, Router};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
 use uuid::Uuid;
 
 // Tokio for timeout
-use tokio::time::{timeout, Duration};
+// Removed unused tokio imports
 
 // Shared crates
-use shared_auth::{
-    enforcer::create_enforcer,
-    middleware::{casbin_middleware, AuthzState},
-};
+use shared_auth::enforcer::create_enforcer;
 use shared_config::Config;
 use shared_error::AppError;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
@@ -31,59 +31,22 @@ use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
+
 use inventory_service_core::services::delivery::DeliveryService;
 
 // Inventory-service infra
 
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-
-use inventory_service_infra::repositories::picking_method::PickingMethodRepositoryImpl;
-use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-use inventory_service_infra::repositories::putaway::PgPutawayRepository;
-use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
-use inventory_service_infra::repositories::reconciliation::{
-    PgStockReconciliationItemRepository, PgStockReconciliationRepository,
-};
-use inventory_service_infra::repositories::replenishment::PgReorderRuleRepository;
-use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
-use inventory_service_infra::repositories::stock::{
-    PgInventoryLevelRepository, PgStockMoveRepository,
-};
-use inventory_service_infra::repositories::stock_take::{
-    PgStockTakeLineRepository, PgStockTakeRepository,
-};
-use inventory_service_infra::repositories::transfer::{
-    PgTransferItemRepository, PgTransferRepository,
-};
-use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
-use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
-use inventory_service_infra::services::distributed_lock::RedisDistributedLockService;
-use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
-use inventory_service_infra::services::picking_method::PickingMethodServiceImpl;
-use inventory_service_infra::services::putaway::PgPutawayService;
-use inventory_service_infra::services::quality::PgQualityControlPointService;
-use inventory_service_infra::services::replenishment::PgReplenishmentService;
+// Removed unused ValuationServiceImpl import
+
+// Removed unused Money import
+// Removed unused TenantContext import
 
 // Local handlers/state
 use crate::handlers::category::create_category_routes;
-#[cfg(feature = "delivery")]
-use crate::handlers::delivery::create_delivery_routes;
-use crate::handlers::lot_serial::create_lot_serial_routes;
-use crate::handlers::picking::create_picking_routes;
-use crate::handlers::putaway::create_putaway_routes;
-use crate::handlers::receipt::create_receipt_routes;
-use crate::handlers::reconciliation::create_reconciliation_routes;
-use crate::handlers::rma::create_rma_routes;
-use crate::handlers::search::create_search_routes;
-use crate::handlers::stock_take::create_stock_take_routes;
-use crate::handlers::transfer::create_transfer_routes;
-use crate::handlers::valuation::create_valuation_routes;
-use crate::handlers::warehouses::create_warehouse_routes;
-use crate::routes::quality::create_quality_routes;
-use crate::routes::replenishment::create_replenishment_routes;
-use crate::routes::reports::create_reports_routes;
-use crate::state::AppState;
+use crate::handlers::health::health_check;
+use crate::openapi::ApiDoc;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -137,9 +100,8 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
     )
 }
 
-// Dummy delivery service to avoid compile errors when delivery is disabled
+/// Dummy delivery service to avoid compile errors when delivery is disabled
 pub struct DummyDeliveryService;
-
 #[async_trait]
 impl DeliveryService for DummyDeliveryService {
     async fn pick_items(
@@ -176,6 +138,113 @@ impl DeliveryService for DummyDeliveryService {
         Err(AppError::ServiceUnavailable(
             "Delivery service is disabled. Enable with --features delivery".to_string(),
         ))
+    }
+}
+
+pub struct SimpleDummyValuationService;
+#[async_trait]
+impl inventory_service_core::services::valuation::ValuationService for SimpleDummyValuationService {
+    async fn get_valuation(
+        &self,
+        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationRequest,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn set_valuation_method(
+        &self,
+        _request: inventory_service_core::domains::inventory::dto::valuation_dto::SetValuationMethodRequest,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn set_standard_cost(
+        &self,
+        _request: inventory_service_core::domains::inventory::dto::valuation_dto::SetStandardCostRequest,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn get_valuation_layers(
+        &self,
+        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationLayersRequest,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationLayersResponse,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn get_valuation_history(
+        &self,
+        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationHistoryRequest,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationHistoryResponse,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn adjust_cost(
+        &self,
+        _request: inventory_service_core::domains::inventory::dto::valuation_dto::CostAdjustmentRequest,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn revalue_inventory(
+        &self,
+        _request: inventory_service_core::domains::inventory::dto::valuation_dto::RevaluationRequest,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn process_stock_movement(
+        &self,
+        _tenant_id: uuid::Uuid,
+        _product_id: uuid::Uuid,
+        _quantity_change: i64,
+        _unit_cost: Option<i64>,
+        _user_id: Option<uuid::Uuid>,
+    ) -> Result<
+        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn calculate_inventory_value(
+        &self,
+        _tenant_id: uuid::Uuid,
+        _product_id: uuid::Uuid,
+    ) -> Result<i64, shared_error::AppError> {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
+    }
+
+    async fn get_valuation_method(
+        &self,
+        _tenant_id: uuid::Uuid,
+        _product_id: uuid::Uuid,
+    ) -> Result<
+        inventory_service_core::domains::inventory::valuation::ValuationMethod,
+        shared_error::AppError,
+    > {
+        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
     }
 }
 
@@ -216,127 +285,11 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         },
     };
 
-    let enforcer = create_enforcer(&config.database_url, Some(model_path))
+    let _enforcer = create_enforcer(&config.database_url, Some(model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
 
-    // Initialize repositories and services
-    let category_repo = CategoryRepositoryImpl::new(pool.clone());
-    let category_service = CategoryServiceImpl::new(category_repo);
-
-    let lot_serial_repo =
-        inventory_service_infra::repositories::lot_serial::LotSerialRepositoryImpl::new(
-            pool.clone(),
-        );
-
-    let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
-    let product_service =
-        inventory_service_infra::services::product::ProductServiceImpl::new(product_repo.clone());
-
-    let valuation_repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
-    let valuation_service = inventory_service_infra::services::valuation::ValuationServiceImpl::new(
-        valuation_repo.clone()
-            as Arc<dyn inventory_service_core::repositories::valuation::ValuationRepository>,
-        valuation_repo.clone()
-            as Arc<dyn inventory_service_core::repositories::valuation::ValuationLayerRepository>,
-        valuation_repo
-            as Arc<dyn inventory_service_core::repositories::valuation::ValuationHistoryRepository>,
-    );
-
-    let warehouse_repo_impl = WarehouseRepositoryImpl::new(pool.clone());
-    let warehouse_repo = Arc::new(warehouse_repo_impl)
-        as Arc<dyn inventory_service_core::repositories::WarehouseRepository>;
-
-    // Initialize stock repositories
-    let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
-    let lot_serial_service =
-        LotSerialServiceImpl::new(lot_serial_repo, stock_move_repo.clone(), warehouse_repo.clone());
-    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
-
-    // Initialize transfer repositories and services
-    let transfer_repo = Arc::new(PgTransferRepository::new(Arc::new(pool.clone())));
-    let transfer_item_repo = Arc::new(PgTransferItemRepository::new(Arc::new(pool.clone())));
-
-    let transfer_service =
-        Arc::new(inventory_service_infra::services::transfer::PgTransferService::new(
-            transfer_repo,
-            transfer_item_repo,
-            stock_move_repo.clone(),
-            inventory_level_repo.clone(),
-        ));
-
-    // Initialize stock take repositories and services
-    let stock_take_repo = Arc::new(PgStockTakeRepository::new(Arc::new(pool.clone())));
-    let stock_take_line_repo = Arc::new(PgStockTakeLineRepository::new(Arc::new(pool.clone())));
-
-    let stock_take_service =
-        Arc::new(inventory_service_infra::services::stock_take::PgStockTakeService::new(
-            Arc::new(pool.clone()),
-            stock_take_repo,
-            stock_take_line_repo,
-            stock_move_repo.clone(),
-            inventory_level_repo.clone(),
-        ));
-
-    // Initialize reconciliation repositories and services
-    let reconciliation_repo =
-        Arc::new(PgStockReconciliationRepository::new(Arc::new(pool.clone())));
-    let reconciliation_item_repo =
-        Arc::new(PgStockReconciliationItemRepository::new(Arc::new(pool.clone())));
-
-    let reconciliation_service = Arc::new(
-        inventory_service_infra::services::reconciliation::PgStockReconciliationService::new(
-            Arc::new(pool.clone()),
-            reconciliation_repo,
-            reconciliation_item_repo,
-            stock_move_repo.clone(),
-            inventory_level_repo.clone(),
-            product_repo.clone(),
-        ),
-    );
-
-    // Initialize RMA repositories and services
-    let rma_repo = Arc::new(PgRmaRepository::new(Arc::new(pool.clone())));
-    let rma_item_repo = Arc::new(PgRmaItemRepository::new(Arc::new(pool.clone())));
-
-    let rma_service = Arc::new(inventory_service_infra::services::rma::PgRmaService::new(
-        rma_repo,
-        rma_item_repo,
-        stock_move_repo.clone(),
-    ));
-
-    // Initialize replenishment repositories and services
-    let reorder_rule_repo = Arc::new(PgReorderRuleRepository::new(pool.clone()));
-
-    // Initialize quality repositories and services
-    let qc_point_repo = Arc::new(PgQualityControlPointRepository::new(pool.clone()));
-    let quality_service = Arc::new(PgQualityControlPointService::new(qc_point_repo));
-
-    // Initialize NATS client for event publishing
-    let nats_client = if let Ok(nats_url) = std::env::var("NATS_URL") {
-        match timeout(Duration::from_secs(5), shared_events::NatsClient::connect(&nats_url)).await {
-            Ok(Ok(client)) => Some(Arc::new(client)),
-            Ok(Err(e)) => {
-                tracing::warn!("Failed to connect to NATS: {}", e);
-                None
-            },
-            Err(_) => {
-                tracing::warn!("NATS connection timed out");
-                None
-            },
-        }
-    } else {
-        tracing::info!("NATS_URL not set, event publishing disabled");
-        None
-    };
-
-    let replenishment_service = Arc::new(PgReplenishmentService::new(
-        reorder_rule_repo,
-        inventory_level_repo.clone(),
-        nats_client,
-    ));
-
-    // Initialize Redis URL for both idempotency and distributed locking
+    // Initialize Redis URL for idempotency
     let redis_url = if is_production {
         config
             .redis_url
@@ -349,93 +302,109 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             .unwrap_or_else(|| "redis://localhost:6379".to_string())
     };
 
-    // Initialize distributed lock service
-    let distributed_lock_service = Arc::new(
-        RedisDistributedLockService::new(&redis_url)
-            .expect("Failed to initialize distributed lock service"),
-    );
-
-    // Initialize receipt repositories and services
-    let receipt_repo =
-        inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone());
-
-    let receipt_service = inventory_service_infra::services::receipt::ReceiptServiceImpl::new(
-        Arc::new(receipt_repo),
-        product_repo.clone(),
-        distributed_lock_service.clone(),
-    );
-
-    // Initialize putaway repositories and services
-    let putaway_repo = Arc::new(PgPutawayRepository::new(pool.clone()));
-    let putaway_service = Arc::new(PgPutawayService::new(
-        putaway_repo,
-        PgStockMoveRepository::new(Arc::new(pool.clone())),
-    ));
-
-    // Initialize picking method repositories and services
-    let picking_method_repo: Arc<
-        dyn inventory_service_core::repositories::picking_method::PickingMethodRepository
-            + Send
-            + Sync,
-    > = Arc::new(PickingMethodRepositoryImpl::new(pool.clone()));
-    let picking_method_service = Arc::new(PickingMethodServiceImpl::new(picking_method_repo));
-
     // Initialize idempotency state
     let idempotency_config = crate::middleware::IdempotencyConfig {
         redis_url: redis_url.clone(),
         ttl_seconds: 24 * 60 * 60, // 24 hours
         header_name: "x-idempotency-key".to_string(),
     };
-    let idempotency_state = Arc::new(
+    let _idempotency_state = Arc::new(
         crate::middleware::IdempotencyState::new(idempotency_config)
             .expect("Failed to initialize idempotency state"),
     );
 
-    // Create application state
-    let state = AppState {
-        category_service: Arc::new(category_service),
-        lot_serial_service: Arc::new(lot_serial_service),
-        picking_method_service,
-        product_service: Arc::new(product_service),
-        valuation_service: Arc::new(valuation_service),
-        warehouse_repository: warehouse_repo.clone(),
-        receipt_service: Arc::new(receipt_service),
-        delivery_service: Arc::new(DummyDeliveryService {}),
-        transfer_service,
-        stock_take_service,
-        reconciliation_service,
-        rma_service,
-        replenishment_service,
-        quality_service,
-        putaway_service,
-        enforcer,
-        jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: create_kanidm_client(config),
-        idempotency_state: idempotency_state.clone(),
-        distributed_lock_service: distributed_lock_service.clone(),
-    };
+    // NOTE: The following repository and service initialization code is temporarily commented out
+    // to isolate and debug stack overflow issues during service startup. This simplified setup
+    // allows the service to start with minimal dependencies while the root cause of the overflow
+    // is investigated. TODO: Re-enable full initialization once stack overflow is resolved.
+    // Initialize repositories - COMMENTED OUT MOST TO ISOLATE STACK OVERFLOW
+    // let category_repo = CategoryRepositoryImpl::new(pool.clone());
+    // let lot_serial_repo = LotSerialRepositoryImpl::new(pool.clone());
+    // let picking_method_repo = PickingMethodRepositoryImpl::new(pool.clone());
+    // let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
+    // let _valuation_repo = ValuationRepositoryImpl::new(pool.clone());
+    // let warehouse_repo = Arc::new(WarehouseRepositoryImpl::new(pool.clone()));
+    // let receipt_repo = ReceiptRepositoryImpl::new(pool.clone());
+    // let _delivery_repo = PgDeliveryOrderRepository::new(Arc::new(pool.clone()));
+    // let transfer_repo = PgTransferRepository::new(Arc::new(pool.clone()));
+    // let stock_take_repo = PgStockTakeRepository::new(Arc::new(pool.clone()));
+    // let reconciliation_repo = PgStockReconciliationRepository::new(Arc::new(pool.clone()));
+    // let rma_repo = PgRmaRepository::new(Arc::new(pool.clone()));
+    // let replenishment_repo = PgReorderRuleRepository::new(pool.clone());
+    // let quality_repo = PgQualityControlPointRepository::new(pool.clone());
+    // let putaway_repo = Arc::new(PgPutawayRepository::new(pool.clone()));
+    // let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
+    // let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
 
-    // Create AuthzState for middleware
-    let authz_state = AuthzState {
-        enforcer: state.enforcer.clone(),
-        jwt_secret: state.jwt_secret.clone(),
-        kanidm_client: state.kanidm_client.clone(),
-    };
+    // Keep only basic category service for testing
+    let category_repo = CategoryRepositoryImpl::new(pool.clone());
+    let _category_service = CategoryServiceImpl::new(category_repo);
 
-    // Create routes
-    let category_routes = create_category_routes();
-    #[cfg(feature = "delivery")]
-    let delivery_routes = create_delivery_routes();
-    let putaway_routes = create_putaway_routes();
-    let receipt_routes = create_receipt_routes();
-    let reconciliation_routes = create_reconciliation_routes();
-    let reports_routes = create_reports_routes();
-    let rma_routes = create_rma_routes();
-    let search_routes = create_search_routes();
-    let transfer_routes = create_transfer_routes();
-    let stock_take_routes = create_stock_take_routes();
-    let valuation_routes = create_valuation_routes();
-    let warehouse_routes = create_warehouse_routes();
+    // Comment out complex services
+    // let lot_serial_service = ... (commented out)
+    // let picking_method_service = ... (commented out)
+    // let product_service = ... (commented out)
+    let _valuation_service = Arc::new(SimpleDummyValuationService);
+    // let distributed_lock_service = ... (commented out)
+    // let receipt_service = ... (commented out)
+    let _delivery_service = DummyDeliveryService;
+    // let transfer_service = ... (commented out)
+    // let stock_take_service = ... (commented out)
+    // let reconciliation_service = ... (commented out)
+    // let rma_service = ... (commented out)
+    // let replenishment_service = ... (commented out)
+    // let quality_service = ... (commented out)
+    // let putaway_service = ... (commented out)
+    let _kanidm_client = create_kanidm_client(config);
+
+    // Comment out AppState creation to isolate stack overflow
+    // let state = AppState {
+    //     category_service: Arc::new(category_service),
+    //     lot_serial_service: Arc::new(DummyLotSerialService2),
+    //     picking_method_service: Arc::new(DummyPickingMethodService2),
+    //     product_service: Arc::new(DummyProductService2),
+    //     valuation_service: Arc::new(SimpleDummyValuationService),
+    //     warehouse_repository: Arc::new(DummyWarehouseRepository2),
+    //     receipt_service: Arc::new(DummyReceiptService2),
+    //     delivery_service: Arc::new(delivery_service),
+    //     transfer_service: Arc::new(DummyTransferService2),
+    //     stock_take_service: Arc::new(DummyStockTakeService2),
+    //     reconciliation_service: Arc::new(DummyReconciliationService2),
+    //     rma_service: Arc::new(DummyRmaService2),
+    //     replenishment_service: Arc::new(DummyReplenishmentService2),
+    //     quality_service: Arc::new(DummyQualityService2),
+    //     putaway_service: Arc::new(DummyPutawayService2),
+    //     distributed_lock_service: Arc::new(DummyDistributedLockService2),
+    //     enforcer,
+    //     jwt_secret: config.jwt_secret.clone(),
+    //     kanidm_client,
+    //     idempotency_state: idempotency_state.clone(),
+    // };
+
+    // Comment out AuthzState creation
+    // let authz_state = AuthzState {
+    //     enforcer: state.enforcer.clone(),
+    //     jwt_secret: state.jwt_secret.clone(),
+    //     kanidm_client: state.kanidm_client.clone(),
+    // };
+
+    // Comment out route creations to isolate stack overflow
+    let _category_routes = create_category_routes();
+    // let lot_serial_routes = create_lot_serial_routes();
+    // let picking_routes = create_picking_routes();
+    // let product_routes = create_product_routes();
+    // let putaway_routes = create_putaway_routes();
+    // let receipt_routes = create_receipt_routes();
+    // let reconciliation_routes = create_reconciliation_routes();
+    // let rma_routes = create_rma_routes();
+    // let search_routes = create_search_routes();
+    // let stock_take_routes = create_stock_take_routes();
+    // let transfer_routes = create_transfer_routes();
+    // let valuation_routes = create_valuation_routes();
+    // let warehouse_routes = create_warehouse_routes();
+    // let quality_routes = create_quality_routes();
+    // let replenishment_routes = create_replenishment_routes();
+    // let reports_routes = create_reports_routes();
 
     // Add CORS configuration
     let cors = CorsLayer::new()
@@ -471,43 +440,41 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             axum::http::header::AUTHORIZATION,
         ]);
 
-    // Protected routes (require authentication)
-    let protected_routes = Router::new()
-        .route("/health", get(crate::handlers::health::health_check))
-        .nest("/api/v1/inventory", category_routes);
+    // Comment out protected routes to isolate stack overflow
+    // let protected_routes = Router::new().nest("/api/v1/inventory/categories", category_routes);
+    //     .nest("/api/v1/inventory/lot-serials", lot_serial_routes)
+    //     .nest("/api/v1/inventory/picking", picking_routes)
+    //     .nest("/api/v1/inventory/products", product_routes)
+    //     .nest("/api/v1/inventory/putaway", putaway_routes)
+    //     .nest("/api/v1/inventory/receipts", receipt_routes)
+    //     .nest("/api/v1/inventory/reconciliation", reconciliation_routes)
+    //     .nest("/api/v1/inventory/rma", rma_routes)
+    //     .nest("/api/v1/inventory/search", search_routes)
+    //     .nest("/api/v1/inventory/stock-take", stock_take_routes)
+    //     .nest("/api/v1/inventory/transfers", transfer_routes)
+    //     .nest("/api/v1/inventory/valuation", valuation_routes)
+    //     .nest("/api/v1/inventory/warehouses", warehouse_routes)
+    //     .nest("/api/v1/inventory/quality", quality_routes)
+    //     .nest("/api/v1/inventory/replenishment", replenishment_routes)
+    //     .nest("/api/v1/inventory/reports", reports_routes);
 
-    let protected_routes = protected_routes
-        .nest("/api/v1/inventory/reconciliations", reconciliation_routes)
-        .nest("/api/v1/inventory/receipts", receipt_routes)
-        .nest("/api/v1/inventory/reports", reports_routes)
-        .nest("/api/v1/inventory/rma", rma_routes)
-        .nest("/api/v1/inventory/products", search_routes)
-        .nest("/api/v1/inventory/stock-takes", stock_take_routes)
-        .nest("/api/v1/inventory/transfers", transfer_routes)
-        .nest("/api/v1/inventory/valuation", valuation_routes)
-        .nest("/api/v1/inventory/warehouses", warehouse_routes)
-        .nest("/api/v1/warehouse/putaway", putaway_routes)
-        .nest("/api/v1/warehouse/picking", create_picking_routes())
-        .nest("/api/v1/inventory/lot-serials", create_lot_serial_routes())
-        .nest("/api/v1/inventory/quality", create_quality_routes())
-        .nest("/api/v1/inventory/replenishment", create_replenishment_routes());
+    // Comment out protected routes with layers
+    // let protected_routes_with_layers = protected_routes
+    //     .layer(Extension(pool.clone()))
+    //     .layer(Extension(config.clone()))
+    //     .layer(Extension(state))
+    //     .layer(axum::middleware::from_fn_with_state(
+    //         idempotency_state,
+    //         crate::middleware::idempotency_middleware,
+    //     ))
+    //     .layer(axum::middleware::from_fn(casbin_middleware))
+    //     .layer(Extension(authz_state));
 
-    #[cfg(feature = "delivery")]
-    let protected_routes = protected_routes.nest("/api/v1/inventory/deliveries", delivery_routes);
-
-    let protected_routes = protected_routes
+    Router::new()
+        .route("/health", get(health_check))
+        .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        // .merge(protected_routes_with_layers)
         .layer(Extension(pool.clone()))
         .layer(Extension(config.clone()))
-        .layer(Extension(state))
-        .layer(axum::middleware::from_fn_with_state(
-            idempotency_state,
-            crate::middleware::idempotency_middleware,
-        ))
-        .layer(axum::middleware::from_fn(casbin_middleware))
-        .layer(Extension(authz_state));
-
-    // Apply global layers
-    protected_routes.layer(cors)
+        .layer(cors)
 }
-
-// function moved

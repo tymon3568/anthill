@@ -21,19 +21,28 @@ use crate::state::AppState;
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
+/// Error response for OpenAPI documentation
+#[derive(utoipa::ToSchema)]
+pub struct ErrorResponse {
+    /// Error message
+    pub error: String,
+    /// Error code
+    pub code: String,
+}
+
 /// Create the valuation routes
 pub fn create_valuation_routes() -> Router {
     Router::new()
-        .route("/", get(get_valuation))
-        .route("/method", put(set_valuation_method))
-        .route("/standard-cost", put(set_standard_cost))
-        .route("/layers", get(get_valuation_layers))
-        .route("/history", get(get_valuation_history))
-        .route("/adjust", post(adjust_cost))
-        .route("/revalue", post(revalue_inventory))
+        .route("/{product_id}", get(get_valuation))
+        .route("/{product_id}/method", put(set_valuation_method))
+        .route("/{product_id}/standard-cost", put(set_standard_cost))
+        .route("/{product_id}/layers", get(get_valuation_layers))
+        .route("/{product_id}/history", get(get_valuation_history))
+        .route("/{product_id}/adjust", post(adjust_cost))
+        .route("/{product_id}/revalue", post(revalue_inventory))
 }
 
-/// GET /api/v1/inventory/valuation - Get current valuation for a product
+/// GET /api/v1/inventory/valuation/{product_id} - Get current valuation for a product
 ///
 /// Returns the current inventory valuation for a specific product.
 /// The valuation includes current quantity, value, and cost based on the
@@ -50,6 +59,24 @@ pub fn create_valuation_routes() -> Router {
 /// * `404` - Product or valuation not found
 /// * `401` - Authentication required
 /// * `403` - Insufficient permissions
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/valuation/{product_id}",
+    tag = "valuation",
+    operation_id = "get_valuation",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID")
+    ),
+    responses(
+        (status = 200, description = "Current valuation data", body = ValuationDto),
+        (status = 404, description = "Product or valuation not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_valuation(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -65,7 +92,7 @@ pub async fn get_valuation(
     Ok(Json(valuation))
 }
 
-/// PUT /api/v1/inventory/valuation/method - Set valuation method for a product
+/// PUT /api/v1/inventory/valuation/{product_id}/method - Set valuation method for a product
 ///
 /// Changes the valuation method for a product. This affects how inventory
 /// costs are calculated and tracked.
@@ -89,6 +116,26 @@ pub async fn get_valuation(
 /// * `404` - Product not found
 /// * `401` - Authentication required
 /// * `403` - Insufficient permissions
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/valuation/{product_id}/method",
+    tag = "valuation",
+    operation_id = "set_valuation_method",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID")
+    ),
+    request_body = SetValuationMethodPayload,
+    responses(
+        (status = 200, description = "Updated valuation data", body = ValuationDto),
+        (status = 400, description = "Invalid valuation method", body = ErrorResponse),
+        (status = 404, description = "Product not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn set_valuation_method(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -109,7 +156,7 @@ pub async fn set_valuation_method(
     Ok(Json(valuation))
 }
 
-/// PUT /api/v1/inventory/valuation/standard-cost - Set standard cost for a product
+/// PUT /api/v1/inventory/valuation/{product_id}/standard-cost - Set standard cost for a product
 ///
 /// Sets the standard cost for products using Standard costing method.
 /// Only applicable when the product uses standard valuation.
@@ -133,6 +180,26 @@ pub async fn set_valuation_method(
 /// * `404` - Product not found
 /// * `401` - Authentication required
 /// * `403` - Insufficient permissions
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/valuation/{product_id}/standard-cost",
+    tag = "valuation",
+    operation_id = "set_standard_cost",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID")
+    ),
+    request_body = SetStandardCostPayload,
+    responses(
+        (status = 200, description = "Updated valuation data", body = ValuationDto),
+        (status = 400, description = "Invalid cost or product doesn't use standard costing", body = ErrorResponse),
+        (status = 404, description = "Product not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn set_standard_cost(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -150,7 +217,7 @@ pub async fn set_standard_cost(
     Ok(Json(valuation))
 }
 
-/// GET /api/v1/inventory/valuation/layers - Get valuation layers for FIFO
+/// GET /api/v1/inventory/valuation/{product_id}/layers - Get valuation layers for FIFO
 ///
 /// Returns the active cost layers for products using FIFO valuation.
 /// Layers represent different cost levels for remaining inventory.
@@ -166,6 +233,24 @@ pub async fn set_standard_cost(
 /// * `404` - Product not found or doesn't use FIFO
 /// * `401` - Authentication required
 /// * `403` - Insufficient permissions
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/valuation/{product_id}/layers",
+    tag = "valuation",
+    operation_id = "get_valuation_layers",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID")
+    ),
+    responses(
+        (status = 200, description = "List of active cost layers", body = ValuationLayersResponse),
+        (status = 404, description = "Product not found or doesn't use FIFO", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_valuation_layers(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -184,7 +269,7 @@ pub async fn get_valuation_layers(
     Ok(Json(layers))
 }
 
-/// GET /api/v1/inventory/valuation/history - Get valuation history
+/// GET /api/v1/inventory/valuation/{product_id}/history - Get valuation history
 ///
 /// Returns the historical changes to a product's valuation.
 /// Useful for auditing and financial reporting.
@@ -204,6 +289,25 @@ pub async fn get_valuation_layers(
 /// * `404` - Product not found
 /// * `401` - Authentication required
 /// * `403` - Insufficient permissions
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/valuation/{product_id}/history",
+    tag = "valuation",
+    operation_id = "get_valuation_history",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID"),
+        HistoryQueryParams
+    ),
+    responses(
+        (status = 200, description = "Historical valuation records with pagination", body = ValuationHistoryResponse),
+        (status = 404, description = "Product not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn get_valuation_history(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -228,7 +332,7 @@ pub async fn get_valuation_history(
     Ok(Json(history))
 }
 
-/// POST /api/v1/inventory/valuation/adjust - Adjust inventory cost
+/// POST /api/v1/inventory/valuation/{product_id}/adjust - Adjust inventory cost
 ///
 /// Performs a cost adjustment to the inventory valuation.
 /// This can be used for write-offs, revaluations, or corrections.
@@ -253,6 +357,26 @@ pub async fn get_valuation_history(
 /// * `404` - Product not found
 /// * `401` - Authentication required
 /// * `403` - Insufficient permissions
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/valuation/{product_id}/adjust",
+    tag = "valuation",
+    operation_id = "adjust_cost",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID")
+    ),
+    request_body = CostAdjustmentPayload,
+    responses(
+        (status = 200, description = "Updated valuation data", body = ValuationDto),
+        (status = 400, description = "Invalid adjustment amount", body = ErrorResponse),
+        (status = 404, description = "Product not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn adjust_cost(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -271,7 +395,7 @@ pub async fn adjust_cost(
     Ok(Json(valuation))
 }
 
-/// POST /api/v1/inventory/valuation/revalue - Revalue inventory
+/// POST /api/v1/inventory/valuation/{product_id}/revalue - Revalue inventory
 ///
 /// Revalues the entire inventory at a new cost basis.
 /// This changes the cost of existing inventory without affecting quantity.
@@ -296,6 +420,26 @@ pub async fn adjust_cost(
 /// * `404` - Product not found
 /// * `401` - Authentication required
 /// * `403` - Insufficient permissions
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/valuation/{product_id}/revalue",
+    tag = "valuation",
+    operation_id = "revalue_inventory",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID")
+    ),
+    request_body = RevaluationPayload,
+    responses(
+        (status = 200, description = "Updated valuation data", body = ValuationDto),
+        (status = 400, description = "Invalid cost", body = ErrorResponse),
+        (status = 404, description = "Product not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn revalue_inventory(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
@@ -316,23 +460,23 @@ pub async fn revalue_inventory(
 
 // Payload structures for request bodies
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct SetValuationMethodPayload {
     pub valuation_method: ValuationMethod,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct SetStandardCostPayload {
     pub standard_cost: i64,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct CostAdjustmentPayload {
     pub adjustment_amount: i64,
     pub reason: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct RevaluationPayload {
     pub new_unit_cost: i64,
     pub reason: String,
@@ -340,7 +484,7 @@ pub struct RevaluationPayload {
 
 // Query parameters
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
 pub struct HistoryQueryParams {
     pub limit: Option<i64>,
     pub offset: Option<i64>,

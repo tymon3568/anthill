@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Current valuation information for a product
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValuationDto {
     pub valuation_id: Uuid,
@@ -22,6 +23,7 @@ pub struct ValuationDto {
 }
 
 /// Cost layer for FIFO valuation
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValuationLayerDto {
     pub layer_id: Uuid,
@@ -34,6 +36,7 @@ pub struct ValuationLayerDto {
 }
 
 /// Historical valuation record
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValuationHistoryDto {
     pub history_id: Uuid,
@@ -89,12 +92,14 @@ pub struct GetValuationHistoryRequest {
 }
 
 /// Response for valuation layers
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize)]
 pub struct ValuationLayersResponse {
     pub layers: Vec<ValuationLayerDto>,
 }
 
 /// Response for valuation history
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Serialize)]
 pub struct ValuationHistoryResponse {
     pub history: Vec<ValuationHistoryDto>,

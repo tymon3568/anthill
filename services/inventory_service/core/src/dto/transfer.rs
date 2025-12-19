@@ -1,9 +1,12 @@
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::domains::inventory::transfer::{TransferPriority, TransferStatus, TransferType};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferRequest {
     pub tenant_id: Uuid,
     pub reference_number: Option<String>,
@@ -18,6 +21,7 @@ pub struct CreateTransferRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferItemRequest {
     pub product_id: Uuid,
     pub quantity: i64,
@@ -27,6 +31,7 @@ pub struct CreateTransferItemRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateTransferRequest {
     pub status: Option<TransferStatus>,
     pub notes: Option<String>,
@@ -34,6 +39,7 @@ pub struct UpdateTransferRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateTransferItemRequest {
     pub item_id: Uuid,
     pub quantity: Option<i64>,
@@ -41,6 +47,7 @@ pub struct UpdateTransferItemRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferResponse {
     pub transfer_id: Uuid,
     pub tenant_id: Uuid,
@@ -70,6 +77,7 @@ pub struct TransferResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferItemResponse {
     pub transfer_item_id: Uuid,
     pub tenant_id: Uuid,

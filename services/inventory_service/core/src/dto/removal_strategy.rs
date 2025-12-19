@@ -4,6 +4,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "openapi")]
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -12,6 +14,7 @@ use crate::dto::PaginationInfo;
 
 /// Information about available stock in a location
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StockLocationInfo {
     pub location_id: Uuid,
@@ -24,6 +27,7 @@ pub struct StockLocationInfo {
 
 /// Request to create a new removal strategy
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RemovalStrategyCreateRequest {
     /// Strategy name (unique per tenant)
@@ -44,6 +48,7 @@ pub struct RemovalStrategyCreateRequest {
 
 /// Request to update an existing removal strategy
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RemovalStrategyUpdateRequest {
     /// Strategy name (unique per tenant)
@@ -75,6 +80,7 @@ pub struct RemovalStrategyUpdateRequest {
 
 /// Query parameters for listing removal strategies
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RemovalStrategyListQuery {
     /// Filter by warehouse
@@ -105,6 +111,7 @@ pub struct RemovalStrategyListQuery {
 
 /// Response for a single removal strategy
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RemovalStrategyResponse {
     pub strategy_id: Uuid,
@@ -122,6 +129,7 @@ pub struct RemovalStrategyResponse {
 
 /// Response for listing removal strategies
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RemovalStrategyListResponse {
     pub strategies: Vec<RemovalStrategyResponse>,
@@ -130,6 +138,7 @@ pub struct RemovalStrategyListResponse {
 
 /// Request to suggest optimal stock for picking
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestRemovalRequest {
     /// Warehouse to pick from
@@ -151,6 +160,7 @@ pub struct SuggestRemovalRequest {
 
 /// Suggested stock location for picking
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StockSuggestion {
     pub location_id: Uuid,
@@ -165,6 +175,7 @@ pub struct StockSuggestion {
 
 /// Response for removal suggestion
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestRemovalResponse {
     pub suggestions: Vec<StockSuggestion>,
@@ -175,6 +186,7 @@ pub struct SuggestRemovalResponse {
 
 /// Analytics for strategy performance
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct StrategyAnalyticsResponse {
     pub strategy_id: Uuid,

@@ -77,7 +77,7 @@ pub fn create_putaway_routes() -> Router {
 #[utoipa::path(
     post,
     path = "/api/v1/warehouse/putaway/suggest",
-    tag = "warehouse",
+    tag = "putaway",
     operation_id = "suggest_putaway",
     request_body = PutawayRequest,
     responses(
@@ -164,7 +164,7 @@ pub async fn suggest_putaway(
 #[utoipa::path(
     post,
     path = "/api/v1/warehouse/putaway/confirm",
-    tag = "warehouse",
+    tag = "putaway",
     operation_id = "confirm_putaway",
     request_body = ConfirmPutawayRequest,
     responses(
