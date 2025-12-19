@@ -192,7 +192,7 @@ pub async fn list_categories(
 /// ```
 #[utoipa::path(
     get,
-    path = "/tree",
+    path = "/api/v1/inventory/categories/tree",
     tag = "categories",
     operation_id = "get_category_tree",
     params(CategoryTreeQuery),
@@ -242,7 +242,7 @@ pub async fn get_category_tree(
 /// ```
 #[utoipa::path(
     get,
-    path = "/search",
+    path = "/api/v1/inventory/categories/search",
     tag = "categories",
     operation_id = "search_categories",
     params(SearchQuery),

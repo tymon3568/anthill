@@ -70,7 +70,12 @@ impl ProductService for ProductServiceImpl {
         request: inventory_service_core::dto::product::ProductCreateRequest,
     ) -> Result<Product> {
         // Check if SKU already exists
-        if let Ok(Some(_)) = self.repository.find_by_sku(tenant_id, &request.sku).await {
+        if self
+            .repository
+            .find_by_sku(tenant_id, &request.sku)
+            .await?
+            .is_some()
+        {
             return Err(shared_error::AppError::Conflict(format!(
                 "Product with SKU '{}' already exists",
                 request.sku

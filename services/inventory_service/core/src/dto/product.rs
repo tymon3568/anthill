@@ -12,6 +12,17 @@ use validator::Validate;
 use crate::domains::inventory::product::{Product, ProductTrackingMethod};
 use crate::dto::common::PaginationInfo;
 
+/// Sort direction enum for product list queries
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SortDirection {
+    /// Ascending order
+    Asc,
+    /// Descending order
+    Desc,
+}
+
 /// Product creation request DTO
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
@@ -245,11 +256,12 @@ pub struct ProductListQuery {
 
     /// Sort field
     #[serde(default = "default_sort_by")]
+    #[validate(length(min = 1, max = 50))]
     pub sort_by: String,
 
     /// Sort direction
     #[serde(default = "default_sort_dir")]
-    pub sort_dir: String,
+    pub sort_dir: SortDirection,
 }
 
 fn default_page() -> i64 {
@@ -264,8 +276,8 @@ fn default_sort_by() -> String {
     "name".to_string()
 }
 
-fn default_sort_dir() -> String {
-    "asc".to_string()
+fn default_sort_dir() -> SortDirection {
+    SortDirection::Asc
 }
 
 /// Product list response DTO

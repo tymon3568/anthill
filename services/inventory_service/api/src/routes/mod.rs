@@ -420,38 +420,38 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let kanidm_client = create_kanidm_client(config);
 
     // Comment out AppState creation to isolate stack overflow
-    // let state = AppState {
-    //     category_service: Arc::new(category_service),
-    //     lot_serial_service: Arc::new(DummyLotSerialService2),
-    //     picking_method_service: Arc::new(DummyPickingMethodService2),
-    //     product_service: Arc::new(DummyProductService2),
-    //     valuation_service: Arc::new(SimpleDummyValuationService),
-    //     warehouse_repository: Arc::new(DummyWarehouseRepository2),
-    //     receipt_service: Arc::new(DummyReceiptService2),
-    //     delivery_service: Arc::new(delivery_service),
-    //     transfer_service: Arc::new(DummyTransferService2),
-    //     stock_take_service: Arc::new(DummyStockTakeService2),
-    //     reconciliation_service: Arc::new(DummyReconciliationService2),
-    //     rma_service: Arc::new(DummyRmaService2),
-    //     replenishment_service: Arc::new(DummyReplenishmentService2),
-    //     quality_service: Arc::new(DummyQualityService2),
-    //     putaway_service: Arc::new(DummyPutawayService2),
-    //     distributed_lock_service: Arc::new(DummyDistributedLockService2),
-    //     enforcer,
-    //     jwt_secret: config.jwt_secret.clone(),
-    //     kanidm_client,
-    //     idempotency_state: idempotency_state.clone(),
-    // };
+    let state = AppState {
+        category_service: Arc::new(category_service),
+        lot_serial_service: Arc::new(DummyLotSerialService2),
+        picking_method_service: Arc::new(DummyPickingMethodService2),
+        product_service: Arc::new(DummyProductService2),
+        valuation_service: Arc::new(SimpleDummyValuationService),
+        warehouse_repository: Arc::new(DummyWarehouseRepository2),
+        receipt_service: Arc::new(DummyReceiptService2),
+        delivery_service: Arc::new(delivery_service),
+        transfer_service: Arc::new(DummyTransferService2),
+        stock_take_service: Arc::new(DummyStockTakeService2),
+        reconciliation_service: Arc::new(DummyReconciliationService2),
+        rma_service: Arc::new(DummyRmaService2),
+        replenishment_service: Arc::new(DummyReplenishmentService2),
+        quality_service: Arc::new(DummyQualityService2),
+        putaway_service: Arc::new(DummyPutawayService2),
+        distributed_lock_service: Arc::new(DummyDistributedLockService2),
+        enforcer,
+        jwt_secret: config.jwt_secret.clone(),
+        kanidm_client,
+        idempotency_state: idempotency_state.clone(),
+    };
 
     // Comment out AuthzState creation
-    // let authz_state = AuthzState {
-    //     enforcer: state.enforcer.clone(),
-    //     jwt_secret: state.jwt_secret.clone(),
-    //     kanidm_client: state.kanidm_client.clone(),
-    // };
+    let authz_state = AuthzState {
+        enforcer: state.enforcer.clone(),
+        jwt_secret: state.jwt_secret.clone(),
+        kanidm_client: state.kanidm_client.clone(),
+    };
 
     // Comment out route creations to isolate stack overflow
-    // let category_routes = create_category_routes();
+    let category_routes = create_category_routes();
     // let lot_serial_routes = create_lot_serial_routes();
     // let picking_routes = create_picking_routes();
     // let product_routes = create_product_routes();
@@ -503,8 +503,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ]);
 
     // Comment out protected routes to isolate stack overflow
-    // let protected_routes = Router::new()
-    //     .nest("/api/v1/inventory/categories", category_routes)
+    let protected_routes = Router::new().nest("/api/v1/inventory/categories", category_routes);
     //     .nest("/api/v1/inventory/lot-serials", lot_serial_routes)
     //     .nest("/api/v1/inventory/picking", picking_routes)
     //     .nest("/api/v1/inventory/products", product_routes)
@@ -522,21 +521,21 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     //     .nest("/api/v1/inventory/reports", reports_routes);
 
     // Comment out protected routes with layers
-    // let protected_routes_with_layers = protected_routes
-    //     .layer(Extension(pool.clone()))
-    //     .layer(Extension(config.clone()))
-    //     .layer(Extension(state))
-    //     .layer(axum::middleware::from_fn_with_state(
-    //         idempotency_state,
-    //         crate::middleware::idempotency_middleware,
-    //     ))
-    //     .layer(axum::middleware::from_fn(casbin_middleware))
-    //     .layer(Extension(authz_state));
+    let protected_routes_with_layers = protected_routes
+        .layer(Extension(pool.clone()))
+        .layer(Extension(config.clone()))
+        .layer(Extension(state))
+        .layer(axum::middleware::from_fn_with_state(
+            idempotency_state,
+            crate::middleware::idempotency_middleware,
+        ))
+        .layer(axum::middleware::from_fn(casbin_middleware))
+        .layer(Extension(authz_state));
 
     Router::new()
         .route("/health", get(health_check))
         .merge(SwaggerUi::new("/docs").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        // .merge(protected_routes_with_layers)
+        .merge(protected_routes_with_layers)
         .layer(Extension(pool.clone()))
         .layer(Extension(config.clone()))
         .layer(cors)
