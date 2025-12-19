@@ -9,7 +9,7 @@ use axum::{
     routing::get,
     Router,
 };
-use serde::Deserialize;
+
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 use uuid::Uuid;

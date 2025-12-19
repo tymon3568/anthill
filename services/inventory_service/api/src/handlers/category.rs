@@ -292,7 +292,7 @@ pub async fn search_categories(
 /// ```
 #[utoipa::path(
     get,
-    path = "/top",
+    path = "/api/v1/inventory/categories/top",
     tag = "categories",
     operation_id = "get_top_categories",
     params(TopCategoriesQuery),
@@ -512,7 +512,7 @@ pub async fn delete_category(
 /// ```
 #[utoipa::path(
     get,
-    path = "/{category_id}/children",
+    path = "/api/v1/inventory/categories/{category_id}/children",
     tag = "categories",
     operation_id = "get_category_children",
     params(
@@ -572,7 +572,7 @@ pub async fn get_children(
 /// ```
 #[utoipa::path(
     get,
-    path = "/{category_id}/breadcrumbs",
+    path = "/api/v1/inventory/categories/{category_id}/breadcrumbs",
     tag = "categories",
     operation_id = "get_category_breadcrumbs",
     params(
@@ -637,7 +637,7 @@ pub async fn get_breadcrumbs(
 /// ```
 #[utoipa::path(
     get,
-    path = "/{category_id}/stats",
+    path = "/api/v1/inventory/categories/{category_id}/stats",
     tag = "categories",
     operation_id = "get_category_stats",
     params(
@@ -690,7 +690,7 @@ pub async fn get_category_stats(
 /// Response: `true` or `false`
 #[utoipa::path(
     get,
-    path = "/{category_id}/can-delete",
+    path = "/api/v1/inventory/categories/{category_id}/can-delete",
     tag = "categories",
     operation_id = "can_delete_category",
     params(
@@ -747,7 +747,7 @@ pub async fn can_delete_category(
 /// ```
 #[utoipa::path(
     post,
-    path = "/bulk/activate",
+    path = "/api/v1/inventory/categories/bulk/activate",
     tag = "categories",
     operation_id = "bulk_activate_categories",
     request_body = BulkCategoryIds,
@@ -802,7 +802,7 @@ pub async fn bulk_activate_categories(
 /// ```
 #[utoipa::path(
     post,
-    path = "/bulk/deactivate",
+    path = "/api/v1/inventory/categories/bulk/deactivate",
     tag = "categories",
     operation_id = "bulk_deactivate_categories",
     request_body = BulkCategoryIds,
@@ -857,7 +857,7 @@ pub async fn bulk_deactivate_categories(
 /// ```
 #[utoipa::path(
     post,
-    path = "/bulk/delete",
+    path = "/api/v1/inventory/categories/bulk/delete",
     tag = "categories",
     operation_id = "bulk_delete_categories",
     request_body = BulkCategoryIds,
@@ -914,7 +914,7 @@ pub async fn bulk_delete_categories(
 /// ```
 #[utoipa::path(
     post,
-    path = "/products/move",
+    path = "/api/v1/inventory/categories/products/move",
     tag = "categories",
     operation_id = "move_products_to_category",
     request_body = MoveToCategoryRequest,

@@ -131,7 +131,7 @@ impl ProductService for ProductServiceImpl {
 
     async fn list_products(
         &self,
-        tenant_id: Uuid,
+        _tenant_id: Uuid,
         query: inventory_service_core::dto::product::ProductListQuery,
     ) -> Result<inventory_service_core::dto::product::ProductListResponse> {
         // TODO: Implement with proper filtering and pagination
