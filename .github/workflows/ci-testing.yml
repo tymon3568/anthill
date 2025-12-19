@@ -318,7 +318,11 @@ jobs:
 
       - name: Setup test database
         run: |
+          # Run migrations
           sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
+
+          # Generate sqlx metadata for offline compilation
+          cargo sqlx prepare --workspace --database-url "${{ env.DATABASE_URL }}"
 
       - name: Run security tests
         run: |
@@ -417,7 +421,11 @@ jobs:
 
       - name: Setup test database
         run: |
+          # Run migrations
           sqlx migrate run --database-url "${{ env.DATABASE_URL }}"
+
+          # Generate sqlx metadata for offline compilation
+          cargo sqlx prepare --workspace --database-url "${{ env.DATABASE_URL }}"
 
       - name: Run tests with coverage
         run: |
