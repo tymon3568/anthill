@@ -21,10 +21,7 @@ use uuid::Uuid;
 // Removed unused tokio imports
 
 // Shared crates
-use shared_auth::{
-    enforcer::create_enforcer,
-    middleware::{casbin_middleware, AuthzState},
-};
+use shared_auth::enforcer::create_enforcer;
 use shared_config::Config;
 use shared_error::AppError;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
@@ -34,81 +31,22 @@ use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
-use inventory_service_core::repositories::{InventoryLevelRepository, StockMoveRepository};
+
 use inventory_service_core::services::delivery::DeliveryService;
 
 // Inventory-service infra
 
 use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-use inventory_service_infra::repositories::lot_serial::LotSerialRepositoryImpl;
-
-use inventory_service_infra::repositories::delivery_order::PgDeliveryOrderRepository;
-use inventory_service_infra::repositories::picking_method::PickingMethodRepositoryImpl;
-use inventory_service_infra::repositories::product::ProductRepositoryImpl;
-use inventory_service_infra::repositories::putaway::PgPutawayRepository;
-use inventory_service_infra::repositories::quality::PgQualityControlPointRepository;
-use inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl;
-use inventory_service_infra::repositories::reconciliation::{
-    PgStockReconciliationItemRepository, PgStockReconciliationRepository,
-};
-use inventory_service_infra::repositories::replenishment::PgReorderRuleRepository;
-use inventory_service_infra::repositories::rma::{PgRmaItemRepository, PgRmaRepository};
-use inventory_service_infra::repositories::stock::{
-    PgInventoryLevelRepository, PgStockMoveRepository,
-};
-use inventory_service_infra::repositories::stock_take::{
-    PgStockTakeLineRepository, PgStockTakeRepository,
-};
-use inventory_service_infra::repositories::transfer::{
-    PgTransferItemRepository, PgTransferRepository,
-};
-use inventory_service_infra::repositories::valuation::ValuationRepositoryImpl;
-use inventory_service_infra::repositories::warehouse::WarehouseRepositoryImpl;
 use inventory_service_infra::services::category::CategoryServiceImpl;
-use inventory_service_infra::services::distributed_lock::RedisDistributedLockService;
-use inventory_service_infra::services::lot_serial::LotSerialServiceImpl;
-use inventory_service_infra::services::picking_method::PickingMethodServiceImpl;
-use inventory_service_infra::services::product::ProductServiceImpl;
-use inventory_service_infra::services::putaway::PgPutawayService;
-use inventory_service_infra::services::quality::PgQualityControlPointService;
-use inventory_service_infra::services::receipt::ReceiptServiceImpl;
-use inventory_service_infra::services::reconciliation::PgStockReconciliationService;
-use inventory_service_infra::services::replenishment::PgReplenishmentService;
-use inventory_service_infra::services::rma::PgRmaService;
-use inventory_service_infra::services::stock_take::PgStockTakeService;
-use inventory_service_infra::services::transfer::PgTransferService;
 // Removed unused ValuationServiceImpl import
 
-// Removed unused valuation payload imports
-use inventory_service_core::domains::inventory::dto::valuation_dto::{
-    ValuationDto, ValuationHistoryResponse, ValuationLayersResponse,
-};
-use inventory_service_core::domains::inventory::valuation::ValuationMethod;
 // Removed unused Money import
 // Removed unused TenantContext import
 
 // Local handlers/state
 use crate::handlers::category::create_category_routes;
-#[cfg(feature = "delivery")]
-use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::health::health_check;
-use crate::handlers::lot_serial::create_lot_serial_routes;
-use crate::handlers::picking::create_picking_routes;
-use crate::handlers::products::create_product_routes;
-use crate::handlers::putaway::create_putaway_routes;
-use crate::handlers::receipt::create_receipt_routes;
-use crate::handlers::reconciliation::create_reconciliation_routes;
-use crate::handlers::rma::create_rma_routes;
-use crate::handlers::search::create_search_routes;
-use crate::handlers::stock_take::create_stock_take_routes;
-use crate::handlers::transfer::create_transfer_routes;
-use crate::handlers::valuation::create_valuation_routes;
-use crate::handlers::warehouses::create_warehouse_routes;
 use crate::openapi::ApiDoc;
-use crate::routes::quality::create_quality_routes;
-use crate::routes::replenishment::create_replenishment_routes;
-use crate::routes::reports::create_reports_routes;
-use crate::state::AppState;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -347,7 +285,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         },
     };
 
-    let enforcer = create_enforcer(&config.database_url, Some(model_path))
+    let _enforcer = create_enforcer(&config.database_url, Some(model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
 
@@ -370,7 +308,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ttl_seconds: 24 * 60 * 60, // 24 hours
         header_name: "x-idempotency-key".to_string(),
     };
-    let idempotency_state = Arc::new(
+    let _idempotency_state = Arc::new(
         crate::middleware::IdempotencyState::new(idempotency_config)
             .expect("Failed to initialize idempotency state"),
     );
@@ -400,16 +338,16 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Keep only basic category service for testing
     let category_repo = CategoryRepositoryImpl::new(pool.clone());
-    let category_service = CategoryServiceImpl::new(category_repo);
+    let _category_service = CategoryServiceImpl::new(category_repo);
 
     // Comment out complex services
     // let lot_serial_service = ... (commented out)
     // let picking_method_service = ... (commented out)
     // let product_service = ... (commented out)
-    let valuation_service = Arc::new(SimpleDummyValuationService);
+    let _valuation_service = Arc::new(SimpleDummyValuationService);
     // let distributed_lock_service = ... (commented out)
     // let receipt_service = ... (commented out)
-    let delivery_service = DummyDeliveryService;
+    let _delivery_service = DummyDeliveryService;
     // let transfer_service = ... (commented out)
     // let stock_take_service = ... (commented out)
     // let reconciliation_service = ... (commented out)
@@ -417,7 +355,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // let replenishment_service = ... (commented out)
     // let quality_service = ... (commented out)
     // let putaway_service = ... (commented out)
-    let kanidm_client = create_kanidm_client(config);
+    let _kanidm_client = create_kanidm_client(config);
 
     // Comment out AppState creation to isolate stack overflow
     // let state = AppState {
@@ -451,7 +389,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // };
 
     // Comment out route creations to isolate stack overflow
-    let category_routes = create_category_routes();
+    let _category_routes = create_category_routes();
     // let lot_serial_routes = create_lot_serial_routes();
     // let picking_routes = create_picking_routes();
     // let product_routes = create_product_routes();

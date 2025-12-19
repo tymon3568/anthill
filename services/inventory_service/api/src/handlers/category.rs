@@ -10,8 +10,7 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
-#[cfg(feature = "openapi")]
-use utoipa::ToSchema;
+
 use uuid::Uuid;
 
 use inventory_service_core::dto::category::{
@@ -942,31 +941,27 @@ pub async fn move_products_to_category(
 }
 
 /// Query parameters for category tree endpoint
-#[derive(Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct CategoryTreeQuery {
     pub parent_id: Option<Uuid>,
     pub max_depth: Option<i32>,
 }
 
 /// Query parameters for search endpoint
-#[derive(Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct SearchQuery {
     pub q: String,
     pub limit: Option<i32>,
 }
 
 /// Query parameters for top categories endpoint
-#[derive(Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct TopCategoriesQuery {
     pub limit: Option<i32>,
 }
 
 /// Request body for bulk operations
-#[derive(Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct BulkCategoryIds {
     pub category_ids: Vec<Uuid>,
 }

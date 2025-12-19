@@ -2,9 +2,6 @@
 //!
 //! This module contains the Axum handlers for product search endpoints.
 
-#[cfg(feature = "openapi")]
-use utoipa::ToSchema;
-
 use axum::{
     extract::{Extension, Query},
     response::Json,
@@ -22,7 +19,7 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Error response for OpenAPI documentation
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct ErrorResponse {
     /// Error message
     pub error: String,
@@ -167,8 +164,7 @@ pub async fn search_suggestions(
 }
 
 /// Query parameters for product search endpoint
-#[derive(serde::Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams, utoipa::ToSchema))]
+#[derive(serde::Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ProductSearchQuery {
     pub query: Option<String>,
@@ -262,8 +258,7 @@ impl ProductSearchQuery {
 }
 
 /// Query parameters for search suggestions endpoint
-#[derive(serde::Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams, utoipa::ToSchema))]
+#[derive(serde::Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
 pub struct SearchSuggestionsQuery {
     pub query: String,
     pub limit: Option<u32>,

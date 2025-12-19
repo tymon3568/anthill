@@ -9,8 +9,6 @@ use axum::{
     routing::{get, post},
     Router,
 };
-#[cfg(feature = "openapi")]
-use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 

@@ -3,6 +3,7 @@ use axum::routing::{get, post, Router};
 use crate::handlers::replenishment::*;
 
 /// Create replenishment routes
+#[allow(dead_code)]
 pub fn create_replenishment_routes() -> Router<()> {
     Router::new()
         .route("/rules", post(create_reorder_rule))

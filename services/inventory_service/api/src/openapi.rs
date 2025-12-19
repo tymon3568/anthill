@@ -116,9 +116,9 @@ use inventory_service_core::dto::receipt::{
 use inventory_service_core::dto::reconciliation::{
     ApproveReconciliationRequest, ApproveReconciliationResponse, CountReconciliationRequest,
     CountReconciliationResponse, CreateReconciliationRequest, CreateReconciliationResponse,
-    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsQuery,
-    ReconciliationAnalyticsResponse, ReconciliationDetailResponse, ReconciliationListQuery,
-    ReconciliationListResponse, ScanBarcodeRequest, ScanBarcodeResponse, VarianceAnalysisResponse,
+    FinalizeReconciliationRequest, FinalizeReconciliationResponse, ReconciliationAnalyticsResponse,
+    ReconciliationDetailResponse, ReconciliationListResponse, ScanBarcodeRequest,
+    ScanBarcodeResponse, VarianceAnalysisResponse,
 };
 // Reports DTOs are defined in handlers/reports.rs
 use crate::handlers::reports::{
@@ -128,11 +128,6 @@ use crate::handlers::reports::{
 use inventory_service_core::dto::rma::{
     ApproveRmaRequest, ApproveRmaResponse, CreateRmaRequest, CreateRmaResponse, ReceiveRmaRequest,
     ReceiveRmaResponse,
-};
-use inventory_service_core::dto::stock_take::{
-    CountStockTakeRequest, CountStockTakeResponse, CreateStockTakeRequest, CreateStockTakeResponse,
-    FinalizeStockTakeRequest, FinalizeStockTakeResponse, StockTakeDetailResponse,
-    StockTakeListQuery, StockTakeListResponse,
 };
 use inventory_service_core::models::{
     ConfirmPutawayRequest, ConfirmPutawayResponse, LotSerial, LotSerialLifecycle, PutawayRequest,

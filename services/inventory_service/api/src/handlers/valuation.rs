@@ -2,9 +2,6 @@
 //!
 //! This module contains the Axum handlers for inventory valuation endpoints.
 
-#[cfg(feature = "openapi")]
-use utoipa::ToSchema;
-
 use axum::{
     extract::{Extension, Path, Query},
     response::Json,
@@ -25,7 +22,7 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Error response for OpenAPI documentation
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(utoipa::ToSchema)]
 pub struct ErrorResponse {
     /// Error message
     pub error: String,
@@ -463,27 +460,23 @@ pub async fn revalue_inventory(
 
 // Payload structures for request bodies
 
-#[derive(serde::Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct SetValuationMethodPayload {
     pub valuation_method: ValuationMethod,
 }
 
-#[derive(serde::Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct SetStandardCostPayload {
     pub standard_cost: i64,
 }
 
-#[derive(serde::Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct CostAdjustmentPayload {
     pub adjustment_amount: i64,
     pub reason: String,
 }
 
-#[derive(serde::Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct RevaluationPayload {
     pub new_unit_cost: i64,
     pub reason: String,
@@ -491,8 +484,7 @@ pub struct RevaluationPayload {
 
 // Query parameters
 
-#[derive(serde::Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams, utoipa::ToSchema))]
+#[derive(serde::Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
 pub struct HistoryQueryParams {
     pub limit: Option<i64>,
     pub offset: Option<i64>,

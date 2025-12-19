@@ -3,6 +3,7 @@ use axum::routing::{get, post, Router};
 use crate::handlers::quality;
 
 /// Create quality management routes
+#[allow(dead_code)]
 pub fn create_quality_routes() -> Router {
     Router::new()
         .route("/points", post(quality::create_qc_point).get(quality::list_qc_points))
