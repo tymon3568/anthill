@@ -33,6 +33,21 @@ Done
 - [x] Add required extensions to health endpoint: PgPool and Config (Severity: Critical, Reviewer: coderabbitai)
 - [x] Fix empty license name in inventory.yaml: provide valid license or remove (Severity: Minor, Reviewer: coderabbitai)
 - [x] Fix empty quality_checks items schema: specify placeholder object schema (Severity: Major, Reviewer: coderabbitai)
+- [x] Fix conditional compilation mismatch in category.rs: ToSchema import is feature-gated but derives are unconditional (Severity: Critical, Reviewer: coderabbitai)
+- [x] Add missing picking handler re-exports: delete_picking_method, set_default_method, optimize_picking, confirm_picking_plan (Severity: Warning, Reviewer: coderabbitai)
+- [x] Fix unconditional utoipa derives in search.rs for ProductSearchQuery and SearchSuggestionsQuery (Severity: Critical, Reviewer: coderabbitai)
+- [x] Fix unconditional utoipa derives in valuation.rs for payload structs (Severity: Critical, Reviewer: coderabbitai)
+- [x] Remove commented-out DummyValuationService block (Severity: Style, Reviewer: coderabbitai)
+- [x] Document or remove extensive commented-out initialization code in routes/mod.rs (Severity: Style, Reviewer: coderabbitai)
+- [x] Fix unconditional derives in category.rs for query structs (Severity: Critical, Reviewer: coderabbitai)
+- [x] Fix route path mismatch in search.rs between implementation and OpenAPI documentation (Severity: Warning, Reviewer: coderabbitai)
+- [x] Fix unconditional ToSchema in valuation.rs for HistoryQueryParams (Severity: Critical, Reviewer: coderabbitai)
+- [x] Remove unused imports in products.rs (Severity: Warning, Reviewer: coderabbitai)
+- [x] Add validation to ProductListQuery to prevent invalid pagination values (Severity: Style, Reviewer: coderabbitai)
+- [x] Fix unconditional ToSchema in search.rs for ErrorResponse (Severity: Critical, Reviewer: coderabbitai)
+- [x] Fix unconditional ToSchema in valuation.rs for ErrorResponse (Severity: Critical, Reviewer: coderabbitai)
+- [x] Remove stale debug comment in routes/mod.rs (Severity: Style, Reviewer: coderabbitai)
+- [x] Remove unused RequireAdmin import in products.rs (Severity: Warning, Reviewer: coderabbitai)
 
 ## Sub-tasks for Complete API Documentation
 - [x] Add ToSchema derives to all DTOs in core modules (categories, warehouses, stock operations, etc.)
@@ -84,8 +99,6 @@ Done
   - Confirmed LotSerialLifecycle already derives ToSchema, quality_checks schema will be properly generated
   - All critical and major issues resolved; code compiles successfully
   - Status: NeedsReview
-## AI Agent Log:
----
 *   2025-12-24 12:00: [Expanded Scope] by AI_Agent
   - Updated task to include complete API documentation exposure
   - Added sub-tasks for adding OpenAPI annotations to all handlers and DTOs
@@ -135,7 +148,6 @@ Done
   - Verified compilation passes after changes (warnings about unused imports in openapi.rs are expected as they are used in macros)
   - Sub-tasks "Add utoipa::path annotations to remaining handlers", "Import remaining handlers in openapi.rs", and "Update tags in ApiDoc" marked as completed
   - Note: Delivery handlers are commented out in code and not included in OpenAPI as the feature is disabled
----
 *   2025-12-25 15:00: [OpenAPI Documentation Complete] by AI_Agent
   - Successfully exported updated OpenAPI YAML spec with all endpoints using cargo run --features export-spec
   - Verified Swagger UI will display all operations (service compiles and runs successfully)
@@ -143,6 +155,17 @@ Done
   - All sub-tasks completed successfully
   - Task status: Done
 ---
+*   2025-12-26 10:00: [New Issues Added] by AI_Agent
+  - Fetched latest PR review comments from coderabbitai
+  - Added 14 new unresolved issues as sub-tasks under Issues section
+  - Updated task status to InProgress_By_AI_Agent to address remaining compilation and code quality issues
+---
+*   2025-12-26 11:00: [All Issues Resolved] by AI_Agent
+  - Applied fixes for all 14 remaining issues: conditional compilation mismatches, missing re-exports, unconditional derives, commented code cleanup, route mismatches, unused imports, validation additions
+  - Verified compilation passes with cargo check --workspace
+  - All critical, warning, and style issues from latest PR reviews have been addressed
+  - Task status: Done
+---
 
 ## Last Updated
-2025-12-26
+2025-12-27

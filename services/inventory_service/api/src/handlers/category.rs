@@ -942,27 +942,31 @@ pub async fn move_products_to_category(
 }
 
 /// Query parameters for category tree endpoint
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
 pub struct CategoryTreeQuery {
     pub parent_id: Option<Uuid>,
     pub max_depth: Option<i32>,
 }
 
 /// Query parameters for search endpoint
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
 pub struct SearchQuery {
     pub q: String,
     pub limit: Option<i32>,
 }
 
 /// Query parameters for top categories endpoint
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
 pub struct TopCategoriesQuery {
     pub limit: Option<i32>,
 }
 
 /// Request body for bulk operations
-#[derive(Deserialize, utoipa::ToSchema)]
+#[derive(Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct BulkCategoryIds {
     pub category_ids: Vec<Uuid>,
 }

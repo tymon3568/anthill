@@ -310,83 +310,6 @@ impl inventory_service_core::services::valuation::ValuationService for SimpleDum
     }
 }
 
-// use inventory_service_core::domains::inventory::dto::valuation_dto::*;
-// /// Dummy valuation service
-// use inventory_service_core::services::valuation::ValuationService;
-// pub struct DummyValuationService;
-// #[async_trait]
-// impl ValuationService for DummyValuationService {
-//     async fn get_valuation(&self, _request: GetValuationRequest) -> Result<ValuationDto, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn set_valuation_method(
-//         &self,
-//         _request: SetValuationMethodRequest,
-//     ) -> Result<ValuationDto, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn set_standard_cost(
-//         &self,
-//         _request: SetStandardCostRequest,
-//     ) -> Result<ValuationDto, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn get_valuation_layers(
-//         &self,
-//         _request: GetValuationLayersRequest,
-//     ) -> Result<ValuationLayersResponse, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn get_valuation_history(
-//         &self,
-//         _request: GetValuationHistoryRequest,
-//     ) -> Result<ValuationHistoryResponse, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn adjust_cost(&self, _request: CostAdjustmentRequest) -> Result<ValuationDto, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn revalue_inventory(
-//         &self,
-//         _request: RevaluationRequest,
-//     ) -> Result<ValuationDto, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn process_stock_movement(
-//         &self,
-//         _tenant_id: Uuid,
-//         _product_id: Uuid,
-//         _quantity_change: i64,
-//         _unit_cost: Option<i64>,
-//         _user_id: Option<Uuid>,
-//     ) -> Result<ValuationDto, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn calculate_inventory_value(
-//         &self,
-//         _tenant_id: Uuid,
-//         _product_id: Uuid,
-//     ) -> Result<i64, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-
-//     async fn get_valuation_method(
-//         &self,
-//         _tenant_id: Uuid,
-//         _product_id: Uuid,
-//     ) -> Result<ValuationMethod, AppError> {
-//         Err(AppError::ServiceUnavailable("Not implemented".to_string()))
-//     }
-// }
-
 /// Create the main application router
 pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Validate CORS configuration for production
@@ -428,10 +351,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .await
         .expect("Failed to initialize Casbin enforcer");
 
-    // DEBUG: Skip category service for now
-    // let category_repo = CategoryRepositoryImpl::new(pool.clone());
-    // let category_service = CategoryServiceImpl::new(category_repo);
-
     // Initialize Redis URL for idempotency
     let redis_url = if is_production {
         config
@@ -456,6 +375,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             .expect("Failed to initialize idempotency state"),
     );
 
+    // NOTE: The following repository and service initialization code is temporarily commented out
+    // to isolate and debug stack overflow issues during service startup. This simplified setup
+    // allows the service to start with minimal dependencies while the root cause of the overflow
+    // is investigated. TODO: Re-enable full initialization once stack overflow is resolved.
     // Initialize repositories - COMMENTED OUT MOST TO ISOLATE STACK OVERFLOW
     // let category_repo = CategoryRepositoryImpl::new(pool.clone());
     // let lot_serial_repo = LotSerialRepositoryImpl::new(pool.clone());

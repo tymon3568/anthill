@@ -24,6 +24,7 @@ pub use lot_serial::{
     list_lot_serials_by_product, quarantine_expired_lots, update_lot_serial,
 };
 pub use picking::{
-    create_picking_method, get_picking_method, list_picking_methods, update_picking_method,
+    confirm_picking_plan, create_picking_method, delete_picking_method, get_picking_method,
+    list_picking_methods, optimize_picking, set_default_method, update_picking_method,
 };
 pub use products::{create_product, delete_product, get_product, list_products, update_product};

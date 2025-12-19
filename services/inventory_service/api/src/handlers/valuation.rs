@@ -25,7 +25,7 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Error response for OpenAPI documentation
-#[derive(utoipa::ToSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorResponse {
     /// Error message
     pub error: String,
@@ -463,23 +463,27 @@ pub async fn revalue_inventory(
 
 // Payload structures for request bodies
 
-#[derive(utoipa::ToSchema, serde::Deserialize)]
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SetValuationMethodPayload {
     pub valuation_method: ValuationMethod,
 }
 
-#[derive(utoipa::ToSchema, serde::Deserialize)]
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SetStandardCostPayload {
     pub standard_cost: i64,
 }
 
-#[derive(utoipa::ToSchema, serde::Deserialize)]
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct CostAdjustmentPayload {
     pub adjustment_amount: i64,
     pub reason: String,
 }
 
-#[derive(utoipa::ToSchema, serde::Deserialize)]
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RevaluationPayload {
     pub new_unit_cost: i64,
     pub reason: String,
@@ -487,7 +491,8 @@ pub struct RevaluationPayload {
 
 // Query parameters
 
-#[derive(utoipa::IntoParams, utoipa::ToSchema, serde::Deserialize)]
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams, utoipa::ToSchema))]
 pub struct HistoryQueryParams {
     pub limit: Option<i64>,
     pub offset: Option<i64>,

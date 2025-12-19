@@ -214,7 +214,7 @@ impl From<Product> for ProductResponse {
 }
 
 /// Product list query parameters
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(ToSchema, utoipa::IntoParams))]
 #[serde(rename_all = "camelCase")]
 pub struct ProductListQuery {
@@ -235,10 +235,12 @@ pub struct ProductListQuery {
 
     /// Page number (1-based)
     #[serde(default = "default_page")]
+    #[validate(range(min = 1))]
     pub page: i64,
 
     /// Items per page
     #[serde(default = "default_page_size")]
+    #[validate(range(min = 1, max = 100))]
     pub page_size: i64,
 
     /// Sort field

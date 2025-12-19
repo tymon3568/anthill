@@ -22,7 +22,7 @@ use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 /// Error response for OpenAPI documentation
-#[derive(utoipa::ToSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorResponse {
     /// Error message
     pub error: String,
@@ -33,8 +33,8 @@ pub struct ErrorResponse {
 /// Create the search routes
 pub fn create_search_routes() -> Router {
     Router::new()
-        .route("/products/search", get(search_products))
-        .route("/products/suggestions", get(search_suggestions))
+        .route("/", get(search_products))
+        .route("/suggestions", get(search_suggestions))
 }
 
 /// GET /api/v1/inventory/products/search - Advanced product search
@@ -72,7 +72,7 @@ pub fn create_search_routes() -> Router {
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/products/search",
+    path = "/api/v1/inventory/search",
     tag = "search",
     operation_id = "search_products",
     params(
@@ -130,7 +130,7 @@ pub async fn search_products(
 /// ```
 #[utoipa::path(
     get,
-    path = "/api/v1/inventory/products/suggestions",
+    path = "/api/v1/inventory/search/suggestions",
     tag = "search",
     operation_id = "search_suggestions",
     params(
@@ -167,7 +167,8 @@ pub async fn search_suggestions(
 }
 
 /// Query parameters for product search endpoint
-#[derive(utoipa::IntoParams, utoipa::ToSchema, serde::Deserialize)]
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams, utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct ProductSearchQuery {
     pub query: Option<String>,
@@ -261,7 +262,8 @@ impl ProductSearchQuery {
 }
 
 /// Query parameters for search suggestions endpoint
-#[derive(utoipa::IntoParams, utoipa::ToSchema, serde::Deserialize)]
+#[derive(serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams, utoipa::ToSchema))]
 pub struct SearchSuggestionsQuery {
     pub query: String,
     pub limit: Option<u32>,

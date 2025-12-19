@@ -15,16 +15,13 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-use inventory_service_core::domains::inventory::product::Product;
-use inventory_service_core::dto::common::PaginationInfo;
-
 // Import DTOs for requests/responses
 use inventory_service_core::dto::product::{
     ProductCreateRequest, ProductListQuery, ProductListResponse, ProductResponse,
     ProductUpdateRequest,
 };
 
-use shared_auth::extractors::{AuthUser, RequireAdmin};
+use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
 
 use crate::state::AppState;
@@ -160,6 +157,11 @@ pub async fn list_products(
     Extension(state): Extension<AppState>,
     Query(query): Query<ProductListQuery>,
 ) -> Result<Json<ProductListResponse>, AppError> {
+    // Validate query parameters
+    query
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
     let response = state
         .product_service
         .list_products(auth_user.tenant_id, query)
