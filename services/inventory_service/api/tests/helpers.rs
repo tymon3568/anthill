@@ -232,7 +232,9 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         ),
     };
 
-    create_reconciliation_routes().layer(axum::Extension(app_state))
+    Router::new()
+        .nest("/api/v1/inventory/reconciliations", create_reconciliation_routes())
+        .layer(axum::Extension(app_state))
 }
 
 /// Create a test user for authentication
