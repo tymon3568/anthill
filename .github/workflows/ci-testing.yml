@@ -208,9 +208,16 @@ jobs:
 
       - name: Wait for PostgreSQL
         run: |
+          TIMEOUT=60
+          ELAPSED=0
           until pg_isready -h localhost -p 5432 -U postgres; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "PostgreSQL failed to become ready within ${TIMEOUT}s"
+              exit 1
+            fi
             echo "Waiting for PostgreSQL..."
             sleep 2
+            ELAPSED=$((ELAPSED + 2))
           done
 
       - name: Setup test database
@@ -297,9 +304,16 @@ jobs:
 
       - name: Wait for PostgreSQL
         run: |
+          TIMEOUT=60
+          ELAPSED=0
           until pg_isready -h localhost -p 5432 -U postgres; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "PostgreSQL failed to become ready within ${TIMEOUT}s"
+              exit 1
+            fi
             echo "Waiting for PostgreSQL..."
             sleep 2
+            ELAPSED=$((ELAPSED + 2))
           done
 
       - name: Setup test database
@@ -386,6 +400,20 @@ jobs:
             --features postgres \
             --version 0.8.6 \
             || echo "sqlx-cli already installed"
+
+      - name: Wait for PostgreSQL
+        run: |
+          TIMEOUT=60
+          ELAPSED=0
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            if [ $ELAPSED -ge $TIMEOUT ]; then
+              echo "PostgreSQL failed to become ready within ${TIMEOUT}s"
+              exit 1
+            fi
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+            ELAPSED=$((ELAPSED + 2))
+          done
 
       - name: Setup test database
         run: |
