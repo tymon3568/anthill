@@ -104,7 +104,7 @@ services:
       retries: 5
       start_period: 30s
 
-  kanidm-init:
+  # kanidm-init:
     # Temporarily disabled - custom image 'kanidm-init-complete:latest' not available
     # Uncomment and build image when ready
     # image: kanidm-init-complete:latest
