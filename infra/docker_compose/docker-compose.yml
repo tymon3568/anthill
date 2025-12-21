@@ -2,12 +2,11 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: postgres_db
+    network_mode: host
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: inventory_db
-    ports:
-      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis_cache
-    ports:
-      - "6379:6379"
+    network_mode: host
     volumes:
       - redis_data:/data
     healthcheck:
@@ -32,10 +30,8 @@ services:
   nats:
     image: nats:2.10-alpine
     container_name: nats_server
+    network_mode: host
     command: "-js"
-    ports:
-      - "4222:4222" # Client port
-      - "8222:8222" # HTTP monitoring port
     healthcheck:
       test: ["CMD-SHELL", "lsof -i :4222 || exit 1"]
       interval: 10s
@@ -45,15 +41,13 @@ services:
   minio:
     image: minio/minio:latest
     container_name: minio_storage
+    network_mode: host
     # ⚠️ Development-only credentials - DO NOT use in production
     # For production: use .env file or secure secret injection
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_REGION_NAME: us-east-1
-    ports:
-      - "9000:9000" # MinIO API port
-      - "9001:9001" # MinIO Console port
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -65,6 +59,7 @@ services:
   minio-init:
     image: minio/mc:latest
     container_name: minio_init
+    network_mode: host
     depends_on:
       minio:
         condition: service_healthy
@@ -73,11 +68,12 @@ services:
     command: sh /init-minio.sh
     # ⚠️ Development-only credentials - must match minio service credentials
     environment:
-      - MC_HOST_local=http://minioadmin:minioadmin@minio:9000
+      - MC_HOST_local=http://minioadmin:minioadmin@localhost:9000
 
   kanidm-certs:
     image: alpine/openssl
     container_name: kanidm_certs
+    network_mode: host
     entrypoint: ["sh", "/generate-certs.sh"]
     volumes:
       - kanidm_data:/data
@@ -86,6 +82,7 @@ services:
   kanidm:
     image: kanidm/server:1.4.3
     container_name: kanidm_idm
+    network_mode: host
     depends_on:
       kanidm-certs:
         condition: service_completed_successfully
@@ -96,9 +93,6 @@ services:
       KANIDM_LOG_LEVEL: info
       # Use SQLite for dev (production should use PostgreSQL)
       KANIDM_DB_TYPE: sqlite
-    ports:
-      - "8300:8300" # HTTPS port
-      - "8301:8301" # LDAP port (optional)
     volumes:
       - kanidm_data:/data
       - ./kanidm-server.toml:/data/server.toml:ro
@@ -111,22 +105,22 @@ services:
       start_period: 30s
 
   kanidm-init:
-    image: kanidm-init-complete:latest
-    container_name: kanidm_init
-    # Use host network of kanidm container to connect via localhost
-    network_mode: "service:kanidm"
-    depends_on:
-      kanidm:
-        condition: service_healthy
-    environment:
-      KANIDM_URL: https://localhost:8300
-      KANIDM_ADMIN_USER: idm_admin
-      KANIDM_ADMIN_PASSWORD: ${KANIDM_ADMIN_PASSWORD:-}
-      RUST_LOG: info
-    volumes:
-      # Share Kanidm data volume to access CA cert
-      - kanidm_data:/data:ro
-    restart: on-failure
+    # Temporarily disabled - custom image 'kanidm-init-complete:latest' not available
+    # Uncomment and build image when ready
+    # image: kanidm-init-complete:latest
+    # container_name: kanidm_init
+    # network_mode: host
+    # depends_on:
+    #   kanidm:
+    #     condition: service_healthy
+    # environment:
+    #   KANIDM_URL: https://localhost:8300
+    #   KANIDM_ADMIN_USER: idm_admin
+    #   KANIDM_ADMIN_PASSWORD: ${KANIDM_ADMIN_PASSWORD:-your_password}
+    #   RUST_LOG: info
+    # volumes:
+    #   - kanidm_data:/data:ro
+    # restart: on-failure
 
 volumes:
   postgres_data:
