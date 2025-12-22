@@ -17,7 +17,7 @@ use std::sync::Arc;
 async fn create_inventory_service(pool: &sqlx::PgPool) -> InventoryServiceImpl {
     // We need ProductRepository and LotSerialRepository to instantiate PgInventoryRepository
     // because it handles both standard and lot-tracked reservations.
-    
+
     // Using default implementations from existing repositories
     let product_repo = Arc::new(inventory_service_infra::repositories::ProductRepositoryImpl::new(
         pool.clone(),
@@ -25,7 +25,7 @@ async fn create_inventory_service(pool: &sqlx::PgPool) -> InventoryServiceImpl {
     let lot_serial_repo = Arc::new(
         inventory_service_infra::repositories::LotSerialRepositoryImpl::new(pool.clone()),
     );
-    
+
     let inventory_repo = Arc::new(PgInventoryRepository::new(
         Arc::new(pool.clone()),
         product_repo,
@@ -59,14 +59,14 @@ async fn test_reserve_stock_standard_product() {
 
     // Verify database state directly
     let level = sqlx::query!(
-        "SELECT available_quantity, reserved_quantity FROM inventory_levels 
+        "SELECT available_quantity, reserved_quantity FROM inventory_levels
          WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3",
         tenant_id, product_id, warehouse_id
     )
     .fetch_one(&pool)
     .await
     .unwrap();
-    
+
     assert_eq!(level.available_quantity, 60);
     assert_eq!(level.reserved_quantity, 40);
 
@@ -87,7 +87,7 @@ async fn test_reserve_insufficient_stock_fails() {
         .await;
 
     assert!(result.is_err(), "Should fail due to insufficient stock");
-    
+
     // Verify stock unchanged
     let available = service
         .get_available_stock(tenant_id, warehouse_id, product_id)
@@ -118,14 +118,14 @@ async fn test_release_stock() {
 
     // Check state: 100 - 50 + 20 = 70 available, 30 reserved
     let level = sqlx::query!(
-        "SELECT available_quantity, reserved_quantity FROM inventory_levels 
+        "SELECT available_quantity, reserved_quantity FROM inventory_levels
          WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3",
         tenant_id, product_id, warehouse_id
     )
     .fetch_one(&pool)
     .await
     .unwrap();
-    
+
     assert_eq!(level.available_quantity, 70);
     assert_eq!(level.reserved_quantity, 30);
 

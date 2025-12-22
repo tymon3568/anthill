@@ -232,7 +232,7 @@ impl TestDatabase {
     async fn create_test_user(&self, tenant_id: Uuid, _name: &str) -> Uuid {
         let user_id = Uuid::now_v7();
         let email = format!("test-{}@example.com", user_id);
-        
+
         sqlx::query(
             "INSERT INTO users (user_id, tenant_id, email, email_verified, role, status, failed_login_attempts, auth_method, created_at, updated_at)
              VALUES ($1, $2, $3, true, 'admin', 'active', 0, 'password', NOW(), NOW())"
@@ -243,7 +243,7 @@ impl TestDatabase {
         .execute(&self.pool)
         .await
         .expect("Failed to create test user");
-        
+
         // Add Casbin Role (g policy)
         sqlx::query(
             "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, created_at) VALUES ('g', $1, 'admin', $2, '', NOW())"
@@ -489,7 +489,7 @@ mod reservation_tests {
             .db()
             .create_test_product(tenant_id, "RES-001", "Reservation Product")
             .await;
-        
+
         let user_id = app.db().create_test_user(tenant_id, "res_user").await;
         let location_id = app.db().create_test_location(tenant_id, warehouse_id, "Z1", "L1", user_id).await;
 
@@ -568,9 +568,9 @@ mod reservation_tests {
         // I should stick to updating SQL here or update helper separately.
         // Let's assume helper needs update. But I only edited set_inventory_level.
         // I will do raw SQL check here to be safe and avoid spiral of helper edits.
-        
+
         let final_reserved: Option<i64> = sqlx::query_scalar(
-            "SELECT reserved_quantity FROM inventory_levels 
+            "SELECT reserved_quantity FROM inventory_levels
              WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
         )
         .bind(tenant_id)
@@ -797,7 +797,7 @@ mod concurrent_move_tests {
 
         // Verify final states
         let source_qty: Option<i64> = sqlx::query_scalar(
-            "SELECT available_quantity FROM inventory_levels 
+            "SELECT available_quantity FROM inventory_levels
              WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
         )
         .bind(tenant_id)
@@ -809,7 +809,7 @@ mod concurrent_move_tests {
         .unwrap();
 
         let dest_qty: Option<i64> = sqlx::query_scalar(
-            "SELECT available_quantity FROM inventory_levels 
+            "SELECT available_quantity FROM inventory_levels
              WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
         )
         .bind(tenant_id)
@@ -909,7 +909,7 @@ mod concurrent_move_tests {
         // Verify final quantity: should be exactly 100 (10 * 10)
         let expected_qty = (CONCURRENT_RECEIPT_TASKS as i64) * RECEIPT_AMOUNT;
         let final_qty: Option<i64> = sqlx::query_scalar(
-            "SELECT available_quantity FROM inventory_levels 
+            "SELECT available_quantity FROM inventory_levels
              WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
         )
         .bind(tenant_id)
@@ -1132,7 +1132,7 @@ mod idempotency_tests {
         let db = TestApp::init_db().await.expect("Failed to init DB");
         let tenant_id = db.create_test_tenant("Idempotency").await;
         let user_id = db.create_test_user(tenant_id, "idemp1").await;
-        
+
         let app = TestApp::build_app(db).await;
 
         // First request - should succeed
@@ -1143,7 +1143,7 @@ mod idempotency_tests {
 
         // Second request with SAME key - should match first response
         let (status2, body2) = make_idempotency_request(&app, tenant_id, user_id, "key-1", "001").await;
-        
+
         assert_eq!(status1, status2, "Status codes should match");
         assert_eq!(body1, body2, "Response bodies should match");
 
@@ -1161,7 +1161,7 @@ mod idempotency_tests {
 
         // Request 1
         let (status1, body1) = make_idempotency_request(&app, tenant_id, user_id, "key-A", "A").await;
-        
+
         // Request 2 (different key)
         let (status2, body2) = make_idempotency_request(&app, tenant_id, user_id, "key-B", "B").await;
 
@@ -1198,7 +1198,7 @@ mod idempotency_tests {
         let db = TestApp::init_db().await.expect("Failed to init DB");
         let tenant_id = db.create_test_tenant("Concurrent Idem").await;
         let user_id = db.create_test_user(tenant_id, "idemp3").await;
-        
+
         let app = TestApp::build_app(db).await;
 
         let _warehouse_id = app
@@ -1365,7 +1365,7 @@ mod consistency_tests {
             + (CONCURRENT_INCREMENT_OPS as i64 * INCREMENT_AMOUNT)
             - (CONCURRENT_DECREMENT_OPS as i64 * DECREMENT_AMOUNT);
         let final_qty: Option<i64> = sqlx::query_scalar(
-            "SELECT available_quantity FROM inventory_levels 
+            "SELECT available_quantity FROM inventory_levels
              WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
         )
         .bind(tenant_id)
@@ -1422,7 +1422,7 @@ mod consistency_tests {
 
         // Verify quantity unchanged
         let qty: Option<i64> = sqlx::query_scalar(
-            "SELECT available_quantity FROM inventory_levels 
+            "SELECT available_quantity FROM inventory_levels
              WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
         )
         .bind(tenant_id)

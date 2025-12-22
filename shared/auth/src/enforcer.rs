@@ -15,7 +15,7 @@ pub type SharedEnforcer = Arc<RwLock<Enforcer>>;
 /// 3. Relative to executable path
 ///
 /// Returns the first existing path, or an error listing all searched locations.
-fn resolve_model_path(custom_path: Option<&str>) -> Result<std::path::PathBuf, String> {
+pub(crate) fn resolve_model_path(custom_path: Option<&str>) -> Result<std::path::PathBuf, String> {
     if let Some(custom) = custom_path {
         return Ok(std::path::PathBuf::from(custom));
     }
@@ -251,20 +251,26 @@ mod tests {
     use sqlx::postgres::PgPoolOptions;
     use sqlx_adapter::SqlxAdapter;
 
+    #[test]
+    fn test_resolve_model_path_in_test_env() {
+        // This validates that our new path resolution logic works in the test environment
+        // exactly as it does in the production code (since we're calling the same function)
+        let path = resolve_model_path(None).expect("Should resolve path in test env");
+        assert!(path.exists(), "Model file should exist at {:?}", path);
+        assert!(path.ends_with("shared/auth/model.conf"), "Path should end with model.conf");
+    }
+
     async fn setup_test_enforcer() -> Enforcer {
-        // Load model from file - use absolute path from workspace root
-        let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
-            .ok()
-            .and_then(|p| {
-                let path = std::path::PathBuf::from(p);
-                path.parent()?.parent().map(|p| p.to_path_buf())
-            })
-            .unwrap_or_else(|| std::path::PathBuf::from("."));
-        let model_path = workspace_root.join("shared/auth/model.conf");
-        let model =
-            DefaultModel::from_file(model_path.to_str().expect("Invalid UTF-8 in model path"))
-                .await
-                .expect("Failed to load Casbin model");
+        // Resolve model path using the same logic as production
+        let resolved_model_path = resolve_model_path(None).expect("Failed to resolve model path for tests");
+
+        let model = DefaultModel::from_file(
+            resolved_model_path
+                .to_str()
+                .expect("Invalid UTF-8 in model path"),
+        )
+        .await
+        .expect("Failed to load Casbin model");
 
         // Use PostgreSQL for testing (standard port 5432)
         // Credentials aligned with integration_utils.rs and setup scripts
