@@ -7,15 +7,16 @@
 -- INVENTORY LEVELS
 -- ==================================
 -- Drop unconditional constraint created in 20251124000002_add_warehouse_to_inventory_levels.sql
+-- Note: Updated to drop 'inventory_levels_unique_product_per_location' which replaced the per-warehouse constraint
 ALTER TABLE inventory_levels
-DROP CONSTRAINT IF EXISTS inventory_levels_unique_product_per_warehouse;
+DROP CONSTRAINT IF EXISTS inventory_levels_unique_product_per_location;
 
--- Drop non-unique index if it exists (it was created as non-unique in previous migration)
-DROP INDEX IF EXISTS idx_inventory_levels_tenant_warehouse_product;
+-- Drop non-unique index if it exists (replaced by location-aware index in 20251209000002)
+DROP INDEX IF EXISTS idx_inventory_levels_tenant_warehouse_location_product;
 
--- Create UNIQUE index filtering out deleted records
-CREATE UNIQUE INDEX idx_inventory_levels_tenant_warehouse_product_unique
-ON inventory_levels(tenant_id, warehouse_id, product_id)
+-- Create UNIQUE index filtering out deleted records (includes location_id for per-location tracking)
+CREATE UNIQUE INDEX idx_inventory_levels_tenant_warehouse_location_product_unique
+ON inventory_levels(tenant_id, warehouse_id, location_id, product_id)
 WHERE deleted_at IS NULL;
 
 
