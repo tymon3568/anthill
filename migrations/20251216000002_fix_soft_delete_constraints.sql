@@ -63,7 +63,7 @@ DROP INDEX IF EXISTS idx_warehouse_zones_warehouse_code;
 
 -- Create UNIQUE index filtering out deleted records
 CREATE UNIQUE INDEX idx_warehouse_zones_code_unique_active
-ON warehouse_zones(warehouse_id, zone_code)
+ON warehouse_zones(tenant_id, warehouse_id, zone_code)
 WHERE deleted_at IS NULL;
 
 
@@ -79,7 +79,7 @@ DROP INDEX IF EXISTS idx_warehouse_locations_warehouse_code;
 
 -- Create UNIQUE index filtering out deleted records
 CREATE UNIQUE INDEX idx_warehouse_locations_code_unique_active
-ON warehouse_locations(warehouse_id, location_code)
+ON warehouse_locations(tenant_id, warehouse_id, location_code)
 WHERE deleted_at IS NULL;
 
 
