@@ -5,7 +5,8 @@ use axum::{
     http::{header, HeaderValue},
     Extension, Router,
 };
-use shared_auth::enforcer::{create_enforcer, SharedEnforcer};
+use shared_auth::enforcer::create_enforcer;
+use shared_auth::middleware::AuthzState;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -23,13 +24,6 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 mod openapi;
-
-#[derive(Clone)]
-#[allow(dead_code)] // TODO: Re-enable when authorization middleware is activated
-pub struct AuthzState {
-    enforcer: SharedEnforcer,
-    jwt_secret: String,
-}
 
 #[tokio::main]
 async fn main() {
@@ -191,11 +185,12 @@ async fn main() {
         profile: profile_state.clone(),
     };
 
-    // TODO: Re-enable authorization state
-    // let authz_state = AuthzState {
-    //     enforcer: enforcer.clone(),
-    //     jwt_secret: config.jwt_secret.clone(),
-    // };
+    // Authorization state for Casbin middleware
+    let authz_state = AuthzState {
+        enforcer: enforcer.clone(),
+        jwt_secret: config.jwt_secret.clone(),
+        kanidm_client: kanidm_client.clone(),
+    };
 
     tracing::info!("✅ Services initialized");
 
@@ -277,13 +272,12 @@ async fn main() {
         .route("/api/v1/admin/permissions",
             get(admin_handlers::list_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
-        .layer(Extension(combined_state.app.clone()));
-
-    // TODO: Re-enable authorization middleware
-    // .layer(axum::middleware::from_fn_with_state(
-    //     authz_state,
-    //     shared_auth::middleware::casbin_middleware,
-    // ));
+        .layer(Extension(combined_state.app.clone()))
+        // Apply authorization middleware to admin routes
+        .layer(axum::middleware::from_fn(
+            shared_auth::middleware::casbin_middleware,
+        ))
+        .layer(Extension(authz_state));
 
     // Profile routes (require authentication)
     let profile_routes = Router::new()
