@@ -40,7 +40,9 @@ mod helpers;
 
 use helpers::{create_test_app, create_test_user, setup_test_database};
 
-#[ignore = "Reconciliation tests require full test app setup"]
+/// This test requires full app setup including Redis, Casbin, etc.
+/// Skip until proper test infrastructure is available.
+#[cfg(feature = "integration_tests_reconciliation")]
 #[tokio::test]
 async fn test_complete_reconciliation_workflow() {
     // Setup
@@ -246,7 +248,9 @@ async fn test_complete_reconciliation_workflow() {
     assert_eq!(response.status(), StatusCode::OK);
 }
 
-#[ignore = "Reconciliation tests require full test app setup"]
+/// This test requires full app setup including Redis, Casbin, etc.
+/// Skip until proper test infrastructure is available.
+#[cfg(feature = "integration_tests_reconciliation")]
 #[tokio::test]
 async fn test_reconciliation_validation_errors() {
     // Setup
@@ -302,7 +306,9 @@ async fn test_reconciliation_validation_errors() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
-#[ignore = "Reconciliation tests require full test app setup"]
+/// This test requires full app setup including Redis, Casbin, etc.
+/// Skip until proper test infrastructure is available.
+#[cfg(feature = "integration_tests_reconciliation")]
 #[tokio::test]
 async fn test_reconciliation_business_rules() {
     // Setup
@@ -384,7 +390,9 @@ async fn test_reconciliation_business_rules() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
-#[ignore = "Reconciliation tests require full test app setup"]
+/// This test requires full app setup including Redis, Casbin, etc.
+/// Skip until proper test infrastructure is available.
+#[cfg(feature = "integration_tests_reconciliation")]
 #[tokio::test]
 async fn test_reconciliation_analytics_and_reporting() {
     // Setup
