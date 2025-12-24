@@ -241,24 +241,24 @@ pub async fn create_test_user(pool: &PgPool) -> AuthUser {
     let tenant_id = Uuid::now_v7();
 
     // Insert test tenant if not exists
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())
          ON CONFLICT (tenant_id) DO NOTHING",
-        tenant_id,
-        "Test Tenant"
     )
+    .bind(tenant_id)
+    .bind("Test Tenant")
     .execute(pool)
     .await
     .unwrap();
 
     // Insert test user if not exists
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO users (user_id, tenant_id, email, created_at) VALUES ($1, $2, $3, NOW())
          ON CONFLICT (user_id) DO NOTHING",
-        user_id,
-        tenant_id,
-        "test@example.com"
     )
+    .bind(user_id)
+    .bind(tenant_id)
+    .bind("test@example.com")
     .execute(pool)
     .await
     .unwrap();
@@ -277,29 +277,29 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
     let product_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440001").unwrap();
 
     // Insert test product
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO products (product_id, tenant_id, sku, name, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          ON CONFLICT (product_id) DO NOTHING",
-        product_id,
-        tenant_id,
-        "TEST001",
-        "Test Product"
     )
+    .bind(product_id)
+    .bind(tenant_id)
+    .bind("TEST001")
+    .bind("Test Product")
     .execute(pool)
     .await
     .unwrap();
 
     // Insert test warehouse
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          ON CONFLICT (warehouse_id) DO NOTHING",
-        warehouse_id,
-        tenant_id,
-        "TESTWH",
-        "Test Warehouse"
     )
+    .bind(warehouse_id)
+    .bind(tenant_id)
+    .bind("TESTWH")
+    .bind("Test Warehouse")
     .execute(pool)
     .await
     .unwrap();
