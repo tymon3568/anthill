@@ -14,11 +14,7 @@ use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-
 use uuid::Uuid;
-
-// Tokio for timeout
-// Removed unused tokio imports
 
 // Shared crates
 use shared_auth::enforcer::create_enforcer;
@@ -31,206 +27,68 @@ use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
-use chrono::Utc;
-use inventory_service_core::domains::inventory::dto::transfer_dto::*;
-
 use inventory_service_core::services::delivery::DeliveryService;
-// Core service traits for UniversalDummyService
-use inventory_service_core::repositories::putaway::PutawayService;
-use inventory_service_core::repositories::warehouse::WarehouseRepository;
-use inventory_service_core::services::distributed_lock::DistributedLockService;
-use inventory_service_core::services::lot_serial::LotSerialService;
-use inventory_service_core::services::picking_method::PickingMethodService;
-use inventory_service_core::services::product::ProductService;
-use inventory_service_core::services::quality::QualityControlPointService;
-use inventory_service_core::services::receipt::ReceiptService;
-use inventory_service_core::services::reconciliation::StockReconciliationService;
-use inventory_service_core::services::replenishment::ReplenishmentService;
-use inventory_service_core::services::rma::RmaService;
-use inventory_service_core::services::stock_take::StockTakeService;
-use inventory_service_core::services::transfer::TransferService;
-use inventory_service_core::domains::replenishment::{
-    CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
+
+// Inventory-service infra - Repositories
+use inventory_service_infra::repositories::{
+    category::CategoryRepositoryImpl,
+    lot_serial::LotSerialRepositoryImpl,
+    picking_method::PickingMethodRepositoryImpl,
+    product::ProductRepositoryImpl,
+    putaway::PgPutawayRepository,
+    quality::PgQualityControlPointRepository,
+    receipt::ReceiptRepositoryImpl,
+    reconciliation::{PgStockReconciliationRepository, PgStockReconciliationItemRepository},
+    replenishment::PgReorderRuleRepository,
+    rma::{PgRmaRepository, PgRmaItemRepository},
+    stock::{PgInventoryLevelRepository, PgStockMoveRepository},
+    stock_take::{PgStockTakeRepository, PgStockTakeLineRepository},
+    transfer::{PgTransferRepository, PgTransferItemRepository},
+    valuation::ValuationRepositoryImpl,
+    warehouse::WarehouseRepositoryImpl,
 };
-use inventory_service_core::domains::quality::{
-    CreateQualityControlPoint, QualityControlPoint, UpdateQualityControlPoint
+
+// Inventory-service infra - Services
+use inventory_service_infra::services::{
+    CategoryServiceImpl,
+    // DeliveryServiceImpl, // Not exported in infra mod.rs, using dummy
+    RedisDistributedLockService,
+    LotSerialServiceImpl,
+    PickingMethodServiceImpl,
+    ProductServiceImpl,
+    PgPutawayService,
+    PgQualityControlPointService,
+    ReceiptServiceImpl,
+    PgStockReconciliationService,
+    // RemovalStrategyServiceImpl,
+    PgReplenishmentService,
+    PgRmaService,
+    PgStockTakeService,
+    PgTransferService,
+    ValuationServiceImpl,
 };
-use inventory_service_core::models::{
-    PutawayRequest, PutawaySuggestion, ConfirmPutawayRequest, ConfirmPutawayResponse
-};
-// DTO Imports
-use inventory_service_core::dto::receipt::*;
-// use inventory_service_core::dto::transfer::*;
-use inventory_service_core::dto::stock_take::*;
-use inventory_service_core::dto::reconciliation::*;
-use inventory_service_core::dto::rma::*;
-use inventory_service_core::dto::product::*;
-use inventory_service_core::domains::inventory::dto::search_dto::*;
-use inventory_service_core::domains::inventory::product::Product;
-use inventory_service_core::domains::inventory::picking_method::PickingMethod;
-use inventory_service_core::domains::inventory::dto::picking_method_dto::*;
-use inventory_service_core::models::{LotSerial, LotSerialLifecycle, LotSerialTrackingType, LotSerialStatus};
-use inventory_service_core::domains::inventory::warehouse::Warehouse;
-use inventory_service_core::domains::inventory::warehouse_zone::WarehouseZone;
-use inventory_service_core::domains::inventory::warehouse_location::WarehouseLocation;
-use inventory_service_core::domains::inventory::dto::warehouse_dto::*;
-use serde_json::Value as JsonValue;
-
-// Inventory-service infra
-
-// Define UniversalDummyService
-#[derive(Clone)]
-pub struct UniversalDummyService;
-
-#[async_trait]
-impl LotSerialService for UniversalDummyService {
-    async fn create_lot_serial(&self, _lot_serial: &LotSerial) -> Result<(), AppError> { unimplemented!() }
-    async fn get_lot_serial(&self, _tenant_id: Uuid, _lot_serial_id: Uuid) -> Result<Option<LotSerial>, AppError> { unimplemented!() }
-    async fn get_lifecycle(&self, _tenant_id: Uuid, _lot_serial_id: Uuid) -> Result<LotSerialLifecycle, AppError> { unimplemented!() }
-    async fn list_lot_serials_by_product(&self, _tenant_id: Uuid, _product_id: Uuid, _tracking_type: Option<LotSerialTrackingType>, _status: Option<LotSerialStatus>) -> Result<Vec<LotSerial>, AppError> { unimplemented!() }
-    async fn update_lot_serial(&self, _lot_serial: &LotSerial) -> Result<(), AppError> { unimplemented!() }
-    async fn delete_lot_serial(&self, _tenant_id: Uuid, _lot_serial_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn quarantine_expired_lots(&self, _tenant_id: Uuid) -> Result<i64, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl PickingMethodService for UniversalDummyService {
-    async fn create_method(&self, _tenant_id: Uuid, _req: CreatePickingMethodRequest, _user_id: Uuid) -> Result<PickingMethod, AppError> { unimplemented!() }
-    async fn get_method(&self, _tenant_id: Uuid, _method_id: Uuid) -> Result<Option<PickingMethod>, AppError> { unimplemented!() }
-    async fn get_methods_by_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<PickingMethod>, AppError> { unimplemented!() }
-    async fn get_active_methods_by_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<PickingMethod>, AppError> { unimplemented!() }
-    async fn get_default_method_by_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<PickingMethod>, AppError> { unimplemented!() }
-    async fn update_method(&self, _tenant_id: Uuid, _method_id: Uuid, _req: UpdatePickingMethodRequest, _user_id: Uuid) -> Result<PickingMethod, AppError> { unimplemented!() }
-    async fn delete_method(&self, _tenant_id: Uuid, _method_id: Uuid, _user_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn set_default_method(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _method_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn optimize_picking(&self, _tenant_id: Uuid, _req: PickingOptimizationRequest) -> Result<PickingPlanResponse, AppError> { unimplemented!() }
-    async fn confirm_picking_plan(&self, _tenant_id: Uuid, _req: ConfirmPickingPlanRequest, _user_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn validate_method(&self, _tenant_id: Uuid, _method_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn get_method_performance(&self, _tenant_id: Uuid, _method_id: Uuid, _date_range: Option<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)>) -> Result<Option<JsonValue>, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl ProductService for UniversalDummyService {
-    async fn create_product(&self, _tenant_id: Uuid, _req: ProductCreateRequest) -> Result<Product, AppError> { unimplemented!() }
-    async fn update_product(&self, _tenant_id: Uuid, _product_id: Uuid, _req: ProductUpdateRequest) -> Result<Product, AppError> { unimplemented!() }
-    async fn delete_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn get_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Product, AppError> { unimplemented!() }
-    async fn get_product_by_sku(&self, _tenant_id: Uuid, _sku: &str) -> Result<Product, AppError> { unimplemented!() }
-    async fn list_products(&self, _tenant_id: Uuid, _query: ProductListQuery) -> Result<ProductListResponse, AppError> { unimplemented!() }
-    async fn get_popular_search_terms(&self, _tenant_id: Uuid, _limit: u32) -> Result<Vec<(String, u32)>, AppError> { unimplemented!() }
-    async fn record_search_analytics(&self, _tenant_id: Uuid, _query: &str, _results_count: u32, _user_id: Option<Uuid>) -> Result<(), AppError> { unimplemented!() }
-    async fn search_products(&self, _tenant_id: Uuid, _req: ProductSearchRequest) -> Result<ProductSearchResponse, AppError> { unimplemented!() }
-    async fn get_search_suggestions(&self, _tenant_id: Uuid, _req: SearchSuggestionsRequest) -> Result<SearchSuggestionsResponse, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl WarehouseRepository for UniversalDummyService {
-    async fn create(&self, _tenant_id: Uuid, _req: CreateWarehouseRequest) -> Result<Warehouse, AppError> { unimplemented!() }
-    async fn find_by_id(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<Warehouse>, AppError> { unimplemented!() }
-    async fn find_by_code(&self, _tenant_id: Uuid, _code: &str) -> Result<Option<Warehouse>, AppError> { unimplemented!() }
-    async fn find_all(&self, _tenant_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_warehouse_tree(&self, _tenant_id: Uuid) -> Result<WarehouseTreeResponse, AppError> { unimplemented!() }
-    async fn update(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _warehouse: &Warehouse) -> Result<Warehouse, AppError> { unimplemented!() }
-    async fn delete(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn get_children(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_ancestors(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_descendants(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_all_zones(&self, _tenant_id: Uuid) -> Result<Vec<WarehouseZone>, AppError> { unimplemented!() }
-    async fn get_all_locations(&self, _tenant_id: Uuid) -> Result<Vec<WarehouseLocation>, AppError> { unimplemented!() }
-    async fn create_zone(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateWarehouseZoneRequest) -> Result<WarehouseZone, AppError> { unimplemented!() }
-    async fn create_location(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateWarehouseLocationRequest) -> Result<WarehouseLocation, AppError> { unimplemented!() }
-    async fn validate_hierarchy(&self, _tenant_id: Uuid, _parent_id: Uuid, _child_id: Option<Uuid>) -> Result<bool, AppError> { unimplemented!() }
-    async fn get_capacity_utilization(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<JsonValue>, AppError> { unimplemented!() }
-    async fn get_warehouse_stats(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<JsonValue>, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl ReceiptService for UniversalDummyService {
-    async fn create_receipt(&self, _tenant_id: Uuid, _user_id: Uuid, _req: ReceiptCreateRequest) -> Result<ReceiptResponse, AppError> { unimplemented!() }
-    async fn validate_receipt(&self, _tenant_id: Uuid, _receipt_id: Uuid, _warehouse_id: Uuid) -> Result<ReceiptResponse, AppError> { unimplemented!() }
-    async fn validate_receipt_request(&self, _tenant_id: Uuid, _req: &ReceiptCreateRequest) -> Result<(), AppError> { unimplemented!() }
-    async fn get_receipt(&self, _tenant_id: Uuid, _receipt_id: Uuid) -> Result<ReceiptResponse, AppError> { unimplemented!() }
-    async fn list_receipts(&self, _tenant_id: Uuid, _query: ReceiptListQuery) -> Result<ReceiptListResponse, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl TransferService for UniversalDummyService {
-    async fn create_transfer(&self, _tenant_id: Uuid, _from_warehouse: Uuid, _req: CreateTransferRequest) -> Result<CreateTransferResponse, AppError> { unimplemented!() }
-    async fn confirm_transfer(&self, _tenant_id: Uuid, _transfer_id: Uuid, _user_id: Uuid, _req: ConfirmTransferRequest) -> Result<ConfirmTransferResponse, AppError> { unimplemented!() }
-    async fn receive_transfer(&self, _tenant_id: Uuid, _transfer_id: Uuid, _user_id: Uuid, _req: ReceiveTransferRequest) -> Result<ReceiveTransferResponse, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl StockTakeService for UniversalDummyService {
-    async fn create_stock_take(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateStockTakeRequest) -> Result<CreateStockTakeResponse, AppError> { unimplemented!() }
-    async fn count_stock_take(&self, _tenant_id: Uuid, _stock_take_id: Uuid, _user_id: Uuid, _req: CountStockTakeRequest) -> Result<CountStockTakeResponse, AppError> { unimplemented!() }
-    async fn finalize_stock_take(&self, _tenant_id: Uuid, _stock_take_id: Uuid, _user_id: Uuid, _req: FinalizeStockTakeRequest) -> Result<FinalizeStockTakeResponse, AppError> { unimplemented!() }
-    async fn get_stock_take(&self, _tenant_id: Uuid, _stock_take_id: Uuid) -> Result<StockTakeDetailResponse, AppError> { unimplemented!() }
-    async fn list_stock_takes(&self, _tenant_id: Uuid, _query: StockTakeListQuery) -> Result<StockTakeListResponse, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl StockReconciliationService for UniversalDummyService {
-    async fn create_reconciliation(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateReconciliationRequest) -> Result<CreateReconciliationResponse, AppError> { unimplemented!() }
-    async fn count_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: CountReconciliationRequest) -> Result<CountReconciliationResponse, AppError> { unimplemented!() }
-    async fn finalize_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: FinalizeReconciliationRequest) -> Result<FinalizeReconciliationResponse, AppError> { unimplemented!() }
-    async fn approve_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: ApproveReconciliationRequest) -> Result<ApproveReconciliationResponse, AppError> { unimplemented!() }
-    async fn get_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid) -> Result<ReconciliationDetailResponse, AppError> { unimplemented!() }
-    async fn list_reconciliations(&self, _tenant_id: Uuid, _query: ReconciliationListQuery) -> Result<ReconciliationListResponse, AppError> { unimplemented!() }
-    async fn get_analytics(&self, _tenant_id: Uuid, _warehouse_id: Option<Uuid>) -> Result<ReconciliationAnalyticsResponse, AppError> { unimplemented!() }
-    async fn get_variance_analysis(&self, _tenant_id: Uuid, _reconciliation_id: Uuid) -> Result<VarianceAnalysisResponse, AppError> { unimplemented!() }
-    async fn scan_barcode(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: ScanBarcodeRequest) -> Result<ScanBarcodeResponse, AppError> { unimplemented!() }
-}
-#[async_trait]
-impl RmaService for UniversalDummyService {
-    async fn create_rma(&self, _tenant_id: Uuid, _user_id: Uuid, _req: CreateRmaRequest) -> Result<CreateRmaResponse, AppError> { unimplemented!() }
-    async fn approve_rma(&self, _tenant_id: Uuid, _rma_id: Uuid, _user_id: Uuid, _req: ApproveRmaRequest) -> Result<ApproveRmaResponse, AppError> { unimplemented!() }
-    async fn receive_rma(&self, _tenant_id: Uuid, _rma_id: Uuid, _user_id: Uuid, _req: ReceiveRmaRequest) -> Result<ReceiveRmaResponse, AppError> { unimplemented!() }
-}
-#[async_trait]
-#[async_trait]
-impl ReplenishmentService for UniversalDummyService {
-    async fn create_reorder_rule(&self, _tenant_id: Uuid, _req: CreateReorderRule) -> Result<ReorderRule, AppError> { unimplemented!() }
-    async fn get_reorder_rule(&self, _tenant_id: Uuid, _rule_id: Uuid) -> Result<Option<ReorderRule>, AppError> { unimplemented!() }
-    async fn update_reorder_rule(&self, _tenant_id: Uuid, _rule_id: Uuid, _req: UpdateReorderRule) -> Result<ReorderRule, AppError> { unimplemented!() }
-    async fn delete_reorder_rule(&self, _tenant_id: Uuid, _rule_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn list_reorder_rules_for_product(&self, _tenant_id: Uuid, _product_id: Uuid, _warehouse_id: Option<Uuid>) -> Result<Vec<ReorderRule>, AppError> { unimplemented!() }
-    async fn run_replenishment_check(&self, _tenant_id: Uuid) -> Result<Vec<ReplenishmentCheckResult>, AppError> { unimplemented!() }
-    async fn check_product_replenishment(&self, _tenant_id: Uuid, _product_id: Uuid, _warehouse_id: Option<Uuid>) -> Result<ReplenishmentCheckResult, AppError> { unimplemented!() }
-}
-
-#[async_trait]
-impl QualityControlPointService for UniversalDummyService {
-    async fn create_qc_point(&self, _tenant_id: Uuid, _req: CreateQualityControlPoint) -> Result<QualityControlPoint, AppError> { unimplemented!() }
-    async fn get_qc_point(&self, _tenant_id: Uuid, _qc_id: Uuid) -> Result<Option<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn update_qc_point(&self, _tenant_id: Uuid, _qc_id: Uuid, _req: UpdateQualityControlPoint) -> Result<QualityControlPoint, AppError> { unimplemented!() }
-    async fn delete_qc_point(&self, _tenant_id: Uuid, _qc_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn list_qc_points(&self, _tenant_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn list_active_qc_points(&self, _tenant_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn list_qc_points_for_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn list_qc_points_for_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
-}
-
-#[async_trait]
-impl PutawayService for UniversalDummyService {
-    async fn suggest_putaway_locations(&self, _tenant_id: &Uuid, _req: &PutawayRequest) -> Result<Vec<PutawaySuggestion>, AppError> { unimplemented!() }
-    async fn confirm_putaway(&self, _tenant_id: &Uuid, _req: &ConfirmPutawayRequest, _user_id: &Uuid) -> Result<ConfirmPutawayResponse, AppError> { unimplemented!() }
-    async fn validate_location_capacity(&self, _tenant_id: &Uuid, _location_id: &Uuid, _qty: i64) -> Result<bool, AppError> { unimplemented!() }
-}
-
-#[async_trait]
-impl DistributedLockService for UniversalDummyService {
-    async fn acquire_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str, _ttl_ms: u32) -> Result<Option<String>, AppError> { unimplemented!() }
-    async fn release_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str, _token: &str) -> Result<bool, AppError> { unimplemented!() }
-    async fn is_locked(&self, _tenant_id: Uuid, _resource: &str, _key: &str) -> Result<bool, AppError> { unimplemented!() }
-    async fn extend_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str, _token: &str, _ttl_ms: u32) -> Result<bool, AppError> { unimplemented!() }
-    async fn force_release_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str) -> Result<bool, AppError> { unimplemented!() }
-}
-
-use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-use inventory_service_infra::services::category::CategoryServiceImpl;
-// Removed unused ValuationServiceImpl import
-
-// Removed unused Money import
-// Removed unused TenantContext import
 
 // Local handlers/state
 use crate::handlers::category::create_category_routes;
 use crate::handlers::health::health_check;
+use crate::handlers::lot_serial::create_lot_serial_routes;
+use crate::handlers::picking::create_picking_routes;
+use crate::handlers::products::create_product_routes;
+use crate::handlers::putaway::create_putaway_routes;
+use crate::handlers::receipt::create_receipt_routes;
+use crate::handlers::reconciliation::create_reconciliation_routes;
+use crate::handlers::replenishment::create_replenishment_routes;
+use crate::handlers::reports::create_reports_routes;
+use crate::handlers::rma::create_rma_routes;
+use crate::handlers::search::create_search_routes;
+use crate::handlers::stock_take::create_stock_take_routes;
+use crate::handlers::transfer::create_transfer_routes;
+use crate::handlers::valuation::create_valuation_routes;
+use crate::handlers::warehouses::create_warehouse_routes;
+use crate::handlers::quality::create_quality_routes;
 use crate::openapi::ApiDoc;
+use crate::state::AppState;
+use crate::middleware::AuthzState;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -325,113 +183,6 @@ impl DeliveryService for DummyDeliveryService {
     }
 }
 
-pub struct SimpleDummyValuationService;
-#[async_trait]
-impl inventory_service_core::services::valuation::ValuationService for SimpleDummyValuationService {
-    async fn get_valuation(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn set_valuation_method(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::SetValuationMethodRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn set_standard_cost(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::SetStandardCostRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn get_valuation_layers(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationLayersRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationLayersResponse,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn get_valuation_history(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationHistoryRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationHistoryResponse,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn adjust_cost(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::CostAdjustmentRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn revalue_inventory(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::RevaluationRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn process_stock_movement(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _product_id: uuid::Uuid,
-        _quantity_change: i64,
-        _unit_cost: Option<i64>,
-        _user_id: Option<uuid::Uuid>,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn calculate_inventory_value(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _product_id: uuid::Uuid,
-    ) -> Result<i64, shared_error::AppError> {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn get_valuation_method(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _product_id: uuid::Uuid,
-    ) -> Result<
-        inventory_service_core::domains::inventory::valuation::ValuationMethod,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-}
-
 /// Create the main application router
 pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Validate CORS configuration for production
@@ -469,7 +220,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         },
     };
 
-    let _enforcer = create_enforcer(&config.database_url, Some(model_path))
+    let enforcer = create_enforcer(&config.database_url, Some(model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
 
@@ -492,73 +243,155 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ttl_seconds: 24 * 60 * 60, // 24 hours
         header_name: "x-idempotency-key".to_string(),
     };
-    let _idempotency_state = Arc::new(
+    let idempotency_state = Arc::new(
         crate::middleware::IdempotencyState::new(idempotency_config)
             .expect("Failed to initialize idempotency state"),
     );
 
-    // NOTE: The following repository and service initialization code is temporarily commented out
-    // to isolate and debug stack overflow issues during service startup. This simplified setup
-    // allows the service to start with minimal dependencies while the root cause of the overflow
     // Initialize repositories
     let category_repo = CategoryRepositoryImpl::new(pool.clone());
-    // let lot_serial_repo = ...
-    // ... (Keep commented out lines for reference or remove)
+    let lot_serial_repo = LotSerialRepositoryImpl::new(pool.clone());
+    let picking_method_repo = PickingMethodRepositoryImpl::new(pool.clone());
+    let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
+    let valuation_repo = ValuationRepositoryImpl::new(pool.clone());
+    let valuation_layer_repo = ValuationRepositoryImpl::new(pool.clone());
+    let valuation_history_repo = ValuationRepositoryImpl::new(pool.clone());
+    let warehouse_repo = Arc::new(WarehouseRepositoryImpl::new(pool.clone()));
+    let receipt_repo = ReceiptRepositoryImpl::new(pool.clone());
+    // let delivery_repo = PgDeliveryOrderRepository::new(Arc::new(pool.clone()));
+    let transfer_repo = PgTransferRepository::new(Arc::new(pool.clone()));
+    let stock_take_repo = PgStockTakeRepository::new(Arc::new(pool.clone()));
+    let reconciliation_repo = PgStockReconciliationRepository::new(Arc::new(pool.clone()));
+    let rma_repo = PgRmaRepository::new(Arc::new(pool.clone()));
+    let replenishment_repo = PgReorderRuleRepository::new(pool.clone());
+    let quality_repo = PgQualityControlPointRepository::new(pool.clone());
+    let putaway_repo = Arc::new(PgPutawayRepository::new(pool.clone()));
 
-    // Services
+    // Additional repos for services
+    let transfer_item_repo = PgTransferItemRepository::new(Arc::new(pool.clone()));
+    let stock_take_line_repo = PgStockTakeLineRepository::new(Arc::new(pool.clone()));
+    let reconciliation_item_repo = PgStockReconciliationItemRepository::new(Arc::new(pool.clone()));
+    let rma_item_repo = PgRmaItemRepository::new(Arc::new(pool.clone()));
+    let stock_move_repo = Arc::new(PgStockMoveRepository::new(Arc::new(pool.clone())));
+    let inventory_level_repo = Arc::new(PgInventoryLevelRepository::new(Arc::new(pool.clone())));
+
+    // Initialize Services
+    let distributed_lock_service = RedisDistributedLockService::new(&redis_url)
+        .expect("Failed to initialize distributed lock service");
+    let distributed_lock_service_arc = Arc::new(distributed_lock_service);
+
     let category_service = CategoryServiceImpl::new(category_repo);
-    let _valuation_service = Arc::new(SimpleDummyValuationService);
-    let _delivery_service = DummyDeliveryService;
-    let _kanidm_client = create_kanidm_client(config);
-    let dummy_service = Arc::new(UniversalDummyService);
+    let lot_serial_service = LotSerialServiceImpl::new(
+        lot_serial_repo,
+        stock_move_repo.clone(),
+        warehouse_repo.clone()
+    );
+    let picking_method_service = PickingMethodServiceImpl::new(Arc::new(picking_method_repo));
+    let product_service = ProductServiceImpl::new(product_repo.clone());
+    let valuation_service = ValuationServiceImpl::new(
+        Arc::new(valuation_repo),
+        Arc::new(valuation_layer_repo),
+        Arc::new(valuation_history_repo)
+    );
 
-    let state = crate::state::AppState {
+    let receipt_service = ReceiptServiceImpl::new(
+        Arc::new(receipt_repo),
+        product_repo.clone(),
+        distributed_lock_service_arc.clone()
+    );
+
+    let delivery_service = DummyDeliveryService;
+
+    let transfer_service = PgTransferService::new(
+        Arc::new(transfer_repo),
+        Arc::new(transfer_item_repo),
+        stock_move_repo.clone(),
+        inventory_level_repo.clone()
+    );
+
+    let stock_take_service = PgStockTakeService::new(
+        Arc::new(pool.clone()),
+        Arc::new(stock_take_repo),
+        Arc::new(stock_take_line_repo),
+        stock_move_repo.clone(),
+        inventory_level_repo.clone()
+    );
+
+    let reconciliation_service = PgStockReconciliationService::new(
+        Arc::new(pool.clone()),
+        Arc::new(reconciliation_repo),
+        Arc::new(reconciliation_item_repo),
+        stock_move_repo.clone(),
+        inventory_level_repo.clone(),
+        product_repo.clone()
+    );
+
+    let rma_service = PgRmaService::new(
+        Arc::new(rma_repo),
+        Arc::new(rma_item_repo),
+        stock_move_repo.clone()
+    );
+
+    let replenishment_service = PgReplenishmentService::new(
+        Arc::new(replenishment_repo),
+        inventory_level_repo.clone(),
+        None // Nats client option
+    );
+
+    let quality_service = PgQualityControlPointService::new(Arc::new(quality_repo));
+
+    // Create new PgStockMoveRepository for putaway service as it might require value or doesn't impl Clone
+    let stock_move_repo_for_putaway = PgStockMoveRepository::new(Arc::new(pool.clone()));
+    let putaway_service = PgPutawayService::new(putaway_repo, stock_move_repo_for_putaway);
+
+    let kanidm_client = create_kanidm_client(config);
+
+    let state = AppState {
         category_service: Arc::new(category_service),
-        lot_serial_service: dummy_service.clone(),
-        picking_method_service: dummy_service.clone(),
-        product_service: dummy_service.clone(),
-        valuation_service: _valuation_service,
-        warehouse_repository: dummy_service.clone(),
-        receipt_service: dummy_service.clone(),
-        delivery_service: Arc::new(_delivery_service),
-        transfer_service: dummy_service.clone(),
-        stock_take_service: dummy_service.clone(),
-        reconciliation_service: dummy_service.clone(),
-        rma_service: dummy_service.clone(),
-        replenishment_service: dummy_service.clone(),
-        quality_service: dummy_service.clone(),
-        putaway_service: dummy_service.clone(),
-        distributed_lock_service: dummy_service.clone(),
-        enforcer: _enforcer.clone(),
+        lot_serial_service: Arc::new(lot_serial_service),
+        picking_method_service: Arc::new(picking_method_service),
+        product_service: Arc::new(product_service),
+        valuation_service: Arc::new(valuation_service),
+        warehouse_repository: warehouse_repo,
+        receipt_service: Arc::new(receipt_service),
+        delivery_service: Arc::new(delivery_service),
+        transfer_service: Arc::new(transfer_service),
+        stock_take_service: Arc::new(stock_take_service),
+        reconciliation_service: Arc::new(reconciliation_service),
+        rma_service: Arc::new(rma_service),
+        replenishment_service: Arc::new(replenishment_service),
+        quality_service: Arc::new(quality_service),
+        putaway_service: Arc::new(putaway_service),
+        distributed_lock_service: distributed_lock_service_arc,
+        enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: _kanidm_client.clone(),
-        idempotency_state: _idempotency_state.clone(),
+        kanidm_client: kanidm_client.clone(),
+        idempotency_state: idempotency_state.clone(),
     };
 
-    // Comment out AuthzState creation
-    // let authz_state = AuthzState {
-    //     enforcer: state.enforcer.clone(),
-    //     jwt_secret: state.jwt_secret.clone(),
-    //     kanidm_client: state.kanidm_client.clone(),
-    // };
+    let authz_state = AuthzState {
+        enforcer: state.enforcer.clone(),
+        jwt_secret: state.jwt_secret.clone(),
+        kanidm_client: state.kanidm_client.clone(),
+    };
 
-    // Comment out route creations to isolate stack overflow
-    let _category_routes = create_category_routes();
-    // let lot_serial_routes = create_lot_serial_routes();
-    // let picking_routes = create_picking_routes();
-    // let product_routes = create_product_routes();
-    // let putaway_routes = create_putaway_routes();
-    // let receipt_routes = create_receipt_routes();
-    // let reconciliation_routes = create_reconciliation_routes();
-    // let rma_routes = create_rma_routes();
-    // let search_routes = create_search_routes();
-    // let stock_take_routes = create_stock_take_routes();
-    // let transfer_routes = create_transfer_routes();
-    // let valuation_routes = create_valuation_routes();
-    // let warehouse_routes = create_warehouse_routes();
-    // let quality_routes = create_quality_routes();
-    // let replenishment_routes = create_replenishment_routes();
-    // let reports_routes = create_reports_routes();
+    // Route creations
+    let category_routes = create_category_routes();
+    let lot_serial_routes = create_lot_serial_routes();
+    let picking_routes = create_picking_routes();
+    let product_routes = create_product_routes();
+    let putaway_routes = create_putaway_routes();
+    let receipt_routes = create_receipt_routes();
+    let reconciliation_routes = create_reconciliation_routes();
+    let rma_routes = create_rma_routes();
+    let search_routes = create_search_routes();
+    let stock_take_routes = create_stock_take_routes();
+    let transfer_routes = create_transfer_routes();
+    let valuation_routes = create_valuation_routes();
+    let warehouse_routes = create_warehouse_routes();
+    let quality_routes = create_quality_routes();
+    let replenishment_routes = create_replenishment_routes();
+    let reports_routes = create_reports_routes();
 
     // Add CORS configuration
     let cors = CorsLayer::new()
@@ -594,21 +427,31 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             axum::http::header::AUTHORIZATION,
         ]);
 
-    // Comment out protected routes to isolate stack overflow
-    let protected_routes = Router::new().nest("/api/v1/inventory/categories", _category_routes);
-
-    let authz_state = crate::middleware::AuthzState {
-        enforcer: _enforcer.clone(),
-        jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: _kanidm_client.clone(),
-    };
+    // Protected routes
+    let protected_routes = Router::new()
+        .nest("/api/v1/inventory/categories", category_routes)
+        .nest("/api/v1/inventory/lot-serials", lot_serial_routes)
+        .nest("/api/v1/inventory/picking", picking_routes)
+        .nest("/api/v1/inventory/products", product_routes)
+        .nest("/api/v1/inventory/putaway", putaway_routes)
+        .nest("/api/v1/inventory/receipts", receipt_routes)
+        .nest("/api/v1/inventory/reconciliation", reconciliation_routes)
+        .nest("/api/v1/inventory/rma", rma_routes)
+        .nest("/api/v1/inventory/search", search_routes)
+        .nest("/api/v1/inventory/stock-take", stock_take_routes)
+        .nest("/api/v1/inventory/transfers", transfer_routes)
+        .nest("/api/v1/inventory/valuation", valuation_routes)
+        .nest("/api/v1/inventory/warehouses", warehouse_routes)
+        .nest("/api/v1/inventory/quality", quality_routes)
+        .nest("/api/v1/inventory/replenishment", replenishment_routes)
+        .nest("/api/v1/inventory/reports", reports_routes);
 
     let protected_routes_with_layers = protected_routes
         .layer(Extension(pool.clone()))
         .layer(Extension(config.clone()))
         .layer(Extension(state))
         .layer(axum::middleware::from_fn_with_state(
-            _idempotency_state,
+            idempotency_state,
             crate::middleware::idempotency_middleware,
         ))
         .layer(axum::middleware::from_fn(crate::middleware::casbin_middleware))
