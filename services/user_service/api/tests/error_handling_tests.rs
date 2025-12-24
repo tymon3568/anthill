@@ -332,7 +332,7 @@ async fn test_missing_authorization_header() {
     let db = TestDatabaseConfig::new().await;
     let app = create_test_app(db.pool()).await;
 
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, None, None).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 

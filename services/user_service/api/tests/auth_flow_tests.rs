@@ -126,14 +126,14 @@ async fn test_complete_registration_to_authenticated_request_flow() {
     });
 
     let (status, register_response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(register_payload), None, None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(register_payload), None).await;
 
     assert_eq!(status, StatusCode::CREATED);
     let access_token = register_response["access_token"].as_str().unwrap();
 
     // Step 3: Use access token to get profile
     let (status, profile_response) =
-        make_request(&app, "GET", "/api/v1/profile", None, Some(access_token)).await;
+        make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(profile_response["email"], "newuser@flow.com");
@@ -183,7 +183,7 @@ async fn test_login_flow_with_token_refresh() {
     let refresh_token = login_response["refresh_token"].as_str().unwrap();
 
     // Step 2: Use access token
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token)).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -193,7 +193,7 @@ async fn test_login_flow_with_token_refresh() {
     });
 
     let (status, refresh_response) =
-        make_request(&app, "POST", "/api/v1/auth/refresh", Some(refresh_payload), None, None).await;
+        make_request(&app, "POST", "/api/v1/auth/refresh", Some(refresh_payload), None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(refresh_response["access_token"].is_string());
@@ -201,7 +201,7 @@ async fn test_login_flow_with_token_refresh() {
     // Step 4: Use new access token
     let new_access_token = refresh_response["access_token"].as_str().unwrap();
     let (status, _) =
-        make_request(&app, "GET", "/api/v1/profile", None, Some(new_access_token)).await;
+        make_request(&app, "GET", "/api/v1/profile", None, Some(new_access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -233,19 +233,19 @@ async fn test_logout_flow() {
     let access_token = login_response["access_token"].as_str().unwrap();
 
     // Step 2: Verify can access protected resource
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token)).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
     // Step 3: Logout
     let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/logout", None, Some(access_token)).await;
+        make_request(&app, "POST", "/api/v1/auth/logout", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
     // Step 4: Token should still work until it expires (stateless JWT)
     // But session should be removed from database
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token)).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     // Depending on implementation, this might still work or fail
     // If JWT is stateless, it works until expiry
@@ -305,7 +305,7 @@ async fn test_rbac_flow_user_to_admin_promotion() {
 
     // Step 3: User tries to access admin endpoint (should fail)
     let (status, _) =
-        make_request(&app, "GET", "/api/v1/admin/users", None, Some(user_token)).await;
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(user_token), None).await;
 
     assert_eq!(status, StatusCode::FORBIDDEN);
 
@@ -320,6 +320,7 @@ async fn test_rbac_flow_user_to_admin_promotion() {
         &format!("/api/v1/admin/users/{}/role", user_id),
         Some(promote_payload),
         Some(admin_token),
+        None,
     )
     .await;
 
@@ -334,7 +335,7 @@ async fn test_rbac_flow_user_to_admin_promotion() {
 
     // Step 6: User can now access admin endpoint
     let (status, _) =
-        make_request(&app, "GET", "/api/v1/admin/users", None, Some(new_user_token)).await;
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(new_user_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -386,7 +387,7 @@ async fn test_rbac_flow_manager_permissions() {
 
     // Manager can view users
     let (status, _) =
-        make_request(&app, "GET", "/api/v1/admin/users", None, Some(manager_token)).await;
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(manager_token), None).await;
 
     // Depending on implementation, managers might or might not access admin endpoints
     assert!(status == StatusCode::OK || status == StatusCode::FORBIDDEN);
@@ -475,7 +476,7 @@ async fn test_jwt_expiration_flow() {
     let access_token = login_response["access_token"].as_str().unwrap();
 
     // Token should work immediately
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token)).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -483,7 +484,7 @@ async fn test_jwt_expiration_flow() {
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // Token should now be expired
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token)).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -498,13 +499,13 @@ async fn test_invalid_jwt_token_flow() {
 
     // Try with completely invalid token
     let (status, _) =
-        make_request(&app, "GET", "/api/v1/profile", None, Some("invalid.jwt.token")).await;
+        make_request(&app, "GET", "/api/v1/profile", None, Some("invalid.jwt.token"), None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
     // Try with malformed token
     let (status, _) =
-        make_request(&app, "GET", "/api/v1/profile", None, Some("Bearer malformed")).await;
+        make_request(&app, "GET", "/api/v1/profile", None, Some("Bearer malformed"), None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -550,7 +551,7 @@ async fn test_cross_tenant_access_prevention() {
 
     // User A lists users - should only see Tenant A users
     let (status, response) =
-        make_request(&app, "GET", "/api/v1/admin/users", None, Some(user_a_token)).await;
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(user_a_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
     let users = response.as_array().unwrap();
@@ -614,6 +615,7 @@ async fn test_password_change_flow() {
         "/api/v1/profile/password",
         Some(change_payload),
         Some(access_token),
+        None,
     )
     .await;
 
