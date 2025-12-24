@@ -75,6 +75,7 @@ async fn make_request(
     path: &str,
     body: Option<Value>,
     auth_token: Option<&str>,
+    tenant_id: Option<&str>,
 ) -> (StatusCode, Value) {
     let mut request = Request::builder()
         .method(method)
@@ -83,6 +84,10 @@ async fn make_request(
 
     if let Some(token) = auth_token {
         request = request.header("Authorization", format!("Bearer {}", token));
+    }
+
+    if let Some(tid) = tenant_id {
+        request = request.header("X-Tenant-ID", tid);
     }
 
     let body_str = body
@@ -121,7 +126,7 @@ async fn test_complete_registration_to_authenticated_request_flow() {
     });
 
     let (status, register_response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(register_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(register_payload), None, None).await;
 
     assert_eq!(status, StatusCode::CREATED);
     let access_token = register_response["access_token"].as_str().unwrap();
@@ -171,7 +176,7 @@ async fn test_login_flow_with_token_refresh() {
     });
 
     let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
@@ -188,7 +193,7 @@ async fn test_login_flow_with_token_refresh() {
     });
 
     let (status, refresh_response) =
-        make_request(&app, "POST", "/api/v1/auth/refresh", Some(refresh_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/refresh", Some(refresh_payload), None, None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(refresh_response["access_token"].is_string());
@@ -222,7 +227,7 @@ async fn test_logout_flow() {
     });
 
     let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
@@ -281,7 +286,7 @@ async fn test_rbac_flow_user_to_admin_promotion() {
     });
 
     let (status, admin_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let admin_token = admin_response["access_token"].as_str().unwrap();
@@ -293,7 +298,7 @@ async fn test_rbac_flow_user_to_admin_promotion() {
     });
 
     let (status, user_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(user_login.clone()), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(user_login.clone()), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let user_token = user_response["access_token"].as_str().unwrap();
@@ -322,7 +327,7 @@ async fn test_rbac_flow_user_to_admin_promotion() {
 
     // Step 5: User logs in again to get new token with new role
     let (status, new_user_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(user_login), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(user_login), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let new_user_token = new_user_response["access_token"].as_str().unwrap();
@@ -374,7 +379,7 @@ async fn test_rbac_flow_manager_permissions() {
     });
 
     let (status, manager_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(manager_login), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(manager_login), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let manager_token = manager_response["access_token"].as_str().unwrap();
@@ -464,7 +469,7 @@ async fn test_jwt_expiration_flow() {
     });
 
     let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
@@ -538,7 +543,7 @@ async fn test_cross_tenant_access_prevention() {
     });
 
     let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_a_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let user_a_token = login_response["access_token"].as_str().unwrap();
@@ -591,7 +596,7 @@ async fn test_password_change_flow() {
     });
 
     let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload.clone()), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload.clone()), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
@@ -616,7 +621,7 @@ async fn test_password_change_flow() {
 
     // Step 3: Old password should no longer work
     let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -627,7 +632,7 @@ async fn test_password_change_flow() {
     });
 
     let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(new_login_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(new_login_payload), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
 

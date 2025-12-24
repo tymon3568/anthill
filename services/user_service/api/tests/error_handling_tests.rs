@@ -83,6 +83,7 @@ async fn make_request(
     path: &str,
     body: Option<Value>,
     auth_token: Option<&str>,
+    tenant_id: Option<&str>,
 ) -> (StatusCode, Value) {
     let mut request = Request::builder()
         .method(method)
@@ -91,6 +92,10 @@ async fn make_request(
 
     if let Some(token) = auth_token {
         request = request.header("Authorization", format!("Bearer {}", token));
+    }
+
+    if let Some(tid) = tenant_id {
+        request = request.header("X-Tenant-ID", tid);
     }
 
     let body_str = body
@@ -127,7 +132,7 @@ async fn test_registration_missing_required_fields() {
     });
 
     let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(response["error"].is_string());
@@ -162,7 +167,7 @@ async fn test_registration_invalid_email_formats() {
         });
 
         let (status, _) =
-            make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+            make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
         assert_eq!(
             status,
@@ -201,7 +206,7 @@ async fn test_registration_weak_passwords() {
         });
 
         let (status, _) =
-            make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+            make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
         assert_eq!(
             status,
@@ -225,6 +230,7 @@ async fn test_malformed_json_request() {
         .method("POST")
         .uri("/api/v1/auth/login")
         .header("Content-Type", "application/json")
+        .header("X-Tenant-ID", db.create_tenant("JSON Test", None).await.to_string())
         .body(Body::from("{invalid json"))
         .unwrap();
 
@@ -252,7 +258,7 @@ async fn test_extremely_long_input_values() {
     });
 
     let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     // Extremely long full name
@@ -265,7 +271,7 @@ async fn test_extremely_long_input_values() {
     });
 
     let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
     db.cleanup().await;
@@ -281,13 +287,14 @@ async fn test_login_nonexistent_user() {
     let db = TestDatabaseConfig::new().await;
     let app = create_test_app(db.pool()).await;
 
+    let tenant_id = db.create_tenant("NonExistent Test", None).await;
     let payload = json!({
         "email": "nonexistent@example.com",
         "password": "SomePassword123!"
     });
 
     let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(response["error"].is_string());
@@ -312,7 +319,7 @@ async fn test_login_wrong_password() {
         "password": "WrongPassword123!"
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+    let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -325,7 +332,7 @@ async fn test_missing_authorization_header() {
     let db = TestDatabaseConfig::new().await;
     let app = create_test_app(db.pool()).await;
 
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, None).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, None, None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -390,7 +397,7 @@ async fn test_get_nonexistent_user() {
     });
 
     let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None, Some(&tenant_id.to_string())).await;
 
     assert_eq!(status, StatusCode::OK);
     let admin_token = login_response["access_token"].as_str().unwrap();
@@ -430,7 +437,7 @@ async fn test_update_nonexistent_user() {
     });
 
     let (_status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None).await;
+        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None, Some(&tenant_id.to_string())).await;
 
     let admin_token = login_response["access_token"].as_str().unwrap();
 
@@ -480,7 +487,7 @@ async fn test_concurrent_duplicate_registrations() {
                 "full_name": "Concurrent User"
             });
 
-            make_request(&app_clone, "POST", "/api/v1/auth/register", Some(payload), None).await
+            make_request(&app_clone, "POST", "/api/v1/auth/register", Some(payload)).await
         });
 
         handles.push(handle);
@@ -525,7 +532,7 @@ async fn test_empty_string_fields() {
     });
 
     let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
@@ -548,7 +555,7 @@ async fn test_null_values_in_request() {
     });
 
     let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
 
@@ -572,7 +579,7 @@ async fn test_unicode_and_special_characters() {
     });
 
     let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     // Should either accept unicode or reject with validation error
     assert!(
@@ -605,6 +612,7 @@ async fn test_sql_injection_attempts_in_email() {
         "admin'; DELETE FROM users WHERE '1'='1",
     ];
 
+    let tenant_id = db.create_tenant("SQL Injection Test", None).await;
     for sql_attempt in sql_injection_attempts {
         let payload = json!({
             "email": sql_attempt,
@@ -612,7 +620,7 @@ async fn test_sql_injection_attempts_in_email() {
         });
 
         let (status, _) =
-            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
 
         // Should either return validation error or unauthorized (not 500)
         assert!(
@@ -655,7 +663,7 @@ async fn test_multiple_failed_login_attempts() {
         });
 
         let (status, _) =
-            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
 
         // All should be unauthorized
         assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -668,7 +676,7 @@ async fn test_multiple_failed_login_attempts() {
         "password": "CorrectPassword123!"
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+    let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
 
     // Might be OK or LOCKED depending on implementation
     assert!(

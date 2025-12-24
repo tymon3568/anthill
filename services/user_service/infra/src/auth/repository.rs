@@ -34,34 +34,6 @@ impl UserRepository for PgUserRepository {
         Ok(user)
     }
 
-    async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, AppError> {
-        // ⚠️ DEVELOPMENT ONLY: Bypasses tenant isolation for testing convenience
-        //
-        // **Security Implications**:
-        //   - Returns first matching user across ALL tenants (LIMIT 1)
-        //   - If email exists in multiple tenants, behavior is non-deterministic
-        //   - Violates core multi-tenancy guarantee
-        //
-        // **Proper Production Flow**:
-        //   1. Extract tenant from request context (subdomain/domain/header)
-        //   2. Call find_by_email(email, tenant_id) with scoped query
-        //   3. Verify password against tenant-specific user record
-        //
-        // TODO: Remove this before production deployment
-        let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users
-             WHERE email = $1
-               AND status = 'active'
-               AND deleted_at IS NULL
-             LIMIT 1",
-        )
-        .bind(email)
-        .fetch_optional(&self.pool)
-        .await?;
-
-        Ok(user)
-    }
-
     async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError> {
         let user = sqlx::query_as::<_, User>(
             "SELECT * FROM users WHERE user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL"

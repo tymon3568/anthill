@@ -252,39 +252,39 @@ where
     async fn login(
         &self,
         req: LoginReq,
+        tenant_identifier: Option<String>,
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> Result<AuthResp, AppError> {
-        // ⚠️ DEVELOPMENT ONLY: Using global email lookup
-        //
-        // **Current Implementation** (Integration Testing Phase):
-        //   - Uses find_by_email_global() to bypass tenant resolution
-        //   - Allows email-only login without subdomain/domain detection
-        //   - Sufficient for testing authentication flows in isolation
-        //
-        // **Production Implementation Required**:
-        //   1. Extract tenant identifier from request:
-        //      - Subdomain: acme.anthill.io → resolve to tenant "acme"
-        //      - Custom domain: acme.com → lookup tenant by domain mapping
-        //      - API header: X-Tenant-ID (for API clients)
-        //   2. Resolve tenant_id from identifier
-        //   3. Use tenant-scoped lookup: find_by_email(email, tenant_id)
-        //   4. Prevent cross-tenant authentication attempts
-        //
-        // **Example Production Code**:
-        // ```rust
-        // let tenant_id = resolve_tenant_from_request(&req)?; // From subdomain/domain
-        // let user = self.user_repo
-        //     .find_by_email(&req.email, tenant_id)
-        //     .await?
-        //     .ok_or(AppError::InvalidCredentials)?;
-        // ```
-        //
-        // TODO: Implement tenant resolution before production deployment
+        // Resolve tenant from identifier
+        let tenant_id = match tenant_identifier {
+            Some(id_str) => {
+                // Try parsing as UUID first (direct ID)
+                if let Ok(id) = Uuid::parse_str(&id_str) {
+                    if let Some(tenant) = self.tenant_repo.find_by_id(id).await? {
+                        tenant.tenant_id
+                    } else {
+                        return Err(AppError::ValidationError("Tenant not found".to_string()));
+                    }
+                } else {
+                    // Treat as slug/subdomain
+                    if let Some(tenant) = self.tenant_repo.find_by_slug(&id_str).await? {
+                        tenant.tenant_id
+                    } else {
+                        return Err(AppError::ValidationError("Tenant not found".to_string()));
+                    }
+                }
+            }
+            None => {
+                return Err(AppError::ValidationError(
+                    "Tenant context required for login".to_string(),
+                ));
+            }
+        };
 
         let user = self
             .user_repo
-            .find_by_email_global(&req.email)
+            .find_by_email(&req.email, tenant_id)
             .await?
             .ok_or(AppError::InvalidCredentials)?;
 
