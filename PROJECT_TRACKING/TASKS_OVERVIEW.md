@@ -46,11 +46,11 @@
           → Completed: 2025-01-10
           → 3/3 migrations applied and tested
 
-### [🔄] Phase 3: User Service (Kanidm Integration & Tenancy) - `In Progress 68%`
+### [🔄] Phase 3: User Service (Kanidm Integration & Tenancy) - `In Progress 75%`
 
 > **Timeline**: Weeks 3-5 (21 days)  
 > **Dependencies**: Phase 1, 2 completed, Kanidm server
-> **Progress**: 14/28 tasks Done + 5 NeedsReview + 2 InProgress (Updated: 2025-12-24)
+> **Progress**: 14 Done + 5 NeedsReview + 2 InProgress + 7 Todo (28 tasks total) (Updated: 2025-12-24)
 
     - [✅] 3.0 Architecture Implementation - `Completed`
           → [View folder](./V1_MVP/03_User_Service/3.0_Architecture/)
@@ -73,7 +73,7 @@
           → [View folder](./V1_MVP/03_User_Service/3.4_Testing/)
           → Progress: 0/5 Done, 1 NeedsReview, 4 Todo (Updated: 2025-12-24)
 
-### [🔄] Phase 4: Inventory Service - `In Progress 90%` *(Major Progress)*
+### [🔄] Phase 4: Inventory Service - `In Progress 94%` *(Major Progress)*
     - [🔄] 4.1 Product Master - `In Progress 83%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.1_Product_Master/)
           → Progress: 5/6 Done, 1 InProgress (Updated: 2025-12-24)
@@ -91,14 +91,9 @@
           → Progress: 18/19 Done, 1 NeedsReview (Updated: 2025-12-24)
           → **Note**: Consolidates GRN, DO, Transfers, Adjustments, RMA into unified workflow
 
-    - [✅] 4.5 Lot & Serial Tracking - `Done 75%`
+    - [🔄] 4.5 Lot & Serial Tracking - `In Progress 75%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/)
           → Progress: 3/4 Done, 1 NeedsReview (Updated: 2025-12-24)
-
-    - [⏳] 4.6 Inventory Valuation - `Todo`
-          → [View folder](./V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/)
-          → Progress: 0/1 tasks completed
-          → **Note**: Core valuation methods (FIFO, Average, Standard)
 
     - [🔄] 4.7 Stock Replenishment - `In Progress 50%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.7_Stock_Replenishment/)
@@ -118,9 +113,9 @@
           → Progress: 3/3 tasks completed (Updated: 2025-12-24)
           → **Features**: Putaway rules, advanced picking, removal strategies
 
-    - [🔄] 4.11 Technical Implementation - `In Progress 67%`
+    - [🔄] 4.11 Technical Implementation - `In Progress 90%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/)
-          → Progress: 4/9 Done, 2 NeedsReview, 1 Todo (Updated: 2025-12-24)
+          → Progress: 6/10 Done, 3 NeedsReview, 1 Todo (Updated: 2025-12-24)
           → **Note**: Removed mobile PWA from MVP scope
 
     - [⏳] 4.12 Multi-Echelon Inventory - `Todo`
@@ -269,7 +264,7 @@
 
     - [🔄] 12.2 Integration Tests - `In Progress`
           → [View folder](./V1_MVP/12_Testing/12.2_Integration_Tests/)
-          → Progress: 0/1 Done, 1 InProgress (Updated: 2025-12-24)
+          → Progress: 1 task InProgress (0 Done) (Updated: 2025-12-24)
 
     - [⏳] 12.3 E2E Tests - `Todo`
           → [View folder](./V1_MVP/12_Testing/12.3_E2E_Tests/)
@@ -285,14 +280,18 @@
 
 ## 📊 Project Metrics
 
-### Overall Progress: ~41% Complete (Updated: 2025-12-24)
+### Overall Progress: ~42% Complete (Updated: 2025-12-24)
+
+**Methodology**:
+- **Total Tasks**: Count of `task_*.md` files under `PROJECT_TRACKING/V1_MVP/<phase>/...`
+- **Completion**: $(\text{Done} + \text{InProgress} + \text{NeedsReview}) / \text{Total}$
 
 | Phase | Total Tasks | Done | InProgress | NeedsReview | Todo | Completion |
 |-------|-------------|------|------------|-------------|------|------------|
-| Phase 1 (Infrastructure) | 12 | 5 | 1 | 1 | 5 | 42% |
+| Phase 1 (Infrastructure) | 12 | 5 | 1 | 1 | 5 | 58% |
 | Phase 2 (Database) | 10 | 0 | 0 | 0 | 10 | 0%* |
-| Phase 3 (User Service) | 28 | 14 | 2 | 5 | 7 | 68% |
-| Phase 4 (Inventory) | 61 | 44 | 2 | 9 | 4 | 90% |
+| Phase 3 (User Service) | 28 | 14 | 2 | 5 | 7 | 75% |
+| Phase 4 (Inventory) | 62 | 46 | 2 | 10 | 4 | 94% |
 | Phase 5 (Order) | 1 | 0 | 0 | 0 | 1 | 0% |
 | Phase 6 (Integration) | 3 | 0 | 0 | 0 | 3 | 0% |
 | Phase 7 (Payment) | 2 | 0 | 0 | 0 | 2 | 0% |
@@ -301,15 +300,15 @@
 | Phase 10 (Deployment) | 14 | 0 | 0 | 0 | 14 | 0% |
 | Phase 11 (Monitoring) | 8 | 0 | 0 | 0 | 8 | 0% |
 | Phase 12 (Testing) | 43 | 0 | 1 | 0 | 42 | 2% |
-| **TOTAL** | **211** | **65** | **6** | **15** | **123** | **41%** |
+| **TOTAL** | **212** | **67** | **6** | **16** | **123** | **42%** |
 
-*Note: Phase 2 shows 0% in tracking but core migrations are complete (tracked separately)
+*Note: Phase 2 core foundations are complete; `PROJECT_TRACKING/V1_MVP/02_Database_Foundations/2.3_Database_Optimization` tracks a separate optimization backlog (10 Todo tasks).
 
 #### By Phase:
-- **Phase 1** (Infrastructure): 🔄 42% - Auth library done, dev tools in progress
-- **Phase 2** (Database): ✅ 100% - Foundation complete (core migrations done)
-- **Phase 3** (User Service): 🔄 68% - Kanidm 67%, Casbin 92%, User Mgmt 60% (Updated: 2025-12-24)
-- **Phase 4** (Inventory): 🔄 90% - Major progress! 44/61 Done, 9 NeedsReview (Updated: 2025-12-24)
+- **Phase 1** (Infrastructure): 🔄 58% - Auth library done, dev tools in progress
+- **Phase 2** (Database): ⏳ 0% in optimization tracking - Foundations complete; optimization backlog pending
+- **Phase 3** (User Service): 🔄 75% - Kanidm 67%, Casbin 92%, User Mgmt 60% (Updated: 2025-12-24)
+- **Phase 4** (Inventory): 🔄 94% - Major progress! 46/62 Done, 10 NeedsReview (Updated: 2025-12-24)
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
@@ -427,15 +426,15 @@ open http://localhost:8000/docs  # Swagger UI
 ---
 
 **Last Updated**: 2025-12-24
-**Project Status**: In Progress (Phase 3 User Service 68%, Phase 4 Inventory Service 90%)
+**Project Status**: In Progress (Phase 3 User Service 75%, Phase 4 Inventory Service 94%)
 
 **Recent Changes (2025-12-24)**:
 - ✅ **Full Project Tracking Scan Completed**: Updated all phase progress based on actual task file statuses
-      - Phase 3 (User Service): 68% complete (14 Done, 2 InProgress, 5 NeedsReview, 7 Todo)
-      - Phase 4 (Inventory): 90% complete! (44 Done, 2 InProgress, 9 NeedsReview, 4 Todo)
+      - Phase 3 (User Service): 75% complete (14 Done, 2 InProgress, 5 NeedsReview, 7 Todo)
+      - Phase 4 (Inventory): 94% complete! (46 Done, 2 InProgress, 10 NeedsReview, 4 Todo)
       - Phase 8 (Frontend): 8% complete (2 Done, 23 Todo)
       - Phase 12 (Testing): 2% complete (1 InProgress, 42 Todo)
-      - Overall: 41% complete (65 Done, 6 InProgress, 15 NeedsReview, 123 Todo)
+      - Overall: 42% complete (67 Done, 6 InProgress, 16 NeedsReview, 123 Todo)
 - ✅ **Added Progress Table**: New metrics table with detailed breakdown by phase
 - ✅ **Corrected Task Counts**: Updated actual task numbers in Phase 12 (Load Testing: 30, Security Testing: 10)
 
