@@ -217,6 +217,7 @@ mod tests {
     // In CI/CD, you might want to use testcontainers or mock the Redis client
 
     #[tokio::test]
+    #[ignore] // Requires Redis server
     async fn test_lock_acquisition_and_release() {
         let service = RedisDistributedLockService::new("redis://localhost:6379").unwrap();
         let tenant_id = Uuid::now_v7();
@@ -253,6 +254,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires Redis server
     async fn test_concurrent_lock_attempts() {
         let service = RedisDistributedLockService::new("redis://localhost:6379").unwrap();
         let tenant_id = Uuid::now_v7();
@@ -294,6 +296,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // Requires Redis server
     async fn test_lock_expiration() {
         let service = RedisDistributedLockService::new("redis://localhost:6379").unwrap();
         let tenant_id = Uuid::now_v7();

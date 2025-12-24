@@ -22,10 +22,12 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     let product_id = Uuid::now_v7();
 
     // Create test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query!(
-        "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())",
         tenant_id,
-        "Test Tenant"
+        "Test Tenant",
+        slug
     )
     .execute(&pool)
     .await
@@ -193,10 +195,12 @@ async fn test_fefo_prevents_picking_expired_lots() {
     let product_id = Uuid::now_v7();
 
     // Create test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query!(
-        "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())",
         tenant_id,
-        "Test Tenant"
+        "Test Tenant",
+        slug
     )
     .execute(&pool)
     .await
@@ -330,10 +334,12 @@ async fn test_quarantine_expired_lots() {
     let product_id = Uuid::now_v7();
 
     // Create test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query!(
-        "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())",
         tenant_id,
-        "Test Tenant"
+        "Test Tenant",
+        slug
     )
     .execute(&pool)
     .await

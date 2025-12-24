@@ -284,10 +284,12 @@ async fn test_replenishment_check() {
     let warehouse_id = Uuid::new_v4();
 
     // Insert test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query!(
-        "INSERT INTO tenants (tenant_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW()) ON CONFLICT DO NOTHING",
         tenant_id,
-        "Test Tenant"
+        "Test Tenant",
+        slug
     )
     .execute(&pool)
     .await
@@ -387,10 +389,12 @@ async fn test_replenishment_check_no_rule_returns_not_found() {
     let warehouse_id = Uuid::new_v4();
 
     // Insert test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query!(
-        "INSERT INTO tenants (tenant_id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW()) ON CONFLICT DO NOTHING",
         tenant_id,
-        "Test Tenant"
+        "Test Tenant",
+        slug
     )
     .execute(&pool)
     .await

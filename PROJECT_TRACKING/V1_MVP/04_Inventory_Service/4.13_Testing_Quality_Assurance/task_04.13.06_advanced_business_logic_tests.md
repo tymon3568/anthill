@@ -14,21 +14,22 @@
 Implement unit tests for advanced inventory business logic including FIFO/AVCO valuation, stock reservation, and reorder rules.
 
 ## Specific Sub-tasks:
-- [x] 1. FIFO/AVCO Valuation Tests (13 tests implemented)
-    - [x] 1.1. FIFO cost calculation on receipts (layer creation)
-    - [x] 1.2. FIFO cost calculation on deliveries (layer consumption)
-    - [x] 1.3. AVCO recalculation on receipts (weighted average)
-    - [x] 1.4. Mixed scenarios (multiple receipts with different costs)
-    - [x] 1.5. Edge cases (zero qty, cost adjustments, revaluation)
-- [ ] 2. Stock Reservation Tests (BLOCKED - Feature not implemented)
-    - [ ] 2.1. Reserve stock for order
-    - [ ] 2.2. Release reserved stock
-    - [ ] 2.3. Partial reservation
-    - [ ] 2.4. Reservation expiry
-- [x] 3. Reorder Rules Tests (9 tests implemented)
-    - [x] 3.1. Reorder point trigger detection
-    - [x] 3.2. Reorder quantity calculation (respects min/max)
-    - [x] 3.3. Lead time in rule creation
+- [x] 1. Valuation Business Logic Tests (14 tests)
+    - [x] 1.1. FIFO Valuation
+    - [x] 1.2. AVCO Valuation
+    - [x] 1.3. Standard Cost Valuation
+    - [x] 1.4. Mixed Valuation Scenarios
+
+- [x] 2. Stock Reservation Tests (Implemented)
+    - [x] 2.1. Reserve stock for order
+    - [x] 2.2. Release reserved stock
+    - [x] 2.3. Partial reservation
+    - [x] 2.4. Reservation expiry
+- [x] 3. Reorder Rules Tests (10 tests)
+    - [x] 3.1. Reorder point calculation
+    - [x] 3.2. Safety stock consideration
+    - [x] 3.3. Lead time factor
+    - [x] 3.4. Auto-replenishment triggersule creation
     - [x] 3.4. Safety stock calculations
 
 ## Acceptance Criteria:

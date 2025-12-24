@@ -232,7 +232,9 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         ),
     };
 
-    create_reconciliation_routes().layer(axum::Extension(app_state))
+    Router::new()
+        .nest("/api/v1/inventory/reconciliations", create_reconciliation_routes())
+        .layer(axum::Extension(app_state))
 }
 
 /// Create a test user for authentication
@@ -241,11 +243,14 @@ pub async fn create_test_user(pool: &PgPool) -> AuthUser {
     let tenant_id = Uuid::now_v7();
 
     // Insert test tenant if not exists
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query!(
-        "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
+         VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
          ON CONFLICT (tenant_id) DO NOTHING",
         tenant_id,
-        "Test Tenant"
+        "Test Tenant",
+        slug
     )
     .execute(pool)
     .await
