@@ -243,8 +243,5 @@ pub fn create_replenishment_routes() -> axum::Router {
             axum::routing::get(list_reorder_rules_for_product),
         )
         .route("/check", axum::routing::post(run_replenishment_check))
-        .route(
-            "/check/product/{product_id}",
-            axum::routing::post(check_product_replenishment),
-        )
+        .route("/check/product/{product_id}", axum::routing::post(check_product_replenishment))
 }

@@ -5,7 +5,7 @@
 mod business_logic_test_helpers;
 
 use business_logic_test_helpers::{
-    cleanup_valuation_test_data, create_inventory_level, setup_test_pool,
+    cleanup_reorder_test_data, create_inventory_level, setup_test_pool,
     setup_test_tenant_product_warehouse,
 };
 use inventory_service_core::services::InventoryService;
@@ -19,9 +19,8 @@ async fn create_inventory_service(pool: &sqlx::PgPool) -> InventoryServiceImpl {
     // because it handles both standard and lot-tracked reservations.
 
     // Using default implementations from existing repositories
-    let product_repo = Arc::new(inventory_service_infra::repositories::ProductRepositoryImpl::new(
-        pool.clone(),
-    ));
+    let product_repo =
+        Arc::new(inventory_service_infra::repositories::ProductRepositoryImpl::new(pool.clone()));
     let lot_serial_repo = Arc::new(
         inventory_service_infra::repositories::LotSerialRepositoryImpl::new(pool.clone()),
     );
@@ -61,7 +60,9 @@ async fn test_reserve_stock_standard_product() {
     let level = sqlx::query!(
         "SELECT available_quantity, reserved_quantity FROM inventory_levels
          WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3",
-        tenant_id, product_id, warehouse_id
+        tenant_id,
+        product_id,
+        warehouse_id
     )
     .fetch_one(&pool)
     .await
@@ -70,7 +71,7 @@ async fn test_reserve_stock_standard_product() {
     assert_eq!(level.available_quantity, 60);
     assert_eq!(level.reserved_quantity, 40);
 
-    cleanup_valuation_test_data(&pool, tenant_id).await;
+    cleanup_reorder_test_data(&pool, tenant_id).await;
 }
 
 #[tokio::test]
@@ -95,7 +96,7 @@ async fn test_reserve_insufficient_stock_fails() {
         .unwrap();
     assert_eq!(available, 50);
 
-    cleanup_valuation_test_data(&pool, tenant_id).await;
+    cleanup_reorder_test_data(&pool, tenant_id).await;
 }
 
 #[tokio::test]
@@ -108,7 +109,10 @@ async fn test_release_stock() {
     create_inventory_level(&pool, tenant_id, product_id, warehouse_id, 100).await;
 
     // Reserve 50
-    service.reserve_stock(tenant_id, warehouse_id, product_id, 50).await.unwrap();
+    service
+        .reserve_stock(tenant_id, warehouse_id, product_id, 50)
+        .await
+        .unwrap();
 
     // Release 20
     service
@@ -120,7 +124,9 @@ async fn test_release_stock() {
     let level = sqlx::query!(
         "SELECT available_quantity, reserved_quantity FROM inventory_levels
          WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3",
-        tenant_id, product_id, warehouse_id
+        tenant_id,
+        product_id,
+        warehouse_id
     )
     .fetch_one(&pool)
     .await
@@ -129,5 +135,5 @@ async fn test_release_stock() {
     assert_eq!(level.available_quantity, 70);
     assert_eq!(level.reserved_quantity, 30);
 
-    cleanup_valuation_test_data(&pool, tenant_id).await;
+    cleanup_reorder_test_data(&pool, tenant_id).await;
 }

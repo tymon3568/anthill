@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use uuid::Uuid;
 use std::sync::Arc;
+use uuid::Uuid;
 
 use inventory_service_core::repositories::InventoryRepository;
 use inventory_service_core::services::InventoryService;

@@ -38,12 +38,12 @@ use inventory_service_infra::repositories::{
     putaway::PgPutawayRepository,
     quality::PgQualityControlPointRepository,
     receipt::ReceiptRepositoryImpl,
-    reconciliation::{PgStockReconciliationRepository, PgStockReconciliationItemRepository},
+    reconciliation::{PgStockReconciliationItemRepository, PgStockReconciliationRepository},
     replenishment::PgReorderRuleRepository,
-    rma::{PgRmaRepository, PgRmaItemRepository},
+    rma::{PgRmaItemRepository, PgRmaRepository},
     stock::{PgInventoryLevelRepository, PgStockMoveRepository},
-    stock_take::{PgStockTakeRepository, PgStockTakeLineRepository},
-    transfer::{PgTransferRepository, PgTransferItemRepository},
+    stock_take::{PgStockTakeLineRepository, PgStockTakeRepository},
+    transfer::{PgTransferItemRepository, PgTransferRepository},
     valuation::ValuationRepositoryImpl,
     warehouse::WarehouseRepositoryImpl,
 };
@@ -51,20 +51,20 @@ use inventory_service_infra::repositories::{
 // Inventory-service infra - Services
 use inventory_service_infra::services::{
     CategoryServiceImpl,
-    // DeliveryServiceImpl, // Not exported in infra mod.rs, using dummy
-    RedisDistributedLockService,
     LotSerialServiceImpl,
-    PickingMethodServiceImpl,
-    ProductServiceImpl,
     PgPutawayService,
     PgQualityControlPointService,
-    ReceiptServiceImpl,
-    PgStockReconciliationService,
     // RemovalStrategyServiceImpl,
     PgReplenishmentService,
     PgRmaService,
+    PgStockReconciliationService,
     PgStockTakeService,
     PgTransferService,
+    PickingMethodServiceImpl,
+    ProductServiceImpl,
+    ReceiptServiceImpl,
+    // DeliveryServiceImpl, // Not exported in infra mod.rs, using dummy
+    RedisDistributedLockService,
     ValuationServiceImpl,
 };
 
@@ -75,6 +75,7 @@ use crate::handlers::lot_serial::create_lot_serial_routes;
 use crate::handlers::picking::create_picking_routes;
 use crate::handlers::products::create_product_routes;
 use crate::handlers::putaway::create_putaway_routes;
+use crate::handlers::quality::create_quality_routes;
 use crate::handlers::receipt::create_receipt_routes;
 use crate::handlers::reconciliation::create_reconciliation_routes;
 use crate::handlers::replenishment::create_replenishment_routes;
@@ -85,10 +86,9 @@ use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
-use crate::handlers::quality::create_quality_routes;
+use crate::middleware::AuthzState;
 use crate::openapi::ApiDoc;
 use crate::state::AppState;
-use crate::middleware::AuthzState;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
@@ -281,23 +281,20 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let distributed_lock_service_arc = Arc::new(distributed_lock_service);
 
     let category_service = CategoryServiceImpl::new(category_repo);
-    let lot_serial_service = LotSerialServiceImpl::new(
-        lot_serial_repo,
-        stock_move_repo.clone(),
-        warehouse_repo.clone()
-    );
+    let lot_serial_service =
+        LotSerialServiceImpl::new(lot_serial_repo, stock_move_repo.clone(), warehouse_repo.clone());
     let picking_method_service = PickingMethodServiceImpl::new(Arc::new(picking_method_repo));
     let product_service = ProductServiceImpl::new(product_repo.clone());
     let valuation_service = ValuationServiceImpl::new(
         Arc::new(valuation_repo),
         Arc::new(valuation_layer_repo),
-        Arc::new(valuation_history_repo)
+        Arc::new(valuation_history_repo),
     );
 
     let receipt_service = ReceiptServiceImpl::new(
         Arc::new(receipt_repo),
         product_repo.clone(),
-        distributed_lock_service_arc.clone()
+        distributed_lock_service_arc.clone(),
     );
 
     let delivery_service = DummyDeliveryService;
@@ -306,7 +303,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         Arc::new(transfer_repo),
         Arc::new(transfer_item_repo),
         stock_move_repo.clone(),
-        inventory_level_repo.clone()
+        inventory_level_repo.clone(),
     );
 
     let stock_take_service = PgStockTakeService::new(
@@ -314,7 +311,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         Arc::new(stock_take_repo),
         Arc::new(stock_take_line_repo),
         stock_move_repo.clone(),
-        inventory_level_repo.clone()
+        inventory_level_repo.clone(),
     );
 
     let reconciliation_service = PgStockReconciliationService::new(
@@ -323,19 +320,16 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         Arc::new(reconciliation_item_repo),
         stock_move_repo.clone(),
         inventory_level_repo.clone(),
-        product_repo.clone()
+        product_repo.clone(),
     );
 
-    let rma_service = PgRmaService::new(
-        Arc::new(rma_repo),
-        Arc::new(rma_item_repo),
-        stock_move_repo.clone()
-    );
+    let rma_service =
+        PgRmaService::new(Arc::new(rma_repo), Arc::new(rma_item_repo), stock_move_repo.clone());
 
     let replenishment_service = PgReplenishmentService::new(
         Arc::new(replenishment_repo),
         inventory_level_repo.clone(),
-        None // Nats client option
+        None, // Nats client option
     );
 
     let quality_service = PgQualityControlPointService::new(Arc::new(quality_repo));
