@@ -9,6 +9,7 @@ pub mod delivery;
 pub mod distributed_lock;
 pub mod inventory;
 pub mod lot_serial;
+
 pub mod picking_method;
 pub mod product;
 pub mod quality;
