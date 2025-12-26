@@ -227,8 +227,15 @@ async fn test_user_login_success() {
         "password": "TestPass123!"
     });
 
-    let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
+    let (status, response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     let mut redacted_response = response.clone();
     if let Some(obj) = redacted_response.as_object_mut() {
@@ -267,8 +274,15 @@ async fn test_user_login_invalid_credentials() {
         "password": "WrongPassword"
     });
 
-    let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
+    let (status, response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(response["error"].as_str().is_some());
@@ -299,7 +313,8 @@ async fn test_get_user_profile() {
 
     let token = create_jwt(user_id, tenant_id, "user");
 
-    let (status, response) = make_request(&app, "GET", "/api/v1/profile", None, Some(&token), None).await;
+    let (status, response) =
+        make_request(&app, "GET", "/api/v1/profile", None, Some(&token), None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["email"], "profile@example.com");

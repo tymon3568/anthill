@@ -293,8 +293,15 @@ async fn test_login_nonexistent_user() {
         "password": "SomePassword123!"
     });
 
-    let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
+    let (status, response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(response["error"].is_string());
@@ -319,7 +326,15 @@ async fn test_login_wrong_password() {
         "password": "WrongPassword123!"
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
+    let (status, _) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -396,8 +411,15 @@ async fn test_get_nonexistent_user() {
         "password": "AdminPass123!"
     });
 
-    let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None, Some(&tenant_id.to_string())).await;
+    let (status, login_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(admin_login),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let admin_token = login_response["access_token"].as_str().unwrap();
@@ -436,8 +458,15 @@ async fn test_update_nonexistent_user() {
         "password": "AdminPass123!"
     });
 
-    let (_status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None, Some(&tenant_id.to_string())).await;
+    let (_status, login_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(admin_login),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     let admin_token = login_response["access_token"].as_str().unwrap();
 
@@ -619,8 +648,15 @@ async fn test_sql_injection_attempts_in_email() {
             "password": "TestPassword123!"
         });
 
-        let (status, _) =
-            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
+        let (status, _) = make_request(
+            &app,
+            "POST",
+            "/api/v1/auth/login",
+            Some(payload),
+            None,
+            Some(&tenant_id.to_string()),
+        )
+        .await;
 
         // Should either return validation error or unauthorized (not 500)
         assert!(
@@ -662,8 +698,15 @@ async fn test_multiple_failed_login_attempts() {
             "password": format!("WrongPassword{}", i)
         });
 
-        let (status, _) =
-            make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
+        let (status, _) = make_request(
+            &app,
+            "POST",
+            "/api/v1/auth/login",
+            Some(payload),
+            None,
+            Some(&tenant_id.to_string()),
+        )
+        .await;
 
         // All should be unauthorized
         assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -676,7 +719,15 @@ async fn test_multiple_failed_login_attempts() {
         "password": "CorrectPassword123!"
     });
 
-    let (status, _) = make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None, Some(&tenant_id.to_string())).await;
+    let (status, _) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     // Might be OK or LOCKED depending on implementation
     assert!(

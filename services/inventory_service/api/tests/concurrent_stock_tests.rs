@@ -266,7 +266,14 @@ impl TestDatabase {
         user_id
     }
 
-    async fn create_test_location(&self, tenant_id: Uuid, warehouse_id: Uuid, zone_name: &str, code: &str, user_id: Uuid) -> Uuid {
+    async fn create_test_location(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        zone_name: &str,
+        code: &str,
+        user_id: Uuid,
+    ) -> Uuid {
         let location_id = Uuid::now_v7();
         sqlx::query(
             "INSERT INTO storage_locations (location_id, tenant_id, warehouse_id, zone, location_code, location_type, is_active, created_by, created_at, updated_at)
@@ -491,11 +498,20 @@ mod reservation_tests {
             .await;
 
         let user_id = app.db().create_test_user(tenant_id, "res_user").await;
-        let location_id = app.db().create_test_location(tenant_id, warehouse_id, "Z1", "L1", user_id).await;
+        let location_id = app
+            .db()
+            .create_test_location(tenant_id, warehouse_id, "Z1", "L1", user_id)
+            .await;
 
         // Set initial inventory: 100 units
         app.db()
-            .set_inventory_level(tenant_id, warehouse_id, location_id, product_id, INITIAL_INVENTORY_STANDARD)
+            .set_inventory_level(
+                tenant_id,
+                warehouse_id,
+                location_id,
+                product_id,
+                INITIAL_INVENTORY_STANDARD,
+            )
             .await;
 
         // Spawn 10 concurrent tasks, each trying to reserve 15 units
@@ -608,7 +624,10 @@ mod reservation_tests {
             .await;
 
         let user_id = app.db().create_test_user(tenant_id, "rel_user").await;
-        let location_id = app.db().create_test_location(tenant_id, warehouse_id, "Z2", "L2", user_id).await;
+        let location_id = app
+            .db()
+            .create_test_location(tenant_id, warehouse_id, "Z2", "L2", user_id)
+            .await;
 
         // Set initial inventory: 50 units
         app.db()
@@ -693,12 +712,24 @@ mod concurrent_move_tests {
             .await;
 
         let user_id = app.db().create_test_user(tenant_id, "trf_user").await;
-        let loc_src = app.db().create_test_location(tenant_id, source_wh, "Z_SRC", "L_SRC", user_id).await;
-        let loc_dst = app.db().create_test_location(tenant_id, dest_wh, "Z_DST", "L_DST", user_id).await;
+        let loc_src = app
+            .db()
+            .create_test_location(tenant_id, source_wh, "Z_SRC", "L_SRC", user_id)
+            .await;
+        let loc_dst = app
+            .db()
+            .create_test_location(tenant_id, dest_wh, "Z_DST", "L_DST", user_id)
+            .await;
 
         // Set initial inventory: 100 units at source
         app.db()
-            .set_inventory_level(tenant_id, source_wh, loc_src, product_id, INITIAL_INVENTORY_STANDARD)
+            .set_inventory_level(
+                tenant_id,
+                source_wh,
+                loc_src,
+                product_id,
+                INITIAL_INVENTORY_STANDARD,
+            )
             .await;
 
         let db_pool = app.db().pool.clone();
@@ -798,7 +829,7 @@ mod concurrent_move_tests {
         // Verify final states
         let source_qty: Option<i64> = sqlx::query_scalar(
             "SELECT available_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4",
         )
         .bind(tenant_id)
         .bind(source_wh)
@@ -810,7 +841,7 @@ mod concurrent_move_tests {
 
         let dest_qty: Option<i64> = sqlx::query_scalar(
             "SELECT available_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4",
         )
         .bind(tenant_id)
         .bind(dest_wh)
@@ -846,7 +877,10 @@ mod concurrent_move_tests {
             .await;
 
         let user_id = app.db().create_test_user(tenant_id, "rcv_user").await;
-        let location_id = app.db().create_test_location(tenant_id, warehouse_id, "Z_RCV", "L_RCV", user_id).await;
+        let location_id = app
+            .db()
+            .create_test_location(tenant_id, warehouse_id, "Z_RCV", "L_RCV", user_id)
+            .await;
 
         // Start with 0 inventory
         app.db()
@@ -910,7 +944,7 @@ mod concurrent_move_tests {
         let expected_qty = (CONCURRENT_RECEIPT_TASKS as i64) * RECEIPT_AMOUNT;
         let final_qty: Option<i64> = sqlx::query_scalar(
             "SELECT available_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4",
         )
         .bind(tenant_id)
         .bind(warehouse_id)
@@ -943,8 +977,14 @@ mod concurrent_move_tests {
             .await;
 
         let user_id = app.db().create_test_user(tenant_id, "mix_user").await;
-        let loc1 = app.db().create_test_location(tenant_id, wh1, "Z_MIX1", "L_MIX1", user_id).await;
-        let loc2 = app.db().create_test_location(tenant_id, wh2, "Z_MIX2", "L_MIX2", user_id).await;
+        let loc1 = app
+            .db()
+            .create_test_location(tenant_id, wh1, "Z_MIX1", "L_MIX1", user_id)
+            .await;
+        let loc2 = app
+            .db()
+            .create_test_location(tenant_id, wh2, "Z_MIX2", "L_MIX2", user_id)
+            .await;
 
         // Initial: INITIAL_INVENTORY_STANDARD at WH1, 0 at WH2
         app.db()
@@ -1136,13 +1176,18 @@ mod idempotency_tests {
         let app = TestApp::build_app(db).await;
 
         // First request - should succeed
-        let (status1, body1) = make_idempotency_request(&app, tenant_id, user_id, "key-1", "001").await;
+        let (status1, body1) =
+            make_idempotency_request(&app, tenant_id, user_id, "key-1", "001").await;
         if !status1.is_success() {
-             panic!("First request should succeed for idempotency test. Got status: {}, body: {}", status1, body1);
+            panic!(
+                "First request should succeed for idempotency test. Got status: {}, body: {}",
+                status1, body1
+            );
         }
 
         // Second request with SAME key - should match first response
-        let (status2, body2) = make_idempotency_request(&app, tenant_id, user_id, "key-1", "001").await;
+        let (status2, body2) =
+            make_idempotency_request(&app, tenant_id, user_id, "key-1", "001").await;
 
         assert_eq!(status1, status2, "Status codes should match");
         assert_eq!(body1, body2, "Response bodies should match");
@@ -1160,10 +1205,12 @@ mod idempotency_tests {
         let app = TestApp::build_app(db).await;
 
         // Request 1
-        let (status1, body1) = make_idempotency_request(&app, tenant_id, user_id, "key-A", "A").await;
+        let (status1, body1) =
+            make_idempotency_request(&app, tenant_id, user_id, "key-A", "A").await;
 
         // Request 2 (different key)
-        let (status2, body2) = make_idempotency_request(&app, tenant_id, user_id, "key-B", "B").await;
+        let (status2, body2) =
+            make_idempotency_request(&app, tenant_id, user_id, "key-B", "B").await;
 
         // Both should get the same treatment (both succeed)
         assert_eq!(
@@ -1185,8 +1232,6 @@ mod idempotency_tests {
 
         app.cleanup().await;
     }
-
-
 
     /// Test idempotency under concurrent duplicate requests
     ///
@@ -1277,11 +1322,20 @@ mod consistency_tests {
             .await;
 
         let user_id = app.db().create_test_user(tenant_id, "con_user").await;
-        let location_id = app.db().create_test_location(tenant_id, warehouse_id, "Z_CON", "L_CON", user_id).await;
+        let location_id = app
+            .db()
+            .create_test_location(tenant_id, warehouse_id, "Z_CON", "L_CON", user_id)
+            .await;
 
         // Initial: 1000 units
         app.db()
-            .set_inventory_level(tenant_id, warehouse_id, location_id, product_id, INITIAL_INVENTORY_LARGE)
+            .set_inventory_level(
+                tenant_id,
+                warehouse_id,
+                location_id,
+                product_id,
+                INITIAL_INVENTORY_LARGE,
+            )
             .await;
 
         let db_pool = app.db().pool.clone();
@@ -1366,7 +1420,7 @@ mod consistency_tests {
             - (CONCURRENT_DECREMENT_OPS as i64 * DECREMENT_AMOUNT);
         let final_qty: Option<i64> = sqlx::query_scalar(
             "SELECT available_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4",
         )
         .bind(tenant_id)
         .bind(warehouse_id)
@@ -1395,7 +1449,10 @@ mod consistency_tests {
             .await;
 
         let user_id = app.db().create_test_user(tenant_id, "neg_user").await;
-        let location_id = app.db().create_test_location(tenant_id, warehouse_id, "Z_NEG", "L_NEG", user_id).await;
+        let location_id = app
+            .db()
+            .create_test_location(tenant_id, warehouse_id, "Z_NEG", "L_NEG", user_id)
+            .await;
 
         // Initial: 50 units
         app.db()
@@ -1423,7 +1480,7 @@ mod consistency_tests {
         // Verify quantity unchanged
         let qty: Option<i64> = sqlx::query_scalar(
             "SELECT available_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4",
         )
         .bind(tenant_id)
         .bind(warehouse_id)

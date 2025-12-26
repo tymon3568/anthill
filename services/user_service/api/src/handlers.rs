@@ -150,12 +150,7 @@ pub async fn login<S: AuthService>(
 
     let resp = state
         .auth_service
-        .login(
-            payload,
-            tenant_identifier,
-            client_info.ip_address,
-            client_info.user_agent,
-        )
+        .login(payload, tenant_identifier, client_info.ip_address, client_info.user_agent)
         .await?;
     Ok(Json(resp))
 }

@@ -175,15 +175,23 @@ async fn test_login_flow_with_token_refresh() {
         "password": "TestPass123!"
     });
 
-    let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
+    let (status, login_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(login_payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
     let refresh_token = login_response["refresh_token"].as_str().unwrap();
 
     // Step 2: Use access token
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
+    let (status, _) =
+        make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -226,14 +234,22 @@ async fn test_logout_flow() {
         "password": "TestPass123!"
     });
 
-    let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
+    let (status, login_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(login_payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
 
     // Step 2: Verify can access protected resource
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
+    let (status, _) =
+        make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -245,7 +261,8 @@ async fn test_logout_flow() {
 
     // Step 4: Token should still work until it expires (stateless JWT)
     // But session should be removed from database
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
+    let (status, _) =
+        make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     // Depending on implementation, this might still work or fail
     // If JWT is stateless, it works until expiry
@@ -285,8 +302,15 @@ async fn test_rbac_flow_user_to_admin_promotion() {
         "password": "AdminPass123!"
     });
 
-    let (status, admin_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(admin_login), None, Some(&tenant_id.to_string())).await;
+    let (status, admin_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(admin_login),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let admin_token = admin_response["access_token"].as_str().unwrap();
@@ -297,8 +321,15 @@ async fn test_rbac_flow_user_to_admin_promotion() {
         "password": "UserPass123!"
     });
 
-    let (status, user_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(user_login.clone()), None, Some(&tenant_id.to_string())).await;
+    let (status, user_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(user_login.clone()),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let user_token = user_response["access_token"].as_str().unwrap();
@@ -327,8 +358,15 @@ async fn test_rbac_flow_user_to_admin_promotion() {
     assert_eq!(status, StatusCode::OK);
 
     // Step 5: User logs in again to get new token with new role
-    let (status, new_user_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(user_login), None, Some(&tenant_id.to_string())).await;
+    let (status, new_user_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(user_login),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let new_user_token = new_user_response["access_token"].as_str().unwrap();
@@ -379,8 +417,15 @@ async fn test_rbac_flow_manager_permissions() {
         "password": "ManagerPass123!"
     });
 
-    let (status, manager_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(manager_login), None, Some(&tenant_id.to_string())).await;
+    let (status, manager_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(manager_login),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let manager_token = manager_response["access_token"].as_str().unwrap();
@@ -469,14 +514,22 @@ async fn test_jwt_expiration_flow() {
         "password": "TestPass123!"
     });
 
-    let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
+    let (status, login_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(login_payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
 
     // Token should work immediately
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
+    let (status, _) =
+        make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -484,7 +537,8 @@ async fn test_jwt_expiration_flow() {
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
     // Token should now be expired
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
+    let (status, _) =
+        make_request(&app, "GET", "/api/v1/profile", None, Some(access_token), None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -543,8 +597,15 @@ async fn test_cross_tenant_access_prevention() {
         "password": "TestPass123!"
     });
 
-    let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_a_id.to_string())).await;
+    let (status, login_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(login_payload),
+        None,
+        Some(&tenant_a_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let user_a_token = login_response["access_token"].as_str().unwrap();
@@ -596,8 +657,15 @@ async fn test_password_change_flow() {
         "password": old_password
     });
 
-    let (status, login_response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload.clone()), None, Some(&tenant_id.to_string())).await;
+    let (status, login_response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(login_payload.clone()),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let access_token = login_response["access_token"].as_str().unwrap();
@@ -622,8 +690,15 @@ async fn test_password_change_flow() {
     assert_eq!(status, StatusCode::OK);
 
     // Step 3: Old password should no longer work
-    let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(login_payload), None, Some(&tenant_id.to_string())).await;
+    let (status, _) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(login_payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -633,8 +708,15 @@ async fn test_password_change_flow() {
         "password": new_password
     });
 
-    let (status, _) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(new_login_payload), None, Some(&tenant_id.to_string())).await;
+    let (status, _) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(new_login_payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 

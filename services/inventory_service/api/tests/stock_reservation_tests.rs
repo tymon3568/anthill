@@ -19,9 +19,8 @@ async fn create_inventory_service(pool: &sqlx::PgPool) -> InventoryServiceImpl {
     // because it handles both standard and lot-tracked reservations.
 
     // Using default implementations from existing repositories
-    let product_repo = Arc::new(inventory_service_infra::repositories::ProductRepositoryImpl::new(
-        pool.clone(),
-    ));
+    let product_repo =
+        Arc::new(inventory_service_infra::repositories::ProductRepositoryImpl::new(pool.clone()));
     let lot_serial_repo = Arc::new(
         inventory_service_infra::repositories::LotSerialRepositoryImpl::new(pool.clone()),
     );
@@ -61,7 +60,9 @@ async fn test_reserve_stock_standard_product() {
     let level = sqlx::query!(
         "SELECT available_quantity, reserved_quantity FROM inventory_levels
          WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3",
-        tenant_id, product_id, warehouse_id
+        tenant_id,
+        product_id,
+        warehouse_id
     )
     .fetch_one(&pool)
     .await
@@ -108,7 +109,10 @@ async fn test_release_stock() {
     create_inventory_level(&pool, tenant_id, product_id, warehouse_id, 100).await;
 
     // Reserve 50
-    service.reserve_stock(tenant_id, warehouse_id, product_id, 50).await.unwrap();
+    service
+        .reserve_stock(tenant_id, warehouse_id, product_id, 50)
+        .await
+        .unwrap();
 
     // Release 20
     service
@@ -120,7 +124,9 @@ async fn test_release_stock() {
     let level = sqlx::query!(
         "SELECT available_quantity, reserved_quantity FROM inventory_levels
          WHERE tenant_id = $1 AND product_id = $2 AND warehouse_id = $3",
-        tenant_id, product_id, warehouse_id
+        tenant_id,
+        product_id,
+        warehouse_id
     )
     .fetch_one(&pool)
     .await

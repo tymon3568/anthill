@@ -262,7 +262,8 @@ mod tests {
 
     async fn setup_test_enforcer() -> Enforcer {
         // Resolve model path using the same logic as production
-        let resolved_model_path = resolve_model_path(None).expect("Failed to resolve model path for tests");
+        let resolved_model_path =
+            resolve_model_path(None).expect("Failed to resolve model path for tests");
 
         let model = DefaultModel::from_file(
             resolved_model_path

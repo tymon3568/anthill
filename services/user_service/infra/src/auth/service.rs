@@ -274,12 +274,12 @@ where
                         return Err(AppError::ValidationError("Tenant not found".to_string()));
                     }
                 }
-            }
+            },
             None => {
                 return Err(AppError::ValidationError(
                     "Tenant context required for login".to_string(),
                 ));
-            }
+            },
         };
 
         let user = self
