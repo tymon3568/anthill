@@ -14,11 +14,7 @@ use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-
 use uuid::Uuid;
-
-// Tokio for timeout
-// Removed unused tokio imports
 
 // Shared crates
 use shared_auth::enforcer::create_enforcer;
@@ -49,6 +45,10 @@ use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::services::rma::RmaService;
 use inventory_service_core::services::stock_take::StockTakeService;
 use inventory_service_core::services::transfer::TransferService;
+use inventory_service_core::services::valuation::ValuationService;
+use inventory_service_core::domains::inventory::dto::valuation_dto::*;
+use inventory_service_core::domains::inventory::valuation::ValuationMethod;
+use inventory_service_infra::services::category::CategoryServiceImpl;
 use inventory_service_core::domains::replenishment::{
     CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
 };
@@ -76,7 +76,11 @@ use inventory_service_core::domains::inventory::warehouse_location::WarehouseLoc
 use inventory_service_core::domains::inventory::dto::warehouse_dto::*;
 use serde_json::Value as JsonValue;
 
-// Inventory-service infra
+// Inventory-service infra - Repositories
+use inventory_service_infra::repositories::{
+    category::CategoryRepositoryImpl,
+
+};
 
 // Define UniversalDummyService
 #[derive(Clone)]
@@ -220,15 +224,22 @@ impl DistributedLockService for UniversalDummyService {
     async fn force_release_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str) -> Result<bool, AppError> { unimplemented!() }
 }
 
-use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
-use inventory_service_infra::services::category::CategoryServiceImpl;
-// Removed unused ValuationServiceImpl import
+#[async_trait]
+impl ValuationService for UniversalDummyService {
+    async fn get_valuation(&self, _request: GetValuationRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
+    async fn set_valuation_method(&self, _request: SetValuationMethodRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
+    async fn set_standard_cost(&self, _request: SetStandardCostRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
+    async fn get_valuation_layers(&self, _request: GetValuationLayersRequest) -> Result<ValuationLayersResponse, AppError> { unimplemented!() }
+    async fn get_valuation_history(&self, _request: GetValuationHistoryRequest) -> Result<ValuationHistoryResponse, AppError> { unimplemented!() }
+    async fn adjust_cost(&self, _request: CostAdjustmentRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
+    async fn revalue_inventory(&self, _request: RevaluationRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
+    async fn process_stock_movement(&self, _tenant_id: Uuid, _product_id: Uuid, _change: i64, _cost: Option<i64>, _user: Option<Uuid>) -> Result<ValuationDto, AppError> { unimplemented!() }
+    async fn calculate_inventory_value(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<i64, AppError> { unimplemented!() }
+    async fn get_valuation_method(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<ValuationMethod, AppError> { unimplemented!() }
+}
 
-// Removed unused Money import
-// Removed unused TenantContext import
 
 // Local handlers/state
-use crate::handlers::category::create_category_routes;
 use crate::handlers::health::health_check;
 use crate::openapi::ApiDoc;
 
@@ -325,113 +336,6 @@ impl DeliveryService for DummyDeliveryService {
     }
 }
 
-pub struct SimpleDummyValuationService;
-#[async_trait]
-impl inventory_service_core::services::valuation::ValuationService for SimpleDummyValuationService {
-    async fn get_valuation(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn set_valuation_method(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::SetValuationMethodRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn set_standard_cost(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::SetStandardCostRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn get_valuation_layers(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationLayersRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationLayersResponse,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn get_valuation_history(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::GetValuationHistoryRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationHistoryResponse,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn adjust_cost(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::CostAdjustmentRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn revalue_inventory(
-        &self,
-        _request: inventory_service_core::domains::inventory::dto::valuation_dto::RevaluationRequest,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn process_stock_movement(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _product_id: uuid::Uuid,
-        _quantity_change: i64,
-        _unit_cost: Option<i64>,
-        _user_id: Option<uuid::Uuid>,
-    ) -> Result<
-        inventory_service_core::domains::inventory::dto::valuation_dto::ValuationDto,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn calculate_inventory_value(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _product_id: uuid::Uuid,
-    ) -> Result<i64, shared_error::AppError> {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-
-    async fn get_valuation_method(
-        &self,
-        _tenant_id: uuid::Uuid,
-        _product_id: uuid::Uuid,
-    ) -> Result<
-        inventory_service_core::domains::inventory::valuation::ValuationMethod,
-        shared_error::AppError,
-    > {
-        Err(shared_error::AppError::ServiceUnavailable("Not implemented".to_string()))
-    }
-}
-
 /// Create the main application router
 pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Validate CORS configuration for production
@@ -469,7 +373,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         },
     };
 
-    let _enforcer = create_enforcer(&config.database_url, Some(model_path))
+    let enforcer = create_enforcer(&config.database_url, Some(model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
 
@@ -492,7 +396,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ttl_seconds: 24 * 60 * 60, // 24 hours
         header_name: "x-idempotency-key".to_string(),
     };
-    let _idempotency_state = Arc::new(
+    let idempotency_state = Arc::new(
         crate::middleware::IdempotencyState::new(idempotency_config)
             .expect("Failed to initialize idempotency state"),
     );
@@ -507,10 +411,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Services
     let category_service = CategoryServiceImpl::new(category_repo);
-    let _valuation_service = Arc::new(SimpleDummyValuationService);
+    let dummy_service = Arc::new(UniversalDummyService);
+    let _valuation_service = dummy_service.clone();
     let _delivery_service = DummyDeliveryService;
     let _kanidm_client = create_kanidm_client(config);
-    let dummy_service = Arc::new(UniversalDummyService);
 
     let state = crate::state::AppState {
         category_service: Arc::new(category_service),
@@ -529,36 +433,13 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         quality_service: dummy_service.clone(),
         putaway_service: dummy_service.clone(),
         distributed_lock_service: dummy_service.clone(),
-        enforcer: _enforcer.clone(),
+        enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: _kanidm_client.clone(),
-        idempotency_state: _idempotency_state.clone(),
+        idempotency_state: idempotency_state.clone(),
     };
 
-    // Comment out AuthzState creation
-    // let authz_state = AuthzState {
-    //     enforcer: state.enforcer.clone(),
-    //     jwt_secret: state.jwt_secret.clone(),
-    //     kanidm_client: state.kanidm_client.clone(),
-    // };
 
-    // Comment out route creations to isolate stack overflow
-    let _category_routes = create_category_routes();
-    // let lot_serial_routes = create_lot_serial_routes();
-    // let picking_routes = create_picking_routes();
-    // let product_routes = create_product_routes();
-    // let putaway_routes = create_putaway_routes();
-    // let receipt_routes = create_receipt_routes();
-    // let reconciliation_routes = create_reconciliation_routes();
-    // let rma_routes = create_rma_routes();
-    // let search_routes = create_search_routes();
-    // let stock_take_routes = create_stock_take_routes();
-    // let transfer_routes = create_transfer_routes();
-    // let valuation_routes = create_valuation_routes();
-    // let warehouse_routes = create_warehouse_routes();
-    // let quality_routes = create_quality_routes();
-    // let replenishment_routes = create_replenishment_routes();
-    // let reports_routes = create_reports_routes();
 
     // Add CORS configuration
     let cors = CorsLayer::new()
@@ -595,10 +476,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         ]);
 
     // Comment out protected routes to isolate stack overflow
-    let protected_routes = Router::new().nest("/api/v1/inventory/categories", _category_routes);
+    let protected_routes = Router::new().nest("/api/v1/inventory/categories", Router::new());
 
     let authz_state = crate::middleware::AuthzState {
-        enforcer: _enforcer.clone(),
+        enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
         kanidm_client: _kanidm_client.clone(),
     };
@@ -608,7 +489,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .layer(Extension(config.clone()))
         .layer(Extension(state))
         .layer(axum::middleware::from_fn_with_state(
-            _idempotency_state,
+            idempotency_state,
             crate::middleware::idempotency_middleware,
         ))
         .layer(axum::middleware::from_fn(crate::middleware::casbin_middleware))
