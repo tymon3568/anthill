@@ -262,6 +262,12 @@ where
                 // Try parsing as UUID first (direct ID)
                 if let Ok(id) = Uuid::parse_str(&id_str) {
                     if let Some(tenant) = self.tenant_repo.find_by_id(id).await? {
+                        // Check if tenant is active
+                        if tenant.status != "active" {
+                            return Err(AppError::ValidationError(
+                                "Tenant is not active".to_string(),
+                            ));
+                        }
                         tenant.tenant_id
                     } else {
                         return Err(AppError::ValidationError("Tenant not found".to_string()));
@@ -269,6 +275,12 @@ where
                 } else {
                     // Treat as slug/subdomain
                     if let Some(tenant) = self.tenant_repo.find_by_slug(&id_str).await? {
+                        // Check if tenant is active
+                        if tenant.status != "active" {
+                            return Err(AppError::ValidationError(
+                                "Tenant is not active".to_string(),
+                            ));
+                        }
                         tenant.tenant_id
                     } else {
                         return Err(AppError::ValidationError("Tenant not found".to_string()));

@@ -5,7 +5,7 @@
 mod business_logic_test_helpers;
 
 use business_logic_test_helpers::{
-    cleanup_valuation_test_data, create_inventory_level, setup_test_pool,
+    cleanup_reorder_test_data, create_inventory_level, setup_test_pool,
     setup_test_tenant_product_warehouse,
 };
 use inventory_service_core::services::InventoryService;
@@ -71,7 +71,7 @@ async fn test_reserve_stock_standard_product() {
     assert_eq!(level.available_quantity, 60);
     assert_eq!(level.reserved_quantity, 40);
 
-    cleanup_valuation_test_data(&pool, tenant_id).await;
+    cleanup_reorder_test_data(&pool, tenant_id).await;
 }
 
 #[tokio::test]
@@ -96,7 +96,7 @@ async fn test_reserve_insufficient_stock_fails() {
         .unwrap();
     assert_eq!(available, 50);
 
-    cleanup_valuation_test_data(&pool, tenant_id).await;
+    cleanup_reorder_test_data(&pool, tenant_id).await;
 }
 
 #[tokio::test]
@@ -135,5 +135,5 @@ async fn test_release_stock() {
     assert_eq!(level.available_quantity, 70);
     assert_eq!(level.reserved_quantity, 30);
 
-    cleanup_valuation_test_data(&pool, tenant_id).await;
+    cleanup_reorder_test_data(&pool, tenant_id).await;
 }
