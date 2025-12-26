@@ -2,6 +2,38 @@
 
 **Anthill** is a modern multi-tenant inventory management SaaS platform built with **Rust** (backend microservices) and **SvelteKit 5** (frontend), optimized for e-commerce businesses.
 
+## ✅ SQLx Standard (Enterprise): Compile-time Macros + Offline Mode (Project Policy)
+
+This project standardizes on **SQLx compile-time checked macros** plus **Offline Mode metadata** to get both:
+- **Schema safety** (catch SQL/type mistakes at compile time)
+- **Stable CI build** (no need for a live DB during compilation)
+
+### Rules
+- Prefer `sqlx::query!`, `sqlx::query_as!`, `sqlx::query_scalar!` for static SQL (string literals).
+- Avoid `sqlx::query(...)` + `.bind(...)` unless the query is truly dynamic.
+- Treat `.sqlx/` as required workspace metadata:
+  - any change to migrations or query macros must update `.sqlx/`
+  - `.sqlx/` must be committed to git
+
+### Update `.sqlx/` metadata (developer workflow)
+1. Start Postgres with the correct schema/migrations applied.
+2. Set `DATABASE_URL` to that database.
+3. Run:
+
+```bash
+cargo install sqlx-cli --no-default-features --features postgres
+cargo sqlx prepare
+```
+
+4. Commit the resulting changes in `.sqlx/` together with your code/migrations.
+
+### CI recommendation
+Verify metadata is in sync:
+
+```bash
+cargo sqlx prepare --check
+```
+
 > 🐜 Just like an anthill works efficiently and organized, Anthill helps you manage inventory intelligently and automatically.
 
 [![codecov](https://codecov.io/gh/tymon3568/anthill/branch/master/graph/badge.svg)](https://codecov.io/gh/tymon3568/anthill)

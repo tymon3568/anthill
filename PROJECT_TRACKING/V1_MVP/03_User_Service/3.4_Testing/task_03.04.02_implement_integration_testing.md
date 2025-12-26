@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service
 **Module:** 3.4_Testing
 **Priority:** High  
-**Status:** Todo - Needs Update for Kanidm  
+**Status:** Todo  
 **Assignee:**
 **Created Date:** 2025-01-21
 **Last Updated:** 2025-01-21
