@@ -244,26 +244,26 @@ pub async fn create_test_user(pool: &PgPool) -> AuthUser {
 
     // Insert test tenant if not exists
     let slug = format!("test-tenant-{}", tenant_id);
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
          VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
          ON CONFLICT (tenant_id) DO NOTHING",
+        tenant_id,
+        "Test Tenant",
+        slug
     )
-    .bind(tenant_id)
-    .bind("Test Tenant")
-    .bind(slug)
     .execute(pool)
     .await
     .unwrap();
 
     // Insert test user if not exists
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO users (user_id, tenant_id, email, created_at) VALUES ($1, $2, $3, NOW())
          ON CONFLICT (user_id) DO NOTHING",
+        user_id,
+        tenant_id,
+        "test@example.com"
     )
-    .bind(user_id)
-    .bind(tenant_id)
-    .bind("test@example.com")
     .execute(pool)
     .await
     .unwrap();

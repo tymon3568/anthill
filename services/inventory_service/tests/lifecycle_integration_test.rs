@@ -135,12 +135,12 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Insert kanidm tenant group mapping
     let kanidm_group_uuid = Uuid::new_v4();
     let kanidm_group_name = format!("tenant_{}_users", tenant_id);
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name) VALUES ($1, $2, $3)",
+        tenant_id,
+        kanidm_group_uuid,
+        kanidm_group_name
     )
-    .bind(tenant_id)
-    .bind(kanidm_group_uuid)
-    .bind(kanidm_group_name)
     .execute(&pool)
     .await
     .expect("Failed to insert kanidm group");
@@ -173,37 +173,37 @@ async fn test_lot_serial_lifecycle_endpoint() {
     .expect("Failed to encode JWT");
 
     // Insert test warehouse
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO warehouses (tenant_id, warehouse_id, warehouse_name, warehouse_code, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id,
+        warehouse_id,
+        "Test Warehouse",
+        "WH001"
     )
-    .bind(tenant_id)
-    .bind(warehouse_id)
-    .bind("Test Warehouse")
-    .bind("WH001")
     .execute(&pool)
     .await
     .expect("Failed to insert warehouse");
 
     // Insert test warehouse zone
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO warehouse_zones (tenant_id, zone_id, zone_name, warehouse_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id,
+        zone_id,
+        "Test Zone",
+        warehouse_id
     )
-    .bind(tenant_id)
-    .bind(zone_id)
-    .bind("Test Zone")
-    .bind(warehouse_id)
     .execute(&pool)
     .await
     .expect("Failed to insert zone");
 
     // Insert test warehouse location
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO warehouse_locations (tenant_id, location_id, location_code, zone_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id,
+        location_id,
+        "LOC-001",
+        zone_id
     )
-    .bind(tenant_id)
-    .bind(location_id)
-    .bind("LOC-001")
-    .bind(zone_id)
     .execute(&pool)
     .await
     .expect("Failed to insert location");
@@ -296,49 +296,49 @@ async fn test_replenishment_check() {
 
     // Insert test tenant
     let slug = format!("test-tenant-{}", tenant_id);
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW()) ON CONFLICT DO NOTHING",
+        tenant_id,
+        "Test Tenant",
+        slug
     )
-    .bind(tenant_id)
-    .bind("Test Tenant")
-    .bind(slug)
     .execute(&pool)
     .await
     .expect("Failed to insert tenant");
 
     // Insert test product
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO products (product_id, tenant_id, sku, name) VALUES ($1, $2, $3, $4)",
+        product_id,
+        tenant_id,
+        "TEST001",
+        "Test Product"
     )
-    .bind(product_id)
-    .bind(tenant_id)
-    .bind("TEST001")
-    .bind("Test Product")
     .execute(&pool)
     .await
     .expect("Failed to insert product");
 
     // Insert test warehouse
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO warehouses (tenant_id, warehouse_id, warehouse_name, warehouse_code, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id,
+        warehouse_id,
+        "Test Warehouse",
+        "WH001"
     )
-    .bind(tenant_id)
-    .bind(warehouse_id)
-    .bind("Test Warehouse")
-    .bind("WH001")
     .execute(&pool)
     .await
     .expect("Failed to insert warehouse");
 
     // Insert inventory level with low quantity
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO inventory_levels (tenant_id, warehouse_id, product_id, available_quantity)
          VALUES ($1, $2, $3, $4)",
+        tenant_id,
+        warehouse_id,
+        product_id,
+        10
     )
-    .bind(tenant_id)
-    .bind(warehouse_id)
-    .bind(product_id)
-    .bind(10) // Low quantity
     .execute(&pool)
     .await
     .expect("Failed to insert inventory");
@@ -401,36 +401,36 @@ async fn test_replenishment_check_no_rule_returns_not_found() {
 
     // Insert test tenant
     let slug = format!("test-tenant-{}", tenant_id);
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW()) ON CONFLICT DO NOTHING",
+        tenant_id,
+        "Test Tenant",
+        slug
     )
-    .bind(tenant_id)
-    .bind("Test Tenant")
-    .bind(slug)
     .execute(&pool)
     .await
     .expect("Failed to insert tenant");
 
     // Insert test product
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO products (product_id, tenant_id, sku, name) VALUES ($1, $2, $3, $4)",
+        product_id,
+        tenant_id,
+        "TEST001",
+        "Test Product"
     )
-    .bind(product_id)
-    .bind(tenant_id)
-    .bind("TEST001")
-    .bind("Test Product")
     .execute(&pool)
     .await
     .expect("Failed to insert product");
 
     // Insert test warehouse
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO warehouses (tenant_id, warehouse_id, warehouse_name, warehouse_code, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
+        tenant_id,
+        warehouse_id,
+        "Test Warehouse",
+        "WH001"
     )
-    .bind(tenant_id)
-    .bind(warehouse_id)
-    .bind("Test Warehouse")
-    .bind("WH001")
     .execute(&pool)
     .await
     .expect("Failed to insert warehouse");
