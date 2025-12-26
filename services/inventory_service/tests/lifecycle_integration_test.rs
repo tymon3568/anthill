@@ -137,7 +137,9 @@ async fn test_lot_serial_lifecycle_endpoint() {
     let kanidm_group_name = format!("tenant_{}_users", tenant_id);
     sqlx::query!(
         "INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name) VALUES ($1, $2, $3)",
-        tenant_id, kanidm_group_uuid, kanidm_group_name
+        tenant_id,
+        kanidm_group_uuid,
+        kanidm_group_name
     )
     .execute(&pool)
     .await
@@ -173,7 +175,10 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Insert test warehouse
     sqlx::query!(
         "INSERT INTO warehouses (tenant_id, warehouse_id, warehouse_name, warehouse_code, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
-        tenant_id, warehouse_id, "Test Warehouse", "WH001"
+        tenant_id,
+        warehouse_id,
+        "Test Warehouse",
+        "WH001"
     )
     .execute(&pool)
     .await
@@ -182,7 +187,10 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Insert test warehouse zone
     sqlx::query!(
         "INSERT INTO warehouse_zones (tenant_id, zone_id, zone_name, warehouse_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
-        tenant_id, zone_id, "Test Zone", warehouse_id
+        tenant_id,
+        zone_id,
+        "Test Zone",
+        warehouse_id
     )
     .execute(&pool)
     .await
@@ -191,7 +199,10 @@ async fn test_lot_serial_lifecycle_endpoint() {
     // Insert test warehouse location
     sqlx::query!(
         "INSERT INTO warehouse_locations (tenant_id, location_id, location_code, zone_id, created_at, updated_at) VALUES ($1, $2, $3, $4, NOW(), NOW())",
-        tenant_id, location_id, "LOC-001", zone_id
+        tenant_id,
+        location_id,
+        "LOC-001",
+        zone_id
     )
     .execute(&pool)
     .await
@@ -326,7 +337,7 @@ async fn test_replenishment_check() {
         tenant_id,
         warehouse_id,
         product_id,
-        10 // Low quantity
+        10
     )
     .execute(&pool)
     .await

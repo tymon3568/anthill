@@ -147,44 +147,50 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     assert!(result.is_ok(), "Reservation should succeed");
 
     // Check lot quantities after reservation
-    let lot1_after = sqlx::query!(
+    let lot1_after: Option<i32> = sqlx::query_scalar(
         "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-        lot1_id
     )
+    .bind(lot1_id)
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(lot1_after.remaining_quantity, Some(10), "Lot1 should have 10 remaining");
+    assert_eq!(lot1_after, Some(10), "Lot1 should have 10 remaining");
 
-    let lot2_after = sqlx::query!(
+    let lot2_after: Option<i32> = sqlx::query_scalar(
         "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-        lot2_id
     )
+    .bind(lot2_id)
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(lot2_after.remaining_quantity, Some(30), "Lot2 should remain unchanged");
+    assert_eq!(lot2_after, Some(30), "Lot2 should remain unchanged");
 
-    let lot3_after = sqlx::query!(
+    let lot3_after: Option<i32> = sqlx::query_scalar(
         "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-        lot3_id
     )
+    .bind(lot3_id)
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(lot3_after.remaining_quantity, Some(20), "Lot3 should remain unchanged");
+    assert_eq!(lot3_after, Some(20), "Lot3 should remain unchanged");
 
     // Check inventory_levels updated
-    let inv_level = sqlx::query!(
+    let inv_level = sqlx::query(
         "SELECT available_quantity, reserved_quantity FROM inventory_levels WHERE warehouse_id = $1 AND product_id = $2",
-        warehouse_id,
-        product_id
     )
+    .bind(warehouse_id)
+    .bind(product_id)
+    .map(|row: sqlx::postgres::PgRow| {
+        use sqlx::Row;
+        let a: i32 = row.get("available_quantity");
+        let r: i32 = row.get("reserved_quantity");
+        (a, r)
+    })
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(inv_level.available_quantity, 60, "Available should decrease by 40");
-    assert_eq!(inv_level.reserved_quantity, 40, "Reserved should increase by 40");
+    assert_eq!(inv_level.0, 60, "Available should decrease by 40");
+    assert_eq!(inv_level.1, 40, "Reserved should increase by 40");
 }
 
 #[sqlx::test]
@@ -298,32 +304,24 @@ async fn test_fefo_prevents_picking_expired_lots() {
     assert!(result.is_err(), "Reservation should fail due to insufficient non-expired stock");
 
     // Check that expired lot was not touched
-    let expired_lot_after = sqlx::query!(
+    let expired_lot_after: Option<i32> = sqlx::query_scalar(
         "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-        expired_lot_id
     )
+    .bind(expired_lot_id)
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(
-        expired_lot_after.remaining_quantity,
-        Some(50),
-        "Expired lot should remain unchanged"
-    );
+    assert_eq!(expired_lot_after, Some(50), "Expired lot should remain unchanged");
 
     // Valid lot should remain unchanged since reservation failed
-    let valid_lot_after = sqlx::query!(
+    let valid_lot_after: Option<i32> = sqlx::query_scalar(
         "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-        valid_lot_id
     )
+    .bind(valid_lot_id)
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(
-        valid_lot_after.remaining_quantity,
-        Some(30),
-        "Valid lot should remain unchanged"
-    );
+    assert_eq!(valid_lot_after, Some(30), "Valid lot should remain unchanged");
 }
 
 #[sqlx::test]
@@ -436,13 +434,12 @@ async fn test_quarantine_expired_lots() {
     assert_eq!(quarantined_count, 1, "Should quarantine 1 expired lot");
 
     // Check expired lot status changed
-    let expired_lot_after: Option<String> = sqlx::query_scalar!(
-        "SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1",
-        expired_lot_id
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let expired_lot_after: Option<String> =
+        sqlx::query_scalar("SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(expired_lot_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     let expired_lot_status = LotSerialStatus::from_str(&expired_lot_after.unwrap()).unwrap();
     assert_eq!(
         expired_lot_status,
@@ -451,13 +448,12 @@ async fn test_quarantine_expired_lots() {
     );
 
     // Check valid lot remains active
-    let valid_lot_after: Option<String> = sqlx::query_scalar!(
-        "SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1",
-        valid_lot_id
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let valid_lot_after: Option<String> =
+        sqlx::query_scalar("SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(valid_lot_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     let valid_lot_status = LotSerialStatus::from_str(&valid_lot_after.unwrap()).unwrap();
     assert_eq!(valid_lot_status, LotSerialStatus::Active, "Valid lot should remain active");
 }

@@ -10,6 +10,9 @@ pub mod warehouse;
 pub mod warehouse_location;
 pub mod warehouse_zone;
 
+#[cfg(test)]
+pub mod tests;
+
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 

@@ -43,15 +43,15 @@ impl InventoryTestDatabase {
         let tenant_id = Uuid::now_v7();
         let slug = format!("test-{}-{}", name.to_lowercase().replace(" ", "-"), tenant_id);
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
             VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
             "#,
-            tenant_id,
-            name,
-            slug
         )
+        .bind(tenant_id)
+        .bind(name)
+        .bind(slug)
         .execute(&self.pool)
         .await
         .expect("Failed to create test tenant");
@@ -69,11 +69,11 @@ impl InventoryTestDatabase {
         let category_id = Uuid::now_v7();
         let path = if let Some(parent) = parent_id {
             // Get parent path and append
-            let parent_path: String = sqlx::query_scalar!(
+            let parent_path: String = sqlx::query_scalar(
                 "SELECT path FROM product_categories WHERE category_id = $1 AND tenant_id = $2",
-                parent,
-                tenant_id
             )
+            .bind(parent)
+            .bind(tenant_id)
             .fetch_one(&self.pool)
             .await
             .expect("Parent category not found");
@@ -84,7 +84,7 @@ impl InventoryTestDatabase {
 
         let level = path.split('/').count() as i32 - 1;
 
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO product_categories (
                 category_id, tenant_id, parent_category_id, name, path, level,
@@ -92,13 +92,13 @@ impl InventoryTestDatabase {
             )
             VALUES ($1, $2, $3, $4, $5, $6, 0, true, true, NOW(), NOW())
             "#,
-            category_id,
-            tenant_id,
-            parent_id,
-            name,
-            path,
-            level
         )
+        .bind(category_id)
+        .bind(tenant_id)
+        .bind(parent_id)
+        .bind(name)
+        .bind(path)
+        .bind(level)
         .execute(&self.pool)
         .await
         .expect("Failed to create test category");
@@ -111,11 +111,13 @@ impl InventoryTestDatabase {
 
         for tenant_id in tenant_ids {
             // Clean up in reverse dependency order
-            sqlx::query!("DELETE FROM product_categories WHERE tenant_id = $1", tenant_id)
+            sqlx::query("DELETE FROM product_categories WHERE tenant_id = $1")
+                .bind(tenant_id)
                 .execute(&self.pool)
                 .await
                 .ok();
-            sqlx::query!("DELETE FROM tenants WHERE tenant_id = $1", tenant_id)
+            sqlx::query("DELETE FROM tenants WHERE tenant_id = $1")
+                .bind(tenant_id)
                 .execute(&self.pool)
                 .await
                 .ok();

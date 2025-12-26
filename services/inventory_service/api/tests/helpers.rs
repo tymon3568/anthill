@@ -282,29 +282,29 @@ pub async fn create_test_inventory(pool: &PgPool, tenant_id: Uuid, warehouse_id:
     let product_id = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440001").unwrap();
 
     // Insert test product
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO products (product_id, tenant_id, sku, name, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          ON CONFLICT (product_id) DO NOTHING",
-        product_id,
-        tenant_id,
-        "TEST001",
-        "Test Product"
     )
+    .bind(product_id)
+    .bind(tenant_id)
+    .bind("TEST001")
+    .bind("Test Product")
     .execute(pool)
     .await
     .unwrap();
 
     // Insert test warehouse
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
          VALUES ($1, $2, $3, $4, NOW())
          ON CONFLICT (warehouse_id) DO NOTHING",
-        warehouse_id,
-        tenant_id,
-        "TESTWH",
-        "Test Warehouse"
     )
+    .bind(warehouse_id)
+    .bind(tenant_id)
+    .bind("TESTWH")
+    .bind("Test Warehouse")
     .execute(pool)
     .await
     .unwrap();
