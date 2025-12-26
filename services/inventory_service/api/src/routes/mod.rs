@@ -23,15 +23,24 @@ use shared_error::AppError;
 use shared_kanidm_client::{KanidmClient, KanidmConfig};
 
 // Inventory-service core
+use chrono::Utc;
+use inventory_service_core::domains::inventory::dto::transfer_dto::*;
 use inventory_service_core::dto::delivery::{
     PackItemsRequest, PackItemsResponse, PickItemsRequest, PickItemsResponse, ShipItemsRequest,
     ShipItemsResponse,
 };
-use chrono::Utc;
-use inventory_service_core::domains::inventory::dto::transfer_dto::*;
 
 use inventory_service_core::services::delivery::DeliveryService;
 // Core service traits for UniversalDummyService
+use inventory_service_core::domains::quality::{
+    CreateQualityControlPoint, QualityControlPoint, UpdateQualityControlPoint,
+};
+use inventory_service_core::domains::replenishment::{
+    CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
+};
+use inventory_service_core::models::{
+    ConfirmPutawayRequest, ConfirmPutawayResponse, PutawayRequest, PutawaySuggestion,
+};
 use inventory_service_core::repositories::putaway::PutawayService;
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::distributed_lock::DistributedLockService;
@@ -45,42 +54,25 @@ use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::services::rma::RmaService;
 use inventory_service_core::services::stock_take::StockTakeService;
 use inventory_service_core::services::transfer::TransferService;
-use inventory_service_core::services::valuation::ValuationService;
-use inventory_service_core::domains::inventory::dto::valuation_dto::*;
-use inventory_service_core::domains::inventory::valuation::ValuationMethod;
-use inventory_service_infra::services::category::CategoryServiceImpl;
-use inventory_service_core::domains::replenishment::{
-    CreateReorderRule, ReorderRule, ReplenishmentCheckResult, UpdateReorderRule,
-};
-use inventory_service_core::domains::quality::{
-    CreateQualityControlPoint, QualityControlPoint, UpdateQualityControlPoint
-};
-use inventory_service_core::models::{
-    PutawayRequest, PutawaySuggestion, ConfirmPutawayRequest, ConfirmPutawayResponse
-};
 // DTO Imports
 use inventory_service_core::dto::receipt::*;
 // use inventory_service_core::dto::transfer::*;
-use inventory_service_core::dto::stock_take::*;
+use inventory_service_core::domains::inventory::dto::picking_method_dto::*;
+use inventory_service_core::domains::inventory::dto::search_dto::*;
+use inventory_service_core::domains::inventory::dto::warehouse_dto::*;
+use inventory_service_core::domains::inventory::picking_method::PickingMethod;
+use inventory_service_core::domains::inventory::product::Product;
+use inventory_service_core::domains::inventory::warehouse::Warehouse;
+use inventory_service_core::domains::inventory::warehouse_location::WarehouseLocation;
+use inventory_service_core::domains::inventory::warehouse_zone::WarehouseZone;
+use inventory_service_core::dto::product::*;
 use inventory_service_core::dto::reconciliation::*;
 use inventory_service_core::dto::rma::*;
-use inventory_service_core::dto::product::*;
-use inventory_service_core::domains::inventory::dto::search_dto::*;
-use inventory_service_core::domains::inventory::product::Product;
-use inventory_service_core::domains::inventory::picking_method::PickingMethod;
-use inventory_service_core::domains::inventory::dto::picking_method_dto::*;
-use inventory_service_core::models::{LotSerial, LotSerialLifecycle, LotSerialTrackingType, LotSerialStatus};
-use inventory_service_core::domains::inventory::warehouse::Warehouse;
-use inventory_service_core::domains::inventory::warehouse_zone::WarehouseZone;
-use inventory_service_core::domains::inventory::warehouse_location::WarehouseLocation;
-use inventory_service_core::domains::inventory::dto::warehouse_dto::*;
-use serde_json::Value as JsonValue;
-
-// Inventory-service infra - Repositories
-use inventory_service_infra::repositories::{
-    category::CategoryRepositoryImpl,
-
+use inventory_service_core::dto::stock_take::*;
+use inventory_service_core::models::{
+    LotSerial, LotSerialLifecycle, LotSerialStatus, LotSerialTrackingType,
 };
+use serde_json::Value as JsonValue;
 
 // Define UniversalDummyService
 #[derive(Clone)]
@@ -88,156 +80,776 @@ pub struct UniversalDummyService;
 
 #[async_trait]
 impl LotSerialService for UniversalDummyService {
-    async fn create_lot_serial(&self, _lot_serial: &LotSerial) -> Result<(), AppError> { unimplemented!() }
-    async fn get_lot_serial(&self, _tenant_id: Uuid, _lot_serial_id: Uuid) -> Result<Option<LotSerial>, AppError> { unimplemented!() }
-    async fn get_lifecycle(&self, _tenant_id: Uuid, _lot_serial_id: Uuid) -> Result<LotSerialLifecycle, AppError> { unimplemented!() }
-    async fn list_lot_serials_by_product(&self, _tenant_id: Uuid, _product_id: Uuid, _tracking_type: Option<LotSerialTrackingType>, _status: Option<LotSerialStatus>) -> Result<Vec<LotSerial>, AppError> { unimplemented!() }
-    async fn update_lot_serial(&self, _lot_serial: &LotSerial) -> Result<(), AppError> { unimplemented!() }
-    async fn delete_lot_serial(&self, _tenant_id: Uuid, _lot_serial_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn quarantine_expired_lots(&self, _tenant_id: Uuid) -> Result<i64, AppError> { unimplemented!() }
+    async fn create_lot_serial(&self, _lot_serial: &LotSerial) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn get_lot_serial(
+        &self,
+        _tenant_id: Uuid,
+        _lot_serial_id: Uuid,
+    ) -> Result<Option<LotSerial>, AppError> {
+        unimplemented!()
+    }
+    async fn get_lifecycle(
+        &self,
+        _tenant_id: Uuid,
+        _lot_serial_id: Uuid,
+    ) -> Result<LotSerialLifecycle, AppError> {
+        unimplemented!()
+    }
+    async fn list_lot_serials_by_product(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _tracking_type: Option<LotSerialTrackingType>,
+        _status: Option<LotSerialStatus>,
+    ) -> Result<Vec<LotSerial>, AppError> {
+        unimplemented!()
+    }
+    async fn update_lot_serial(&self, _lot_serial: &LotSerial) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn delete_lot_serial(
+        &self,
+        _tenant_id: Uuid,
+        _lot_serial_id: Uuid,
+    ) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn quarantine_expired_lots(&self, _tenant_id: Uuid) -> Result<i64, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl PickingMethodService for UniversalDummyService {
-    async fn create_method(&self, _tenant_id: Uuid, _req: CreatePickingMethodRequest, _user_id: Uuid) -> Result<PickingMethod, AppError> { unimplemented!() }
-    async fn get_method(&self, _tenant_id: Uuid, _method_id: Uuid) -> Result<Option<PickingMethod>, AppError> { unimplemented!() }
-    async fn get_methods_by_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<PickingMethod>, AppError> { unimplemented!() }
-    async fn get_active_methods_by_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<PickingMethod>, AppError> { unimplemented!() }
-    async fn get_default_method_by_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<PickingMethod>, AppError> { unimplemented!() }
-    async fn update_method(&self, _tenant_id: Uuid, _method_id: Uuid, _req: UpdatePickingMethodRequest, _user_id: Uuid) -> Result<PickingMethod, AppError> { unimplemented!() }
-    async fn delete_method(&self, _tenant_id: Uuid, _method_id: Uuid, _user_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn set_default_method(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _method_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn optimize_picking(&self, _tenant_id: Uuid, _req: PickingOptimizationRequest) -> Result<PickingPlanResponse, AppError> { unimplemented!() }
-    async fn confirm_picking_plan(&self, _tenant_id: Uuid, _req: ConfirmPickingPlanRequest, _user_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn validate_method(&self, _tenant_id: Uuid, _method_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn get_method_performance(&self, _tenant_id: Uuid, _method_id: Uuid, _date_range: Option<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)>) -> Result<Option<JsonValue>, AppError> { unimplemented!() }
+    async fn create_method(
+        &self,
+        _tenant_id: Uuid,
+        _req: CreatePickingMethodRequest,
+        _user_id: Uuid,
+    ) -> Result<PickingMethod, AppError> {
+        unimplemented!()
+    }
+    async fn get_method(
+        &self,
+        _tenant_id: Uuid,
+        _method_id: Uuid,
+    ) -> Result<Option<PickingMethod>, AppError> {
+        unimplemented!()
+    }
+    async fn get_methods_by_warehouse(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Vec<PickingMethod>, AppError> {
+        unimplemented!()
+    }
+    async fn get_active_methods_by_warehouse(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Vec<PickingMethod>, AppError> {
+        unimplemented!()
+    }
+    async fn get_default_method_by_warehouse(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Option<PickingMethod>, AppError> {
+        unimplemented!()
+    }
+    async fn update_method(
+        &self,
+        _tenant_id: Uuid,
+        _method_id: Uuid,
+        _req: UpdatePickingMethodRequest,
+        _user_id: Uuid,
+    ) -> Result<PickingMethod, AppError> {
+        unimplemented!()
+    }
+    async fn delete_method(
+        &self,
+        _tenant_id: Uuid,
+        _method_id: Uuid,
+        _user_id: Uuid,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn set_default_method(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+        _method_id: Uuid,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn optimize_picking(
+        &self,
+        _tenant_id: Uuid,
+        _req: PickingOptimizationRequest,
+    ) -> Result<PickingPlanResponse, AppError> {
+        unimplemented!()
+    }
+    async fn confirm_picking_plan(
+        &self,
+        _tenant_id: Uuid,
+        _req: ConfirmPickingPlanRequest,
+        _user_id: Uuid,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn validate_method(&self, _tenant_id: Uuid, _method_id: Uuid) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn get_method_performance(
+        &self,
+        _tenant_id: Uuid,
+        _method_id: Uuid,
+        _date_range: Option<(chrono::DateTime<Utc>, chrono::DateTime<Utc>)>,
+    ) -> Result<Option<JsonValue>, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl ProductService for UniversalDummyService {
-    async fn create_product(&self, _tenant_id: Uuid, _req: ProductCreateRequest) -> Result<Product, AppError> { unimplemented!() }
-    async fn update_product(&self, _tenant_id: Uuid, _product_id: Uuid, _req: ProductUpdateRequest) -> Result<Product, AppError> { unimplemented!() }
-    async fn delete_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn get_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Product, AppError> { unimplemented!() }
-    async fn get_product_by_sku(&self, _tenant_id: Uuid, _sku: &str) -> Result<Product, AppError> { unimplemented!() }
-    async fn list_products(&self, _tenant_id: Uuid, _query: ProductListQuery) -> Result<ProductListResponse, AppError> { unimplemented!() }
-    async fn get_popular_search_terms(&self, _tenant_id: Uuid, _limit: u32) -> Result<Vec<(String, u32)>, AppError> { unimplemented!() }
-    async fn record_search_analytics(&self, _tenant_id: Uuid, _query: &str, _results_count: u32, _user_id: Option<Uuid>) -> Result<(), AppError> { unimplemented!() }
-    async fn search_products(&self, _tenant_id: Uuid, _req: ProductSearchRequest) -> Result<ProductSearchResponse, AppError> { unimplemented!() }
-    async fn get_search_suggestions(&self, _tenant_id: Uuid, _req: SearchSuggestionsRequest) -> Result<SearchSuggestionsResponse, AppError> { unimplemented!() }
+    async fn create_product(
+        &self,
+        _tenant_id: Uuid,
+        _req: ProductCreateRequest,
+    ) -> Result<Product, AppError> {
+        unimplemented!()
+    }
+    async fn update_product(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _req: ProductUpdateRequest,
+    ) -> Result<Product, AppError> {
+        unimplemented!()
+    }
+    async fn delete_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn get_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Product, AppError> {
+        unimplemented!()
+    }
+    async fn get_product_by_sku(&self, _tenant_id: Uuid, _sku: &str) -> Result<Product, AppError> {
+        unimplemented!()
+    }
+    async fn list_products(
+        &self,
+        _tenant_id: Uuid,
+        _query: ProductListQuery,
+    ) -> Result<ProductListResponse, AppError> {
+        unimplemented!()
+    }
+    async fn get_popular_search_terms(
+        &self,
+        _tenant_id: Uuid,
+        _limit: u32,
+    ) -> Result<Vec<(String, u32)>, AppError> {
+        unimplemented!()
+    }
+    async fn record_search_analytics(
+        &self,
+        _tenant_id: Uuid,
+        _query: &str,
+        _results_count: u32,
+        _user_id: Option<Uuid>,
+    ) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn search_products(
+        &self,
+        _tenant_id: Uuid,
+        _req: ProductSearchRequest,
+    ) -> Result<ProductSearchResponse, AppError> {
+        unimplemented!()
+    }
+    async fn get_search_suggestions(
+        &self,
+        _tenant_id: Uuid,
+        _req: SearchSuggestionsRequest,
+    ) -> Result<SearchSuggestionsResponse, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl WarehouseRepository for UniversalDummyService {
-    async fn create(&self, _tenant_id: Uuid, _req: CreateWarehouseRequest) -> Result<Warehouse, AppError> { unimplemented!() }
-    async fn find_by_id(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<Warehouse>, AppError> { unimplemented!() }
-    async fn find_by_code(&self, _tenant_id: Uuid, _code: &str) -> Result<Option<Warehouse>, AppError> { unimplemented!() }
-    async fn find_all(&self, _tenant_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_warehouse_tree(&self, _tenant_id: Uuid) -> Result<WarehouseTreeResponse, AppError> { unimplemented!() }
-    async fn update(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _warehouse: &Warehouse) -> Result<Warehouse, AppError> { unimplemented!() }
-    async fn delete(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<bool, AppError> { unimplemented!() }
-    async fn get_children(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_ancestors(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_descendants(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<Warehouse>, AppError> { unimplemented!() }
-    async fn get_all_zones(&self, _tenant_id: Uuid) -> Result<Vec<WarehouseZone>, AppError> { unimplemented!() }
-    async fn get_all_locations(&self, _tenant_id: Uuid) -> Result<Vec<WarehouseLocation>, AppError> { unimplemented!() }
-    async fn create_zone(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateWarehouseZoneRequest) -> Result<WarehouseZone, AppError> { unimplemented!() }
-    async fn create_location(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateWarehouseLocationRequest) -> Result<WarehouseLocation, AppError> { unimplemented!() }
-    async fn validate_hierarchy(&self, _tenant_id: Uuid, _parent_id: Uuid, _child_id: Option<Uuid>) -> Result<bool, AppError> { unimplemented!() }
-    async fn get_capacity_utilization(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<JsonValue>, AppError> { unimplemented!() }
-    async fn get_warehouse_stats(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Option<JsonValue>, AppError> { unimplemented!() }
+    async fn create(
+        &self,
+        _tenant_id: Uuid,
+        _req: CreateWarehouseRequest,
+    ) -> Result<Warehouse, AppError> {
+        unimplemented!()
+    }
+    async fn find_by_id(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Option<Warehouse>, AppError> {
+        unimplemented!()
+    }
+    async fn find_by_code(
+        &self,
+        _tenant_id: Uuid,
+        _code: &str,
+    ) -> Result<Option<Warehouse>, AppError> {
+        unimplemented!()
+    }
+    async fn find_all(&self, _tenant_id: Uuid) -> Result<Vec<Warehouse>, AppError> {
+        unimplemented!()
+    }
+    async fn get_warehouse_tree(
+        &self,
+        _tenant_id: Uuid,
+    ) -> Result<WarehouseTreeResponse, AppError> {
+        unimplemented!()
+    }
+    async fn update(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+        _warehouse: &Warehouse,
+    ) -> Result<Warehouse, AppError> {
+        unimplemented!()
+    }
+    async fn delete(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn get_children(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Vec<Warehouse>, AppError> {
+        unimplemented!()
+    }
+    async fn get_ancestors(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Vec<Warehouse>, AppError> {
+        unimplemented!()
+    }
+    async fn get_descendants(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Vec<Warehouse>, AppError> {
+        unimplemented!()
+    }
+    async fn get_all_zones(&self, _tenant_id: Uuid) -> Result<Vec<WarehouseZone>, AppError> {
+        unimplemented!()
+    }
+    async fn get_all_locations(
+        &self,
+        _tenant_id: Uuid,
+    ) -> Result<Vec<WarehouseLocation>, AppError> {
+        unimplemented!()
+    }
+    async fn create_zone(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+        _req: CreateWarehouseZoneRequest,
+    ) -> Result<WarehouseZone, AppError> {
+        unimplemented!()
+    }
+    async fn create_location(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+        _req: CreateWarehouseLocationRequest,
+    ) -> Result<WarehouseLocation, AppError> {
+        unimplemented!()
+    }
+    async fn validate_hierarchy(
+        &self,
+        _tenant_id: Uuid,
+        _parent_id: Uuid,
+        _child_id: Option<Uuid>,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn get_capacity_utilization(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Option<JsonValue>, AppError> {
+        unimplemented!()
+    }
+    async fn get_warehouse_stats(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Option<JsonValue>, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl ReceiptService for UniversalDummyService {
-    async fn create_receipt(&self, _tenant_id: Uuid, _user_id: Uuid, _req: ReceiptCreateRequest) -> Result<ReceiptResponse, AppError> { unimplemented!() }
-    async fn validate_receipt(&self, _tenant_id: Uuid, _receipt_id: Uuid, _warehouse_id: Uuid) -> Result<ReceiptResponse, AppError> { unimplemented!() }
-    async fn validate_receipt_request(&self, _tenant_id: Uuid, _req: &ReceiptCreateRequest) -> Result<(), AppError> { unimplemented!() }
-    async fn get_receipt(&self, _tenant_id: Uuid, _receipt_id: Uuid) -> Result<ReceiptResponse, AppError> { unimplemented!() }
-    async fn list_receipts(&self, _tenant_id: Uuid, _query: ReceiptListQuery) -> Result<ReceiptListResponse, AppError> { unimplemented!() }
+    async fn create_receipt(
+        &self,
+        _tenant_id: Uuid,
+        _user_id: Uuid,
+        _req: ReceiptCreateRequest,
+    ) -> Result<ReceiptResponse, AppError> {
+        unimplemented!()
+    }
+    async fn validate_receipt(
+        &self,
+        _tenant_id: Uuid,
+        _receipt_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<ReceiptResponse, AppError> {
+        unimplemented!()
+    }
+    async fn validate_receipt_request(
+        &self,
+        _tenant_id: Uuid,
+        _req: &ReceiptCreateRequest,
+    ) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn get_receipt(
+        &self,
+        _tenant_id: Uuid,
+        _receipt_id: Uuid,
+    ) -> Result<ReceiptResponse, AppError> {
+        unimplemented!()
+    }
+    async fn list_receipts(
+        &self,
+        _tenant_id: Uuid,
+        _query: ReceiptListQuery,
+    ) -> Result<ReceiptListResponse, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl TransferService for UniversalDummyService {
-    async fn create_transfer(&self, _tenant_id: Uuid, _from_warehouse: Uuid, _req: CreateTransferRequest) -> Result<CreateTransferResponse, AppError> { unimplemented!() }
-    async fn confirm_transfer(&self, _tenant_id: Uuid, _transfer_id: Uuid, _user_id: Uuid, _req: ConfirmTransferRequest) -> Result<ConfirmTransferResponse, AppError> { unimplemented!() }
-    async fn receive_transfer(&self, _tenant_id: Uuid, _transfer_id: Uuid, _user_id: Uuid, _req: ReceiveTransferRequest) -> Result<ReceiveTransferResponse, AppError> { unimplemented!() }
+    async fn create_transfer(
+        &self,
+        _tenant_id: Uuid,
+        _from_warehouse: Uuid,
+        _req: CreateTransferRequest,
+    ) -> Result<CreateTransferResponse, AppError> {
+        unimplemented!()
+    }
+    async fn confirm_transfer(
+        &self,
+        _tenant_id: Uuid,
+        _transfer_id: Uuid,
+        _user_id: Uuid,
+        _req: ConfirmTransferRequest,
+    ) -> Result<ConfirmTransferResponse, AppError> {
+        unimplemented!()
+    }
+    async fn receive_transfer(
+        &self,
+        _tenant_id: Uuid,
+        _transfer_id: Uuid,
+        _user_id: Uuid,
+        _req: ReceiveTransferRequest,
+    ) -> Result<ReceiveTransferResponse, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl StockTakeService for UniversalDummyService {
-    async fn create_stock_take(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateStockTakeRequest) -> Result<CreateStockTakeResponse, AppError> { unimplemented!() }
-    async fn count_stock_take(&self, _tenant_id: Uuid, _stock_take_id: Uuid, _user_id: Uuid, _req: CountStockTakeRequest) -> Result<CountStockTakeResponse, AppError> { unimplemented!() }
-    async fn finalize_stock_take(&self, _tenant_id: Uuid, _stock_take_id: Uuid, _user_id: Uuid, _req: FinalizeStockTakeRequest) -> Result<FinalizeStockTakeResponse, AppError> { unimplemented!() }
-    async fn get_stock_take(&self, _tenant_id: Uuid, _stock_take_id: Uuid) -> Result<StockTakeDetailResponse, AppError> { unimplemented!() }
-    async fn list_stock_takes(&self, _tenant_id: Uuid, _query: StockTakeListQuery) -> Result<StockTakeListResponse, AppError> { unimplemented!() }
+    async fn create_stock_take(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+        _req: CreateStockTakeRequest,
+    ) -> Result<CreateStockTakeResponse, AppError> {
+        unimplemented!()
+    }
+    async fn count_stock_take(
+        &self,
+        _tenant_id: Uuid,
+        _stock_take_id: Uuid,
+        _user_id: Uuid,
+        _req: CountStockTakeRequest,
+    ) -> Result<CountStockTakeResponse, AppError> {
+        unimplemented!()
+    }
+    async fn finalize_stock_take(
+        &self,
+        _tenant_id: Uuid,
+        _stock_take_id: Uuid,
+        _user_id: Uuid,
+        _req: FinalizeStockTakeRequest,
+    ) -> Result<FinalizeStockTakeResponse, AppError> {
+        unimplemented!()
+    }
+    async fn get_stock_take(
+        &self,
+        _tenant_id: Uuid,
+        _stock_take_id: Uuid,
+    ) -> Result<StockTakeDetailResponse, AppError> {
+        unimplemented!()
+    }
+    async fn list_stock_takes(
+        &self,
+        _tenant_id: Uuid,
+        _query: StockTakeListQuery,
+    ) -> Result<StockTakeListResponse, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl StockReconciliationService for UniversalDummyService {
-    async fn create_reconciliation(&self, _tenant_id: Uuid, _warehouse_id: Uuid, _req: CreateReconciliationRequest) -> Result<CreateReconciliationResponse, AppError> { unimplemented!() }
-    async fn count_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: CountReconciliationRequest) -> Result<CountReconciliationResponse, AppError> { unimplemented!() }
-    async fn finalize_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: FinalizeReconciliationRequest) -> Result<FinalizeReconciliationResponse, AppError> { unimplemented!() }
-    async fn approve_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: ApproveReconciliationRequest) -> Result<ApproveReconciliationResponse, AppError> { unimplemented!() }
-    async fn get_reconciliation(&self, _tenant_id: Uuid, _reconciliation_id: Uuid) -> Result<ReconciliationDetailResponse, AppError> { unimplemented!() }
-    async fn list_reconciliations(&self, _tenant_id: Uuid, _query: ReconciliationListQuery) -> Result<ReconciliationListResponse, AppError> { unimplemented!() }
-    async fn get_analytics(&self, _tenant_id: Uuid, _warehouse_id: Option<Uuid>) -> Result<ReconciliationAnalyticsResponse, AppError> { unimplemented!() }
-    async fn get_variance_analysis(&self, _tenant_id: Uuid, _reconciliation_id: Uuid) -> Result<VarianceAnalysisResponse, AppError> { unimplemented!() }
-    async fn scan_barcode(&self, _tenant_id: Uuid, _reconciliation_id: Uuid, _user_id: Uuid, _req: ScanBarcodeRequest) -> Result<ScanBarcodeResponse, AppError> { unimplemented!() }
+    async fn create_reconciliation(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+        _req: CreateReconciliationRequest,
+    ) -> Result<CreateReconciliationResponse, AppError> {
+        unimplemented!()
+    }
+    async fn count_reconciliation(
+        &self,
+        _tenant_id: Uuid,
+        _reconciliation_id: Uuid,
+        _user_id: Uuid,
+        _req: CountReconciliationRequest,
+    ) -> Result<CountReconciliationResponse, AppError> {
+        unimplemented!()
+    }
+    async fn finalize_reconciliation(
+        &self,
+        _tenant_id: Uuid,
+        _reconciliation_id: Uuid,
+        _user_id: Uuid,
+        _req: FinalizeReconciliationRequest,
+    ) -> Result<FinalizeReconciliationResponse, AppError> {
+        unimplemented!()
+    }
+    async fn approve_reconciliation(
+        &self,
+        _tenant_id: Uuid,
+        _reconciliation_id: Uuid,
+        _user_id: Uuid,
+        _req: ApproveReconciliationRequest,
+    ) -> Result<ApproveReconciliationResponse, AppError> {
+        unimplemented!()
+    }
+    async fn get_reconciliation(
+        &self,
+        _tenant_id: Uuid,
+        _reconciliation_id: Uuid,
+    ) -> Result<ReconciliationDetailResponse, AppError> {
+        unimplemented!()
+    }
+    async fn list_reconciliations(
+        &self,
+        _tenant_id: Uuid,
+        _query: ReconciliationListQuery,
+    ) -> Result<ReconciliationListResponse, AppError> {
+        unimplemented!()
+    }
+    async fn get_analytics(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Option<Uuid>,
+    ) -> Result<ReconciliationAnalyticsResponse, AppError> {
+        unimplemented!()
+    }
+    async fn get_variance_analysis(
+        &self,
+        _tenant_id: Uuid,
+        _reconciliation_id: Uuid,
+    ) -> Result<VarianceAnalysisResponse, AppError> {
+        unimplemented!()
+    }
+    async fn scan_barcode(
+        &self,
+        _tenant_id: Uuid,
+        _reconciliation_id: Uuid,
+        _user_id: Uuid,
+        _req: ScanBarcodeRequest,
+    ) -> Result<ScanBarcodeResponse, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 impl RmaService for UniversalDummyService {
-    async fn create_rma(&self, _tenant_id: Uuid, _user_id: Uuid, _req: CreateRmaRequest) -> Result<CreateRmaResponse, AppError> { unimplemented!() }
-    async fn approve_rma(&self, _tenant_id: Uuid, _rma_id: Uuid, _user_id: Uuid, _req: ApproveRmaRequest) -> Result<ApproveRmaResponse, AppError> { unimplemented!() }
-    async fn receive_rma(&self, _tenant_id: Uuid, _rma_id: Uuid, _user_id: Uuid, _req: ReceiveRmaRequest) -> Result<ReceiveRmaResponse, AppError> { unimplemented!() }
+    async fn create_rma(
+        &self,
+        _tenant_id: Uuid,
+        _user_id: Uuid,
+        _req: CreateRmaRequest,
+    ) -> Result<CreateRmaResponse, AppError> {
+        unimplemented!()
+    }
+    async fn approve_rma(
+        &self,
+        _tenant_id: Uuid,
+        _rma_id: Uuid,
+        _user_id: Uuid,
+        _req: ApproveRmaRequest,
+    ) -> Result<ApproveRmaResponse, AppError> {
+        unimplemented!()
+    }
+    async fn receive_rma(
+        &self,
+        _tenant_id: Uuid,
+        _rma_id: Uuid,
+        _user_id: Uuid,
+        _req: ReceiveRmaRequest,
+    ) -> Result<ReceiveRmaResponse, AppError> {
+        unimplemented!()
+    }
 }
 #[async_trait]
 #[async_trait]
 impl ReplenishmentService for UniversalDummyService {
-    async fn create_reorder_rule(&self, _tenant_id: Uuid, _req: CreateReorderRule) -> Result<ReorderRule, AppError> { unimplemented!() }
-    async fn get_reorder_rule(&self, _tenant_id: Uuid, _rule_id: Uuid) -> Result<Option<ReorderRule>, AppError> { unimplemented!() }
-    async fn update_reorder_rule(&self, _tenant_id: Uuid, _rule_id: Uuid, _req: UpdateReorderRule) -> Result<ReorderRule, AppError> { unimplemented!() }
-    async fn delete_reorder_rule(&self, _tenant_id: Uuid, _rule_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn list_reorder_rules_for_product(&self, _tenant_id: Uuid, _product_id: Uuid, _warehouse_id: Option<Uuid>) -> Result<Vec<ReorderRule>, AppError> { unimplemented!() }
-    async fn run_replenishment_check(&self, _tenant_id: Uuid) -> Result<Vec<ReplenishmentCheckResult>, AppError> { unimplemented!() }
-    async fn check_product_replenishment(&self, _tenant_id: Uuid, _product_id: Uuid, _warehouse_id: Option<Uuid>) -> Result<ReplenishmentCheckResult, AppError> { unimplemented!() }
+    async fn create_reorder_rule(
+        &self,
+        _tenant_id: Uuid,
+        _req: CreateReorderRule,
+    ) -> Result<ReorderRule, AppError> {
+        unimplemented!()
+    }
+    async fn get_reorder_rule(
+        &self,
+        _tenant_id: Uuid,
+        _rule_id: Uuid,
+    ) -> Result<Option<ReorderRule>, AppError> {
+        unimplemented!()
+    }
+    async fn update_reorder_rule(
+        &self,
+        _tenant_id: Uuid,
+        _rule_id: Uuid,
+        _req: UpdateReorderRule,
+    ) -> Result<ReorderRule, AppError> {
+        unimplemented!()
+    }
+    async fn delete_reorder_rule(&self, _tenant_id: Uuid, _rule_id: Uuid) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn list_reorder_rules_for_product(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _warehouse_id: Option<Uuid>,
+    ) -> Result<Vec<ReorderRule>, AppError> {
+        unimplemented!()
+    }
+    async fn run_replenishment_check(
+        &self,
+        _tenant_id: Uuid,
+    ) -> Result<Vec<ReplenishmentCheckResult>, AppError> {
+        unimplemented!()
+    }
+    async fn check_product_replenishment(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _warehouse_id: Option<Uuid>,
+    ) -> Result<ReplenishmentCheckResult, AppError> {
+        unimplemented!()
+    }
 }
 
 #[async_trait]
 impl QualityControlPointService for UniversalDummyService {
-    async fn create_qc_point(&self, _tenant_id: Uuid, _req: CreateQualityControlPoint) -> Result<QualityControlPoint, AppError> { unimplemented!() }
-    async fn get_qc_point(&self, _tenant_id: Uuid, _qc_id: Uuid) -> Result<Option<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn update_qc_point(&self, _tenant_id: Uuid, _qc_id: Uuid, _req: UpdateQualityControlPoint) -> Result<QualityControlPoint, AppError> { unimplemented!() }
-    async fn delete_qc_point(&self, _tenant_id: Uuid, _qc_id: Uuid) -> Result<(), AppError> { unimplemented!() }
-    async fn list_qc_points(&self, _tenant_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn list_active_qc_points(&self, _tenant_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn list_qc_points_for_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
-    async fn list_qc_points_for_warehouse(&self, _tenant_id: Uuid, _warehouse_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> { unimplemented!() }
+    async fn create_qc_point(
+        &self,
+        _tenant_id: Uuid,
+        _req: CreateQualityControlPoint,
+    ) -> Result<QualityControlPoint, AppError> {
+        unimplemented!()
+    }
+    async fn get_qc_point(
+        &self,
+        _tenant_id: Uuid,
+        _qc_id: Uuid,
+    ) -> Result<Option<QualityControlPoint>, AppError> {
+        unimplemented!()
+    }
+    async fn update_qc_point(
+        &self,
+        _tenant_id: Uuid,
+        _qc_id: Uuid,
+        _req: UpdateQualityControlPoint,
+    ) -> Result<QualityControlPoint, AppError> {
+        unimplemented!()
+    }
+    async fn delete_qc_point(&self, _tenant_id: Uuid, _qc_id: Uuid) -> Result<(), AppError> {
+        unimplemented!()
+    }
+    async fn list_qc_points(&self, _tenant_id: Uuid) -> Result<Vec<QualityControlPoint>, AppError> {
+        unimplemented!()
+    }
+    async fn list_active_qc_points(
+        &self,
+        _tenant_id: Uuid,
+    ) -> Result<Vec<QualityControlPoint>, AppError> {
+        unimplemented!()
+    }
+    async fn list_qc_points_for_product(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+    ) -> Result<Vec<QualityControlPoint>, AppError> {
+        unimplemented!()
+    }
+    async fn list_qc_points_for_warehouse(
+        &self,
+        _tenant_id: Uuid,
+        _warehouse_id: Uuid,
+    ) -> Result<Vec<QualityControlPoint>, AppError> {
+        unimplemented!()
+    }
 }
 
 #[async_trait]
 impl PutawayService for UniversalDummyService {
-    async fn suggest_putaway_locations(&self, _tenant_id: &Uuid, _req: &PutawayRequest) -> Result<Vec<PutawaySuggestion>, AppError> { unimplemented!() }
-    async fn confirm_putaway(&self, _tenant_id: &Uuid, _req: &ConfirmPutawayRequest, _user_id: &Uuid) -> Result<ConfirmPutawayResponse, AppError> { unimplemented!() }
-    async fn validate_location_capacity(&self, _tenant_id: &Uuid, _location_id: &Uuid, _qty: i64) -> Result<bool, AppError> { unimplemented!() }
+    async fn suggest_putaway_locations(
+        &self,
+        _tenant_id: &Uuid,
+        _req: &PutawayRequest,
+    ) -> Result<Vec<PutawaySuggestion>, AppError> {
+        unimplemented!()
+    }
+    async fn confirm_putaway(
+        &self,
+        _tenant_id: &Uuid,
+        _req: &ConfirmPutawayRequest,
+        _user_id: &Uuid,
+    ) -> Result<ConfirmPutawayResponse, AppError> {
+        unimplemented!()
+    }
+    async fn validate_location_capacity(
+        &self,
+        _tenant_id: &Uuid,
+        _location_id: &Uuid,
+        _qty: i64,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
 }
 
 #[async_trait]
 impl DistributedLockService for UniversalDummyService {
-    async fn acquire_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str, _ttl_ms: u32) -> Result<Option<String>, AppError> { unimplemented!() }
-    async fn release_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str, _token: &str) -> Result<bool, AppError> { unimplemented!() }
-    async fn is_locked(&self, _tenant_id: Uuid, _resource: &str, _key: &str) -> Result<bool, AppError> { unimplemented!() }
-    async fn extend_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str, _token: &str, _ttl_ms: u32) -> Result<bool, AppError> { unimplemented!() }
-    async fn force_release_lock(&self, _tenant_id: Uuid, _resource: &str, _key: &str) -> Result<bool, AppError> { unimplemented!() }
+    async fn acquire_lock(
+        &self,
+        _tenant_id: Uuid,
+        _resource: &str,
+        _key: &str,
+        _ttl_ms: u32,
+    ) -> Result<Option<String>, AppError> {
+        unimplemented!()
+    }
+    async fn release_lock(
+        &self,
+        _tenant_id: Uuid,
+        _resource: &str,
+        _key: &str,
+        _token: &str,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn is_locked(
+        &self,
+        _tenant_id: Uuid,
+        _resource: &str,
+        _key: &str,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn extend_lock(
+        &self,
+        _tenant_id: Uuid,
+        _resource: &str,
+        _key: &str,
+        _token: &str,
+        _ttl_ms: u32,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
+    async fn force_release_lock(
+        &self,
+        _tenant_id: Uuid,
+        _resource: &str,
+        _key: &str,
+    ) -> Result<bool, AppError> {
+        unimplemented!()
+    }
 }
+
+use inventory_service_core::domains::inventory::dto::valuation_dto::*;
+use inventory_service_core::domains::inventory::valuation::ValuationMethod;
+use inventory_service_core::services::valuation::ValuationService;
+use inventory_service_infra::repositories::category::CategoryRepositoryImpl;
+use inventory_service_infra::services::category::CategoryServiceImpl;
 
 #[async_trait]
 impl ValuationService for UniversalDummyService {
-    async fn get_valuation(&self, _request: GetValuationRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
-    async fn set_valuation_method(&self, _request: SetValuationMethodRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
-    async fn set_standard_cost(&self, _request: SetStandardCostRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
-    async fn get_valuation_layers(&self, _request: GetValuationLayersRequest) -> Result<ValuationLayersResponse, AppError> { unimplemented!() }
-    async fn get_valuation_history(&self, _request: GetValuationHistoryRequest) -> Result<ValuationHistoryResponse, AppError> { unimplemented!() }
-    async fn adjust_cost(&self, _request: CostAdjustmentRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
-    async fn revalue_inventory(&self, _request: RevaluationRequest) -> Result<ValuationDto, AppError> { unimplemented!() }
-    async fn process_stock_movement(&self, _tenant_id: Uuid, _product_id: Uuid, _change: i64, _cost: Option<i64>, _user: Option<Uuid>) -> Result<ValuationDto, AppError> { unimplemented!() }
-    async fn calculate_inventory_value(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<i64, AppError> { unimplemented!() }
-    async fn get_valuation_method(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<ValuationMethod, AppError> { unimplemented!() }
+    async fn get_valuation(&self, _request: GetValuationRequest) -> Result<ValuationDto, AppError> {
+        unimplemented!()
+    }
+    async fn set_valuation_method(
+        &self,
+        _request: SetValuationMethodRequest,
+    ) -> Result<ValuationDto, AppError> {
+        unimplemented!()
+    }
+    async fn set_standard_cost(
+        &self,
+        _request: SetStandardCostRequest,
+    ) -> Result<ValuationDto, AppError> {
+        unimplemented!()
+    }
+    async fn get_valuation_layers(
+        &self,
+        _request: GetValuationLayersRequest,
+    ) -> Result<ValuationLayersResponse, AppError> {
+        unimplemented!()
+    }
+    async fn get_valuation_history(
+        &self,
+        _request: GetValuationHistoryRequest,
+    ) -> Result<ValuationHistoryResponse, AppError> {
+        unimplemented!()
+    }
+    async fn adjust_cost(&self, _request: CostAdjustmentRequest) -> Result<ValuationDto, AppError> {
+        unimplemented!()
+    }
+    async fn revalue_inventory(
+        &self,
+        _request: RevaluationRequest,
+    ) -> Result<ValuationDto, AppError> {
+        unimplemented!()
+    }
+    async fn process_stock_movement(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _change: i64,
+        _cost: Option<i64>,
+        _user: Option<Uuid>,
+    ) -> Result<ValuationDto, AppError> {
+        unimplemented!()
+    }
+    async fn calculate_inventory_value(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+    ) -> Result<i64, AppError> {
+        unimplemented!()
+    }
+    async fn get_valuation_method(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+    ) -> Result<ValuationMethod, AppError> {
+        unimplemented!()
+    }
 }
-
 
 // Local handlers/state
 use crate::handlers::health::health_check;
@@ -438,8 +1050,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         kanidm_client: _kanidm_client.clone(),
         idempotency_state: idempotency_state.clone(),
     };
-
-
 
     // Add CORS configuration
     let cors = CorsLayer::new()

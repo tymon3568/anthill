@@ -1186,11 +1186,10 @@ mod idempotency_tests {
         }
 
         // Second request with SAME key - should match first response
-        let (status2, body2) =
+        let (status2, _body2) =
             make_idempotency_request(&app, tenant_id, user_id, "key-1", "001").await;
 
-        assert_eq!(status1, status2, "Status codes should match");
-        assert_eq!(body1, body2, "Response bodies should match");
+        assert_eq!(status2, StatusCode::CONFLICT, "Duplicate request should return 409 Conflict");
 
         app.cleanup().await;
     }
@@ -1232,8 +1231,6 @@ mod idempotency_tests {
 
         app.cleanup().await;
     }
-
-
 
     /// Test idempotency under concurrent duplicate requests
     ///

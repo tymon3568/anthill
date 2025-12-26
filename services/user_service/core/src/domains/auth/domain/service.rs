@@ -22,6 +22,7 @@ pub trait AuthService: Send + Sync {
     async fn login(
         &self,
         req: LoginReq,
+        tenant_identifier: Option<String>,
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> Result<AuthResp, AppError>;
