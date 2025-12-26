@@ -95,6 +95,7 @@ async fn make_request(
     path: &str,
     body: Option<Value>,
     auth_token: Option<&str>,
+    tenant_id: Option<&str>,
 ) -> (StatusCode, Value) {
     let mut request = Request::builder()
         .method(method)
@@ -103,6 +104,10 @@ async fn make_request(
 
     if let Some(token) = auth_token {
         request = request.header("Authorization", format!("Bearer {}", token));
+    }
+
+    if let Some(tid) = tenant_id {
+        request = request.header("X-Tenant-ID", tid);
     }
 
     let body_str = body
@@ -138,7 +143,7 @@ async fn test_user_registration_success() {
     });
 
     let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     let mut redacted_response = response.clone();
     if let Some(obj) = redacted_response.as_object_mut() {
@@ -193,7 +198,7 @@ async fn test_user_registration_duplicate_email() {
     });
 
     let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     assert_eq!(status, StatusCode::CONFLICT);
     assert!(response["error"]
@@ -222,8 +227,15 @@ async fn test_user_login_success() {
         "password": "TestPass123!"
     });
 
-    let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+    let (status, response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     let mut redacted_response = response.clone();
     if let Some(obj) = redacted_response.as_object_mut() {
@@ -262,8 +274,15 @@ async fn test_user_login_invalid_credentials() {
         "password": "WrongPassword"
     });
 
-    let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/login", Some(payload), None).await;
+    let (status, response) = make_request(
+        &app,
+        "POST",
+        "/api/v1/auth/login",
+        Some(payload),
+        None,
+        Some(&tenant_id.to_string()),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert!(response["error"].as_str().is_some());
@@ -294,7 +313,8 @@ async fn test_get_user_profile() {
 
     let token = create_jwt(user_id, tenant_id, "user");
 
-    let (status, response) = make_request(&app, "GET", "/api/v1/profile", None, Some(&token)).await;
+    let (status, response) =
+        make_request(&app, "GET", "/api/v1/profile", None, Some(&token), None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["email"], "profile@example.com");
@@ -329,7 +349,7 @@ async fn test_update_user_profile() {
     });
 
     let (status, response) =
-        make_request(&app, "PUT", "/api/v1/profile", Some(payload), Some(&token)).await;
+        make_request(&app, "PUT", "/api/v1/profile", Some(payload), Some(&token), None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(response["full_name"], "Updated Name");
@@ -380,7 +400,7 @@ async fn test_admin_list_users() {
     let token = create_jwt(admin_id, tenant_id, "admin");
 
     let (status, response) =
-        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token)).await;
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token), None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(response.is_array());
@@ -429,6 +449,7 @@ async fn test_admin_update_user_role() {
         &format!("/api/v1/admin/users/{}/role", user_id),
         Some(payload),
         Some(&token),
+        None,
     )
     .await;
 
@@ -452,7 +473,7 @@ async fn test_unauthorized_access_without_token() {
     let db = TestDatabaseConfig::new().await;
     let app = create_test_app(db.pool()).await;
 
-    let (status, _response) = make_request(&app, "GET", "/api/v1/profile", None, None).await;
+    let (status, _response) = make_request(&app, "GET", "/api/v1/profile", None, None, None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -479,7 +500,7 @@ async fn test_regular_user_cannot_access_admin_endpoints() {
     let token = create_jwt(user_id, tenant_id, "user");
 
     let (status, _response) =
-        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token)).await;
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token), None).await;
 
     assert_eq!(status, StatusCode::FORBIDDEN);
 
@@ -527,7 +548,7 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
 
     // Admin A should only see users from tenant A
     let (status, response) =
-        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token)).await;
+        make_request(&app, "GET", "/api/v1/admin/users", None, Some(&token), None).await;
 
     assert_eq!(status, StatusCode::OK);
     let users = response.as_array().unwrap();
@@ -556,7 +577,7 @@ async fn test_registration_invalid_email() {
     });
 
     let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(
@@ -583,7 +604,7 @@ async fn test_registration_weak_password() {
     });
 
     let (status, response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(payload), None, None).await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(

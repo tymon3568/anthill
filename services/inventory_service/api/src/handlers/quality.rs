@@ -193,3 +193,14 @@ pub async fn delete_qc_point(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
+
+pub fn create_quality_routes() -> axum::Router {
+    axum::Router::new()
+        .route("/points", axum::routing::post(create_qc_point).get(list_qc_points))
+        .route(
+            "/points/{qc_point_id}",
+            axum::routing::get(get_qc_point)
+                .put(update_qc_point)
+                .delete(delete_qc_point),
+        )
+}

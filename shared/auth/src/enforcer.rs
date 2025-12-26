@@ -7,6 +7,66 @@ use tracing::{info, warn};
 /// Casbin enforcer type wrapped in Arc<RwLock<>> for thread-safe sharing
 pub type SharedEnforcer = Arc<RwLock<Enforcer>>;
 
+/// Resolve the Casbin model file path using multiple fallback strategies.
+///
+/// Search order:
+/// 1. Workspace root from `CARGO_MANIFEST_DIR` (for workspace builds)
+/// 2. Current directory (for CI/test environments)
+/// 3. Relative to executable path
+///
+/// Returns the first existing path, or an error listing all searched locations.
+pub(crate) fn resolve_model_path(custom_path: Option<&str>) -> Result<std::path::PathBuf, String> {
+    if let Some(custom) = custom_path {
+        return Ok(std::path::PathBuf::from(custom));
+    }
+
+    let default_relative = "shared/auth/model.conf";
+
+    // Build candidate paths
+    let workspace_root_path = std::env::var("CARGO_MANIFEST_DIR").ok().and_then(|p| {
+        let path = std::path::PathBuf::from(p);
+        path.ancestors()
+            .find(|p| p.join("Cargo.toml").exists() && p.join("shared").exists())
+            .map(|p| p.join(default_relative))
+    });
+
+    let current_dir_path = std::path::PathBuf::from(default_relative);
+
+    let exe_relative_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.join(default_relative)));
+
+    // Collect all unique candidates for searching
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+    if let Some(ref p) = workspace_root_path {
+        candidates.push(p.clone());
+    }
+    candidates.push(current_dir_path.clone());
+    if let Some(ref p) = exe_relative_path {
+        if !candidates.contains(p) {
+            candidates.push(p.clone());
+        }
+    }
+
+    // Find first existing path
+    for candidate in &candidates {
+        if candidate.exists() {
+            return Ok(candidate.clone());
+        }
+    }
+
+    // Build descriptive error with all searched paths
+    let searched: Vec<String> = candidates
+        .iter()
+        .map(|p| format!("  - {}", p.display()))
+        .collect();
+    Err(format!(
+        "Could not find Casbin model file '{}'. Searched locations:\n{}",
+        default_relative,
+        searched.join("\n")
+    ))
+}
+
 /// Initialize Casbin enforcer with PostgreSQL adapter
 ///
 /// # Arguments
@@ -30,12 +90,19 @@ pub async fn create_enforcer(
     database_url: &str,
     model_path: Option<&str>,
 ) -> Result<SharedEnforcer, Box<dyn std::error::Error>> {
-    let model_path = model_path.unwrap_or("shared/auth/model.conf");
+    // Resolve model path using helper function
+    let resolved_model_path = resolve_model_path(model_path)?;
 
-    info!("Initializing Casbin enforcer with model: {}", model_path);
+    let model_path_str = resolved_model_path.to_string_lossy();
+    info!("Initializing Casbin enforcer with model: {}", model_path_str);
 
     // Load Casbin model
-    let model = DefaultModel::from_file(model_path).await?;
+    let model = DefaultModel::from_file(
+        resolved_model_path
+            .to_str()
+            .ok_or_else(|| format!("Invalid UTF-8 in model path: {:?}", resolved_model_path))?,
+    )
+    .await?;
     info!("Casbin model loaded successfully");
 
     // Create SQLx adapter for PostgreSQL
@@ -184,20 +251,27 @@ mod tests {
     use sqlx::postgres::PgPoolOptions;
     use sqlx_adapter::SqlxAdapter;
 
+    #[test]
+    fn test_resolve_model_path_in_test_env() {
+        // This validates that our new path resolution logic works in the test environment
+        // exactly as it does in the production code (since we're calling the same function)
+        let path = resolve_model_path(None).expect("Should resolve path in test env");
+        assert!(path.exists(), "Model file should exist at {:?}", path);
+        assert!(path.ends_with("shared/auth/model.conf"), "Path should end with model.conf");
+    }
+
     async fn setup_test_enforcer() -> Enforcer {
-        // Load model from file - use absolute path from workspace root
-        let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
-            .ok()
-            .and_then(|p| {
-                let path = std::path::PathBuf::from(p);
-                path.parent()?.parent().map(|p| p.to_path_buf())
-            })
-            .unwrap_or_else(|| std::path::PathBuf::from("."));
-        let model_path = workspace_root.join("shared/auth/model.conf");
-        let model =
-            DefaultModel::from_file(model_path.to_str().expect("Invalid UTF-8 in model path"))
-                .await
-                .expect("Failed to load Casbin model");
+        // Resolve model path using the same logic as production
+        let resolved_model_path =
+            resolve_model_path(None).expect("Failed to resolve model path for tests");
+
+        let model = DefaultModel::from_file(
+            resolved_model_path
+                .to_str()
+                .expect("Invalid UTF-8 in model path"),
+        )
+        .await
+        .expect("Failed to load Casbin model");
 
         // Use PostgreSQL for testing (standard port 5432)
         // Credentials aligned with integration_utils.rs and setup scripts

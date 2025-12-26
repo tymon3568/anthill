@@ -118,6 +118,7 @@ pub async fn register<S: AuthService>(
 pub async fn login<S: AuthService>(
     Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
+    headers: axum::http::HeaderMap,
     Json(payload): Json<LoginReq>,
 ) -> Result<Json<AuthResp>, AppError> {
     // Validate request
@@ -126,9 +127,32 @@ pub async fn login<S: AuthService>(
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
+    // Determine tenant from headers or host
+    // Priority:
+    // 1. X-Tenant-ID header (for API clients/testing)
+    // 2. Host header (for browser clients)
+    let tenant_identifier = if let Some(tenant_id) = headers.get("X-Tenant-ID") {
+        tenant_id.to_str().ok().map(|s| s.to_string())
+    } else if let Some(host) = headers.get("Host") {
+        // Use .ok() to handle invalid headers instead of unwrap_or("") which masks errors
+        host.to_str().ok().and_then(|host_str| {
+            // Simple subdomain extraction (naive)
+            // host: tenant.domain.com -> tenant
+            // host: localhost:8000 -> None (or default?)
+            if host_str.contains("localhost") || host_str.contains("127.0.0.1") {
+                // For local development without subdomain, require header
+                None
+            } else {
+                host_str.split('.').next().map(|s| s.to_string())
+            }
+        })
+    } else {
+        None
+    };
+
     let resp = state
         .auth_service
-        .login(payload, client_info.ip_address, client_info.user_agent)
+        .login(payload, tenant_identifier, client_info.ip_address, client_info.user_agent)
         .await?;
     Ok(Json(resp))
 }

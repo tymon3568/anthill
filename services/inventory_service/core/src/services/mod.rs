@@ -7,7 +7,9 @@ pub mod cache;
 pub mod category;
 pub mod delivery;
 pub mod distributed_lock;
+pub mod inventory;
 pub mod lot_serial;
+
 pub mod picking_method;
 pub mod product;
 pub mod quality;
@@ -27,6 +29,7 @@ pub use picking_method::PickingMethodService;
 pub use quality::QualityControlPointService;
 // pub use delivery::DeliveryService;
 pub use cache::{CacheService, InventoryCache, ProductCache};
+pub use inventory::InventoryService;
 pub use lot_serial::LotSerialService;
 pub use product::ProductService;
 pub use receipt::ReceiptService;

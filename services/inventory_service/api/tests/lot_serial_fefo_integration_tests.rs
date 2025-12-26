@@ -22,11 +22,13 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     let product_id = Uuid::now_v7();
 
     // Create test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query(
-        "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())",
     )
     .bind(tenant_id)
     .bind("Test Tenant")
+    .bind(slug)
     .execute(&pool)
     .await
     .unwrap();
@@ -145,46 +147,43 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     assert!(result.is_ok(), "Reservation should succeed");
 
     // Check lot quantities after reservation
-    let lot1_after = sqlx::query(
-        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-    )
-    .bind(lot1_id)
-    .map(|row: sqlx::postgres::PgRow| {
-        use sqlx::Row;
-        let q: Option<i32> = row.get("remaining_quantity");
-        q
-    })
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let lot1_after =
+        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(lot1_id)
+            .map(|row: sqlx::postgres::PgRow| {
+                use sqlx::Row;
+                let q: Option<i32> = row.get("remaining_quantity");
+                q
+            })
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(lot1_after, Some(10), "Lot1 should have 10 remaining");
 
-    let lot2_after = sqlx::query(
-        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-    )
-    .bind(lot2_id)
-    .map(|row: sqlx::postgres::PgRow| {
-        use sqlx::Row;
-        let q: Option<i32> = row.get("remaining_quantity");
-        q
-    })
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let lot2_after =
+        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(lot2_id)
+            .map(|row: sqlx::postgres::PgRow| {
+                use sqlx::Row;
+                let q: Option<i32> = row.get("remaining_quantity");
+                q
+            })
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(lot2_after, Some(30), "Lot2 should remain unchanged");
 
-    let lot3_after = sqlx::query(
-        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-    )
-    .bind(lot3_id)
-    .map(|row: sqlx::postgres::PgRow| {
-        use sqlx::Row;
-        let q: Option<i32> = row.get("remaining_quantity");
-        q
-    })
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let lot3_after =
+        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(lot3_id)
+            .map(|row: sqlx::postgres::PgRow| {
+                use sqlx::Row;
+                let q: Option<i32> = row.get("remaining_quantity");
+                q
+            })
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(lot3_after, Some(20), "Lot3 should remain unchanged");
 
     // Check inventory_levels updated
@@ -214,11 +213,13 @@ async fn test_fefo_prevents_picking_expired_lots() {
     let product_id = Uuid::now_v7();
 
     // Create test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query(
-        "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())",
     )
     .bind(tenant_id)
     .bind("Test Tenant")
+    .bind(slug)
     .execute(&pool)
     .await
     .unwrap();
@@ -315,42 +316,32 @@ async fn test_fefo_prevents_picking_expired_lots() {
     assert!(result.is_err(), "Reservation should fail due to insufficient non-expired stock");
 
     // Check that expired lot was not touched
-    let expired_lot_after = sqlx::query(
-        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-    )
-    .bind(expired_lot_id)
-    .map(|row: sqlx::postgres::PgRow| {
-        use sqlx::Row;
-        let q: Option<i32> = row.get("remaining_quantity");
-        q
-    })
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(
-        expired_lot_after,
-        Some(50),
-        "Expired lot should remain unchanged"
-    );
+    let expired_lot_after =
+        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(expired_lot_id)
+            .map(|row: sqlx::postgres::PgRow| {
+                use sqlx::Row;
+                let q: Option<i32> = row.get("remaining_quantity");
+                q
+            })
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(expired_lot_after, Some(50), "Expired lot should remain unchanged");
 
     // Valid lot should remain unchanged since reservation failed
-    let valid_lot_after = sqlx::query(
-        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
-    )
-    .bind(valid_lot_id)
-    .map(|row: sqlx::postgres::PgRow| {
-        use sqlx::Row;
-        let q: Option<i32> = row.get("remaining_quantity");
-        q
-    })
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(
-        valid_lot_after,
-        Some(30),
-        "Valid lot should remain unchanged"
-    );
+    let valid_lot_after =
+        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(valid_lot_id)
+            .map(|row: sqlx::postgres::PgRow| {
+                use sqlx::Row;
+                let q: Option<i32> = row.get("remaining_quantity");
+                q
+            })
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(valid_lot_after, Some(30), "Valid lot should remain unchanged");
 }
 
 #[sqlx::test]
@@ -361,11 +352,13 @@ async fn test_quarantine_expired_lots() {
     let product_id = Uuid::now_v7();
 
     // Create test tenant
+    let slug = format!("test-tenant-{}", tenant_id);
     sqlx::query(
-        "INSERT INTO tenants (tenant_id, name, created_at) VALUES ($1, $2, NOW())",
+        "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())",
     )
     .bind(tenant_id)
     .bind("Test Tenant")
+    .bind(slug)
     .execute(&pool)
     .await
     .unwrap();
@@ -461,13 +454,12 @@ async fn test_quarantine_expired_lots() {
     assert_eq!(quarantined_count, 1, "Should quarantine 1 expired lot");
 
     // Check expired lot status changed
-    let expired_lot_after: Option<String> = sqlx::query_scalar(
-        "SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1",
-    )
-    .bind(expired_lot_id)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let expired_lot_after: Option<String> =
+        sqlx::query_scalar("SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(expired_lot_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     let expired_lot_status = LotSerialStatus::from_str(&expired_lot_after.unwrap()).unwrap();
     assert_eq!(
         expired_lot_status,
@@ -476,13 +468,12 @@ async fn test_quarantine_expired_lots() {
     );
 
     // Check valid lot remains active
-    let valid_lot_after: Option<String> = sqlx::query_scalar(
-        "SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1",
-    )
-    .bind(valid_lot_id)
-    .fetch_one(&pool)
-    .await
-    .unwrap();
+    let valid_lot_after: Option<String> =
+        sqlx::query_scalar("SELECT status::text FROM lots_serial_numbers WHERE lot_serial_id = $1")
+            .bind(valid_lot_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     let valid_lot_status = LotSerialStatus::from_str(&valid_lot_after.unwrap()).unwrap();
     assert_eq!(valid_lot_status, LotSerialStatus::Active, "Valid lot should remain active");
 }

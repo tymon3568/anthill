@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
-    use async_trait::async_trait;
-    use std::sync::{Arc, Mutex};
-    use std::collections::HashMap;
     use crate::services::distributed_lock::DistributedLockService;
     use crate::Result;
+    use async_trait::async_trait;
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+    use uuid::Uuid;
 
     /// Mock implementation of DistributedLockService for testing core logic
     pub struct MockCoreDistributedLockService {
@@ -116,28 +116,32 @@ mod tests {
         let resource_id = "prod-123";
 
         // 1. Thread A acquires lock
-        let token_a = lock_service.acquire_lock(tenant_id, resource_type, resource_id, 30)
+        let token_a = lock_service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
             .await
             .expect("Failed to acquire lock A");
 
         assert!(token_a.is_some(), "Thread A should get a lock token");
 
         // 2. Thread B tries to acquire same lock -> Should fail
-        let token_b = lock_service.acquire_lock(tenant_id, resource_type, resource_id, 30)
+        let token_b = lock_service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
             .await
             .expect("Failed to check lock B");
 
         assert!(token_b.is_none(), "Thread B should NOT get a lock token");
 
         // 3. Thread A releases lock
-        let released = lock_service.release_lock(tenant_id, resource_type, resource_id, &token_a.unwrap())
+        let released = lock_service
+            .release_lock(tenant_id, resource_type, resource_id, &token_a.unwrap())
             .await
             .expect("Failed to release lock A");
 
         assert!(released, "Lock A should be released");
 
         // 4. Thread B tries again -> Should succeed
-        let token_b_retry = lock_service.acquire_lock(tenant_id, resource_type, resource_id, 30)
+        let token_b_retry = lock_service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
             .await
             .expect("Failed to acquire lock B retry");
 

@@ -16,26 +16,37 @@ use shared_db::init_pool;
 // ============================================================================
 
 /// Default test database URL (used when DATABASE_URL env var is not set)
-const DEFAULT_TEST_DATABASE_URL: &str = "postgres://anthill:anthill@localhost:5434/anthill_test";
+const DEFAULT_TEST_DATABASE_URL: &str = "postgres://anthill:anthill@localhost:5432/anthill_test";
 
 // ============================================================================
 // Pool Setup
 // ============================================================================
 
+use tokio::sync::OnceCell;
+
+static TEST_POOL: OnceCell<PgPool> = OnceCell::const_new();
+
 /// Initialize a test database connection pool.
 ///
-/// Uses DATABASE_URL environment variable if set, otherwise falls back to default test URL.
+/// Uses a singleton pattern to ensure only one pool is created for all tests,
+/// preventing "too many connections" errors.
 pub async fn setup_test_pool() -> PgPool {
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        // Log warning if using default URL in CI
-        if std::env::var("CI").is_ok() {
-            eprintln!("WARNING: DATABASE_URL not set in CI, using default test URL");
-        }
-        DEFAULT_TEST_DATABASE_URL.to_string()
-    });
-    init_pool(&database_url, 5)
-        .await
-        .expect("Failed to initialize test pool")
+    let pool = TEST_POOL
+        .get_or_init(|| async {
+            let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+                // Log warning if using default URL in CI
+                if std::env::var("CI").is_ok() {
+                    eprintln!("WARNING: DATABASE_URL not set in CI, using default test URL");
+                }
+                DEFAULT_TEST_DATABASE_URL.to_string()
+            });
+            // Use a reasonable pool size for parallel tests
+            init_pool(&database_url, 10)
+                .await
+                .expect("Failed to initialize test pool")
+        })
+        .await;
+    pool.clone()
 }
 
 // ============================================================================
