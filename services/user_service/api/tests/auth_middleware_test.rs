@@ -41,14 +41,14 @@ async fn setup_test_app() -> (Router, PgPool, Config) {
 async fn test_admin_can_access_admin_route() {
     let (app, db_pool, config) = setup_test_app().await;
 
-    let admin_user =
-        sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'admin@test.com'")
+    let admin_user: (uuid::Uuid, uuid::Uuid) =
+        sqlx::query_as("SELECT user_id, tenant_id FROM users WHERE email = 'admin@test.com'")
             .fetch_one(&db_pool)
             .await
             .expect("Failed to fetch admin user");
 
     let admin_token =
-        helpers::generate_jwt(admin_user.user_id, admin_user.tenant_id, "role:admin", &config);
+        helpers::generate_jwt(admin_user.0, admin_user.1, "role:admin", &config);
 
     let request = Request::builder()
         .uri("/api/v1/admin/policies")
@@ -59,7 +59,7 @@ async fn test_admin_can_access_admin_route() {
             json!({
                 "ptype": "p",
                 "v0": "role:manager",
-                "v1": admin_user.tenant_id.to_string(),
+                "v1": admin_user.1.to_string(),
                 "v2": "/api/v1/users",
                 "v3": "GET"
             })
@@ -75,15 +75,15 @@ async fn test_admin_can_access_admin_route() {
 async fn test_manager_cannot_access_admin_route() {
     let (app, db_pool, config) = setup_test_app().await;
 
-    let manager_user =
-        sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'manager@test.com'")
+    let manager_user: (uuid::Uuid, uuid::Uuid) =
+        sqlx::query_as("SELECT user_id, tenant_id FROM users WHERE email = 'manager@test.com'")
             .fetch_one(&db_pool)
             .await
             .expect("Failed to fetch manager user");
 
     let manager_token = helpers::generate_jwt(
-        manager_user.user_id,
-        manager_user.tenant_id,
+        manager_user.0,
+        manager_user.1,
         "role:manager",
         &config,
     );
@@ -97,7 +97,7 @@ async fn test_manager_cannot_access_admin_route() {
             json!({
                 "ptype": "p",
                 "v0": "role:manager",
-                "v1": manager_user.tenant_id.to_string(),
+                "v1": manager_user.1.to_string(),
                 "v2": "/api/v1/users",
                 "v3": "GET"
             })
@@ -113,12 +113,13 @@ async fn test_manager_cannot_access_admin_route() {
 async fn test_user_can_access_read_only_route() {
     let (app, db_pool, config) = setup_test_app().await;
 
-    let user = sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'user@test.com'")
-        .fetch_one(&db_pool)
-        .await
-        .expect("Failed to fetch user");
+    let user: (uuid::Uuid, uuid::Uuid) =
+        sqlx::query_as("SELECT user_id, tenant_id FROM users WHERE email = 'user@test.com'")
+            .fetch_one(&db_pool)
+            .await
+            .expect("Failed to fetch user");
 
-    let user_token = helpers::generate_jwt(user.user_id, user.tenant_id, "role:user", &config);
+    let user_token = helpers::generate_jwt(user.0, user.1, "role:user", &config);
 
     let request = Request::builder()
         .uri("/api/v1/users")
@@ -135,21 +136,23 @@ async fn test_user_can_access_read_only_route() {
 async fn test_tenant_isolation() {
     let (app, db_pool, config) = setup_test_app().await;
 
-    let user_a = sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'user@test.com'")
-        .fetch_one(&db_pool)
-        .await
-        .expect("Failed to fetch user_a");
+    let user_a: (uuid::Uuid, uuid::Uuid) =
+        sqlx::query_as("SELECT user_id, tenant_id FROM users WHERE email = 'user@test.com'")
+            .fetch_one(&db_pool)
+            .await
+            .expect("Failed to fetch user_a");
 
-    let user_b = sqlx::query!("SELECT user_id FROM users WHERE email = 'user_b@test.com'")
-        .fetch_one(&db_pool)
-        .await
-        .expect("Failed to fetch user_b");
+    let user_b: (uuid::Uuid,) =
+        sqlx::query_as("SELECT user_id FROM users WHERE email = 'user_b@test.com'")
+            .fetch_one(&db_pool)
+            .await
+            .expect("Failed to fetch user_b");
 
     let user_a_token =
-        helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
+        helpers::generate_jwt(user_a.0, user_a.1, "role:user", &config);
 
     let request = Request::builder()
-        .uri(format!("/api/v1/users/{}", user_b.user_id))
+        .uri(format!("/api/v1/users/{}", user_b.0))
         .method(http::Method::GET)
         .header(http::header::AUTHORIZATION, format!("Bearer {}", user_a_token))
         .body(Body::empty())
@@ -163,22 +166,23 @@ async fn test_tenant_isolation() {
 async fn test_tenant_isolation_reverse() {
     let (app, db_pool, config) = setup_test_app().await;
 
-    let user_a = sqlx::query!("SELECT user_id FROM users WHERE email = 'user@test.com'")
-        .fetch_one(&db_pool)
-        .await
-        .expect("Failed to fetch user_a");
+    let user_a: (uuid::Uuid,) =
+        sqlx::query_as("SELECT user_id FROM users WHERE email = 'user@test.com'")
+            .fetch_one(&db_pool)
+            .await
+            .expect("Failed to fetch user_a");
 
-    let user_b =
-        sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'user_b@test.com'")
+    let user_b: (uuid::Uuid, uuid::Uuid) =
+        sqlx::query_as("SELECT user_id, tenant_id FROM users WHERE email = 'user_b@test.com'")
             .fetch_one(&db_pool)
             .await
             .expect("Failed to fetch user_b");
 
     let user_b_token =
-        helpers::generate_jwt(user_b.user_id, user_b.tenant_id, "role:user", &config);
+        helpers::generate_jwt(user_b.0, user_b.1, "role:user", &config);
 
     let request = Request::builder()
-        .uri(format!("/api/v1/users/{}", user_a.user_id))
+        .uri(format!("/api/v1/users/{}", user_a.0))
         .method(http::Method::GET)
         .header(http::header::AUTHORIZATION, format!("Bearer {}", user_b_token))
         .body(Body::empty())
@@ -192,13 +196,14 @@ async fn test_tenant_isolation_reverse() {
 async fn test_list_users_tenant_isolation() {
     let (app, db_pool, config) = setup_test_app().await;
 
-    let user_a = sqlx::query!("SELECT user_id, tenant_id FROM users WHERE email = 'user@test.com'")
-        .fetch_one(&db_pool)
-        .await
-        .expect("Failed to fetch user_a");
+    let user_a: (uuid::Uuid, uuid::Uuid) =
+        sqlx::query_as("SELECT user_id, tenant_id FROM users WHERE email = 'user@test.com'")
+            .fetch_one(&db_pool)
+            .await
+            .expect("Failed to fetch user_a");
 
     let user_a_token =
-        helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
+        helpers::generate_jwt(user_a.0, user_a.1, "role:user", &config);
 
     let request = Request::builder()
         .uri("/api/v1/users")
@@ -215,6 +220,6 @@ async fn test_list_users_tenant_isolation() {
 
     assert_eq!(users.len(), 3);
     for user in users {
-        assert_eq!(user["tenant_id"], user_a.tenant_id.to_string());
+        assert_eq!(user["tenant_id"], user_a.1.to_string());
     }
 }
