@@ -244,7 +244,11 @@ async fn main() {
             "/api/v1/admin/policies",
             post(handlers::add_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>).delete(handlers::remove_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>),
         )
-        .layer(Extension(combined_state.app.clone()));
+        .layer(Extension(combined_state.app.clone()))
+        .layer(axum::middleware::from_fn(
+            shared_auth::middleware::casbin_middleware,
+        ))
+        .layer(Extension(authz_state.clone()));
 
     // Admin role and permission management routes
     let admin_routes = Router::new()
@@ -277,7 +281,7 @@ async fn main() {
         .layer(axum::middleware::from_fn(
             shared_auth::middleware::casbin_middleware,
         ))
-        .layer(Extension(authz_state));
+        .layer(Extension(authz_state.clone()));
 
     // Profile routes (require authentication)
     let profile_routes = Router::new()
@@ -305,7 +309,11 @@ async fn main() {
         .route("/api/v1/users/profiles/{user_id}/verification",
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
         )
-        .layer(Extension(combined_state.profile.clone()));
+        .layer(Extension(combined_state.profile.clone()))
+        .layer(axum::middleware::from_fn(
+            shared_auth::middleware::casbin_middleware,
+        ))
+        .layer(Extension(authz_state.clone()));
 
     // Combine all API routes with single unified state
     let api_routes = public_routes
