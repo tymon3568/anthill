@@ -47,8 +47,7 @@ async fn test_admin_can_access_admin_route() {
             .await
             .expect("Failed to fetch admin user");
 
-    let admin_token =
-        helpers::generate_jwt(admin_user.0, admin_user.1, "role:admin", &config);
+    let admin_token = helpers::generate_jwt(admin_user.0, admin_user.1, "role:admin", &config);
 
     let request = Request::builder()
         .uri("/api/v1/admin/policies")
@@ -81,12 +80,8 @@ async fn test_manager_cannot_access_admin_route() {
             .await
             .expect("Failed to fetch manager user");
 
-    let manager_token = helpers::generate_jwt(
-        manager_user.0,
-        manager_user.1,
-        "role:manager",
-        &config,
-    );
+    let manager_token =
+        helpers::generate_jwt(manager_user.0, manager_user.1, "role:manager", &config);
 
     let request = Request::builder()
         .uri("/api/v1/admin/policies")
@@ -148,8 +143,7 @@ async fn test_tenant_isolation() {
             .await
             .expect("Failed to fetch user_b");
 
-    let user_a_token =
-        helpers::generate_jwt(user_a.0, user_a.1, "role:user", &config);
+    let user_a_token = helpers::generate_jwt(user_a.0, user_a.1, "role:user", &config);
 
     let request = Request::builder()
         .uri(format!("/api/v1/users/{}", user_b.0))
@@ -178,8 +172,7 @@ async fn test_tenant_isolation_reverse() {
             .await
             .expect("Failed to fetch user_b");
 
-    let user_b_token =
-        helpers::generate_jwt(user_b.0, user_b.1, "role:user", &config);
+    let user_b_token = helpers::generate_jwt(user_b.0, user_b.1, "role:user", &config);
 
     let request = Request::builder()
         .uri(format!("/api/v1/users/{}", user_a.0))
@@ -202,8 +195,7 @@ async fn test_list_users_tenant_isolation() {
             .await
             .expect("Failed to fetch user_a");
 
-    let user_a_token =
-        helpers::generate_jwt(user_a.0, user_a.1, "role:user", &config);
+    let user_a_token = helpers::generate_jwt(user_a.0, user_a.1, "role:user", &config);
 
     let request = Request::builder()
         .uri("/api/v1/users")

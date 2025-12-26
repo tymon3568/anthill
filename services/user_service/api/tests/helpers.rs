@@ -30,10 +30,7 @@ pub fn get_test_jwt_secret() -> String {
 /// Clean up all test data from the database
 pub async fn cleanup_test_data(pool: &PgPool) {
     // Delete in reverse dependency order to avoid foreign key constraints
-    sqlx::query("DELETE FROM sessions")
-        .execute(pool)
-        .await
-        .ok();
+    sqlx::query("DELETE FROM sessions").execute(pool).await.ok();
     sqlx::query("DELETE FROM casbin_rule")
         .execute(pool)
         .await

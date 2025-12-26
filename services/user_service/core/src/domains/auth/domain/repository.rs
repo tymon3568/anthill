@@ -35,7 +35,11 @@ pub trait UserRepository: Send + Sync {
     async fn email_exists(&self, email: &str, tenant_id: Uuid) -> Result<bool, AppError>;
 
     /// Find user by Kanidm user ID within a tenant
-    async fn find_by_kanidm_id(&self, kanidm_user_id: &str, tenant_id: Uuid) -> Result<Option<User>, AppError>;
+    async fn find_by_kanidm_id(
+        &self,
+        kanidm_user_id: &str,
+        tenant_id: Uuid,
+    ) -> Result<Option<User>, AppError>;
 
     /// Create or update user from Kanidm authentication
     /// Returns (user, is_new) tuple
