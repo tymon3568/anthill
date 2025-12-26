@@ -223,7 +223,11 @@ impl UserRepository for PgUserRepository {
         Ok(exists.0)
     }
 
-    async fn find_by_kanidm_id(&self, kanidm_user_id: &str, tenant_id: Uuid) -> Result<Option<User>, AppError> {
+    async fn find_by_kanidm_id(
+        &self,
+        kanidm_user_id: &str,
+        tenant_id: Uuid,
+    ) -> Result<Option<User>, AppError> {
         let user =
             sqlx::query_as::<_, User>(
                 "SELECT * FROM users WHERE kanidm_user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL",

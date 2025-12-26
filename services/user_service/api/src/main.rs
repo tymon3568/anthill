@@ -245,9 +245,7 @@ async fn main() {
             post(handlers::add_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>).delete(handlers::remove_policy::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>),
         )
         .layer(Extension(combined_state.app.clone()))
-        .layer(axum::middleware::from_fn(
-            shared_auth::middleware::casbin_middleware,
-        ))
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state.clone()))
         .layer(Extension(authz_state.clone()));
 
     // Admin role and permission management routes
@@ -278,9 +276,7 @@ async fn main() {
         )
         .layer(Extension(combined_state.app.clone()))
         // Apply authorization middleware to admin routes
-        .layer(axum::middleware::from_fn(
-            shared_auth::middleware::casbin_middleware,
-        ))
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state.clone()))
         .layer(Extension(authz_state.clone()));
 
     // Profile routes (require authentication)
@@ -310,9 +306,7 @@ async fn main() {
             put(profile_handlers::update_verification::<ProfileServiceImpl>)
         )
         .layer(Extension(combined_state.profile.clone()))
-        .layer(axum::middleware::from_fn(
-            shared_auth::middleware::casbin_middleware,
-        ))
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state.clone()))
         .layer(Extension(authz_state.clone()));
 
     // Combine all API routes with single unified state
