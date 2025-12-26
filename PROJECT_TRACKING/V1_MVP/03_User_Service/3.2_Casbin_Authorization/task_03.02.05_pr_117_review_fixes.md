@@ -72,6 +72,7 @@ InProgress_By_AI_Agent
   - [x] Replace runtime `sqlx::query(...)` usage for simple statements in `services/user_service/api/tests/helpers.rs` with `sqlx::query!(...)` (DELETE/INSERT statements).
   - [x] Replace tuple-based `sqlx::query_as(...)` / dynamic queries in `services/user_service/api/tests/auth_middleware_test.rs` with `sqlx::query!(...)` to restore compile-time validation and named fields.
   - Notes:
+    - The above items were applied on the PR #118 branch (`fix/pr-117-review`) to resolve reviewer feedback about mismatch between task tracking and code.
     - This aligns with the updated **enterprise SQLx standard**: compile-time macros + **SQLx Offline Mode** (`.sqlx/` committed) so CI does not require a live DB during compilation.
 
 ### Readability / Maintainability
