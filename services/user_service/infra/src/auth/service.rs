@@ -405,50 +405,6 @@ where
                 created_at: user.created_at,
             },
         })
-
-        /* Production implementation would be:
-        // 1. Resolve tenant from email domain or request context
-        let tenant_id = resolve_tenant_from_context()?;
-
-        // 2. Find user by email within tenant
-        let user = self.user_repo
-            .find_by_email(&req.email, tenant_id)
-            .await?
-            .ok_or(AppError::InvalidCredentials)?;
-
-        // 3. Verify password
-        let valid = bcrypt::verify(&req.password, &user.password_hash)
-            .map_err(|e| AppError::InternalError(format!("Password verification failed: {}", e)))?;
-
-        if !valid {
-            return Err(AppError::InvalidCredentials);
-        }
-
-        // 4. Generate tokens
-        let access_claims = Claims::new_access(
-            user.user_id,
-            user.tenant_id,
-            user.role.clone(),
-            self.jwt_expiration,
-        );
-        let refresh_claims = Claims::new_refresh(
-            user.user_id,
-            user.tenant_id,
-            user.role.clone(),
-            self.jwt_refresh_expiration,
-        );
-
-        let access_token = encode_jwt(&access_claims, &self.jwt_secret)?;
-        let refresh_token = encode_jwt(&refresh_claims, &self.jwt_secret)?;
-
-        Ok(AuthResp {
-            access_token,
-            refresh_token,
-            token_type: "Bearer".to_string(),
-            expires_in: self.jwt_expiration,
-            user: self.user_to_user_info(&user),
-        })
-        */
     }
 
     async fn refresh_token(

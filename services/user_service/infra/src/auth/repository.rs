@@ -223,14 +223,15 @@ impl UserRepository for PgUserRepository {
         Ok(exists.0)
     }
 
-    async fn find_by_kanidm_id(&self, kanidm_user_id: &str) -> Result<Option<User>, AppError> {
+    async fn find_by_kanidm_id(&self, kanidm_user_id: &str, tenant_id: Uuid) -> Result<Option<User>, AppError> {
         let user =
             sqlx::query_as::<_, User>(
-                "SELECT * FROM users WHERE kanidm_user_id = $1 AND deleted_at IS NULL",
+                "SELECT * FROM users WHERE kanidm_user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL",
             )
             .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
                 AppError::ValidationError("Invalid Kanidm user ID format".to_string())
             })?)
+            .bind(tenant_id)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -248,7 +249,7 @@ impl UserRepository for PgUserRepository {
             .map_err(|_| AppError::ValidationError("Invalid Kanidm user ID format".to_string()))?;
 
         // Try to find existing user by kanidm_user_id
-        if let Some(mut user) = self.find_by_kanidm_id(kanidm_user_id).await? {
+        if let Some(mut user) = self.find_by_kanidm_id(kanidm_user_id, tenant_id).await? {
             // Update existing user
             user.kanidm_synced_at = Some(chrono::Utc::now());
             user.updated_at = chrono::Utc::now();
