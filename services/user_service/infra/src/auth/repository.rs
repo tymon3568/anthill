@@ -226,7 +226,7 @@ impl UserRepository for PgUserRepository {
     async fn find_by_kanidm_id(&self, kanidm_user_id: &str, tenant_id: Uuid) -> Result<Option<User>, AppError> {
         let user =
             sqlx::query_as::<_, User>(
-                "SELECT * FROM users WHERE kanidm_user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL",
+                "SELECT * FROM users WHERE kanidm_user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL",
             )
             .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
                 AppError::ValidationError("Invalid Kanidm user ID format".to_string())
