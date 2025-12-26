@@ -46,7 +46,6 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     .unwrap();
 
     // Create lot-tracked product
-    // Create lot-tracked product
     sqlx::query!(
         "INSERT INTO products (product_id, tenant_id, sku, name, tracking_method, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
         product_id,
@@ -59,7 +58,6 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     .await
     .unwrap();
 
-    // Create inventory level for the product
     // Create inventory level for the product
     sqlx::query!(
         "INSERT INTO inventory_levels (inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity, created_at)
@@ -80,7 +78,6 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     let lot3_id = Uuid::now_v7();
 
     // Lot 1: expires soon (should be picked first)
-    // Lot 1: expires soon (should be picked first)
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
            VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
@@ -100,7 +97,6 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     .unwrap();
 
     // Lot 2: expires later
-    // Lot 2: expires later
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
            VALUES ($1, $2, $3, $4, $5::text::lot_serial_tracking_type, $6, $7, $8, $9, $10::text::lot_serial_status, NOW())"#,
@@ -119,7 +115,6 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     .await
     .unwrap();
 
-    // Lot 3: expires latest
     // Lot 3: expires latest
     sqlx::query!(
         r#"INSERT INTO lots_serial_numbers (lot_serial_id, tenant_id, product_id, warehouse_id, tracking_type, lot_number, initial_quantity, remaining_quantity, expiry_date, status, created_at)
