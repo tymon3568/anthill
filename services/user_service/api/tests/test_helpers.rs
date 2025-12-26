@@ -28,7 +28,8 @@ pub async fn create_test_app(
     let tenant_repo = PgTenantRepository::new(db_pool.clone());
     let session_repo = PgSessionRepository::new(db_pool.clone());
 
-    let jwt_secret = "test-secret-key-at-least-32-characters-long".to_string();
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string());
 
     let auth_service = AuthServiceImpl::new(
         user_repo.clone(),
