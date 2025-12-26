@@ -571,7 +571,7 @@ mod reservation_tests {
 
         let final_reserved: Option<i64> = sqlx::query_scalar(
             "SELECT reserved_quantity FROM inventory_levels
-             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4"
+             WHERE tenant_id = $1 AND warehouse_id = $2 AND location_id = $3 AND product_id = $4",
         )
         .bind(tenant_id)
         .bind(warehouse_id)

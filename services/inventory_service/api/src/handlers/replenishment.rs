@@ -228,3 +228,20 @@ pub async fn check_product_replenishment(
 pub struct WarehouseFilterQuery {
     pub warehouse_id: Option<Uuid>,
 }
+
+pub fn create_replenishment_routes() -> axum::Router {
+    axum::Router::new()
+        .route("/rules", axum::routing::post(create_reorder_rule))
+        .route(
+            "/rules/{rule_id}",
+            axum::routing::get(get_reorder_rule)
+                .put(update_reorder_rule)
+                .delete(delete_reorder_rule),
+        )
+        .route(
+            "/rules/product/{product_id}",
+            axum::routing::get(list_reorder_rules_for_product),
+        )
+        .route("/check", axum::routing::post(run_replenishment_check))
+        .route("/check/product/{product_id}", axum::routing::post(check_product_replenishment))
+}

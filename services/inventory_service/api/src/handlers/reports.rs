@@ -265,6 +265,15 @@ pub struct StockAgingQuery {
     pub warehouse_id: Option<Uuid>,
 }
 
+pub fn create_reports_routes() -> axum::Router {
+    axum::Router::new()
+        .route("/stock-ledger", axum::routing::get(get_stock_ledger))
+        .route("/aging", axum::routing::get(get_stock_aging))
+        .route("/turnover", axum::routing::get(get_inventory_turnover))
+        .route("/low-stock", axum::routing::get(get_low_stock))
+        .route("/dead-stock", axum::routing::get(get_dead_stock))
+}
+
 #[utoipa::path(
     get,
     path = "/api/v1/inventory/reports/turnover",
