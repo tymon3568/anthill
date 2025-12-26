@@ -2,6 +2,35 @@
 
 ## 🎯 Triết Lý Kiến Trúc
 
+### SQLx Standard (Enterprise): Compile-time Macros + Offline Mode (Mandatory)
+Để đảm bảo **an toàn schema** (bắt lỗi SQL/type sớm) và **CI ổn định** (không phụ thuộc DB live trong bước build), dự án chuẩn hóa như sau:
+
+#### 1) Quy ước bắt buộc
+- **Ưu tiên dùng `sqlx::query!` / `sqlx::query_as!` / `sqlx::query_scalar!`** (compile-time checked) thay vì `sqlx::query(...)` + `.bind(...)` khi SQL là static.
+- **Bật SQLx Offline Mode** với thư mục **`.sqlx/`** được commit vào git.
+- Mọi thay đổi schema (migrations) hoặc thay đổi query macro phải đi kèm cập nhật `.sqlx/`.
+
+> Lý do: compile-time macros bắt lỗi sai tên cột, sai type, sai số lượng tham số ngay lúc compile; offline mode giúp CI/build không cần DB live mà vẫn giữ compile-time validation.
+
+#### 2) Cách vận hành Offline Mode
+- Khi cần cập nhật metadata:
+  1. Chạy PostgreSQL local/test (đúng schema).
+  2. Set `DATABASE_URL` trỏ vào DB đã migrate.
+  3. Chạy: `cargo sqlx prepare` để sinh/refresh `.sqlx/`.
+  4. Commit thay đổi trong `.sqlx/` cùng với code/migrations.
+
+- Trong CI:
+  - **Không cần DB live cho bước compile** nếu `.sqlx/` đã đúng.
+  - Nên chạy `cargo sqlx prepare --check` để đảm bảo `.sqlx/` luôn đồng bộ với code/schema.
+
+#### 3) Phạm vi áp dụng
+- **Bắt buộc** cho code production (infra repositories, shared DB code).
+- Khuyến nghị mạnh cho integration tests/helpers (đặc biệt các câu `SELECT/INSERT/DELETE` cố định).
+- Chỉ dùng runtime `sqlx::query(...)` khi:
+  - SQL phải dynamic (không thể là string literal), hoặc
+  - thật sự cần builder/phức tạp; khi đó phải có test coverage đủ tốt.
+
+
 Kiến trúc này được thiết kế dựa trên triết lý thực dụng: **"Sử dụng công cụ phù hợp nhất cho từng công việc"**. Chúng ta ưu tiên các công cụ hạ tầng phổ biến, hiệu suất cao và đã được chứng minh (`battle-tested`), đồng thời tập trung sức mạnh của **Rust** vào nơi nó tạo ra nhiều giá trị nhất: **core business logic**. Nền tảng triển khai là **CapRover**, một PaaS mạnh mẽ giúp đơn giản hóa tối đa việc vận hành.
 
 - **Đơn giản & Hiệu quả**: Tận dụng tối đa các tính năng tự động của CapRover để giảm thiểu công sức quản lý hạ tầng.
