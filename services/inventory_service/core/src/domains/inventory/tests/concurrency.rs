@@ -4,7 +4,7 @@ mod tests {
     use crate::Result;
     use async_trait::async_trait;
     use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
+    use tokio::sync::Mutex;
     use uuid::Uuid;
 
     /// Mock implementation of DistributedLockService for testing core logic
@@ -34,7 +34,7 @@ mod tests {
             _ttl_seconds: u32,
         ) -> Result<Option<String>> {
             let key = self.lock_key(tenant_id, resource_type, resource_id);
-            let mut locks = self.locks.lock().unwrap();
+            let mut locks = self.locks.lock().await;
 
             if locks.contains_key(&key) {
                 return Ok(None);
@@ -53,7 +53,7 @@ mod tests {
             lock_token: &str,
         ) -> Result<bool> {
             let key = self.lock_key(tenant_id, resource_type, resource_id);
-            let mut locks = self.locks.lock().unwrap();
+            let mut locks = self.locks.lock().await;
 
             if let Some(token) = locks.get(&key) {
                 if token == lock_token {
@@ -71,7 +71,7 @@ mod tests {
             resource_id: &str,
         ) -> Result<bool> {
             let key = self.lock_key(tenant_id, resource_type, resource_id);
-            let locks = self.locks.lock().unwrap();
+            let locks = self.locks.lock().await;
             Ok(locks.contains_key(&key))
         }
 
@@ -84,7 +84,7 @@ mod tests {
             _ttl_seconds: u32,
         ) -> Result<bool> {
             let key = self.lock_key(tenant_id, resource_type, resource_id);
-            let locks = self.locks.lock().unwrap();
+            let locks = self.locks.lock().await;
 
             if let Some(token) = locks.get(&key) {
                 if token == lock_token {
@@ -101,7 +101,7 @@ mod tests {
             resource_id: &str,
         ) -> Result<bool> {
             let key = self.lock_key(tenant_id, resource_type, resource_id);
-            let mut locks = self.locks.lock().unwrap();
+            let mut locks = self.locks.lock().await;
             Ok(locks.remove(&key).is_some())
         }
     }
@@ -146,5 +146,77 @@ mod tests {
             .expect("Failed to acquire lock B retry");
 
         assert!(token_b_retry.is_some(), "Thread B should now get a lock token");
+    }
+
+    #[tokio::test]
+    async fn test_lock_service_lifecycle_and_error_paths() {
+        let lock_service = MockCoreDistributedLockService::new();
+        let tenant_id = Uuid::new_v4();
+        let resource_type = "product";
+        let resource_id = "prod-123";
+
+        // Initially, resource should not be locked
+        let locked = lock_service
+            .is_locked(tenant_id, resource_type, resource_id)
+            .await
+            .expect("is_locked should succeed for unlocked resource");
+        assert!(!locked, "Resource should not be locked initially");
+
+        // Acquire lock
+        let token = lock_service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
+            .await
+            .expect("acquire_lock should succeed")
+            .expect("Should get a token");
+
+        // Verify it is locked
+        let locked_after = lock_service
+            .is_locked(tenant_id, resource_type, resource_id)
+            .await
+            .expect("is_locked should succeed");
+        assert!(locked_after, "Resource should be locked after acquisition");
+
+        // Try to release with WRONG token
+        let released_wrong = lock_service
+            .release_lock(tenant_id, resource_type, resource_id, "wrong-token")
+            .await
+            .expect("release_lock call should succeed");
+        assert!(!released_wrong, "Should not release with wrong token");
+
+        // Try to extend with WRONG token
+        let extended_wrong = lock_service
+            .extend_lock(tenant_id, resource_type, resource_id, "wrong-token", 60)
+            .await
+            .expect("extend_lock call should succeed");
+        assert!(!extended_wrong, "Should not extend with wrong token");
+
+        // Extend with CORRECT token
+        let extended_correct = lock_service
+            .extend_lock(tenant_id, resource_type, resource_id, &token, 60)
+            .await
+            .expect("extend_lock call should succeed");
+        assert!(extended_correct, "Should extend with correct token");
+
+        // Force release
+        let force_released = lock_service
+            .force_release_lock(tenant_id, resource_type, resource_id)
+            .await
+            .expect("force_release_lock call should succeed");
+        assert!(force_released, "Force release should return true for existing lock");
+
+        // Verify it is unlocked
+        let locked_final = lock_service
+            .is_locked(tenant_id, resource_type, resource_id)
+            .await
+            .expect("is_locked should succeed");
+        assert!(!locked_final, "Resource should be unlocked after force verify");
+
+        // Verify we can acquire again
+        let token_new = lock_service
+            .acquire_lock(tenant_id, resource_type, resource_id, 30)
+            .await
+            .expect("acquire_lock should succeed")
+            .expect("Should get a token");
+        assert_ne!(token, token_new, "Should get a new token");
     }
 }

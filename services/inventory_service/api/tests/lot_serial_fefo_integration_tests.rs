@@ -147,43 +147,31 @@ async fn test_fefo_reservation_picks_earliest_expiry_first() {
     assert!(result.is_ok(), "Reservation should succeed");
 
     // Check lot quantities after reservation
-    let lot1_after =
-        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
-            .bind(lot1_id)
-            .map(|row: sqlx::postgres::PgRow| {
-                use sqlx::Row;
-                let q: Option<i32> = row.get("remaining_quantity");
-                q
-            })
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let lot1_after: Option<i32> = sqlx::query_scalar(
+        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
+    )
+    .bind(lot1_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(lot1_after, Some(10), "Lot1 should have 10 remaining");
 
-    let lot2_after =
-        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
-            .bind(lot2_id)
-            .map(|row: sqlx::postgres::PgRow| {
-                use sqlx::Row;
-                let q: Option<i32> = row.get("remaining_quantity");
-                q
-            })
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let lot2_after: Option<i32> = sqlx::query_scalar(
+        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
+    )
+    .bind(lot2_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(lot2_after, Some(30), "Lot2 should remain unchanged");
 
-    let lot3_after =
-        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
-            .bind(lot3_id)
-            .map(|row: sqlx::postgres::PgRow| {
-                use sqlx::Row;
-                let q: Option<i32> = row.get("remaining_quantity");
-                q
-            })
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let lot3_after: Option<i32> = sqlx::query_scalar(
+        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
+    )
+    .bind(lot3_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(lot3_after, Some(20), "Lot3 should remain unchanged");
 
     // Check inventory_levels updated
@@ -316,31 +304,23 @@ async fn test_fefo_prevents_picking_expired_lots() {
     assert!(result.is_err(), "Reservation should fail due to insufficient non-expired stock");
 
     // Check that expired lot was not touched
-    let expired_lot_after =
-        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
-            .bind(expired_lot_id)
-            .map(|row: sqlx::postgres::PgRow| {
-                use sqlx::Row;
-                let q: Option<i32> = row.get("remaining_quantity");
-                q
-            })
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let expired_lot_after: Option<i32> = sqlx::query_scalar(
+        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
+    )
+    .bind(expired_lot_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(expired_lot_after, Some(50), "Expired lot should remain unchanged");
 
     // Valid lot should remain unchanged since reservation failed
-    let valid_lot_after =
-        sqlx::query("SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1")
-            .bind(valid_lot_id)
-            .map(|row: sqlx::postgres::PgRow| {
-                use sqlx::Row;
-                let q: Option<i32> = row.get("remaining_quantity");
-                q
-            })
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let valid_lot_after: Option<i32> = sqlx::query_scalar(
+        "SELECT remaining_quantity FROM lots_serial_numbers WHERE lot_serial_id = $1",
+    )
+    .bind(valid_lot_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(valid_lot_after, Some(30), "Valid lot should remain unchanged");
 }
 
