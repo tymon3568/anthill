@@ -4,104 +4,18 @@
 
 mod test_database;
 
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-    Router,
-};
-use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use axum::{http::StatusCode, Router};
+use serde_json::json;
 use sqlx::PgPool;
-use std::sync::Arc;
 use test_database::TestDatabaseConfig;
-use tower::ServiceExt;
-use user_service_api::AppState;
-use user_service_infra::auth::{
-    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
-};
+
+mod test_helpers;
+use test_helpers::{create_test_app as create_base_app, make_request};
 
 /// Test helper to create app router
 async fn create_test_app(db_pool: PgPool) -> Router {
-    let database_url = std::env::var("TEST_DATABASE_URL")
-        .or_else(|_| std::env::var("DATABASE_URL"))
-        .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5433/anthill_test".to_string());
-
-    let user_repo = PgUserRepository::new(db_pool.clone());
-    let tenant_repo = PgTenantRepository::new(db_pool.clone());
-    let session_repo = PgSessionRepository::new(db_pool.clone());
-
-    let jwt_secret = "test-secret-key-at-least-32-characters-long".to_string();
-
-    let auth_service = AuthServiceImpl::new(
-        user_repo.clone(),
-        tenant_repo.clone(),
-        session_repo,
-        jwt_secret.clone(),
-        900,    // 15 minutes
-        604800, // 7 days
-    );
-
-    let kanidm_config = shared_kanidm_client::KanidmConfig {
-        kanidm_url: "http://localhost:8300".to_string(),
-        client_id: "dev".to_string(),
-        client_secret: "dev".to_string(),
-        redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
-        scopes: vec!["openid".to_string()],
-        skip_jwt_verification: true, // DEV/TEST MODE ONLY
-        allowed_issuers: vec!["http://localhost:8300".to_string()],
-        expected_audience: Some("dev".to_string()),
-    };
-    let kanidm_client = shared_kanidm_client::KanidmClient::new(kanidm_config)
-        .expect("Failed to create dev Kanidm client");
-
-    let state = AppState {
-        auth_service: Arc::new(auth_service),
-        enforcer: shared_auth::enforcer::create_enforcer(&database_url, None)
-            .await
-            .expect("Failed to create enforcer"),
-        jwt_secret,
-        kanidm_client,
-        user_repo: Some(Arc::new(user_repo)),
-        tenant_repo: Some(Arc::new(tenant_repo)),
-    };
-
-    user_service_api::create_router(&state)
-}
-
-/// Helper to make HTTP request
-async fn make_request(
-    app: &axum::Router,
-    method: &str,
-    path: &str,
-    body: Option<Value>,
-    auth_token: Option<&str>,
-    tenant_id: Option<&str>,
-) -> (StatusCode, Value) {
-    let mut request = Request::builder()
-        .method(method)
-        .uri(path)
-        .header("Content-Type", "application/json");
-
-    if let Some(token) = auth_token {
-        request = request.header("Authorization", format!("Bearer {}", token));
-    }
-
-    if let Some(tid) = tenant_id {
-        request = request.header("X-Tenant-ID", tid);
-    }
-
-    let body_str = body
-        .map(|b| serde_json::to_string(&b).unwrap())
-        .unwrap_or_default();
-    let request = request.body(Body::from(body_str)).unwrap();
-
-    let response = app.clone().oneshot(request).await.unwrap();
-    let status = response.status();
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap_or(json!({}));
-
-    (status, json)
+    let (router, _) = create_base_app(db_pool).await;
+    router
 }
 
 // ============================================================================
@@ -126,7 +40,8 @@ async fn test_complete_registration_to_authenticated_request_flow() {
     });
 
     let (status, register_response) =
-        make_request(&app, "POST", "/api/v1/auth/register", Some(register_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/register", Some(register_payload), None, None)
+            .await;
 
     assert_eq!(status, StatusCode::CREATED);
     let access_token = register_response["access_token"].as_str().unwrap();
@@ -145,9 +60,15 @@ async fn test_complete_registration_to_authenticated_request_flow() {
         "phone": "+1234567890"
     });
 
-    let (status, update_response) =
-        make_request(&app, "PUT", "/api/v1/profile", Some(update_payload), Some(access_token))
-            .await;
+    let (status, update_response) = make_request(
+        &app,
+        "PUT",
+        "/api/v1/profile",
+        Some(update_payload),
+        Some(access_token),
+        None,
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(update_response["full_name"], "Updated Flow User");
@@ -201,7 +122,7 @@ async fn test_login_flow_with_token_refresh() {
     });
 
     let (status, refresh_response) =
-        make_request(&app, "POST", "/api/v1/auth/refresh", Some(refresh_payload), None).await;
+        make_request(&app, "POST", "/api/v1/auth/refresh", Some(refresh_payload), None, None).await;
 
     assert_eq!(status, StatusCode::OK);
     assert!(refresh_response["access_token"].is_string());

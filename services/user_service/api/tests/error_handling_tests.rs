@@ -4,112 +4,27 @@
 
 mod test_database;
 
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-    routing::get,
-    Json,
-};
-use http_body_util::BodyExt;
-use serde_json::{json, Value};
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use axum::routing::get;
+use axum::{Json, Router};
+use serde_json::json;
 use shared_auth::extractors::AuthUser;
 use test_database::TestDatabaseConfig;
-use tower::ServiceExt;
+use tower::ServiceExt; // For proper router method resolution
 
-/// Test helper to create app router
-async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
-    use std::sync::Arc;
-    use user_service_api::AppState;
-    use user_service_infra::auth::{
-        AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
-    };
+mod test_helpers;
+use test_helpers::{create_test_app as create_base_app, make_request};
 
-    let user_repo = PgUserRepository::new(pool.clone());
-    let tenant_repo = PgTenantRepository::new(pool.clone());
-    let session_repo = PgSessionRepository::new(pool.clone());
-
-    let jwt_secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string());
-
-    let auth_service = AuthServiceImpl::new(
-        user_repo.clone(),
-        tenant_repo.clone(),
-        session_repo,
-        jwt_secret.clone(),
-        900,
-        604800,
-    );
-
-    let database_url = std::env::var("TEST_DATABASE_URL")
-        .or_else(|_| std::env::var("DATABASE_URL"))
-        .unwrap_or_else(|_| "postgres://anthill:anthill@localhost:5433/anthill_test".to_string());
-
-    // Create dev Kanidm client for testing
-    let kanidm_config = shared_kanidm_client::KanidmConfig {
-        kanidm_url: "http://localhost:8300".to_string(),
-        client_id: "dev".to_string(),
-        client_secret: "dev".to_string(),
-        redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
-        scopes: vec!["openid".to_string()],
-        skip_jwt_verification: true, // DEV/TEST MODE ONLY
-        allowed_issuers: vec!["http://localhost:8300".to_string()],
-        expected_audience: Some("dev".to_string()),
-    };
-    let kanidm_client = shared_kanidm_client::KanidmClient::new(kanidm_config)
-        .expect("Failed to create dev Kanidm client");
-
-    let state = AppState {
-        auth_service: Arc::new(auth_service),
-        enforcer: shared_auth::enforcer::create_enforcer(&database_url, None)
-            .await
-            .expect("Failed to create enforcer"),
-        jwt_secret,
-        kanidm_client,
-        user_repo: Some(Arc::new(user_repo)),
-        tenant_repo: Some(Arc::new(tenant_repo)),
-    };
+/// Test helper to create app router with dummy profile route
+async fn create_test_app(pool: &sqlx::PgPool) -> Router {
+    let (base_router, _) = create_base_app(pool.clone()).await;
 
     // Extend the router with a dummy /api/v1/profile route for auth testing
-    user_service_api::create_router(&state).route(
+    base_router.route(
         "/api/v1/profile",
         get(|_: AuthUser| async { Json(serde_json::json!({"message": "profile endpoint"})) }),
     )
-}
-
-/// Helper to make HTTP request
-async fn make_request(
-    app: &axum::Router,
-    method: &str,
-    path: &str,
-    body: Option<Value>,
-    auth_token: Option<&str>,
-    tenant_id: Option<&str>,
-) -> (StatusCode, Value) {
-    let mut request = Request::builder()
-        .method(method)
-        .uri(path)
-        .header("Content-Type", "application/json");
-
-    if let Some(token) = auth_token {
-        request = request.header("Authorization", format!("Bearer {}", token));
-    }
-
-    if let Some(tid) = tenant_id {
-        request = request.header("X-Tenant-ID", tid);
-    }
-
-    let body_str = body
-        .map(|b| serde_json::to_string(&b).unwrap())
-        .unwrap_or_default();
-    let request = request.body(Body::from(body_str)).unwrap();
-
-    let response = app.clone().oneshot(request).await.unwrap();
-    let status = response.status();
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: Value = serde_json::from_slice(&body).unwrap_or(json!({}));
-
-    (status, json)
 }
 
 // ============================================================================
@@ -347,7 +262,7 @@ async fn test_missing_authorization_header() {
     let db = TestDatabaseConfig::new().await;
     let app = create_test_app(db.pool()).await;
 
-    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, None).await;
+    let (status, _) = make_request(&app, "GET", "/api/v1/profile", None, None, None).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
@@ -432,6 +347,7 @@ async fn test_get_nonexistent_user() {
         &format!("/api/v1/admin/users/{}", fake_uuid),
         None,
         Some(admin_token),
+        None,
     )
     .await;
 
@@ -481,6 +397,7 @@ async fn test_update_nonexistent_user() {
         &format!("/api/v1/admin/users/{}/role", fake_uuid),
         Some(payload),
         Some(admin_token),
+        None,
     )
     .await;
 
@@ -516,7 +433,8 @@ async fn test_concurrent_duplicate_registrations() {
                 "full_name": "Concurrent User"
             });
 
-            make_request(&app_clone, "POST", "/api/v1/auth/register", Some(payload)).await
+            make_request(&app_clone, "POST", "/api/v1/auth/register", Some(payload), None, None)
+                .await
         });
 
         handles.push(handle);
