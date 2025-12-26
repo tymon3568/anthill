@@ -134,16 +134,18 @@ pub async fn login<S: AuthService>(
     let tenant_identifier = if let Some(tenant_id) = headers.get("X-Tenant-ID") {
         tenant_id.to_str().ok().map(|s| s.to_string())
     } else if let Some(host) = headers.get("Host") {
-        let host_str = host.to_str().unwrap_or("");
-        // Simple subdomain extraction (naive)
-        // host: tenant.domain.com -> tenant
-        // host: localhost:8000 -> None (or default?)
-        if host_str.contains("localhost") || host_str.contains("127.0.0.1") {
-            // For local development without subdomain, require header
-            None
-        } else {
-            host_str.split('.').next().map(|s| s.to_string())
-        }
+        // Use .ok() to handle invalid headers instead of unwrap_or("") which masks errors
+        host.to_str().ok().and_then(|host_str| {
+            // Simple subdomain extraction (naive)
+            // host: tenant.domain.com -> tenant
+            // host: localhost:8000 -> None (or default?)
+            if host_str.contains("localhost") || host_str.contains("127.0.0.1") {
+                // For local development without subdomain, require header
+                None
+            } else {
+                host_str.split('.').next().map(|s| s.to_string())
+            }
+        })
     } else {
         None
     };
