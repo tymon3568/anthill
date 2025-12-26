@@ -7,6 +7,8 @@ use std::task::{Context, Poll};
 use tower::{Layer, Service};
 use tracing::{debug, warn};
 
+use crate::enforcer::SharedEnforcer;
+
 #[derive(Clone)]
 pub struct CasbinAuthLayer {
     state: AuthzState,
@@ -53,6 +55,12 @@ where
         let mut inner = self.inner.clone();
 
         Box::pin(async move {
+            let mut req = req;
+
+            // Add SharedEnforcer to request extensions for RequirePermission extractor
+            req.extensions_mut()
+                .insert::<SharedEnforcer>(state.enforcer.clone());
+
             let auth_header = req
                 .headers()
                 .get(header::AUTHORIZATION)
