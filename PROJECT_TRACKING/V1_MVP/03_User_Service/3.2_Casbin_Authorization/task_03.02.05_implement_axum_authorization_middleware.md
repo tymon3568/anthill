@@ -8,7 +8,7 @@
 **Status:** Done
 **Assignee:** Gemini
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-25
+**Last Updated:** 2025-12-26
 
 ## Detailed Description:
 Create an Axum middleware for authorization. The middleware should intercept incoming requests, extract user and request details, and use the Casbin enforcer to decide if the request is allowed.
@@ -41,3 +41,4 @@ Create an Axum middleware for authorization. The middleware should intercept inc
 ## AI Agent Log:
 ---
 * 2025-10-25 10:40: Gemini review: Verified `casbin_middleware` function in `shared/auth/src/middleware.rs` is implemented correctly. The middleware is not yet applied to the Axum router. Status updated to InProgress.
+* 2025-12-26: Jules review: Re-enabled middleware in `user_service/api/src/main.rs` using `CasbinAuthLayer`. Middleware is now correctly applied to protected routes. Task completed.
