@@ -57,7 +57,10 @@ where
         Box::pin(async move {
             let mut req = req;
 
-            // Add SharedEnforcer to request extensions for RequirePermission extractor
+            // Add AuthzState and SharedEnforcer to request extensions for extractor compatibility:
+            // - AuthUser expects Extension<AuthzState>
+            // - RequirePermission expects SharedEnforcer
+            req.extensions_mut().insert(state.clone());
             req.extensions_mut()
                 .insert::<SharedEnforcer>(state.enforcer.clone());
 
