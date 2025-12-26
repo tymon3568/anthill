@@ -333,24 +333,24 @@ async fn test_quarantine_expired_lots() {
 
     // Create test tenant
     let slug = format!("test-tenant-{}", tenant_id);
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at) VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())",
+        tenant_id,
+        "Test Tenant",
+        slug
     )
-    .bind(tenant_id)
-    .bind("Test Tenant")
-    .bind(slug)
     .execute(&pool)
     .await
     .unwrap();
 
     // Create test warehouse
-    sqlx::query(
+    sqlx::query!(
         "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at) VALUES ($1, $2, $3, $4, NOW())",
+        warehouse_id,
+        tenant_id,
+        "TESTWH",
+        "Test Warehouse"
     )
-    .bind(warehouse_id)
-    .bind(tenant_id)
-    .bind("TESTWH")
-    .bind("Test Warehouse")
     .execute(&pool)
     .await
     .unwrap();
