@@ -52,7 +52,7 @@ mod reorder_quantity_tests {
             .await
             .expect("Replenishment check should succeed");
 
-        // Suggested order quantity should be max - current = 100 - 10 = 90
+        // Suggested order quantity = max + safety_stock - current = 100 + 5 - 10 = 95
         assert!(result.needs_replenishment);
         assert_eq!(result.suggested_order_quantity, 95);
         assert!(
