@@ -5,11 +5,9 @@
 
 #![allow(dead_code)]
 
-use sqlx::PgPool;
-use std::sync::Arc;
+use sqlx::{postgres::PgPoolOptions, PgPool};
+use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
-
-use shared_db::init_pool;
 
 // ============================================================================
 // Constants
@@ -22,31 +20,25 @@ const DEFAULT_TEST_DATABASE_URL: &str = "postgres://anthill:anthill@localhost:54
 // Pool Setup
 // ============================================================================
 
-use tokio::sync::OnceCell;
-
-static TEST_POOL: OnceCell<PgPool> = OnceCell::const_new();
-
 /// Initialize a test database connection pool.
 ///
-/// Uses a singleton pattern to ensure only one pool is created for all tests,
-/// preventing "too many connections" errors.
+/// Uses a fresh pool per test run with bounded connections and acquire timeout
+/// to reduce PoolTimedOut flakiness when tests run serially.
 pub async fn setup_test_pool() -> PgPool {
-    let pool = TEST_POOL
-        .get_or_init(|| async {
-            let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-                // Log warning if using default URL in CI
-                if std::env::var("CI").is_ok() {
-                    eprintln!("WARNING: DATABASE_URL not set in CI, using default test URL");
-                }
-                DEFAULT_TEST_DATABASE_URL.to_string()
-            });
-            // Use a reasonable pool size for parallel tests
-            init_pool(&database_url, 10)
-                .await
-                .expect("Failed to initialize test pool")
-        })
-        .await;
-    pool.clone()
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        // Log warning if using default URL in CI
+        if std::env::var("CI").is_ok() {
+            eprintln!("WARNING: DATABASE_URL not set in CI, using default test URL");
+        }
+        DEFAULT_TEST_DATABASE_URL.to_string()
+    });
+
+    PgPoolOptions::new()
+        .max_connections(30)
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(&database_url)
+        .await
+        .expect("Failed to initialize test pool")
 }
 
 // ============================================================================

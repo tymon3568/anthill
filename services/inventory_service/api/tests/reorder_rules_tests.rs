@@ -54,8 +54,11 @@ mod reorder_quantity_tests {
 
         // Suggested order quantity should be max - current = 100 - 10 = 90
         assert!(result.needs_replenishment);
-        assert_eq!(result.suggested_order_quantity, 90);
-        assert!(result.suggested_order_quantity <= 100, "Should not exceed max_quantity");
+        assert_eq!(result.suggested_order_quantity, 95);
+        assert!(
+            result.suggested_order_quantity <= 105,
+            "Should not exceed max_quantity + safety_stock"
+        );
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }
@@ -93,8 +96,8 @@ mod reorder_quantity_tests {
             .expect("Replenishment check should succeed");
 
         assert!(result.needs_replenishment);
-        // Expected: max - current = 100 - 45 = 55, which is >= min(30)
-        assert_eq!(result.suggested_order_quantity, 55);
+        // Expected: (max + safety_stock) - current = 105 - 45 = 60, which is >= min(30)
+        assert_eq!(result.suggested_order_quantity, 60);
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }
@@ -174,8 +177,8 @@ mod reorder_quantity_tests {
         // Expected behavior: same as if current stock were zero
         assert!(result.needs_replenishment);
         assert_eq!(result.current_quantity, 0);
-        // Suggested = max - current = 100 - 0 = 100
-        assert_eq!(result.suggested_order_quantity, 100);
+        // Suggested = (max + safety_stock) - current = 110 - 0 = 110
+        assert_eq!(result.suggested_order_quantity, 110);
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }
@@ -214,8 +217,8 @@ mod reorder_quantity_tests {
 
         assert!(result.needs_replenishment);
         assert_eq!(result.current_quantity, 0);
-        // Suggested = max - current = 100 - 0 = 100
-        assert_eq!(result.suggested_order_quantity, 100);
+        // Suggested = (max + safety_stock) - current = 110 - 0 = 110
+        assert_eq!(result.suggested_order_quantity, 110);
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }
@@ -261,9 +264,92 @@ mod safety_stock_tests {
             .await
             .expect("Replenishment check should succeed");
 
-        // Current (11) < reorder_point (50), needs replenishment
+        // Current (11) < effective_reorder_point (reorder_point + safety_stock = 60), needs replenishment
         assert!(result.needs_replenishment);
-        assert_eq!(result.reorder_point, 50);
+        assert_eq!(result.reorder_point, 60);
+        assert_eq!(result.suggested_order_quantity, 99);
+
+        cleanup_reorder_test_data(&pool, tenant_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_safety_stock_below_threshold_triggers_replenishment() {
+        let pool = setup_test_pool().await;
+        let (tenant_id, product_id, warehouse_id) =
+            setup_test_tenant_product_warehouse(&pool).await;
+        let service = create_replenishment_service(&pool);
+
+        // Set inventory level below safety stock
+        create_inventory_level(&pool, tenant_id, product_id, warehouse_id, 8).await;
+
+        // Create reorder rule with safety_stock = 10
+        let rule = CreateReorderRule {
+            product_id,
+            warehouse_id: Some(warehouse_id),
+            reorder_point: 50,
+            min_quantity: 20,
+            max_quantity: 100,
+            lead_time_days: 7,
+            safety_stock: 10,
+        };
+
+        service
+            .create_reorder_rule(tenant_id, rule)
+            .await
+            .expect("Failed to create reorder rule");
+
+        // Check replenishment
+        let result = service
+            .check_product_replenishment(tenant_id, product_id, Some(warehouse_id))
+            .await
+            .expect("Replenishment check should succeed");
+
+        // Current (8) < effective_reorder_point (60), needs replenishment
+        assert!(result.needs_replenishment);
+        assert_eq!(result.reorder_point, 60);
+        // Suggested = (max + safety_stock) - current = 110 - 8 = 102
+        assert_eq!(result.suggested_order_quantity, 102);
+
+        cleanup_reorder_test_data(&pool, tenant_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_safety_stock_impacts_suggested_order_quantity() {
+        let pool = setup_test_pool().await;
+        let (tenant_id, product_id, warehouse_id) =
+            setup_test_tenant_product_warehouse(&pool).await;
+        let service = create_replenishment_service(&pool);
+
+        // Set inventory just below effective reorder point
+        create_inventory_level(&pool, tenant_id, product_id, warehouse_id, 55).await;
+
+        // Create reorder rule with safety_stock = 10
+        let rule = CreateReorderRule {
+            product_id,
+            warehouse_id: Some(warehouse_id),
+            reorder_point: 50,
+            min_quantity: 20,
+            max_quantity: 100,
+            lead_time_days: 7,
+            safety_stock: 10,
+        };
+
+        service
+            .create_reorder_rule(tenant_id, rule)
+            .await
+            .expect("Failed to create reorder rule");
+
+        // Check replenishment
+        let result = service
+            .check_product_replenishment(tenant_id, product_id, Some(warehouse_id))
+            .await
+            .expect("Replenishment check should succeed");
+
+        // Current (55) < effective_reorder_point (60), needs replenishment
+        assert!(result.needs_replenishment);
+        assert_eq!(result.reorder_point, 60);
+        // Suggested = (max + safety_stock) - current = 110 - 55 = 55
+        assert_eq!(result.suggested_order_quantity, 55);
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }

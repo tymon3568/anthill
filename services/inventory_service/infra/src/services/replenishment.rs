@@ -121,9 +121,11 @@ impl ReplenishmentService for PgReplenishmentService {
                 .calculate_projected_quantity(tenant_id, rule.product_id, rule.warehouse_id)
                 .await?;
             let current_quantity = projected_quantity;
-            let needs_replenishment = projected_quantity < rule.reorder_point;
+            let effective_reorder_point = rule.reorder_point + rule.safety_stock;
+            let needs_replenishment = projected_quantity < effective_reorder_point;
+            let target_quantity = rule.max_quantity + rule.safety_stock;
             let suggested_order_quantity = if needs_replenishment {
-                (rule.max_quantity - projected_quantity).max(rule.min_quantity)
+                (target_quantity - projected_quantity).max(rule.min_quantity)
             } else {
                 0
             };
@@ -137,7 +139,7 @@ impl ReplenishmentService for PgReplenishmentService {
                         warehouse_id: rule.warehouse_id,
                         current_quantity,
                         projected_quantity,
-                        reorder_point: rule.reorder_point,
+                        reorder_point: effective_reorder_point,
                         suggested_order_quantity,
                         rule_id: rule.rule_id,
                         triggered_at: chrono::Utc::now(),
@@ -165,7 +167,7 @@ impl ReplenishmentService for PgReplenishmentService {
                 warehouse_id: rule.warehouse_id,
                 current_quantity,
                 projected_quantity,
-                reorder_point: rule.reorder_point,
+                reorder_point: effective_reorder_point,
                 suggested_order_quantity,
                 needs_replenishment,
                 action_taken,
@@ -202,11 +204,13 @@ impl ReplenishmentService for PgReplenishmentService {
         let current_quantity = projected_quantity;
 
         // Check if needs replenishment
-        let needs_replenishment = projected_quantity < rule.reorder_point;
+        let effective_reorder_point = rule.reorder_point + rule.safety_stock;
+        let needs_replenishment = projected_quantity < effective_reorder_point;
 
         // Calculate suggested order quantity
+        let target_quantity = rule.max_quantity + rule.safety_stock;
         let suggested_order_quantity = if needs_replenishment {
-            (rule.max_quantity - projected_quantity).max(rule.min_quantity)
+            (target_quantity - projected_quantity).max(rule.min_quantity)
         } else {
             0
         };
@@ -223,7 +227,7 @@ impl ReplenishmentService for PgReplenishmentService {
                     warehouse_id,
                     current_quantity,
                     projected_quantity,
-                    reorder_point: rule.reorder_point,
+                    reorder_point: effective_reorder_point,
                     suggested_order_quantity,
                     rule_id: rule.rule_id,
                     triggered_at: chrono::Utc::now(),
@@ -252,7 +256,7 @@ impl ReplenishmentService for PgReplenishmentService {
             warehouse_id,
             current_quantity,
             projected_quantity,
-            reorder_point: rule.reorder_point,
+            reorder_point: effective_reorder_point,
             suggested_order_quantity,
             needs_replenishment,
             action_taken,
