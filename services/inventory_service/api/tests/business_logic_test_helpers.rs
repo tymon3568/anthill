@@ -6,7 +6,8 @@
 #![allow(dead_code)]
 
 use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::{sync::Arc, time::Duration};
+use std::{env, sync::Arc, time::Duration};
+use tokio::sync::OnceCell;
 use uuid::Uuid;
 
 // ============================================================================
@@ -22,23 +23,52 @@ const DEFAULT_TEST_DATABASE_URL: &str = "postgres://anthill:anthill@localhost:54
 
 /// Initialize a test database connection pool.
 ///
-/// Uses a fresh pool per test run with bounded connections and acquire timeout
-/// to reduce PoolTimedOut flakiness when tests run serially.
+/// Reuses a shared pool (OnceCell) with bounded connections and configurable
+/// acquire timeout to reduce PoolTimedOut flakiness while avoiding connection
+/// explosion when tests are run in parallel.
 pub async fn setup_test_pool() -> PgPool {
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
-        // Log warning if using default URL in CI
-        if std::env::var("CI").is_ok() {
+    static TEST_POOL: OnceCell<PgPool> = OnceCell::const_new();
+
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
+        if env::var("CI").is_ok() {
             eprintln!("WARNING: DATABASE_URL not set in CI, using default test URL");
         }
         DEFAULT_TEST_DATABASE_URL.to_string()
     });
 
-    PgPoolOptions::new()
-        .max_connections(30)
-        .acquire_timeout(Duration::from_secs(10))
-        .connect(&database_url)
-        .await
-        .expect("Failed to initialize test pool")
+    let max_connections = env::var("TEST_DB_MAX_CONNECTIONS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(30);
+
+    let acquire_timeout_secs = env::var("TEST_DB_ACQUIRE_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(10);
+
+    let pool_mode = env::var("TEST_DB_POOL_MODE").unwrap_or_else(|_| "shared".to_string());
+
+    if pool_mode.eq_ignore_ascii_case("fresh") || pool_mode.eq_ignore_ascii_case("per_test") {
+        return PgPoolOptions::new()
+            .max_connections(max_connections)
+            .acquire_timeout(Duration::from_secs(acquire_timeout_secs))
+            .connect(&database_url)
+            .await
+            .expect("Failed to initialize test pool");
+    }
+
+    let pool = TEST_POOL
+        .get_or_init(|| async {
+            PgPoolOptions::new()
+                .max_connections(max_connections)
+                .acquire_timeout(Duration::from_secs(acquire_timeout_secs))
+                .connect(&database_url)
+                .await
+                .expect("Failed to initialize test pool")
+        })
+        .await;
+
+    pool.clone()
 }
 
 // ============================================================================
@@ -75,8 +105,8 @@ pub fn create_replenishment_service(pool: &PgPool) -> PgReplenishmentService {
 
 /// Create a test tenant and product, returning their IDs.
 pub async fn setup_test_tenant_and_product(pool: &PgPool) -> (Uuid, Uuid) {
-    let tenant_id = Uuid::new_v4();
-    let product_id = Uuid::new_v4();
+    let tenant_id = Uuid::now_v7();
+    let product_id = Uuid::now_v7();
 
     // Insert test tenant
     sqlx::query(
@@ -98,7 +128,7 @@ pub async fn setup_test_tenant_and_product(pool: &PgPool) -> (Uuid, Uuid) {
     )
     .bind(product_id)
     .bind(tenant_id)
-    .bind(format!("TEST-{}", Uuid::new_v4()))
+    .bind(format!("TEST-{}", Uuid::now_v7()))
     .bind("Test Product")
     .execute(pool)
     .await
@@ -110,7 +140,7 @@ pub async fn setup_test_tenant_and_product(pool: &PgPool) -> (Uuid, Uuid) {
 /// Create a test tenant, product, and warehouse, returning their IDs.
 pub async fn setup_test_tenant_product_warehouse(pool: &PgPool) -> (Uuid, Uuid, Uuid) {
     let (tenant_id, product_id) = setup_test_tenant_and_product(pool).await;
-    let warehouse_id = Uuid::new_v4();
+    let warehouse_id = Uuid::now_v7();
 
     // Insert test warehouse
     sqlx::query(
@@ -121,7 +151,7 @@ pub async fn setup_test_tenant_product_warehouse(pool: &PgPool) -> (Uuid, Uuid, 
     .bind(tenant_id)
     .bind(warehouse_id)
     .bind("Test Warehouse")
-    .bind(format!("WH-{}", &Uuid::new_v4().to_string()[..8].to_uppercase()))
+    .bind(format!("WH-{}", &Uuid::now_v7().to_string()[..8].to_uppercase()))
     .execute(pool)
     .await
     .expect("Failed to insert warehouse");

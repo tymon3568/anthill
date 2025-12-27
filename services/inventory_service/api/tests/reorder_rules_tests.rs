@@ -134,7 +134,7 @@ mod reorder_quantity_tests {
             .await
             .expect("Replenishment check should succeed");
 
-        // Current quantity (100) > reorder_point (50), no replenishment needed
+        // Current quantity (100) > effective_reorder_point (50 + 5 = 55), no replenishment needed
         assert!(!result.needs_replenishment);
         assert_eq!(result.suggested_order_quantity, 0);
 
@@ -273,6 +273,49 @@ mod safety_stock_tests {
     }
 
     #[tokio::test]
+    async fn test_safety_stock_respects_min_quantity_floor() {
+        let pool = setup_test_pool().await;
+        let (tenant_id, product_id, warehouse_id) =
+            setup_test_tenant_product_warehouse(&pool).await;
+        let service = create_replenishment_service(&pool);
+
+        // Set inventory so that raw suggestion < min_quantity but still below effective reorder point
+        create_inventory_level(&pool, tenant_id, product_id, warehouse_id, 88).await;
+
+        let rule = CreateReorderRule {
+            product_id,
+            warehouse_id: Some(warehouse_id),
+            reorder_point: 90, // effective reorder point = 95
+            min_quantity: 20,
+            max_quantity: 100,
+            lead_time_days: 7,
+            safety_stock: 5,
+        };
+
+        service
+            .create_reorder_rule(tenant_id, rule)
+            .await
+            .expect("Failed to create reorder rule");
+
+        let result = service
+            .check_product_replenishment(tenant_id, product_id, Some(warehouse_id))
+            .await
+            .expect("Replenishment check should succeed");
+
+        assert!(
+            result.needs_replenishment,
+            "Should need replenishment below effective reorder point"
+        );
+        assert_eq!(result.reorder_point, 95, "Effective reorder point should include safety stock");
+        assert_eq!(
+            result.suggested_order_quantity, 20,
+            "min_quantity floor should apply when raw suggestion is below min_quantity"
+        );
+
+        cleanup_reorder_test_data(&pool, tenant_id).await;
+    }
+
+    #[tokio::test]
     async fn test_safety_stock_below_threshold_triggers_replenishment() {
         let pool = setup_test_pool().await;
         let (tenant_id, product_id, warehouse_id) =
@@ -309,6 +352,46 @@ mod safety_stock_tests {
         assert_eq!(result.reorder_point, 60);
         // Suggested = (max + safety_stock) - current = 110 - 8 = 102
         assert_eq!(result.suggested_order_quantity, 102);
+
+        cleanup_reorder_test_data(&pool, tenant_id).await;
+    }
+
+    #[tokio::test]
+    async fn test_no_replenishment_at_effective_reorder_point_with_safety_stock() {
+        let pool = setup_test_pool().await;
+        let (tenant_id, product_id, warehouse_id) =
+            setup_test_tenant_product_warehouse(&pool).await;
+        let service = create_replenishment_service(&pool);
+
+        // Set inventory at the effective reorder point (reorder_point 50 + safety_stock 10 = 60)
+        create_inventory_level(&pool, tenant_id, product_id, warehouse_id, 60).await;
+
+        let rule = CreateReorderRule {
+            product_id,
+            warehouse_id: Some(warehouse_id),
+            reorder_point: 50,
+            min_quantity: 20,
+            max_quantity: 100,
+            lead_time_days: 7,
+            safety_stock: 10,
+        };
+
+        service
+            .create_reorder_rule(tenant_id, rule)
+            .await
+            .expect("Failed to create reorder rule");
+
+        let result = service
+            .check_product_replenishment(tenant_id, product_id, Some(warehouse_id))
+            .await
+            .expect("Replenishment check should succeed");
+
+        assert!(
+            !result.needs_replenishment,
+            "At effective reorder point, no replenishment is needed"
+        );
+        assert_eq!(result.reorder_point, 60);
+        assert_eq!(result.suggested_order_quantity, 0);
 
         cleanup_reorder_test_data(&pool, tenant_id).await;
     }

@@ -41,7 +41,7 @@ suggested_order_quantity = target_quantity - projected_quantity
 - [x] 1. Research best practices for safety stock implementation in inventory systems
 - [x] 2. Decide on implementation approach (Option A, B, or C above)
 - [x] 3. Update `check_product_replenishment` in `services/inventory_service/infra/src/services/replenishment.rs`
-- [x] 4. Update `run_replenishment_check` to use same logic
+- [x] 4. Update `run_replenishment_check` to use the same logic
 - [x] 5. Update tests in `services/inventory_service/api/tests/reorder_rules_tests.rs`:
   - [x] 5.1. Test: inventory at safety_stock + 1 - verify expected behavior
   - [x] 5.2. Test: inventory below safety_stock - verify needs_replenishment and suggested_order_quantity
@@ -76,8 +76,8 @@ suggested_order_quantity = target_quantity - projected_quantity
 - 2025-12-27 07:32: Started implementation of safety stock logic; unblocked after dependency confirmation; proceeding with code changes and tests
 - 2025-12-27 08:10: Implemented Option C (effective reorder point + safety stock in order quantity), updated replenishment service and tests; cargo test --workspace failed due to DB connection refused (needs DB up for integration tests)
 - 2025-12-27 09:03: Resuming to rerun clippy and targeted reorder rule tests with DB running; awaiting database readiness/ENV confirmation and will retest with --test-threads=1 to avoid pool timeouts
-- 2025-12-27 09:08: Ran cargo clippy --workspace with DATABASE_URL/TEST_DATABASE_URL=postgres://user:password@localhost:5432/inventory_db; clippy passed successfully with DB up
+- 2025-12-27 09:08: Ran cargo clippy --workspace with DATABASE_URL/TEST_DATABASE_URL=postgres://***:***@localhost:5432/inventory_db; clippy passed successfully with DB up
 - 2025-12-27 09:10: Ran cargo test -p inventory_service_api --test reorder_rules_tests -- --nocapture --test-threads=1; 6/12 failed with PoolTimedOut while inserting tenant (init_pool max_connections=10); DB reachable; need pool/parallelism adjustment or migration/state check
-- 2025-12-27 09:28: Switched test helpers to create a fresh PgPool per run with max_connections=30 and acquire_timeout=10s; reran clippy successfully with DATABASE_URL/TEST_DATABASE_URL=postgres://user:password@localhost:5432/inventory_db
+- 2025-12-27 09:28: Switched test helpers to create a fresh PgPool per run with max_connections=30 and acquire_timeout=10s; reran clippy successfully with DATABASE_URL/TEST_DATABASE_URL=postgres://***:***@localhost:5432/inventory_db
 - 2025-12-27 09:33: Re-ran cargo test -p inventory_service_api --test reorder_rules_tests -- --nocapture --test-threads=1; 12/12 tests passed (no PoolTimedOut); ready to move task to NeedsReview
 - (Logs will be automatically updated by AI agent when starting and executing tasks)

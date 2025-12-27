@@ -23,6 +23,11 @@ git pull origin main
 
 # 4. Verify no uncommitted changes
 git status  # Should show "nothing to commit, working tree clean"
+
+# 5. Start local Postgres and export DB env (required for cargo check/clippy/tests using sqlx macros)
+docker compose -f infra/docker_compose/docker-compose.yml up -d postgres
+export DATABASE_URL=postgres://user:password@localhost:5432/inventory_db
+export TEST_DATABASE_URL=${TEST_DATABASE_URL:-$DATABASE_URL}
 ```
 
 ### **If you have uncommitted changes:**

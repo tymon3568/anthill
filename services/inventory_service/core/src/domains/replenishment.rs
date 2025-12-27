@@ -54,6 +54,7 @@ pub struct ReplenishmentCheckResult {
     pub warehouse_id: Option<Uuid>,
     pub current_quantity: i64,
     pub projected_quantity: i64,
+    /// Effective reorder point (base reorder_point + safety_stock).
     pub reorder_point: i64,
     pub suggested_order_quantity: i64,
     pub needs_replenishment: bool,

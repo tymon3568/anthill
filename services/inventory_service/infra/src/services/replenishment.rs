@@ -65,6 +65,28 @@ cross-warehouse aggregation not implemented – treating available as 0"
         // TODO: Implement full calculation with incoming stock moves and reserved quantities
         Ok(available)
     }
+
+    fn compute_replenishment_decision(
+        &self,
+        rule: &ReorderRule,
+        projected_quantity: i64,
+    ) -> (i64, i64, bool, i64) {
+        let effective_reorder_point = rule.reorder_point.saturating_add(rule.safety_stock);
+        let needs_replenishment = projected_quantity < effective_reorder_point;
+        let target_quantity = rule.max_quantity.saturating_add(rule.safety_stock);
+        let suggested_order_quantity = if needs_replenishment {
+            (target_quantity - projected_quantity).max(rule.min_quantity)
+        } else {
+            0
+        };
+
+        (
+            effective_reorder_point,
+            target_quantity,
+            needs_replenishment,
+            suggested_order_quantity,
+        )
+    }
 }
 
 #[async_trait]
@@ -121,14 +143,12 @@ impl ReplenishmentService for PgReplenishmentService {
                 .calculate_projected_quantity(tenant_id, rule.product_id, rule.warehouse_id)
                 .await?;
             let current_quantity = projected_quantity;
-            let effective_reorder_point = rule.reorder_point + rule.safety_stock;
-            let needs_replenishment = projected_quantity < effective_reorder_point;
-            let target_quantity = rule.max_quantity + rule.safety_stock;
-            let suggested_order_quantity = if needs_replenishment {
-                (target_quantity - projected_quantity).max(rule.min_quantity)
-            } else {
-                0
-            };
+            let (
+                effective_reorder_point,
+                _target_quantity,
+                needs_replenishment,
+                suggested_order_quantity,
+            ) = self.compute_replenishment_decision(&rule, projected_quantity);
 
             let action_taken = if needs_replenishment {
                 if let Some(nats) = &self.nats_client {
@@ -193,7 +213,20 @@ impl ReplenishmentService for PgReplenishmentService {
             return Err(AppError::NotFound("No reorder rule found for product".to_string()));
         }
 
-        let rule = &rules[0]; // Take first if multiple
+        if warehouse_id.is_none() && rules.len() > 1 {
+            return Err(AppError::ValidationError(
+                "Multiple reorder rules found; specify warehouse_id".to_string(),
+            ));
+        }
+
+        let rule = if let Some(wh) = warehouse_id {
+            rules
+                .iter()
+                .find(|r| r.warehouse_id == Some(wh))
+                .unwrap_or(&rules[0])
+        } else {
+            &rules[0]
+        };
 
         // Calculate projected quantity
         let projected_quantity = self
@@ -203,17 +236,12 @@ impl ReplenishmentService for PgReplenishmentService {
         // Get current quantity (same as projected for now)
         let current_quantity = projected_quantity;
 
-        // Check if needs replenishment
-        let effective_reorder_point = rule.reorder_point + rule.safety_stock;
-        let needs_replenishment = projected_quantity < effective_reorder_point;
-
-        // Calculate suggested order quantity
-        let target_quantity = rule.max_quantity + rule.safety_stock;
-        let suggested_order_quantity = if needs_replenishment {
-            (target_quantity - projected_quantity).max(rule.min_quantity)
-        } else {
-            0
-        };
+        let (
+            effective_reorder_point,
+            _target_quantity,
+            needs_replenishment,
+            suggested_order_quantity,
+        ) = self.compute_replenishment_decision(rule, projected_quantity);
 
         let mut action_taken = None;
 
