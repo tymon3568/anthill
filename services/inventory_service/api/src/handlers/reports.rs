@@ -88,8 +88,8 @@ pub struct LowStockEntry {
     pub product_name: String,
     /// Current stock quantity
     pub current_stock: i64,
-    /// Reorder point
-    pub reorder_point: i64,
+    /// Effective reorder point (reorder_point + safety_stock)
+    pub effective_reorder_point: i64,
     /// Warehouse ID
     pub warehouse_id: Option<Uuid>,
     /// Warehouse name
@@ -401,7 +401,7 @@ pub async fn get_low_stock(
             p.product_id,
             p.name as product_name,
             COALESCE(SUM(sm.quantity), 0)::BIGINT as current_stock,
-            rr.reorder_point,
+            (rr.reorder_point + rr.safety_stock) as effective_reorder_point,
             w.warehouse_id,
             w.name as warehouse_name
         FROM products p
@@ -415,9 +415,9 @@ pub async fn get_low_stock(
         AND rr.deleted_at IS NULL
         AND (rr.warehouse_id IS NULL OR rr.warehouse_id = w.warehouse_id)
         AND ($2::UUID IS NULL OR w.warehouse_id = $2)
-        GROUP BY p.product_id, p.name, rr.reorder_point, w.warehouse_id, w.name
-        HAVING COALESCE(SUM(sm.quantity), 0) < rr.reorder_point
-        ORDER BY (rr.reorder_point - COALESCE(SUM(sm.quantity), 0)) DESC
+        GROUP BY p.product_id, p.name, rr.reorder_point, rr.safety_stock, w.warehouse_id, w.name
+        HAVING COALESCE(SUM(sm.quantity), 0) < (rr.reorder_point + rr.safety_stock)
+        ORDER BY ((rr.reorder_point + rr.safety_stock) - COALESCE(SUM(sm.quantity), 0)) DESC
     "#;
 
     let entries = sqlx::query_as::<_, LowStockEntry>(sql)
