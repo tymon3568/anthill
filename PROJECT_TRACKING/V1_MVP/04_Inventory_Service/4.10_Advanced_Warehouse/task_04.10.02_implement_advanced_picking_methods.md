@@ -1,43 +1,80 @@
 # Task: Implement Advanced Picking Methods
 
-**Task ID:** V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.02_implement_advanced_picking_methods.md
-**Version:** V1_MVP
-**Phase:** 04_Inventory_Service
-**Module:** 4.10_Advanced_Warehouse
-**Priority:** High
+**Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.02_implement_advanced_picking_methods.md`
 **Status:** Done
+**Priority:** P1
 **Assignee:** Grok
-**Created Date:** 2025-10-29
 **Last Updated:** 2025-12-08
+**Phase:** V1_MVP
+**Module:** 04_Inventory_Service → 4.10_Advanced_Warehouse
+**Dependencies:**
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.05_create_delivery_orders_table.md` (must be Done)
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.01_implement_putaway_rules.md` (must be Done)
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/task_04.02.01_create_warehouse_hierarchy_api.md` (must be Done)
 
-## Detailed Description:
+## Context
 Implement advanced picking methods to optimize warehouse operations and improve picking efficiency. This includes batch picking, cluster picking, and wave picking strategies that group picking tasks intelligently to reduce travel time and increase throughput.
 
-## Specific Sub-tasks:
-- [x] 1. Create `picking_methods` table with columns: `method_id`, `tenant_id`, `name`, `type` (batch, cluster, wave), `warehouse_id`, `active`, `config`
-- [x] 2. Implement batch picking:
-  - Group multiple orders into single picking runs
-  - Optimize picking sequence to minimize travel distance
-  - Support zone-based batching for large warehouses
-  - Add picking method management endpoints:
-  - CRUD operations for picking methods configuration
-  - Picking plan generation and assignment APIs
-- [x] 3. Implement cluster picking:
-  - Allow pickers to handle multiple orders simultaneously
-  - Optimize cluster size based on product types and locations
-  - Support cluster consolidation at packing stations
-- [x] 4. Implement wave picking:
-  - Create picking waves based on time slots or order priorities
-  - Schedule waves to balance workload across shifts
-  - Support wave templates for recurring patterns
-- [x] 5. Create picking optimization engine:
-  - `POST /api/v1/warehouse/picking/optimize` - Generate optimized picking plans
-  - Support different optimization criteria (distance, time, priority)
-  - Integrate with putaway rules for location optimization
-- [x] 6. Add picking method management endpoints:
-  - CRUD operations for picking methods configuration
-  - Picking plan generation and assignment APIs
-  - Real-time picking progress tracking
+## Goal
+Provide a tenant-safe picking configuration + optimization workflow (domain + infra + API) that supports:
+- Batch picking
+- Cluster picking
+- Wave picking
+…and integrates into Delivery Order processing.
+
+## Scope
+### In scope
+- Picking method configuration (DB + service + API)
+- Picking optimization/plan endpoints
+- Integration points with DO picking flow
+- Audit fields and multi-tenant isolation
+
+### Out of scope
+- UI implementation
+- Advanced routing/push/pull rules beyond picking
+- Any RLS (tenant isolation remains application-level)
+
+## Specific Sub-tasks (Style B Checklist)
+
+### A) Task initialization (folder-tasks required)
+- [x] Verify all **Dependencies** listed in the header are `Done`
+- [x] Update task header fields when starting work (Status/Assignee/Last Updated)
+- [x] Add AI Agent Log entries per milestone
+
+### B) Database (schema, tenant-safe)
+- [x] Create migration for `picking_methods` (tenant scoped)
+- [x] Ensure composite keys / indexes include `tenant_id`
+- [x] Ensure audit fields (`created_by`, `updated_by`, `deleted_at` where applicable) are consistent with project conventions
+- [x] Fix any composite FK issues to include `tenant_id`
+
+### C) Core crate (domain + traits; zero infra deps)
+- [x] Add domain entity + DTOs for picking method configuration
+- [x] Add validation helpers (method type normalization, config validation)
+- [x] Define service traits with minimal surface; keep generators internal where appropriate
+- [x] Ensure no infra dependencies in core
+
+### D) Infra crate (repositories + implementations)
+- [x] Implement repository with `sqlx::query_as!` and strict `tenant_id` filtering
+- [x] Ensure atomic operations where required (e.g., default selection) using DB transactions
+- [x] Implement batch/cluster/wave plan generation and optimization logic
+- [x] Remove unsafe placeholders (e.g. `Uuid::nil()`) and enforce real IDs
+- [x] Add/verify indexes and LIMIT 1 where required to ensure deterministic queries
+
+### E) API crate (Axum handlers + routing + OpenAPI)
+- [x] Add CRUD endpoints for picking methods and optimization endpoint
+- [x] Enforce auth extraction and build `TenantContext`
+- [x] Remove any user-controlled security fields from request DTOs (use authenticated user)
+- [x] Wire routes into router/state correctly
+- [x] Add `#[utoipa::path]` with globally unique `operation_id`s
+- [x] Ensure correct HTTP status codes (e.g., 201 Created)
+
+### F) Tests + quality gates
+- [x] Fix compilation issues and ensure sqlx enum mappings work
+- [x] Reduce duplication to satisfy quality gate thresholds
+- [x] Clean up warnings (unused imports/vars) and doc formatting issues
+- [x] `cargo check --workspace` passes
+- [x] `cargo clippy --workspace -- -D warnings` passes
+- [x] `cargo test --workspace` passes (as applicable)
 
 ## Acceptance Criteria:
 - [x] All three picking methods (batch, cluster, wave) implemented

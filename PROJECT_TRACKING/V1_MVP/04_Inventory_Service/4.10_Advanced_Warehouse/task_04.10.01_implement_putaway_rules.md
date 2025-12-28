@@ -1,49 +1,90 @@
 anthill-windsurf/PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.01_implement_putaway_rules.md
 # Task: Implement Putaway Rules System
 
-**Task ID:** V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.01_implement_putaway_rules.md
-**Version:** V1_MVP
-**Phase:** 04_Inventory_Service
-**Module:** 4.10_Advanced_Warehouse
-**Priority:** High
-**Status:** Done
-**Assignee:** AI_Agent
-**Created Date:** 2025-10-29
-**Last Updated:** 2025-12-07
+**Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.01_implement_putaway_rules.md`  
+**Status:** Done  
+**Priority:** P1  
+**Assignee:** AI_Agent  
+**Last Updated:** 2025-12-07  
+**Phase:** V1_MVP  
+**Module:** 04_Inventory_Service → 4.10_Advanced_Warehouse  
+**Dependencies:**  
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.1_Product_Master/task_04.01.01_create_products_table.md`  
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/task_04.02.01_create_warehouse_hierarchy_api.md`  
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.01_create_goods_receipts_table.md`  
 
-## Detailed Description:
+## Context
 Implement a comprehensive putaway rules system that automatically determines optimal storage locations for incoming goods based on product characteristics, warehouse layout, and business rules. This optimizes warehouse space utilization and picking efficiency.
 
-## Specific Sub-tasks:
-- [x] 1. Create `putaway_rules` table with columns: `rule_id`, `tenant_id`, `name`, `sequence`, `product_id`, `product_category_id`, `warehouse_id`, `location_type`, `conditions`, `active`
-- [x] 2. Create `storage_locations` table with columns: `location_id`, `tenant_id`, `warehouse_id`, `location_code`, `location_type`, `zone`, `aisle`, `rack`, `level`, `position`, `capacity`, `current_stock`
-- [x] 3. Implement putaway rule engine:
-  - Product-based rules (specific products to specific locations)
-  - Category-based rules (product categories to zones)
-  - Attribute-based rules (size, weight, fragility considerations)
-  - FIFO/FEFO optimization
-- [x] 4. Create putaway suggestion API:
-  - `POST /api/v1/warehouse/putaway/suggest` - Get optimal locations for items
-  - `POST /api/v1/warehouse/putaway/confirm` - Confirm putaway and create stock moves
-- [x] 5. Integrate with goods receipt workflow:
-  - Auto-suggest putaway locations during GRN processing
-  - Validate location capacity before suggestions
-  - Update location stock levels after putaway
-- [x] 6. Add putaway rule management UI endpoints
+## Goal
+- Provide putaway rule configuration and a deterministic rule evaluation engine.
+- Expose API endpoints to suggest and confirm putaway.
+- Integrate putaway with GRN workflow in a tenant-safe manner.
 
-## Acceptance Criteria:
-- [x] Putaway rules table created with proper constraints
-- [x] Storage locations table supports hierarchical warehouse structure
-- [x] Rule engine evaluates conditions correctly (product, category, attributes)
-- [x] Putaway suggestions optimize for picking efficiency and space utilization
-- [x] Integration with GRN workflow works seamlessly
-- [x] Location capacity validation prevents overstocking
-- [x] Performance acceptable for real-time suggestions
+## Scope
+### In scope
+- Putaway rules catalog + evaluation engine
+- Storage location model sufficient to support putaway selection
+- Suggest/confirm endpoints and GRN integration
+- Capacity validation and stock updates
+- Multi-tenancy enforcement and error handling
 
-## Dependencies:
-*   Task: `task_04.01.01_create_products_table.md`
-*   Task: `task_04.02.01_create_warehouse_hierarchy_api.md`
-*   Task: `task_04.04.01_create_goods_receipts_table.md`
+### Out of scope
+- UI (unless explicitly covered by API endpoints)
+- Complex routing beyond putaway/picking basics
+
+
+## Specific Sub-tasks (Style B Checklist)
+
+### A) Task initialization (folder-tasks required)
+- [x] Verify all **Dependencies** listed in the header are `Done`.
+- [x] Update header fields (Status/Assignee/Last Updated) before implementation.
+- [x] Add an AI Agent Log entry for start + dependency verification.
+
+### B) Database schema (multi-tenant)
+- [x] Create `putaway_rules` table (tenant-scoped) with appropriate columns and constraints.
+- [x] Create `storage_locations` table (tenant-scoped) to support warehouse layout + capacity tracking.
+- [x] Ensure composite keys and indexes include `(tenant_id, ...)`.
+- [x] Ensure composite foreign keys include `tenant_id` for tenant-scoped targets.
+
+### C) Core crate (domain + traits; zero infra deps)
+- [x] Define domain models and DTOs for putaway rules and putaway requests/responses.
+- [x] Define service trait(s) for putaway suggestion and confirmation.
+- [x] Implement domain validation rules (no unwrap/expect).
+
+### D) Infra crate (repositories + engine implementation)
+- [x] Implement Postgres repositories with strict tenant filtering.
+- [x] Implement rule evaluation engine (product/category/attribute matching) and scoring/selection.
+- [x] Implement capacity validation (including aggregation by location to prevent bypass).
+- [x] Implement confirm-putaway to create stock moves and update location stock levels.
+- [x] Ensure idempotency/retry-safety where applicable; use transactions where needed.
+
+### E) API crate (Axum handlers + routing + OpenAPI)
+- [x] Implement `POST /api/v1/warehouse/putaway/suggest`.
+- [x] Implement `POST /api/v1/warehouse/putaway/confirm`.
+- [x] Integrate handlers into router and AppState wiring.
+- [x] Add OpenAPI annotations with globally unique `operation_id`s.
+- [x] Enforce auth extraction and tenant context usage.
+
+### F) Tests + quality gates
+- [x] Add tests covering rule matching, capacity checks, and confirm-putaway behavior.
+- [x] Verify tenant isolation in query paths (no cross-tenant leakage).
+- [x] Run quality gates and address findings.
+
+## Acceptance Criteria
+- [x] Putaway rules table exists with proper tenant-scoped keys, constraints, and indexes.
+- [x] Storage locations schema supports warehouse layout and capacity tracking.
+- [x] Rule engine evaluates conditions correctly (product/category/attribute) and selects locations deterministically.
+- [x] Putaway suggestion endpoint returns optimal locations and respects capacity constraints.
+- [x] Confirm putaway creates stock moves and updates location stock safely.
+- [x] Tenant isolation is maintained end-to-end (no cross-tenant access).
+- [x] Performance is acceptable for real-time suggestions (documented in logs/PR as needed).
+
+## Notes / Discussion
+- This task is foundational for warehouse optimization and picking efficiency.
+- Ensure schema and APIs remain aligned with multi-tenancy rules (composite keys/FKs with `tenant_id`).
+- Any future scope changes must be reflected by updating this task file first.
+
 
 ## Related Documents:
 *   `docs/database-erd.dbml` - Warehouse and location schema

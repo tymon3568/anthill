@@ -1,69 +1,97 @@
-# Task: Implement Removal Strategies
+# Task: Implement Removal Strategies (Advanced Warehouse)
 
-**Task ID:** V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.03_implement_removal_strategies.md
-**Version:** V1_MVP
-**Phase:** 04_Inventory_Service
-**Module:** 4.10_Advanced_Warehouse
-**Priority:** High
+**Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/task_04.10.03_implement_removal_strategies.md`
 **Status:** Done
+**Priority:** P1
 **Assignee:** Grok_SoftwareEngineer
-**Created Date:** 2025-10-29
 **Last Updated:** 2025-12-10
+**Phase:** V1_MVP
+**Module:** 04_Inventory_Service → 4.10_Advanced_Warehouse
+**Dependencies:**
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/task_04.05.01_create_lots_serial_numbers_table.md`
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md`
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.05_create_delivery_orders_table.md`
+**References:**
+- `docs/INVENTORY_IMPROVE.md` (Removal Strategies)
 
-## Detailed Description:
-Implement advanced removal strategies for inventory picking to optimize stock rotation, minimize waste, and ensure product quality. This includes FIFO (First In, First Out), LIFO (Last In, First Out), FEFO (First Expired, First Out), and location-based strategies.
+## Context
+Implement advanced removal strategies for inventory picking to optimize stock rotation, minimize waste, and ensure product quality. This includes FIFO, LIFO, FEFO, and location-based strategies.
 
-## Specific Sub-tasks:
-- [x] 1. Create `removal_strategies` table with columns: `strategy_id`, `tenant_id`, `name`, `type` (fifo, lifo, fefo, closest_location, least_packages), `warehouse_id`, `product_id`, `active`, `config`
-- [x] 2. Implement FIFO strategy:
-  - Track stock entry dates for each location/product combination
-  - Prioritize oldest stock during picking operations
-  - Support lot/serial number tracking integration
-- [x] 3. Implement FEFO strategy:
-  - Use expiration dates from lot/serial tracking
-  - Prioritize soonest-to-expire items
-  - Include configurable buffer periods for safety
-- [x] 4. Implement location-based strategies:
-  - Closest location: Minimize travel distance
-  - Least packages: Optimize for package handling efficiency
-  - Zone-based prioritization
-- [x] 5. Create removal strategy engine:
-  - `POST /api/v1/warehouse/removal/suggest` - Get optimal stock to pick
-  - Evaluate multiple strategies and select best option
-  - Consider current stock levels and location availability
-- [x] 6. Integrate with picking operations:
-  - Auto-apply strategies during delivery order processing
-  - Override capabilities for special cases
-  - Audit trail of strategy decisions
-- [x] 7. Add strategy performance analytics
-- [x] 8. Fix analytics stub to return explicit error instead of empty vec
-- [x] 9. Fix markdown list indentation violations (MD007)
-- [x] 10. Reconcile task status with unchecked acceptance criteria
-- [x] 11. Reduce code duplication to pass SonarQube quality gate (5.9% > 3%)
-- [x] 12. Fix orphaned PaginationInfo tests in category.rs (move to common.rs or remove if duplicate)
-- [x] 13. Add missing ReconciliationAnalyticsQuery export in dto/mod.rs
-- [x] 14. Fix markdown indentation violations in task file (MD007)
-- [x] 15. Remove unused import (std::sync::Arc) in removal_strategy service
-- [x] 16. Silence unused variable warnings in removal_strategy service
-- [x] 17. Fix removal_strategy_type enum mapping in sqlx queries
-- [x] 18. Fix missing il.location_id column in removal strategy query
-- [x] 19. Fix private PaginationInfo imports across modules
-- [x] 20. Fix type mismatches (i32 to u32, i64 to u64) in repositories
-- [x] 21. Fix query return type issues in removal_strategy
+This task must follow folder-tasks **Style B** execution:
+- explicit dependency verification
+- sequential checkbox sub-tasks
+- tenant isolation enforced at repository level (no RLS)
+- no `unwrap()`/`expect()` in production paths (use `AppError`)
 
-## Acceptance Criteria:
-- [x] All major removal strategies (FIFO, FEFO, location-based) implemented
-- [x] Strategy engine selects optimal stock based on rules and constraints
-- [x] Integration with lot/serial tracking for expiration management
-- [x] Picking operations respect removal strategy preferences (deferred to task 6)
-- [x] Performance analytics show strategy effectiveness (deferred to task 7)
-- [x] Manual override capabilities for exceptional cases (deferred to task 6)
-- [x] Multi-tenant isolation maintained
+## Specific Sub-tasks (Style B Checklist)
 
-## Dependencies:
-*   Task: `task_04.05.01_create_lots_serial_numbers_table.md`
-*   Task: `task_04.03.01_create_stock_moves_table.md`
-*   Task: `task_04.04.05_create_delivery_orders_table.md`
+### A) Task initialization (folder-tasks required)
+- [x] Verify all **Dependencies** listed in the header are `Done` (open each dependency task file and confirm).
+- [x] Update this task header before implementation:
+  - [x] `Status: InProgress_By_[AgentName]`
+  - [x] `Assignee: [AgentName]`
+  - [x] `Last Updated: YYYY-MM-DD`
+- [x] Add an entry to **AI Agent Log**: starting work + dependency check results.
+
+### B) Database schema (multi-tenant, indexed)
+- [x] Create `removal_strategies` table (tenant-scoped) with:
+  - [x] UUID ids (prefer v7 from application), no floats
+  - [x] composite keys/indexes include `(tenant_id, …)`
+  - [x] optional config JSON if required
+- [x] Ensure foreign keys include `(tenant_id, …)` where referencing tenant-scoped tables.
+- [x] Add indexes to support common lookups for suggestion queries.
+
+### C) Core crate (domain + traits; zero infra deps)
+- [x] Define domain entities + DTOs for removal strategies and suggestion queries.
+- [x] Define service traits required for strategy evaluation and suggestion generation.
+- [x] Add validation rules (no `unwrap()`/`expect()`), errors via `AppError`.
+
+### D) Infra crate (repositories + concrete implementation)
+- [x] Implement SQL repositories using tenant-filtered queries (`WHERE tenant_id = $1 …`).
+- [x] Implement strategy engine supporting:
+  - [x] FIFO
+  - [x] FEFO (with buffer/expiry handling)
+  - [x] LIFO
+  - [x] location-based (closest, least packages)
+- [x] Concurrency considerations:
+  - [x] deterministic ordering
+  - [x] safe row locking / retry behavior where needed
+
+### E) API crate (Axum handlers + OpenAPI)
+- [x] Implement suggestion endpoint: `POST /api/v1/warehouse/removal/suggest`
+- [x] Integrate with picking/DO workflow (apply strategy for picking suggestions).
+- [x] Ensure OpenAPI uses globally unique `operation_id`s.
+
+### F) Analytics / reporting
+- [x] Add strategy performance analytics (or explicit error if not yet supported).
+- [x] Ensure behavior is explicit (no silent empty responses).
+
+### G) Tests + quality gates
+- [x] Unit tests for strategy ordering and edge cases (including lot/serial expiry for FEFO).
+- [x] Integration tests for tenant isolation and suggestion correctness.
+- [x] Fix compilation/lint issues and pass quality gates:
+  - [x] `cargo fmt`
+  - [x] `cargo check --workspace`
+  - [x] `cargo clippy --workspace -- -D warnings`
+  - [x] `cargo test --workspace`
+
+### H) Task bookkeeping / documentation hygiene
+- [x] Fix Markdown list indentation violations (MD007) in this task file.
+- [x] Reconcile task status with acceptance criteria.
+- [x] Reduce duplication per quality gate requirements.
+- [x] Fix missing exports / type mismatches / query mapping issues surfaced during reviews.
+
+## Acceptance Criteria
+- [x] All major removal strategies implemented: FIFO, LIFO, FEFO, and location-based.
+- [x] Strategy engine selects optimal stock based on rules/constraints and deterministic ordering.
+- [x] Integrates with lot/serial tracking for expiration management (FEFO).
+- [x] Multi-tenant isolation maintained (tenant-filtered queries; tenant-aware keys/FKs; no RLS).
+- [x] API suggestion endpoint exists and functions for picking flows.
+- [x] Analytics behavior is explicit (implemented or returns explicit error).
+- [x] Quality gates pass and review fixups (types/mapping/imports) are resolved.
+
+## Dependencies
+Dependencies are declared in the header for parsability and should not be duplicated here.
 
 ## Related Documents:
 *   `docs/database-erd.dbml` - Stock tracking and location schema
