@@ -81,7 +81,7 @@ suggested_order_quantity = target_quantity - projected_quantity
 - 2025-12-27 09:28: Switched test helpers to create a fresh PgPool per run with max_connections=30 and acquire_timeout=10s; reran clippy successfully with DATABASE_URL/TEST_DATABASE_URL=postgres://***:***@localhost:5432/inventory_db
 - 2025-12-27 09:33: Re-ran cargo test -p inventory_service_api --test reorder_rules_tests -- --nocapture --test-threads=1; 12/12 tests passed (no PoolTimedOut); ready to move task to NeedsReview
 - 2025-12-29 10:50: Task reviewed and marked Done by Claude
-  - All sub-tasks completed (5/6, API docs is minor/optional)
+  - All sub-tasks completed (5/6, API docs are minor/optional)
   - All acceptance criteria met
   - Safety stock implemented using Option C (effective reorder point + safety stock in order quantity)
   - Tests pass with DB running

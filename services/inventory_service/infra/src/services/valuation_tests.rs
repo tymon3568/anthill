@@ -749,8 +749,8 @@ mod tests {
 
         let mut valuation = create_test_valuation(tenant_id, product_id);
         valuation.total_quantity = 1_000_000;
-        valuation.current_unit_cost = Some(999_999_99);
-        valuation.total_value = 999_999_990_000_000;
+        valuation.current_unit_cost = Some(99_999_999);
+        valuation.total_value = 99_999_999_000_000;
 
         mock_repo
             .expect_find_by_product_id()

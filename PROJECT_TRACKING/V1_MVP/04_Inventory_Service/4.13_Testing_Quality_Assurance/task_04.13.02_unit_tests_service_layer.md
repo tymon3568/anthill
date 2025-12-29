@@ -8,7 +8,7 @@
 **Status:** NeedsReview
 **Assignee:** AI_Agent
 **Created Date:** 2025-12-12
-**Last Updated:** 2025-01-14
+**Last Updated:** 2025-12-29
 **PR:** #97
 
 ## Detailed Description:
@@ -16,15 +16,15 @@ Implement unit tests for service layer implementations in `inventory_service_inf
 
 ## Specific Sub-tasks:
 - [x] 1. Set up mock infrastructure using mockall crate
-    - [x] 1.1. Create MockCategoryRepository (existing)
-    - [x] 1.2. Create MockProductRepository
-    - [x] 1.3. Create MockLotSerialRepository
-    - [x] 1.4. Create MockStockMoveRepository
-    - [x] 1.5. Create MockReorderRuleRepository
-    - [x] 1.6. Create MockInventoryLevelRepository
-    - [x] 1.7. Create MockValuationRepository
-    - [x] 1.8. Create MockValuationLayerRepository
-    - [x] 1.9. Create MockValuationHistoryRepository
+  - [x] 1.1. Create MockCategoryRepository (existing)
+  - [x] 1.2. Create MockProductRepository
+  - [x] 1.3. Create MockLotSerialRepository
+  - [x] 1.4. Create MockStockMoveRepository
+  - [x] 1.5. Create MockReorderRuleRepository
+  - [x] 1.6. Create MockInventoryLevelRepository
+  - [x] 1.7. Create MockValuationRepository
+  - [x] 1.8. Create MockValuationLayerRepository
+  - [x] 1.9. Create MockValuationHistoryRepository
 - [x] 2. Write tests for CategoryService
     - [x] 2.1. create_category (validation, parent existence check)
     - [x] 2.2. update_category (field updates, name uniqueness)

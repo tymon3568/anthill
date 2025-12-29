@@ -55,8 +55,8 @@ Implement a set of advanced inventory reports to provide business insights.
     - Files modified: handlers/reports.rs, routes/reports.rs
 
 *   2025-12-29 10:55: Task reviewed and marked Done by Claude
-    - All sub-tasks completed and verified
-    - All acceptance criteria met
-    - 4 report endpoints implemented: aging, turnover, low-stock, dead-stock
-    - Code compiles and passes quality checks
-    - Status: Done
+  - All sub-tasks completed and verified
+  - All acceptance criteria met
+  - 4 report endpoints implemented: aging, turnover, low-stock, dead-stock
+  - Code compiles and passes quality checks
+  - Status: Done

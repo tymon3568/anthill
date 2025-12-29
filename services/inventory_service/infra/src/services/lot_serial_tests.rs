@@ -1,6 +1,6 @@
-//! Unit tests for LotSerialServiceImpl using mocks
+//! Unit tests for lot/serial repository interactions using mocks
 //!
-//! These tests validate the repository interactions for lot/serial tracking,
+//! These tests validate the repository trait contracts for lot/serial tracking,
 //! supporting both lot-based and serial-based inventory tracking.
 
 use chrono::{Duration, Utc};
