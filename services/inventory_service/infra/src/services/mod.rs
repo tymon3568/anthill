@@ -25,7 +25,15 @@ pub mod valuation;
 #[cfg(test)]
 mod category_tests;
 #[cfg(test)]
+mod inventory_tests;
+#[cfg(test)]
+mod lot_serial_tests;
+#[cfg(test)]
 mod product_tests;
+#[cfg(test)]
+mod replenishment_tests;
+#[cfg(test)]
+mod valuation_tests;
 
 // Re-export services for convenience
 pub use cache::{RedisCache, SharedCache, SharedInventoryCache, SharedProductCache};

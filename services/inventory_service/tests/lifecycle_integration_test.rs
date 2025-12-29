@@ -77,7 +77,7 @@ async fn test_lot_serial_lifecycle_endpoint() {
             Arc::new(inventory_service_infra::repositories::receipt::ReceiptRepositoryImpl::new(pool.clone())),
             inventory_service_infra::repositories::product::ProductRepositoryImpl::new(pool.clone()),
         )),
-        delivery_service: Arc::new(inventory_service_api::DummyDeliveryService {}),
+        delivery_service: Arc::new(inventory_service_api::StubDeliveryService),
         transfer_service: Arc::new(inventory_service_infra::services::transfer::PgTransferService::new(
             Arc::new(inventory_service_infra::repositories::transfer::TransferRepositoryImpl::new(pool.clone())),
             Arc::new(inventory_service_infra::repositories::transfer::TransferItemRepositoryImpl::new(pool.clone())),

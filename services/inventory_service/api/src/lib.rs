@@ -21,6 +21,7 @@ pub mod worker;
 
 // Re-export main components for convenience
 pub use routes::create_router;
+pub use routes::StubDeliveryService;
 
 use axum::Router;
 use shared_config::Config;

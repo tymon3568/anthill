@@ -5,7 +5,7 @@ use std::sync::Arc;
 use axum::Router;
 use sqlx::{migrate::Migrator, PgPool};
 
-use inventory_service_api::routes::DummyDeliveryService;
+use inventory_service_api::routes::StubDeliveryService;
 
 use inventory_service_infra::repositories::{
     CategoryRepositoryImpl, LotSerialRepositoryImpl, PgDeliveryOrderItemRepository,
@@ -178,7 +178,7 @@ pub async fn create_test_app(pool: PgPool) -> Router {
             product_repo_impl.clone(), // Needs concrete type, not dyn
             distributed_lock_service.clone(),
         )),
-        delivery_service: Arc::new(DummyDeliveryService {}),
+        delivery_service: Arc::new(StubDeliveryService),
         transfer_service: Arc::new(PgTransferService::new(
             transfer_repo,
             transfer_item_repo,
