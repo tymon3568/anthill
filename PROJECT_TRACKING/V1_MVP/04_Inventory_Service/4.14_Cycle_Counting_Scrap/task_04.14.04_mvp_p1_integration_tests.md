@@ -210,6 +210,10 @@ All dependencies are listed in the header. Before starting:
 - [x] **reports_mvp_integration_tests.rs:550** - Test asserts `report["group_by"]` but API returns array not object (Severity: Warning/P2, Reviewer: cubic-dev-ai) ✅ Fixed - now asserts report.is_array() since group_by is query param not response field
 - [x] **scrap_integration_tests.rs:897** - Vacuous assertions: `unwrap_or_default()` + iteration means zero assertions if rows empty (Severity: Warning/P2, Reviewer: cubic-dev-ai) ✅ Fixed - added explicit checks that expected records exist
 
+### Round 3 Issues (Post-commit 9f39b6f)
+- [x] **cycle_count_integration_tests.rs:638-663** - DB tenant isolation test uses `unwrap_or_default()` and lacks explicit assertions that expected records exist (Severity: Warning, Reviewer: coderabbitai) ✅ Fixed - replaced with `.expect()` and added explicit existence assertions
+- [x] **reports_mvp_integration_tests.rs:756-774** - DB tenant isolation test uses `unwrap_or_default()` and lacks explicit assertions (Severity: Warning, Reviewer: coderabbitai) ✅ Fixed - replaced with `.expect()` and added explicit existence assertions
+
 ### Suggestions (Nice-to-have) - Deferred
 - [ ] **scrap_integration_tests.rs:144-153** - Add more `validate_scrap_line` edge case tests (Severity: Nitpick, Reviewer: sourcery-ai)
 - [ ] **scrap_integration_tests.rs:464-473** - Extend scrap posting test to assert inventory impact (Severity: Nitpick, Reviewer: sourcery-ai)
@@ -219,6 +223,18 @@ All dependencies are listed in the header. Before starting:
 
 ## AI Agent Log
 ---
+* 2025-12-30 13:00: PR #124 Round 3 review issues FIXED by Claude
+  - **All Round 3 issues resolved (2/2):**
+    - cycle_count_integration_tests.rs:638-663 - Replaced `unwrap_or_default()` with `.expect()`, added explicit assertions that each tenant sees their own stock_take
+    - reports_mvp_integration_tests.rs:756-774 - Replaced `unwrap_or_default()` with `.expect()`, added explicit assertions that each tenant sees their own product
+  - **Files modified:**
+    - `services/inventory_service/api/tests/cycle_count_integration_tests.rs`
+    - `services/inventory_service/api/tests/reports_mvp_integration_tests.rs`
+  - **Quality gates:**
+    - `cargo fmt` ✓
+    - `cargo check --workspace` ✓
+  - **Status:** NeedsReview (all Round 3 issues resolved)
+
 * 2025-12-30 12:40: PR #124 Round 2 review issues FIXED by Claude
   - **All Round 2 issues resolved (4/4):**
     - cycle_count_integration_tests.rs:545 - Fixed JSON path to access nested `cycle_count` object

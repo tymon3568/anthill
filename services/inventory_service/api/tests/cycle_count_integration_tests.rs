@@ -640,11 +640,16 @@ async fn test_cycle_count_tenant_filter_in_queries() {
             .bind(tenant_a_id)
             .fetch_all(&pool)
             .await
-            .unwrap_or_default();
+            .expect("Failed to query stock_takes for tenant A");
 
-    // Verify tenant A only sees their stock takes
+    // Explicit check that tenant A sees their own stock take
+    assert!(
+        rows_a.iter().any(|(id,)| *id == stock_take_a_id),
+        "Tenant A should see their own stock take"
+    );
+
+    // Verify tenant A only sees their stock takes (not tenant B's)
     for (id,) in &rows_a {
-        // Should not see tenant B's stock take
         assert_ne!(*id, stock_take_b_id, "Tenant A should not see Tenant B's stock take");
     }
 
@@ -654,11 +659,16 @@ async fn test_cycle_count_tenant_filter_in_queries() {
             .bind(tenant_b_id)
             .fetch_all(&pool)
             .await
-            .unwrap_or_default();
+            .expect("Failed to query stock_takes for tenant B");
 
-    // Verify tenant B only sees their stock takes
+    // Explicit check that tenant B sees their own stock take
+    assert!(
+        rows_b.iter().any(|(id,)| *id == stock_take_b_id),
+        "Tenant B should see their own stock take"
+    );
+
+    // Verify tenant B only sees their stock takes (not tenant A's)
     for (id,) in &rows_b {
-        // Should not see tenant A's stock take
         assert_ne!(*id, stock_take_a_id, "Tenant B should not see Tenant A's stock take");
     }
 

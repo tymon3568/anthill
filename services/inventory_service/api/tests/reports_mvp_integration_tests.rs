@@ -758,9 +758,15 @@ async fn test_reports_tenant_filter_in_queries() {
             .bind(tenant_a_id)
             .fetch_all(&pool)
             .await
-            .unwrap_or_default();
+            .expect("Failed to query products for tenant A");
 
-    // Verify tenant A only sees their products
+    // Explicit check that tenant A sees their own product
+    assert!(
+        rows_a.iter().any(|(id,)| *id == product_a_id),
+        "Tenant A should see their own product"
+    );
+
+    // Verify tenant A does not see tenant B's products
     for (id,) in &rows_a {
         assert_ne!(*id, product_b_id, "Tenant A should not see Tenant B's products");
     }
@@ -771,9 +777,15 @@ async fn test_reports_tenant_filter_in_queries() {
             .bind(tenant_b_id)
             .fetch_all(&pool)
             .await
-            .unwrap_or_default();
+            .expect("Failed to query products for tenant B");
 
-    // Verify tenant B only sees their products
+    // Explicit check that tenant B sees their own product
+    assert!(
+        rows_b.iter().any(|(id,)| *id == product_b_id),
+        "Tenant B should see their own product"
+    );
+
+    // Verify tenant B does not see tenant A's products
     for (id,) in &rows_b {
         assert_ne!(*id, product_a_id, "Tenant B should not see Tenant A's products");
     }
