@@ -38,6 +38,12 @@ Address unresolved code review issues from PR #123 identified by multiple review
   - Issue: Location columns should reference `warehouse_locations(tenant_id, location_id)` not `warehouses`
   - Status: Deferred - requires migration change with potential data impact; needs user decision
 
+- [ ] **Incomplete fix: inventory_levels update missing warehouse_id filter**: UPDATE query filters by `location_id` but missing `warehouse_id` (Severity: Major, Reviewer: coderabbitai, File: `services/inventory_service/infra/src/services/scrap.rs:488-506`)
+  - Issue: `inventory_levels` has unique constraint on `(tenant_id, warehouse_id, location_id, product_id)` but UPDATE only filters by 3 columns
+  - Current: MVP workaround documented in code comments - assumes `location_id` is unique across warehouses
+  - Recommended Fix: JOIN `storage_locations` to obtain `warehouse_id` from `source_location_id`
+  - Status: Deferred - MVP workaround acknowledged; requires JOIN complexity; needs user decision on whether to fix before merge
+
 ### Major (P2) - Should Fix
 
 - [x] **HTTP status mismatch in scrap.rs**: `create_scrap` returns 200 but OpenAPI documents 201 (Severity: Major, Reviewer: cubic-dev-ai, codeant-ai, File: `services/inventory_service/api/src/handlers/scrap.rs:40`)
@@ -63,6 +69,10 @@ Address unresolved code review issues from PR #123 identified by multiple review
 
 - [x] **Age bucket labels inconsistent with min_days**: Label "180+ days" but `min_days: 181` (Severity: Major, Reviewer: cubic-dev-ai, File: `services/inventory_service/core/src/dto/reports.rs:69`)
   - Fix: Changed labels to "181+ days" and "366+ days" to match actual min_days values (Default preset "365+" fixed to "366+" in follow-up)
+
+- [x] **is_none_or() requires Rust 1.82.0+**: Code uses method without documenting Rust version requirement (Severity: Major, Reviewer: coderabbitai, File: `services/inventory_service/core/src/dto/reports.rs:401`)
+  - Issue: `is_none_or()` method requires Rust 1.82.0+, but workspace Cargo.toml didn't specify `rust-version`
+  - Fix: Added `rust-version = "1.82"` to `[workspace.package]` in root Cargo.toml to document the requirement
 
 ### Minor (P3) - Nice to Have
 
@@ -114,7 +124,7 @@ Address unresolved code review issues from PR #123 identified by multiple review
 
 ## Files Modified
 
-1. `services/inventory_service/infra/src/services/scrap.rs` - Fixed NULL handling bug, race condition in cancel_scrap and add_lines
+1. `services/inventory_service/infra/src/services/scrap.rs` - Fixed NULL handling bug, race conditions in cancel_scrap and add_lines
 2. `services/inventory_service/infra/src/services/cycle_count.rs` - Fixed idempotency bug, session number race condition
 3. `services/inventory_service/infra/src/services/reports.rs` - Fixed parameter binding issues
 4. `services/inventory_service/api/src/handlers/scrap.rs` - Fixed HTTP 201 status
@@ -123,6 +133,7 @@ Address unresolved code review issues from PR #123 identified by multiple review
 7. `services/inventory_service/core/src/dto/scrap.rs` - Added Error trait implementation
 8. `PROJECT_TRACKING/.../task_04.14.01_implement_cycle_counting.md` - Removed duplicate metadata
 9. `PROJECT_TRACKING/.../task_04.14.02_implement_scrap_management.md` - Fixed status
+10. `Cargo.toml` - Added `rust-version = "1.82"` to document minimum Rust version requirement
 
 ## AI Agent Log
 
@@ -173,4 +184,16 @@ Address unresolved code review issues from PR #123 identified by multiple review
     - SQLX_OFFLINE=true cargo check --workspace ✓
     - SQLX_OFFLINE=true cargo clippy --workspace -- -D warnings ✓
   - Status: NeedsReview - all auto-fixable issues resolved
+---
+* 2025-12-29 17:00: [PR Re-Review Fixes] by Claude
+  - Fetched latest PR #123 review comments
+  - Identified 2 remaining unresolved issues from coderabbitai review:
+    1. `is_none_or()` Rust 1.82.0+ compatibility - Fixed by documenting rust-version in Cargo.toml
+    2. `inventory_levels` UPDATE missing `warehouse_id` filter - Deferred (MVP workaround documented)
+  - Fixed: Added `rust-version = "1.82"` to root Cargo.toml `[workspace.package]` section
+  - Added new deferred issue to task file for warehouse_id filter (requires user decision)
+  - Quality gates passed:
+    - SQLX_OFFLINE=true cargo check --workspace ✓
+    - SQLX_OFFLINE=true cargo clippy --workspace -- -D warnings ✓
+  - Status: NeedsReview - all auto-fixable issues resolved; 2 deferred items require user decision
 ---
