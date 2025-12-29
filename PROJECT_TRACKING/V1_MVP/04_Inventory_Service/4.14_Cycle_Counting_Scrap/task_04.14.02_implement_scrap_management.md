@@ -1,9 +1,9 @@
 # Task: Implement Scrap Management
 **Task ID:** PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.14_Cycle_Counting_Scrap/task_04.14.02_implement_scrap_management.md
-**Status:** Todo
+**Status:** InProgress_By_Claude
 **Priority:** P1
-**Assignee:**
-**Last Updated:** 2025-12-28
+**Assignee:** Claude
+**Last Updated:** 2025-12-29
 **Phase:** V1_MVP
 **Module:** 04_Inventory_Service → 4.14_Cycle_Counting_Scrap
 **Dependencies:**
@@ -324,4 +324,19 @@ Auth:
   - Added full task definition for Scrap Management (DB + service + API + tests) aligned with `docs/INVENTORY_IMPROVE.md`.
   - Status: Todo
   - Files modified: `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.14_Cycle_Counting_Scrap/task_04.14.02_implement_scrap_management.md`
+
+* 2025-12-29 13:50: Task claimed by Claude
+  - Verified dependencies:
+    - task_04.03.01_create_stock_moves_table.md: Done ✓
+    - task_04.03.03_implement_inventory_valuation.md: Done ✓
+    - task_04.02.01_create_warehouse_hierarchy_api.md: Done ✓
+    - task_04.11.01_implement_idempotency_and_concurrency.md: Done ✓
+  - All dependencies satisfied, proceeding with implementation
+  - Plan:
+    1. Create DB migration for scrap_documents and scrap_lines tables
+    2. Add DTOs and service traits in core crate
+    3. Implement repositories and service in infra crate
+    4. Add API handlers and routes in api crate
+    5. Write unit and integration tests
+  - Working on feature branch: feature/mvp-p1-cycle-count-scrap-reports
 ---

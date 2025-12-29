@@ -11,6 +11,7 @@ pub mod reconciliation;
 pub mod replenishment;
 pub mod reports;
 pub mod rma;
+pub mod scrap;
 pub mod search;
 pub mod stock_take;
 pub mod transfer;
@@ -28,3 +29,7 @@ pub use picking::{
     list_picking_methods, optimize_picking, set_default_method, update_picking_method,
 };
 pub use products::{create_product, delete_product, get_product, list_products, update_product};
+pub use scrap::{
+    add_scrap_lines, cancel_scrap, create_scrap, create_scrap_routes, get_scrap, list_scraps,
+    post_scrap,
+};

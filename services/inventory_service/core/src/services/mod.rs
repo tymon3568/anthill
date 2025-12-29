@@ -5,6 +5,7 @@
 
 pub mod cache;
 pub mod category;
+pub mod cycle_count;
 pub mod delivery;
 pub mod distributed_lock;
 pub mod inventory;
@@ -17,7 +18,9 @@ pub mod receipt;
 pub mod reconciliation;
 pub mod removal_strategy;
 pub mod replenishment;
+pub mod reports;
 pub mod rma;
+pub mod scrap;
 pub mod stock_take;
 pub mod transfer;
 pub mod valuation;
@@ -40,3 +43,8 @@ pub use rma::RmaService;
 pub use stock_take::StockTakeService;
 pub use transfer::TransferService;
 pub use valuation::ValuationService;
+
+// New services for MVP P1 features
+pub use cycle_count::CycleCountingService;
+pub use reports::ReportsService;
+pub use scrap::ScrapService;

@@ -4,12 +4,15 @@
 
 pub mod category;
 pub mod common;
+pub mod cycle_count;
 pub mod delivery;
 pub mod product;
 pub mod receipt;
 pub mod reconciliation;
 pub mod removal_strategy;
+pub mod reports;
 pub mod rma;
+pub mod scrap;
 pub mod stock_take;
 pub mod transfer;
 
@@ -53,4 +56,26 @@ pub use stock_take::{
 pub use transfer::{
     CreateTransferItemRequest, CreateTransferRequest, TransferItemResponse, TransferResponse,
     UpdateTransferItemRequest, UpdateTransferRequest,
+};
+
+// Cycle counting DTOs
+pub use cycle_count::{
+    CountSubmission, CountType, CreateCycleCountRequest, CycleCountLine, CycleCountLineStatus,
+    CycleCountListQuery, CycleCountListResponse, CycleCountResponse, CycleCountSession,
+    CycleCountStatus, CycleCountSummary, CycleCountWithLinesResponse, GenerateLinesRequest,
+    LineAdjustment, ReconcileRequest, ReconcileResponse, SkipLinesRequest, SubmitCountsRequest,
+};
+
+// Reports DTOs
+pub use reports::{
+    AgeBucket, AgeBucketPreset, AgingBasis, StockAgingReportQuery, StockAgingReportResponse,
+    StockAgingReportRow, TurnoverGroupBy, TurnoverReportQuery, TurnoverReportResponse,
+    TurnoverReportRow,
+};
+
+// Scrap management DTOs
+pub use scrap::{
+    AddScrapLinesRequest, CreateScrapRequest, PostScrapRequest, ScrapDocument,
+    ScrapDocumentResponse, ScrapDocumentWithLinesResponse, ScrapLine, ScrapLineInput,
+    ScrapListQuery, ScrapListResponse, ScrapReasonCode, ScrapStatus,
 };

@@ -1,10 +1,10 @@
 # Task: 04.09.03 — Stock Aging Report
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/task_04.09.03_stock_aging_report.md`  
-**Status:** Todo  
+**Status:** InProgress_By_Claude  
 **Priority:** P1  
-**Assignee:**  
-**Last Updated:** 2025-12-28  
+**Assignee:** Claude  
+**Last Updated:** 2025-12-29  
 
 ## Dependencies
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/task_04.09.01_implement_stock_ledger_report.md`
@@ -163,6 +163,21 @@ The report should be computable from the **stock ledger / moves** and existing w
 - [ ] No new lints introduced; project builds cleanly.
 
 ## AI Agent Log
+---
+* 2025-12-29 13:50: Task claimed by Claude
+  - Verified dependencies:
+    - `task_04.09.01_implement_stock_ledger_report.md` → Done (stock ledger handler exists in `reports.rs`)
+    - `task_04.02.01_create_warehouse_hierarchy_api.md` → Done (warehouse tables and API exist)
+  - Existing implementation found in `inventory_service/api/src/handlers/reports.rs`:
+    - `get_stock_aging` handler exists with basic aging buckets (0-30, 31-60, 61-90, >90 days)
+    - Uses `last_inbound` basis only
+  - Plan: Enhance existing implementation to support:
+    - Both `last_inbound` and `last_movement` aging basis
+    - Configurable bucket presets
+    - Product/category filters
+    - Lot/serial inclusion option
+    - Move DTOs to core crate for proper 3-crate pattern
+  - Status: InProgress_By_Claude
 ---
 * YYYY-MM-DD HH:MM: [Planned] by AI
   - Created task definition for Stock Aging Report based on `docs/INVENTORY_IMPROVE.md`.
