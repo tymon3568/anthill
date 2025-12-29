@@ -51,6 +51,7 @@ use inventory_service_infra::services::{
 
 // Local handlers
 use crate::handlers::category::create_category_routes;
+use crate::handlers::cycle_count::create_cycle_count_routes;
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::health::health_check;
 use crate::handlers::lot_serial::create_lot_serial_routes;
@@ -362,6 +363,14 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         inventory_level_repo.clone(),
     ));
 
+    // Cycle Counting Service
+    let cycle_counting_service =
+        Arc::new(inventory_service_infra::services::PgCycleCountingService::new(
+            pool_arc.clone(),
+            stock_move_repo.clone(),
+            inventory_level_repo.clone(),
+        ));
+
     // Reconciliation Service
     let reconciliation_service = Arc::new(PgStockReconciliationService::new(
         pool_arc.clone(),
@@ -414,6 +423,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // =========================================================================
     let state = crate::state::AppState {
         category_service,
+        cycle_counting_service,
         lot_serial_service,
         picking_method_service,
         product_service,
@@ -493,6 +503,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/transfers", create_transfer_routes())
         // Stock takes (physical inventory)
         .nest("/api/v1/inventory/stock-takes", create_stock_take_routes())
+        // Cycle counts
+        .nest("/api/v1/inventory/cycle-counts", create_cycle_count_routes())
         // Stock reconciliation
         .nest(
             "/api/v1/inventory/reconciliations",

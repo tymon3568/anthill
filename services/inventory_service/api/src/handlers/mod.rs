@@ -1,4 +1,5 @@
 pub mod category;
+pub mod cycle_count;
 pub mod delivery;
 pub mod health;
 pub mod lot_serial;
@@ -19,6 +20,10 @@ pub mod valuation;
 pub mod warehouses;
 
 // Re-export handlers for OpenAPI
+pub use cycle_count::{
+    cancel_session, close_session, create_cycle_count, create_cycle_count_routes, generate_lines,
+    get_cycle_count, list_cycle_counts, reconcile, skip_lines, submit_counts,
+};
 pub use health::health_check;
 pub use lot_serial::{
     create_lot_serial, delete_lot_serial, get_lot_serial, get_lot_serial_lifecycle,

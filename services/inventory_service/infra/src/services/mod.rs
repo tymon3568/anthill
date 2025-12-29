@@ -4,6 +4,7 @@
 
 pub mod cache;
 pub mod category;
+pub mod cycle_count;
 pub mod delivery;
 pub mod distributed_lock;
 pub mod inventory;
@@ -58,5 +59,6 @@ pub use transfer::PgTransferService;
 pub use valuation::ValuationServiceImpl;
 
 // New services for MVP P1 features
+pub use cycle_count::PgCycleCountingService;
 pub use reports::PgReportsService;
 pub use scrap::PgScrapService;

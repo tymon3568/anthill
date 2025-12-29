@@ -7,6 +7,7 @@ use std::sync::Arc;
 use inventory_service_core::repositories::putaway::PutawayService;
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::services::category::CategoryService;
+use inventory_service_core::services::cycle_count::CycleCountingService;
 use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::distributed_lock::DistributedLockService;
 use inventory_service_core::services::lot_serial::LotSerialService;
@@ -30,6 +31,7 @@ use crate::middleware::IdempotencyState;
 /// Application state for inventory service
 pub struct AppState {
     pub category_service: Arc<dyn CategoryService>,
+    pub cycle_counting_service: Arc<dyn CycleCountingService>,
     pub lot_serial_service: Arc<dyn LotSerialService>,
     pub picking_method_service: Arc<dyn PickingMethodService>,
     pub product_service: Arc<dyn ProductService>,
@@ -55,6 +57,7 @@ impl Clone for AppState {
     fn clone(&self) -> Self {
         Self {
             category_service: self.category_service.clone(),
+            cycle_counting_service: self.cycle_counting_service.clone(),
             lot_serial_service: self.lot_serial_service.clone(),
             picking_method_service: Arc::clone(&self.picking_method_service),
             product_service: self.product_service.clone(),
