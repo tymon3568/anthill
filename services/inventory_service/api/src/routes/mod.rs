@@ -129,7 +129,7 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
 /// unavailable" error suitable for API consumers. Infra-specific details about the
 /// underlying implementation state are logged internally rather than exposed
 /// in API responses.
-pub(crate) struct StubDeliveryService;
+pub struct StubDeliveryService;
 
 #[async_trait]
 impl DeliveryService for StubDeliveryService {
