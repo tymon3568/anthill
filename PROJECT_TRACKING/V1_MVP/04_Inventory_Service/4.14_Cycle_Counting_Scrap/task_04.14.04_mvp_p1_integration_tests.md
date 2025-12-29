@@ -204,6 +204,12 @@ All dependencies are listed in the header. Before starting:
 - [x] **TASKS_OVERVIEW.md:117** - Progress count mismatch ("4/5 NeedsReview" but only 2 listed) (Severity: Style, Reviewer: cubic-dev-ai) ✅ Fixed - corrected to "2/5 NeedsReview, 2 Done, 1 Todo"
 - [x] **task_04.09.04:143-147** - Checkbox says tenant isolation tests exist but log says pending (Severity: Style, Reviewer: sourcery-ai) ✅ Fixed - split into two items: unit tests done, integration tests pending
 
+### Round 2 Issues (Post-commit 9f20950)
+- [x] **cycle_count_integration_tests.rs:545** - JSON path still wrong: uses `create_response["cycle_count_id"]` but should be `create_response["cycle_count"]["cycle_count_id"]` (Severity: Critical/P1, Reviewer: coderabbitai, cubic-dev-ai) ✅ Fixed - now accesses nested cycle_count object
+- [x] **reports_mvp_integration_tests.rs:360** - Test asserts `report["aging_basis"]` but API returns array not object (Severity: Warning/P2, Reviewer: cubic-dev-ai) ✅ Fixed - now asserts report.is_array() since aging_basis is query param not response field
+- [x] **reports_mvp_integration_tests.rs:550** - Test asserts `report["group_by"]` but API returns array not object (Severity: Warning/P2, Reviewer: cubic-dev-ai) ✅ Fixed - now asserts report.is_array() since group_by is query param not response field
+- [x] **scrap_integration_tests.rs:897** - Vacuous assertions: `unwrap_or_default()` + iteration means zero assertions if rows empty (Severity: Warning/P2, Reviewer: cubic-dev-ai) ✅ Fixed - added explicit checks that expected records exist
+
 ### Suggestions (Nice-to-have) - Deferred
 - [ ] **scrap_integration_tests.rs:144-153** - Add more `validate_scrap_line` edge case tests (Severity: Nitpick, Reviewer: sourcery-ai)
 - [ ] **scrap_integration_tests.rs:464-473** - Extend scrap posting test to assert inventory impact (Severity: Nitpick, Reviewer: sourcery-ai)
@@ -213,6 +219,32 @@ All dependencies are listed in the header. Before starting:
 
 ## AI Agent Log
 ---
+* 2025-12-30 12:40: PR #124 Round 2 review issues FIXED by Claude
+  - **All Round 2 issues resolved (4/4):**
+    - cycle_count_integration_tests.rs:545 - Fixed JSON path to access nested `cycle_count` object
+    - reports_mvp_integration_tests.rs:360 - Replaced incorrect `report["aging_basis"]` with `report.is_array()` assertion
+    - reports_mvp_integration_tests.rs:550 - Replaced incorrect `report["group_by"]` with `report.is_array()` assertion
+    - scrap_integration_tests.rs:897 - Added explicit assertions that records exist, replaced `unwrap_or_default()` with `.expect()`
+  - **Files modified:**
+    - `services/inventory_service/api/tests/cycle_count_integration_tests.rs`
+    - `services/inventory_service/api/tests/reports_mvp_integration_tests.rs`
+    - `services/inventory_service/api/tests/scrap_integration_tests.rs`
+  - **Quality gates:**
+    - `cargo fmt` ✓
+    - `cargo check --workspace` ✓
+  - **Status:** NeedsReview (all Round 2 issues resolved)
+
+* 2025-12-30 12:35: PR #124 Round 2 review issues identified by Claude
+  - **PR URL:** https://github.com/tymon3568/anthill/pull/124
+  - **New issues after commit 9f20950:** 4 total (1 Critical, 3 Warning)
+  - **Findings:**
+    - cycle_count_integration_tests.rs:545 - Inconsistent JSON path (test_invalid_status_transition still uses wrong path)
+    - reports_mvp_integration_tests.rs:360 - test_stock_aging_report_both_bases accesses report["aging_basis"] but API returns Vec (array)
+    - reports_mvp_integration_tests.rs:550 - test_inventory_turnover_report_groupings accesses report["group_by"] but API returns Vec (array)
+    - scrap_integration_tests.rs:897 - DB tenant filter test uses unwrap_or_default() making assertions vacuous if empty
+  - **Status:** InProgress_By_Claude (fixing Round 2 issues)
+  - **Next:** Fix Critical issue first, then Warning issues
+
 * 2025-12-30 12:30: PR #124 review issues FIXED by Claude
   - **All Critical/Warning issues resolved (12/12)**
   - **All Style/Quality issues resolved (5/5)**

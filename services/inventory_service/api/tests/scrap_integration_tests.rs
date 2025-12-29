@@ -894,11 +894,18 @@ async fn test_scrap_tenant_filter_in_queries() {
             .bind(tenant_a_id)
             .fetch_all(&pool)
             .await
-            .unwrap_or_default();
+            .expect("Failed to query scrap_documents for tenant A");
 
-    for (id,) in &rows_a {
-        assert_ne!(*id, scrap_b_id, "Tenant A should not see Tenant B's scrap");
-    }
+    // Explicit check that tenant A sees their own scrap (prevents vacuous assertions)
+    assert!(
+        rows_a.iter().any(|(id,)| *id == scrap_a_id),
+        "Tenant A should see their own scrap document"
+    );
+    // Ensure tenant A does NOT see tenant B's scrap
+    assert!(
+        !rows_a.iter().any(|(id,)| *id == scrap_b_id),
+        "Tenant A should not see Tenant B's scrap document"
+    );
 
     // Query for tenant B - should only see tenant B's scraps
     let rows_b: Vec<(Uuid,)> =
@@ -906,11 +913,18 @@ async fn test_scrap_tenant_filter_in_queries() {
             .bind(tenant_b_id)
             .fetch_all(&pool)
             .await
-            .unwrap_or_default();
+            .expect("Failed to query scrap_documents for tenant B");
 
-    for (id,) in &rows_b {
-        assert_ne!(*id, scrap_a_id, "Tenant B should not see Tenant A's scrap");
-    }
+    // Explicit check that tenant B sees their own scrap (prevents vacuous assertions)
+    assert!(
+        rows_b.iter().any(|(id,)| *id == scrap_b_id),
+        "Tenant B should see their own scrap document"
+    );
+    // Ensure tenant B does NOT see tenant A's scrap
+    assert!(
+        !rows_b.iter().any(|(id,)| *id == scrap_a_id),
+        "Tenant B should not see Tenant A's scrap document"
+    );
 
     // Cleanup
     sqlx::query("DELETE FROM scrap_documents WHERE scrap_id IN ($1, $2)")

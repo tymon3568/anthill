@@ -542,7 +542,9 @@ async fn test_cycle_count_invalid_status_transition() {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let create_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let cycle_count_id = create_response["cycle_count_id"].as_str().unwrap();
+    let cycle_count_id = create_response["cycle_count"]["cycle_count_id"]
+        .as_str()
+        .expect("cycle_count_id should be present in response");
 
     // Try to reconcile directly from draft (should fail)
     let response = app
