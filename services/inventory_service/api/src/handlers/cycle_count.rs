@@ -79,6 +79,13 @@ pub async fn create_cycle_count(
     Extension(state): Extension<AppState>,
     Json(request): Json<CreateCycleCountRequest>,
 ) -> Result<(StatusCode, Json<CycleCountResponse>), AppError> {
+    // Validate that either schedule_id or warehouse_id must be provided
+    if request.schedule_id.is_none() && request.warehouse_id.is_none() {
+        return Err(AppError::ValidationError(
+            "Either schedule_id or warehouse_id must be provided".to_string(),
+        ));
+    }
+
     let response = state
         .cycle_counting_service
         .create_session(auth_user.tenant_id, auth_user.user_id, request)
@@ -286,6 +293,11 @@ pub async fn submit_counts(
     Path(cycle_count_id): Path<Uuid>,
     Json(request): Json<SubmitCountsRequest>,
 ) -> Result<Json<CycleCountWithLinesResponse>, AppError> {
+    // Validate that at least one count must be submitted
+    if request.counts.is_empty() {
+        return Err(AppError::ValidationError("At least one count must be submitted".to_string()));
+    }
+
     let response = state
         .cycle_counting_service
         .submit_counts(auth_user.tenant_id, cycle_count_id, auth_user.user_id, request)
@@ -341,6 +353,11 @@ pub async fn skip_lines(
     Path(cycle_count_id): Path<Uuid>,
     Json(request): Json<SkipLinesRequest>,
 ) -> Result<Json<CycleCountWithLinesResponse>, AppError> {
+    // Validate that at least one line ID must be provided
+    if request.line_ids.is_empty() {
+        return Err(AppError::ValidationError("At least one line ID must be provided".to_string()));
+    }
+
     let response = state
         .cycle_counting_service
         .skip_lines(auth_user.tenant_id, cycle_count_id, auth_user.user_id, request)

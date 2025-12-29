@@ -481,6 +481,9 @@ impl ScrapService for PgScrapService {
             .map_err(|e| AppError::DatabaseError(format!("Failed to update scrap line: {}", e)))?;
 
             // Update inventory levels (decrease available quantity at source)
+            // Note: inventory_levels table has (tenant_id, warehouse_id, location_id, product_id) unique constraint
+            // source_location_id from scrap_lines is a storage location, we need to find the warehouse
+            // For MVP, we update by product_id and location_id (source_location_id maps to location_id)
             sqlx::query(
                 r#"
                 UPDATE inventory_levels
@@ -488,15 +491,13 @@ impl ScrapService for PgScrapService {
                     updated_at = NOW()
                 WHERE tenant_id = $2
                   AND product_id = $3
-                  AND warehouse_id = $4
-                  AND ($5::UUID IS NULL OR lot_serial_id = $5)
+                  AND location_id = $4
                 "#,
             )
             .bind(line.qty)
             .bind(tenant_id)
             .bind(line.product_id)
             .bind(line.source_location_id)
-            .bind(line.lot_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| {
@@ -540,7 +541,13 @@ impl ScrapService for PgScrapService {
         scrap_id: Uuid,
         _user_id: Uuid,
     ) -> Result<ScrapDocumentResponse, AppError> {
-        // Verify document exists and is in draft status
+        // Use transaction with FOR UPDATE lock to prevent race conditions
+        let mut tx =
+            self.pool.begin().await.map_err(|e| {
+                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
+            })?;
+
+        // Verify document exists and lock the row
         let doc_row = sqlx::query_as::<_, ScrapDocumentRow>(
             r#"
             SELECT
@@ -548,23 +555,27 @@ impl ScrapService for PgScrapService {
                 created_by, posted_by, posted_at, created_at, updated_at
             FROM scrap_documents
             WHERE tenant_id = $1 AND scrap_id = $2
+            FOR UPDATE
             "#,
         )
         .bind(tenant_id)
         .bind(scrap_id)
-        .fetch_optional(self.pool.as_ref())
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to fetch scrap document: {}", e)))?
         .ok_or_else(|| AppError::NotFound(format!("Scrap document {} not found", scrap_id)))?;
 
         // Idempotency: if already cancelled, return success
         if doc_row.status == "cancelled" {
+            // Rollback is automatic on drop, but let's be explicit
+            tx.rollback().await.ok();
             return Ok(ScrapDocumentResponse {
                 scrap: doc_row.into(),
             });
         }
 
         if doc_row.status != "draft" {
+            tx.rollback().await.ok();
             return Err(AppError::ValidationError(
                 "Only draft scrap documents can be cancelled".to_string(),
             ));
@@ -583,9 +594,13 @@ impl ScrapService for PgScrapService {
         )
         .bind(tenant_id)
         .bind(scrap_id)
-        .fetch_one(self.pool.as_ref())
+        .fetch_one(&mut *tx)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to cancel scrap document: {}", e)))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(ScrapDocumentResponse {
             scrap: updated_row.into(),

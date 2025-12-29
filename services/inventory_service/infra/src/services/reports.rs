@@ -463,49 +463,63 @@ impl ReportsService for PgReportsService {
             },
         };
 
+        // Note: $4 is skipped in SQL queries, so we don't bind period_days
+        // Binding order: $1=tenant_id, $2=from, $3=to, $5=warehouse_id, $6=product_id, $7=category_id, $8=limit, $9=offset
+        // PostgreSQL allows gaps in parameter numbering when using explicit $N syntax
         let rows = sqlx::query_as::<_, TurnoverRow>(sql)
-            .bind(tenant_id)
-            .bind(query.from)
-            .bind(query.to)
-            .bind(period_days)
-            .bind(query.warehouse_id)
-            .bind(query.product_id)
-            .bind(query.category_id)
-            .bind(limit)
-            .bind(offset)
+            .bind(tenant_id)       // $1
+            .bind(query.from)      // $2
+            .bind(query.to)        // $3
+            .bind(Option::<i64>::None) // $4 placeholder (unused but needed for parameter alignment)
+            .bind(query.warehouse_id)  // $5
+            .bind(query.product_id)    // $6
+            .bind(query.category_id)   // $7
+            .bind(limit)           // $8
+            .bind(offset)          // $9
             .fetch_all(self.pool.as_ref())
             .await
             .map_err(|e| {
                 AppError::DatabaseError(format!("Failed to fetch inventory turnover: {}", e))
             })?;
 
-        // Count total for pagination
-        let count_sql = match query.group_by {
+        // Count total for pagination - use separate binding logic per group_by variant
+        let total_count: (i64,) = match query.group_by {
             TurnoverGroupBy::Product => {
-                r#"SELECT COUNT(*) FROM products WHERE tenant_id = $1 AND deleted_at IS NULL
-                   AND ($2::UUID IS NULL OR product_id = $2)
-                   AND ($3::UUID IS NULL OR category_id = $3)"#
-            },
+                sqlx::query_as(
+                    r#"SELECT COUNT(*) FROM products WHERE tenant_id = $1 AND deleted_at IS NULL
+                       AND ($2::UUID IS NULL OR product_id = $2)
+                       AND ($3::UUID IS NULL OR category_id = $3)"#,
+                )
+                .bind(tenant_id)
+                .bind(query.product_id)
+                .bind(query.category_id)
+                .fetch_one(self.pool.as_ref())
+                .await
+            }
             TurnoverGroupBy::Category => {
-                r#"SELECT COUNT(*) FROM product_categories WHERE tenant_id = $1 AND deleted_at IS NULL
-                   AND ($3::UUID IS NULL OR category_id = $3)"#
-            },
+                sqlx::query_as(
+                    r#"SELECT COUNT(*) FROM product_categories WHERE tenant_id = $1 AND deleted_at IS NULL
+                       AND ($2::UUID IS NULL OR category_id = $2)"#,
+                )
+                .bind(tenant_id)
+                .bind(query.category_id)
+                .fetch_one(self.pool.as_ref())
+                .await
+            }
             TurnoverGroupBy::Warehouse => {
-                r#"SELECT COUNT(*) FROM warehouses WHERE tenant_id = $1 AND deleted_at IS NULL
-                   AND ($2::UUID IS NULL OR warehouse_id = $2)"#
-            },
-        };
-
-        // Note: For simplicity, using the same bind order but some params may be unused
-        let total_count: (i64,) = sqlx::query_as(count_sql)
-            .bind(tenant_id)
-            .bind(query.warehouse_id.or(query.product_id))
-            .bind(query.category_id)
-            .fetch_one(self.pool.as_ref())
-            .await
-            .map_err(|e| {
-                AppError::DatabaseError(format!("Failed to count turnover rows: {}", e))
-            })?;
+                sqlx::query_as(
+                    r#"SELECT COUNT(*) FROM warehouses WHERE tenant_id = $1 AND deleted_at IS NULL
+                       AND ($2::UUID IS NULL OR warehouse_id = $2)"#,
+                )
+                .bind(tenant_id)
+                .bind(query.warehouse_id)
+                .fetch_one(self.pool.as_ref())
+                .await
+            }
+        }
+        .map_err(|e| {
+            AppError::DatabaseError(format!("Failed to count turnover rows: {}", e))
+        })?;
 
         // Convert SQL rows to response DTOs with calculated metrics
         let report_rows: Vec<TurnoverReportRow> = rows

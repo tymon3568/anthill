@@ -129,7 +129,7 @@ impl AgeBucketPreset {
                     max_days: Some(181),
                 },
                 AgeBucket {
-                    label: "180+ days".to_string(),
+                    label: "181+ days".to_string(),
                     min_days: 181,
                     max_days: None,
                 },
@@ -156,7 +156,7 @@ impl AgeBucketPreset {
                     max_days: Some(366),
                 },
                 AgeBucket {
-                    label: "365+ days".to_string(),
+                    label: "366+ days".to_string(),
                     min_days: 366,
                     max_days: None,
                 },
@@ -307,8 +307,9 @@ pub struct TurnoverReportQuery {
 
 impl TurnoverReportQuery {
     /// Get the number of days in the query period
+    /// Returns 0 if from is after to (invalid range)
     pub fn period_days(&self) -> i64 {
-        (self.to - self.from).num_days()
+        (self.to - self.from).num_days().max(0)
     }
 }
 
@@ -387,8 +388,10 @@ pub fn calculate_dio(turnover_ratio: f64, period_days: i64) -> Option<f64> {
 }
 
 /// Calculate average inventory value from opening and closing values
+/// Uses i128 intermediate to prevent overflow for large monetary amounts
 pub fn calculate_avg_inventory(opening_cents: i64, closing_cents: i64) -> i64 {
-    (opening_cents + closing_cents) / 2
+    let sum = opening_cents as i128 + closing_cents as i128;
+    (sum / 2) as i64
 }
 
 /// Determine age bucket label for a given age in days

@@ -99,8 +99,11 @@ impl PgCycleCountingService {
     }
 
     /// Generate a unique session number
+    /// Includes milliseconds and short UUID fragment to prevent race condition duplicates
     fn generate_session_number() -> String {
-        format!("CC-{}", Utc::now().format("%Y%m%d-%H%M%S"))
+        let now = Utc::now();
+        let uuid_suffix = &Uuid::now_v7().to_string()[..8];
+        format!("CC-{}-{}", now.format("%Y%m%d-%H%M%S%.3f"), uuid_suffix)
     }
 
     /// Get cycle count lines for a session
@@ -772,9 +775,16 @@ impl CycleCountingService for PgCycleCountingService {
 
         // Check if already reconciled (idempotency)
         if session.status == CycleCountStatus::Reconciled {
+            // A reconciled session MUST have an adjustment_id; if not, it's data corruption
+            let adjustment_id = session.adjustment_id.ok_or_else(|| {
+                AppError::DataCorruption(
+                    "Reconciled session is missing adjustment_id - data integrity issue"
+                        .to_string(),
+                )
+            })?;
             return Ok(ReconcileResponse {
                 cycle_count: session.clone(),
-                adjustment_id: session.adjustment_id.unwrap_or_else(Uuid::now_v7),
+                adjustment_id,
                 moves_created: 0,           // Already done
                 lines_adjusted: Vec::new(), // Already processed
             });

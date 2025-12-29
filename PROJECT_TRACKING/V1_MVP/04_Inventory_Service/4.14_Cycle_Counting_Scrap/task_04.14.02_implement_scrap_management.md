@@ -1,6 +1,6 @@
 # Task: Implement Scrap Management
 **Task ID:** PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.14_Cycle_Counting_Scrap/task_04.14.02_implement_scrap_management.md
-**Status:** InProgress_By_Claude
+**Status:** NeedsReview
 **Priority:** P1
 **Assignee:** Claude
 **Last Updated:** 2025-12-29

@@ -279,6 +279,8 @@ impl std::fmt::Display for ScrapValidationError {
     }
 }
 
+impl std::error::Error for ScrapValidationError {}
+
 /// Validate a scrap line input
 pub fn validate_scrap_line(line: &ScrapLineInput) -> Result<(), ScrapValidationError> {
     if line.qty <= 0 {

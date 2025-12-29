@@ -5,6 +5,7 @@
 
 use axum::{
     extract::{Extension, Path, Query},
+    http::StatusCode,
     Json,
 };
 use shared_auth::extractors::AuthUser;
@@ -37,7 +38,7 @@ pub async fn create_scrap<S: ScrapService>(
     auth_user: AuthUser,
     Extension(scrap_service): Extension<Arc<S>>,
     Json(request): Json<CreateScrapRequest>,
-) -> Result<Json<ScrapDocumentResponse>, AppError> {
+) -> Result<(StatusCode, Json<ScrapDocumentResponse>), AppError> {
     let tenant_id = auth_user.tenant_id;
     let user_id = auth_user.user_id;
 
@@ -45,7 +46,7 @@ pub async fn create_scrap<S: ScrapService>(
         .create_scrap(tenant_id, user_id, request)
         .await?;
 
-    Ok(Json(response))
+    Ok((StatusCode::CREATED, Json(response)))
 }
 
 /// Get a scrap document by ID with its lines
