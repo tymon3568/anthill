@@ -1,10 +1,10 @@
 # Task: Inventory Turnover Analysis
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/task_04.09.04_inventory_turnover_analysis.md`  
-**Status:** Todo  
+**Status:** InProgress_By_Claude  
 **Priority:** P1  
-**Assignee:**  
-**Last Updated:** 2025-12-28  
+**Assignee:** Claude  
+**Last Updated:** 2025-12-29  
 **Phase:** V1_MVP  
 **Module:** 04_Inventory_Service → 4.9_Stock_Reports_Analytics  
 **Dependencies:**  
@@ -149,4 +149,22 @@ If grouping by product and dataset can be large:
   - Normalized header and expanded to folder-tasks Style B checklist.
   - Status: Todo
   - Files modified: `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/task_04.09.04_inventory_turnover_analysis.md`
+---
+* 2025-12-29 13:50: Task claimed by Claude
+  - **Dependency check:**
+    - `task_04.09.01_implement_stock_ledger_report.md`: Done ✅ (verified stock ledger endpoint exists at `/api/v1/inventory/reports/stock-ledger`)
+    - `task_04.03.03_implement_inventory_valuation.md`: Done ✅ (valuation service implemented)
+  - **Current state analysis:**
+    - Basic `get_inventory_turnover` handler exists in `api/src/handlers/reports.rs`
+    - Missing: proper 3-crate separation, DTOs in core, service trait, comprehensive filters
+    - Need to enhance with: group_by support, DIO calculation, proper cents handling
+  - **Planned approach:**
+    - Add DTOs to core crate (`TurnoverReportQuery`, `TurnoverReportRow`, `GroupBy` enum)
+    - Add/extend `ReportsService` trait in core with `inventory_turnover` method
+    - Implement service in infra with proper tenant filtering and SQL aggregation
+    - Update API handler with full filter support and OpenAPI annotations
+    - Add unit tests for turnover ratio/DIO calculations
+    - Add integration tests for tenant isolation
+  - Status: InProgress_By_Claude
+  - Branch: `feature/mvp-p1-cycle-count-scrap-reports`
 ---

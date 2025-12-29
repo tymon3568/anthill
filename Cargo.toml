@@ -91,4 +91,5 @@ zxcvbn = "3.1"
 [workspace.package]
 authors = ["tymon3568 <tymon3568@gmail.com>"]
 edition = "2021"
+rust-version = "1.82"
 version = "0.1.0"
