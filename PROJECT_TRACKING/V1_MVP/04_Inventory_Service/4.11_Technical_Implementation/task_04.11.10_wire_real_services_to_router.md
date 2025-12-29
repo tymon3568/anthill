@@ -179,10 +179,14 @@ let state = crate::state::AppState {
 
 // 4. Wire all routes
 let protected_routes = Router::new()
-    .nest("/api/v1/inventory/categories", category_routes(state.clone()))
-    .nest("/api/v1/inventory/products", product_routes(state.clone()))
-    .nest("/api/v1/inventory/warehouses", warehouse_routes(state.clone()))
+    .nest("/api/v1/inventory/categories", create_category_routes())
+    .nest("/api/v1/inventory/products", create_product_routes())
+    .nest("/api/v1/inventory/warehouses", create_warehouse_routes())
     // ... all route modules
+
+// 5. Apply middleware and state
+let protected_routes_with_layers = protected_routes
+    .layer(Extension(state));
 ```
 
 ## Acceptance Criteria
