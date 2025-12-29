@@ -1,7 +1,7 @@
 # Task: Wire Real Services to Inventory Service Router
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.10_wire_real_services_to_router.md`
-**Status:** InProgress_By_Claude
+**Status:** NeedsReview
 **Priority:** P0 (Critical)
 **Assignee:** Claude
 **Last Updated:** 2025-12-29
@@ -267,4 +267,14 @@ let protected_routes = Router::new()
   - Warning: Duplicate stock_move_repo, internal error message exposure
   - Style: Visibility, dates, markdown formatting
   - Status: InProgress_By_Claude (fixing issues)
+---
+* 2025-12-29 03:15: All PR Review issues fixed and pushed by Claude
+  - Fixed environment detection in create_kanidm_client (Critical/Security)
+  - Updated StubDeliveryService: pub(crate) visibility, neutral error messages, added tracing
+  - Added clarifying comment for putaway stock_move_repo usage with TODO
+  - Fixed task doc formatting (dates, table spacing, markdown link)
+  - Verified: cargo check ✓, cargo clippy ✓
+  - Pushed commit: fix(pr_review): resolve review issues from PR #121
+  - All 7 issues marked as complete
+  - Status: NeedsReview
 ---
