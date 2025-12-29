@@ -1,10 +1,10 @@
 # Task: Wire Real Services to Inventory Service Router
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.10_wire_real_services_to_router.md`
-**Status:** NeedsReview
+**Status:** InProgress_By_Claude
 **Priority:** P0 (Critical)
 **Assignee:** Claude
-**Last Updated:** 2025-01-10
+**Last Updated:** 2025-12-29
 **Phase:** V1_MVP
 **Module:** 04_Inventory_Service → 4.11_Technical_Implementation
 
@@ -196,12 +196,29 @@ let protected_routes = Router::new()
 - [ ] At least one endpoint per domain responds correctly (requires runtime test)
 
 ## Risks & Mitigations
+
 | Risk | Mitigation |
 |------|------------|
 | Missing repository/service implementations | Check infra exports first, stub if needed |
 | Circular dependencies | Use Arc and proper layering |
 | Runtime panics | Add proper error handling, test locally |
 | Stack overflow (seen before) | Avoid recursive types, check utoipa schemas |
+
+## PR Review Issues (from PR #121)
+
+### Critical
+- [x] Fix environment detection inconsistency between `create_router` and `create_kanidm_client` (Severity: Critical, Reviewer: codeant-ai, Security issue - could skip JWT verification in production)
+
+### Warning
+- [x] Reuse existing `stock_move_repo` for putaway instead of creating duplicate instance (Severity: Warning, Reviewers: gemini, coderabbitai, sourcery)
+- [x] Update StubDeliveryService error messages to use neutral, user-facing text instead of exposing internal details (Severity: Warning, Reviewers: sourcery, cubic, coderabbitai)
+
+### Style/Nitpick
+- [x] Change StubDeliveryService visibility from `pub` to `pub(crate)` (Severity: Nitpick, Reviewer: coderabbitai)
+- [x] Fix date inconsistency in task doc - use correct date 2025-12-29 (Severity: Minor, Reviewer: cubic)
+- [x] Add blank lines around markdown table (Severity: Minor, Reviewer: coderabbitai)
+- [x] Format bare URL as markdown link (Severity: Minor, Reviewer: coderabbitai)
+
 
 ## AI Agent Log
 * 2025-12-28 16:00: Task created by Claude
@@ -232,14 +249,22 @@ let protected_routes = Router::new()
   - Following 3-crate pattern: dependency injection in `create_router()`
   - Status: InProgress_By_Claude (needs runtime testing)
 ---
-* 2025-01-10 09:45: Changes pushed and ready for review
+* 2025-12-29 09:45: Changes pushed and ready for review
   - Committed: feat(inventory): wire real services to router, remove dummy implementations
   - Pushed to branch: `feature/task-04-11-10-wire-real-services`
-  - PR URL: https://github.com/tymon3568/anthill/pull/new/feature/task-04-11-10-wire-real-services
+  - PR URL: [PR #121](https://github.com/tymon3568/anthill/pull/121)
   - Remaining items for runtime testing (requires DB + Redis):
     - 5.5 Run `cargo test --workspace`
     - 5.6 Verify service starts without panic
     - 5.7 Test health endpoint works
     - 5.8 Update OpenAPI spec
   - Status: NeedsReview
+---
+* 2025-12-29 03:10: PR Review Auto-Fix by Claude
+  - Fetched PR #121 and extracted unresolved review comments
+  - Added 7 issues as sub-tasks under "PR Review Issues" section
+  - Critical: Environment detection inconsistency (security)
+  - Warning: Duplicate stock_move_repo, internal error message exposure
+  - Style: Visibility, dates, markdown formatting
+  - Status: InProgress_By_Claude (fixing issues)
 ---

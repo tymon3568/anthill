@@ -72,10 +72,11 @@ use crate::openapi::ApiDoc;
 
 /// Create Kanidm client from configuration
 fn create_kanidm_client(config: &Config) -> KanidmClient {
-    let is_dev = std::env::var("APP_ENV")
-        .or_else(|_| std::env::var("RUST_ENV"))
-        .map(|e| e != "production")
-        .unwrap_or(true);
+    // Use consistent environment detection with create_router:
+    // Production if EITHER APP_ENV or RUST_ENV is "production"
+    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
+    let rust_env = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string());
+    let is_dev = !(app_env == "production" || rust_env == "production");
 
     // In production, require full Kanidm configuration
     if !is_dev
@@ -122,9 +123,13 @@ fn create_kanidm_client(config: &Config) -> KanidmClient {
     )
 }
 
-/// Stub delivery service - DeliveryServiceImpl is currently disabled in infra
-/// Returns service unavailable errors until the implementation is enabled
-pub struct StubDeliveryService;
+/// Stub delivery service used when delivery functionality is temporarily unavailable.
+///
+/// This implementation consistently returns a generic "delivery service is temporarily
+/// unavailable" error suitable for API consumers. Infra-specific details about the
+/// underlying implementation state are logged internally rather than exposed
+/// in API responses.
+pub(crate) struct StubDeliveryService;
 
 #[async_trait]
 impl DeliveryService for StubDeliveryService {
@@ -135,8 +140,9 @@ impl DeliveryService for StubDeliveryService {
         _user_id: Uuid,
         _request: PickItemsRequest,
     ) -> Result<PickItemsResponse, AppError> {
+        tracing::warn!("Delivery pick_items called but DeliveryServiceImpl is disabled in infra");
         Err(AppError::ServiceUnavailable(
-            "Delivery service is temporarily disabled. DeliveryServiceImpl needs to be enabled in infra.".to_string(),
+            "Delivery service is temporarily unavailable. Please try again later.".to_string(),
         ))
     }
 
@@ -147,8 +153,9 @@ impl DeliveryService for StubDeliveryService {
         _user_id: Uuid,
         _request: PackItemsRequest,
     ) -> Result<PackItemsResponse, AppError> {
+        tracing::warn!("Delivery pack_items called but DeliveryServiceImpl is disabled in infra");
         Err(AppError::ServiceUnavailable(
-            "Delivery service is temporarily disabled. DeliveryServiceImpl needs to be enabled in infra.".to_string(),
+            "Delivery service is temporarily unavailable. Please try again later.".to_string(),
         ))
     }
 
@@ -159,8 +166,9 @@ impl DeliveryService for StubDeliveryService {
         _user_id: Uuid,
         _request: ShipItemsRequest,
     ) -> Result<ShipItemsResponse, AppError> {
+        tracing::warn!("Delivery ship_items called but DeliveryServiceImpl is disabled in infra");
         Err(AppError::ServiceUnavailable(
-            "Delivery service is temporarily disabled. DeliveryServiceImpl needs to be enabled in infra.".to_string(),
+            "Delivery service is temporarily unavailable. Please try again later.".to_string(),
         ))
     }
 }
@@ -377,10 +385,16 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Quality Service
     let quality_service = Arc::new(PgQualityControlPointService::new(quality_repo));
 
-    // Putaway Service - PgStockMoveRepository needs Arc<PgPool>
-    let stock_move_repo_for_putaway = PgStockMoveRepository::new(pool_arc.clone());
-    let putaway_service =
-        Arc::new(PgPutawayService::new(putaway_repo, stock_move_repo_for_putaway));
+    // Putaway Service
+    // NOTE: PgPutawayService::new takes PgStockMoveRepository by value (not Arc).
+    // Since PgStockMoveRepository internally uses Arc<PgPool>, creating a new instance
+    // with the same pool_arc is resource-equivalent to the existing stock_move_repo.
+    // TODO: Consider updating PgPutawayService to accept Arc<PgStockMoveRepository>
+    // for consistency with other services (transfer, stock_take, reconciliation, rma).
+    let putaway_service = Arc::new(PgPutawayService::new(
+        putaway_repo,
+        PgStockMoveRepository::new(pool_arc.clone()),
+    ));
 
     // Valuation Service
     let valuation_service = Arc::new(ValuationServiceImpl::new(
