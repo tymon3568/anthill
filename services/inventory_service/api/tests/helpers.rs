@@ -17,10 +17,10 @@ use inventory_service_infra::repositories::{
     ReceiptRepositoryImpl, ValuationRepositoryImpl, WarehouseRepositoryImpl,
 };
 use inventory_service_infra::services::{
-    CategoryServiceImpl, LotSerialServiceImpl, PgPutawayService, PgQualityControlPointService,
-    PgReplenishmentService, PgRmaService, PgStockReconciliationService, PgStockTakeService,
-    PgTransferService, PickingMethodServiceImpl, ReceiptServiceImpl, RedisDistributedLockService,
-    ValuationServiceImpl,
+    CategoryServiceImpl, LotSerialServiceImpl, PgCycleCountingService, PgPutawayService,
+    PgQualityControlPointService, PgReplenishmentService, PgRmaService,
+    PgStockReconciliationService, PgStockTakeService, PgTransferService, PickingMethodServiceImpl,
+    ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
 };
 use uuid::Uuid;
 
@@ -154,8 +154,16 @@ pub async fn create_test_app(pool: PgPool) -> Router {
     ));
 
     // Create minimal app state
+    // Cycle Counting Service
+    let cycle_counting_service = Arc::new(PgCycleCountingService::new(
+        Arc::new(pool_ref.clone()),
+        stock_move_repo.clone(),
+        Arc::new(PgInventoryLevelRepository::new(Arc::new(pool_ref.clone()))),
+    ));
+
     let app_state = AppState {
         category_service: Arc::new(CategoryServiceImpl::new(category_repo)),
+        cycle_counting_service,
         lot_serial_service: Arc::new(LotSerialServiceImpl::new(
             lot_serial_repo_impl,
             stock_move_repo.clone(),
