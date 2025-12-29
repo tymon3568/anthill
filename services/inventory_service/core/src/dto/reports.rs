@@ -92,7 +92,7 @@ impl AgeBucketPreset {
                     max_days: Some(366),
                 },
                 AgeBucket {
-                    label: "365+ days".to_string(),
+                    label: "366+ days".to_string(),
                     min_days: 366,
                     max_days: None,
                 },
@@ -459,8 +459,8 @@ mod tests {
         assert_eq!(get_age_bucket_label(61, &buckets), "61-90 days");
         assert_eq!(get_age_bucket_label(91, &buckets), "91-180 days");
         assert_eq!(get_age_bucket_label(181, &buckets), "181-365 days");
-        assert_eq!(get_age_bucket_label(366, &buckets), "365+ days");
-        assert_eq!(get_age_bucket_label(1000, &buckets), "365+ days");
+        assert_eq!(get_age_bucket_label(366, &buckets), "366+ days");
+        assert_eq!(get_age_bucket_label(1000, &buckets), "366+ days");
     }
 
     #[test]

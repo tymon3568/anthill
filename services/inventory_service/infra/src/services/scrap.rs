@@ -280,7 +280,13 @@ impl ScrapService for PgScrapService {
         _user_id: Uuid,
         request: AddScrapLinesRequest,
     ) -> Result<ScrapDocumentWithLinesResponse, AppError> {
-        // Verify document exists and is in draft status
+        // Start transaction first to prevent race conditions
+        let mut tx =
+            self.pool.begin().await.map_err(|e| {
+                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
+            })?;
+
+        // Verify document exists and is in draft status with FOR UPDATE lock
         let doc_row = sqlx::query_as::<_, ScrapDocumentRow>(
             r#"
             SELECT
@@ -288,11 +294,12 @@ impl ScrapService for PgScrapService {
                 created_by, posted_by, posted_at, created_at, updated_at
             FROM scrap_documents
             WHERE tenant_id = $1 AND scrap_id = $2
+            FOR UPDATE
             "#,
         )
         .bind(tenant_id)
         .bind(scrap_id)
-        .fetch_optional(self.pool.as_ref())
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to fetch scrap document: {}", e)))?
         .ok_or_else(|| AppError::NotFound(format!("Scrap document {} not found", scrap_id)))?;
@@ -302,12 +309,6 @@ impl ScrapService for PgScrapService {
                 "Lines can only be added to draft scrap documents".to_string(),
             ));
         }
-
-        // Delete existing lines and add new ones in a transaction
-        let mut tx =
-            self.pool.begin().await.map_err(|e| {
-                AppError::DatabaseError(format!("Failed to begin transaction: {}", e))
-            })?;
 
         // Delete existing lines
         sqlx::query(

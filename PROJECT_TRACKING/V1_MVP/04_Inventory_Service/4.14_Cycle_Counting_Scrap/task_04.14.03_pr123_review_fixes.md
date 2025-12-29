@@ -49,6 +49,9 @@ Address unresolved code review issues from PR #123 identified by multiple review
 - [x] **Race condition in cancel_scrap**: Status check and update are not atomic (no `FOR UPDATE` lock) (Severity: Major, Reviewer: coderabbitai, File: `services/inventory_service/infra/src/services/scrap.rs:543-571`)
   - Fix: Added transaction with `FOR UPDATE` row-level lock, matching `post_scrap` pattern
 
+- [x] **Race condition in add_lines**: Status check before transaction allows TOCTOU race (Severity: Major, Reviewer: coderabbitai, File: `services/inventory_service/infra/src/services/scrap.rs:276-304`)
+  - Fix: Moved transaction start before status check, added `FOR UPDATE` lock on document row
+
 - [x] **Missing validation - schedule or warehouse required**: `create_session` doesn't enforce that either `schedule_id` or `warehouse_id` must be provided (Severity: Major, Reviewer: codeant-ai, File: `services/inventory_service/api/src/handlers/cycle_count.rs:82`)
   - Fix: Added validation check returning `AppError::ValidationError` if both are `None`
 
@@ -59,7 +62,7 @@ Address unresolved code review issues from PR #123 identified by multiple review
   - Fix: Added placeholder `Option::<i64>::None` for $4 parameter alignment; reorganized count queries
 
 - [x] **Age bucket labels inconsistent with min_days**: Label "180+ days" but `min_days: 181` (Severity: Major, Reviewer: cubic-dev-ai, File: `services/inventory_service/core/src/dto/reports.rs:69`)
-  - Fix: Changed labels to "181+ days" and "366+ days" to match actual min_days values
+  - Fix: Changed labels to "181+ days" and "366+ days" to match actual min_days values (Default preset "365+" fixed to "366+" in follow-up)
 
 ### Minor (P3) - Nice to Have
 
@@ -111,7 +114,7 @@ Address unresolved code review issues from PR #123 identified by multiple review
 
 ## Files Modified
 
-1. `services/inventory_service/infra/src/services/scrap.rs` - Fixed NULL handling bug, race condition in cancel_scrap
+1. `services/inventory_service/infra/src/services/scrap.rs` - Fixed NULL handling bug, race condition in cancel_scrap and add_lines
 2. `services/inventory_service/infra/src/services/cycle_count.rs` - Fixed idempotency bug, session number race condition
 3. `services/inventory_service/infra/src/services/reports.rs` - Fixed parameter binding issues
 4. `services/inventory_service/api/src/handlers/scrap.rs` - Fixed HTTP 201 status
@@ -161,4 +164,13 @@ Address unresolved code review issues from PR #123 identified by multiple review
   - UUID v7 in SQL: Performance optimization, existing pattern acceptable
   - Integration tests: Require running DB environment
   - These items logged for user decision/follow-up tasks
+---
+* 2025-12-29 16:30: [Follow-up Fixes] by Claude
+  - Fixed remaining age bucket label in Default preset: "365+ days" → "366+ days" to match min_days: 366
+  - Fixed race condition in add_lines: Moved transaction start before status check, added FOR UPDATE lock
+  - Updated test assertions in test_age_bucket_default_preset
+  - Quality gates passed:
+    - SQLX_OFFLINE=true cargo check --workspace ✓
+    - SQLX_OFFLINE=true cargo clippy --workspace -- -D warnings ✓
+  - Status: NeedsReview - all auto-fixable issues resolved
 ---
