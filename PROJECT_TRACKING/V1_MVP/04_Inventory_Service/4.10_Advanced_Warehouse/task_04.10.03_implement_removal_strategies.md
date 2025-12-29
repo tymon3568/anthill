@@ -9,7 +9,7 @@
 **Module:** 04_Inventory_Service → 4.10_Advanced_Warehouse
 **Dependencies:**
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/task_04.05.01_create_lots_serial_numbers_table.md`
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md`
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.01_create_stock_moves_table.md`
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.05_create_delivery_orders_table.md`
 **References:**
 - `docs/INVENTORY_IMPROVE.md` (Removal Strategies)

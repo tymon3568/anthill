@@ -7,8 +7,8 @@
 **Phase:** V1_MVP
 **Module:** 04_Inventory_Service → 4.14_Cycle_Counting_Scrap
 **Dependencies:**
-- PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md
-- PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.03_implement_inventory_valuation.md
+- PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.01_create_stock_moves_table.md
+- PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.03_implement_inventory_valuation.md
 - PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/task_04.02.01_create_warehouse_hierarchy_api.md
 - PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.01_implement_idempotency_and_concurrency.md
 

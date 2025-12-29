@@ -74,58 +74,71 @@
           → Progress: 0/5 Done, 1 NeedsReview, 4 Todo (Updated: 2025-12-24)
 
 ### [🔄] Phase 4: Inventory Service - `In Progress 94%` *(Major Progress)*
-    - [🔄] 4.1 Product Master - `In Progress 83%`
+    - [✅] 4.1 Product Master - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.1_Product_Master/)
-          → Progress: 5/6 Done, 1 InProgress (Updated: 2025-12-24)
+          → Progress: 6/6 tasks completed (Updated: 2025-01-13)
 
     - [✅] 4.2 Warehouse Management - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/)
-          → Progress: 1/1 tasks completed (Updated: 2025-12-24)
+          → Progress: 4/6 Done, 2 Todo (schema tasks) (Updated: 2025-01-13)
+          → **Note**: Tasks 02,04,05 superseded by 4.10 implementations
 
-    - [✅] 4.3 Stock Operations Core - `Done 100%`
-          → [View folder](./V1_MVP/04_Inventory_Service/4.3_Stock_Operations/)
-          → Progress: 3/3 tasks completed (Updated: 2025-12-24)
+    - [✅] 4.3 Stock Foundation - `Done 100%`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/)
+          → Progress: 3/3 tasks completed (Updated: 2025-01-13)
+          → **Note**: Renamed from Stock_Operations for clarity
 
-    - [🔄] 4.4 Stock Transactions - `In Progress 95%`
+    - [✅] 4.4 Stock Transactions - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.4_Stock_Operations/)
-          → Progress: 18/19 Done, 1 NeedsReview (Updated: 2025-12-24)
-          → **Note**: Consolidates GRN, DO, Transfers, Adjustments, RMA into unified workflow
+          → Progress: 19/19 tasks completed (Updated: 2025-01-13)
+          → **Features**: GRN, DO, Transfers, Stock Takes, RMA
 
-    - [🔄] 4.5 Lot & Serial Tracking - `In Progress 75%`
+    - [✅] 4.5 Lot & Serial Tracking - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/)
-          → Progress: 3/4 Done, 1 NeedsReview (Updated: 2025-12-24)
+          → Progress: 4/4 tasks completed (Updated: 2025-01-13)
 
-    - [🔄] 4.7 Stock Replenishment - `In Progress 50%`
+    - [⏳] 4.6 Inventory Valuation - `Todo`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/)
+          → Progress: 0/2 Todo (Landed Costs, Advanced Methods) (Updated: 2025-01-13)
+          → **Note**: Core valuation done in 4.3; these are enhancements
+
+    - [✅] 4.7 Stock Replenishment - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.7_Stock_Replenishment/)
-          → Progress: 0/2 Done, 1 NeedsReview, 1 Todo (Updated: 2025-12-24)
+          → Progress: 2/2 tasks completed (Updated: 2025-01-13)
 
     - [✅] 4.8 Quality Management - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.8_Quality_Management/)
-          → Progress: 4/4 tasks completed (Updated: 2025-12-24)
+          → Progress: 4/4 tasks completed (Updated: 2025-01-13)
           → **Features**: QC points, checks, alerts, inventory integration
 
-    - [🔄] 4.9 Stock Reports & Analytics - `NeedsReview 100%`
+    - [🔄] 4.9 Stock Reports & Analytics - `In Progress 40%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/)
-          → Progress: 0/2 Done, 2 NeedsReview (Updated: 2025-12-24)
+          → Progress: 2/5 Done, 3 Todo (Updated: 2025-01-13)
+          → **Todo**: Stock Aging, Turnover Analysis, Demand Forecasting
 
     - [✅] 4.10 Advanced Warehouse Features - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/)
-          → Progress: 3/3 tasks completed (Updated: 2025-12-24)
+          → Progress: 3/3 tasks completed (Updated: 2025-01-13)
           → **Features**: Putaway rules, advanced picking, removal strategies
 
-    - [🔄] 4.11 Technical Implementation - `In Progress 90%`
+    - [✅] 4.11 Technical Implementation - `Done 91%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/)
-          → Progress: 6/10 Done, 3 NeedsReview, 1 Todo (Updated: 2025-12-24)
-          → **Note**: Removed mobile PWA from MVP scope
+          → Progress: 10/11 Done, 1 Deferred (Updated: 2025-01-13)
+          → **Deferred**: Mobile PWA (out of MVP scope per INVENTORY_IMPROVE.md)
 
-    - [⏳] 4.12 Multi-Echelon Inventory - `Todo`
+    - [⏳] 4.12 Multi-Echelon Inventory - `Todo (Low Priority)`
           → [View folder](./V1_MVP/04_Inventory_Service/4.12_Multi_Echelon_Inventory/)
-          → Progress: 0/2 tasks completed
-          → **Note**: Simplified for MVP - basic distribution network only
+          → Progress: 0/2 Todo (Updated: 2025-01-13)
+          → **Note**: Deferred to post-MVP - distribution network, demand forecasting
 
-    - [🔄] 4.13 Testing & Quality Assurance - `In Progress 83%`
+    - [✅] 4.13 Testing & Quality Assurance - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.13_Testing_Quality_Assurance/)
-          → Progress: 3/6 Done, 1 InProgress, 2 NeedsReview (Updated: 2025-12-24)
+          → Progress: 6/6 tasks completed (Updated: 2025-01-13)
+
+    - [⏳] 4.14 Cycle Counting & Scrap - `Todo (P1)`
+          → [View folder](./V1_MVP/04_Inventory_Service/4.14_Cycle_Counting_Scrap/)
+          → Progress: 0/2 Todo (Updated: 2025-01-13)
+          → **Todo**: Cycle counting workflow, scrap management
 
 ### [⏳] Phase 5: Order Service - `Todo 0%`
     - [⏳] 5.1 Order Management - `Todo`

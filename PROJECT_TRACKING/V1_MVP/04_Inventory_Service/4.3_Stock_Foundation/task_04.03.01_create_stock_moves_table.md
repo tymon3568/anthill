@@ -1,9 +1,9 @@
 # Task: Create `stock_moves` Table (Stock Ledger)
 
-**Task ID:** V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md
+**Task ID:** V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.01_create_stock_moves_table.md
 **Version:** V1_MVP
 **Phase:** 04_Inventory_Service
-**Module:** 4.3_Stock_Operations
+**Module:** 4.3_Stock_Foundation
 **Priority:** High
 **Status:** Done
 **Assignee:** Claude

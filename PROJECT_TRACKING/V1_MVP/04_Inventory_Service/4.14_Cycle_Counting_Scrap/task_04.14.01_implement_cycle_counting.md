@@ -12,7 +12,7 @@
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.14_create_stock_takes_table.md`
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.15_create_stock_take_lines_table.md`
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.16_create_stock_take_endpoints.md`
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.02_create_stock_adjustments_table.md`
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.02_create_stock_adjustments_table.md`
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.01_implement_idempotency_and_concurrency.md`
 **References:**
 - `docs/INVENTORY_IMPROVE.md` (Cycle Counting)

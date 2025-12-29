@@ -1,9 +1,9 @@
 # Task: Implement Inventory Valuation System
 
-**Task ID:** V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.03_implement_inventory_valuation.md
+**Task ID:** V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.03_implement_inventory_valuation.md
 **Version:** V1_MVP
 **Phase:** 04_Inventory_Service
-**Module:** 4.3_Stock_Operations
+**Module:** 4.3_Stock_Foundation
 **Priority:** High
 **Status:** Done
 **Assignee:** Grok
@@ -36,7 +36,7 @@ Implement comprehensive inventory valuation system supporting multiple costing m
 - [x] Integration with financial reporting systems
 
 ## Dependencies:
-- V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md
+- V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.01_create_stock_moves_table.md
 
 ## Related Documents:
 - `migrations/20250110000014_create_valuation_tables.sql` (file to be created)

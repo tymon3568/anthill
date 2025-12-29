@@ -4,11 +4,23 @@
 **Version:** V1_MVP
 **Phase:** 04_Inventory_Service
 **Module:** 4.11_Technical_Implementation
-**Priority:** Medium
-**Status:** Todo
+**Priority:** Low (Deferred)
+**Status:** Deferred
 **Assignee:** 
 **Created Date:** 2025-10-21
-**Last Updated:** 2025-10-21
+**Last Updated:** 2025-01-13
+
+## Resolution
+
+**This task has been deferred from MVP scope.**
+
+Per `docs/INVENTORY_IMPROVE.md` recommendation:
+> "Loại bỏ mobile PWA khỏi MVP, tập trung vào: Performance optimizations, Idempotency & concurrency, Outbox pattern, Event-driven architecture"
+
+The Mobile/Barcode PWA is a nice-to-have feature but not critical for MVP launch. Core warehouse operations can be performed via the web interface. This task will be revisited in a post-MVP phase when:
+- Core inventory service is stable and production-ready
+- Frontend web application is complete
+- User feedback indicates mobile PWA is a priority
 
 ## Detailed Description:
 Develop a simple Progressive Web App (PWA) for warehouse staff to use on mobile devices. The PWA should support key workflows via barcode scanning.
@@ -25,15 +37,25 @@ Develop a simple Progressive Web App (PWA) for warehouse staff to use on mobile 
 - [ ] Core workflows (receipt, count, pick) can be performed through the PWA.
 
 ## Dependencies:
-*   (Frontend project setup)
+* Frontend project setup (not yet complete)
+* Core inventory APIs stable (Done)
 
 ## Related Documents:
-*   (Khu vực dành cho các câu hỏi, thảo luận, hoặc ghi chú trong quá trình thực hiện)
+* `docs/INVENTORY_IMPROVE.md` - Recommendation to defer from MVP
 
 ## Notes / Discussion:
 ---
-*   (Khu vực dành cho các câu hỏi, thảo luận, hoặc ghi chú trong quá trình thực hiện)
+* 2025-01-13: Deferred from MVP scope per INVENTORY_IMPROVE.md recommendations
+* Focus MVP efforts on backend stability, performance, and core feature completeness
+* Mobile PWA can be prioritized in V1.1 or V2 based on user feedback
 
 ## AI Agent Log:
 ---
-*   (Log sẽ được AI agent tự động cập nhật khi bắt đầu và thực hiện task)
+* 2025-01-13 10:00: Task deferred by Claude
+  - Reviewed task against MVP priorities in INVENTORY_IMPROVE.md
+  - Document recommends removing mobile PWA from MVP scope
+  - Core backend features should take priority
+  - Status changed from Todo to Deferred
+  - Priority lowered from Medium to Low
+  - Files modified: `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.04_implement_mobile_barcode_pwa.md`
+---

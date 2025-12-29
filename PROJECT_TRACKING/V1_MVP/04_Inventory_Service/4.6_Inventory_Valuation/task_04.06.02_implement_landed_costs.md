@@ -10,7 +10,7 @@
 **Dependencies:**  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.01_create_goods_receipts_table.md`  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.02_create_goods_receipt_items_table.md`  
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.03_implement_inventory_valuation.md`
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.03_implement_inventory_valuation.md`
 
 ## Context
 We currently support basic inventory valuation (`4.3` stock moves + valuation), but we lack *landed cost* allocation, which is required to match real-life costing (freight, customs, handling, insurance, etc.) similar to Odoo/ERPNext. This task introduces the minimum viable landed-cost feature that can allocate additional costs onto incoming stock (typically GRN receipts) and adjust inventory valuation accordingly.

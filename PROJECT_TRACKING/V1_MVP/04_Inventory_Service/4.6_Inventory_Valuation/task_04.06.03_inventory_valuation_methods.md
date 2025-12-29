@@ -8,8 +8,8 @@
 **Phase:** V1_MVP  
 **Module:** 04_Inventory_Service → 4.6_Inventory_Valuation  
 **Dependencies:**  
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md`  
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.03_implement_inventory_valuation.md`  
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.01_create_stock_moves_table.md`  
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.03_implement_inventory_valuation.md`  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.01_implement_idempotency_and_concurrency.md`  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.10_ship_do_endpoint.md` (required for realistic outbound flows)  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.03_create_grn_endpoint.md` (required for realistic inbound flows)  
@@ -267,8 +267,8 @@ Add deterministic tests for:
 - Switching methods: document behavior (recommended: only affects future moves)
 
 ## Dependencies
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md`
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.03_implement_inventory_valuation.md`
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.01_create_stock_moves_table.md`
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.03_implement_inventory_valuation.md`
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.01_implement_idempotency_and_concurrency.md`
 
 Optional/Related:

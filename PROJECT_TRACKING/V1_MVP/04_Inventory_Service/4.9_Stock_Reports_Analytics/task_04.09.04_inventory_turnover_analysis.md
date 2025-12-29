@@ -9,7 +9,7 @@
 **Module:** 04_Inventory_Service → 4.9_Stock_Reports_Analytics  
 **Dependencies:**  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/task_04.09.01_implement_stock_ledger_report.md` (must be Done)  
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.03_implement_inventory_valuation.md` (must be Done)  
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.03_implement_inventory_valuation.md` (must be Done)  
 
 ## Summary
 Implement an **Inventory Turnover Analysis** report for the Inventory Service to measure how efficiently inventory is being sold/consumed over time. This includes key KPIs:

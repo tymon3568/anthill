@@ -10,7 +10,7 @@
 **Dependencies:**
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/task_04.09.01_implement_stock_ledger_report.md`
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/task_04.09.02_implement_advanced_inventory_reports.md`
-- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Operations/task_04.03.01_create_stock_moves_table.md` (demand signal source; must be Done)
+- `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/task_04.03.01_create_stock_moves_table.md` (demand signal source; must be Done)
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.10_ship_do_endpoint.md` (if shipments are the demand signal; must be Done)
 
 ## Context
