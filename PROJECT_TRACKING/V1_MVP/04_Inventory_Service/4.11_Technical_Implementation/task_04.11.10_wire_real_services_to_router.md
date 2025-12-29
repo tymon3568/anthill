@@ -1,10 +1,10 @@
 # Task: Wire Real Services to Inventory Service Router
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/task_04.11.10_wire_real_services_to_router.md`
-**Status:** InProgress_By_Claude
+**Status:** NeedsReview
 **Priority:** P0 (Critical)
 **Assignee:** Claude
-**Last Updated:** 2025-12-28
+**Last Updated:** 2025-01-10
 **Phase:** V1_MVP
 **Module:** 04_Inventory_Service → 4.11_Technical_Implementation
 
@@ -231,4 +231,15 @@ let protected_routes = Router::new()
   - Build verification: `cargo check` ✓, `cargo clippy` ✓
   - Following 3-crate pattern: dependency injection in `create_router()`
   - Status: InProgress_By_Claude (needs runtime testing)
+---
+* 2025-01-10 09:45: Changes pushed and ready for review
+  - Committed: feat(inventory): wire real services to router, remove dummy implementations
+  - Pushed to branch: `feature/task-04-11-10-wire-real-services`
+  - PR URL: https://github.com/tymon3568/anthill/pull/new/feature/task-04-11-10-wire-real-services
+  - Remaining items for runtime testing (requires DB + Redis):
+    - 5.5 Run `cargo test --workspace`
+    - 5.6 Verify service starts without panic
+    - 5.7 Test health endpoint works
+    - 5.8 Update OpenAPI spec
+  - Status: NeedsReview
 ---
