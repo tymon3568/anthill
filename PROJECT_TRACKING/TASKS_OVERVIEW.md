@@ -111,10 +111,11 @@
           → Progress: 4/4 tasks completed (Updated: 2025-01-13)
           → **Features**: QC points, checks, alerts, inventory integration
 
-    - [🔄] 4.9 Stock Reports & Analytics - `In Progress 40%`
+    - [🔄] 4.9 Stock Reports & Analytics - `In Progress 80%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/)
-          → Progress: 2/5 Done, 3 Todo (Updated: 2025-01-13)
-          → **Todo**: Stock Aging, Turnover Analysis, Demand Forecasting
+          → Progress: 4/5 NeedsReview, 1 Todo (Updated: 2025-12-29)
+          → **NeedsReview**: Stock Aging (4.09.03), Turnover Analysis (4.09.04)
+          → **Todo**: Demand Forecasting (deferred to post-MVP)
 
     - [✅] 4.10 Advanced Warehouse Features - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.10_Advanced_Warehouse/)
@@ -135,10 +136,11 @@
           → [View folder](./V1_MVP/04_Inventory_Service/4.13_Testing_Quality_Assurance/)
           → Progress: 6/6 tasks completed (Updated: 2025-01-13)
 
-    - [⏳] 4.14 Cycle Counting & Scrap - `Todo (P1)`
+    - [🔄] 4.14 Cycle Counting & Scrap - `NeedsReview (P1)`
           → [View folder](./V1_MVP/04_Inventory_Service/4.14_Cycle_Counting_Scrap/)
-          → Progress: 0/2 Todo (Updated: 2025-01-13)
-          → **Todo**: Cycle counting workflow, scrap management
+          → Progress: 2/4 NeedsReview, 1 InProgress, 1 Done (Updated: 2025-12-29)
+          → **NeedsReview**: Cycle counting (4.14.01), Scrap management (4.14.02)
+          → **InProgress**: Integration tests (4.14.04)
 
 ### [⏳] Phase 5: Order Service - `Todo 0%`
     - [⏳] 5.1 Order Management - `Todo`
