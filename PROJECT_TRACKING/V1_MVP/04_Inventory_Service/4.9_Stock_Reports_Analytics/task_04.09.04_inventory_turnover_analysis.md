@@ -140,7 +140,8 @@ If grouping by product and dataset can be large:
 - [x] All repository queries filter by `tenant_id` (no cross-tenant leakage)
 - [x] No `unwrap()`/`expect()` in production code paths; errors use `AppError`
 - [x] OpenAPI annotation exists with a globally unique `operation_id`
-- [x] Tests exist for math correctness and tenant isolation (unit tests complete, integration tests pending)
+- [x] Unit tests exist for math correctness (turnover ratio, DIO, avg inventory calculations)
+- [ ] Integration tests for tenant isolation (tracked in task_04.14.04_mvp_p1_integration_tests.md)
 - [x] Quality gates pass and are recorded in AI Agent Log
 
 ## AI Agent Log

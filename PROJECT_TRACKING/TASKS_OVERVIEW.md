@@ -113,8 +113,9 @@
 
     - [🔄] 4.9 Stock Reports & Analytics - `In Progress 80%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.9_Stock_Reports_Analytics/)
-          → Progress: 4/5 NeedsReview, 1 Todo (Updated: 2025-12-29)
+          → Progress: 2/5 NeedsReview, 2 Done, 1 Todo (Updated: 2025-12-30)
           → **NeedsReview**: Stock Aging (4.09.03), Turnover Analysis (4.09.04)
+          → **Done**: Stock Ledger (4.09.01), Low Stock/Dead Stock Alerts (4.09.02)
           → **Todo**: Demand Forecasting (deferred to post-MVP)
 
     - [✅] 4.10 Advanced Warehouse Features - `Done 100%`

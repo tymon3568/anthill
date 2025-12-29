@@ -128,32 +128,32 @@ mod unit_tests {
     fn get_default_buckets() -> Vec<AgeBucket> {
         vec![
             AgeBucket {
-                label: "0-30".to_string(),
+                label: "0-30 days".to_string(),
                 min_days: 0,
                 max_days: Some(31),
             },
             AgeBucket {
-                label: "31-60".to_string(),
+                label: "31-60 days".to_string(),
                 min_days: 31,
                 max_days: Some(61),
             },
             AgeBucket {
-                label: "61-90".to_string(),
+                label: "61-90 days".to_string(),
                 min_days: 61,
                 max_days: Some(91),
             },
             AgeBucket {
-                label: "91-180".to_string(),
+                label: "91-180 days".to_string(),
                 min_days: 91,
                 max_days: Some(181),
             },
             AgeBucket {
-                label: "181-365".to_string(),
+                label: "181-365 days".to_string(),
                 min_days: 181,
                 max_days: Some(366),
             },
             AgeBucket {
-                label: "365+".to_string(),
+                label: "365+ days".to_string(),
                 min_days: 366,
                 max_days: None,
             },
@@ -163,49 +163,49 @@ mod unit_tests {
     #[test]
     fn test_age_bucket_0_30_days() {
         let buckets = get_default_buckets();
-        assert_eq!(get_age_bucket_label(0, &buckets), "0-30");
-        assert_eq!(get_age_bucket_label(15, &buckets), "0-30");
-        assert_eq!(get_age_bucket_label(30, &buckets), "0-30");
+        assert_eq!(get_age_bucket_label(0, &buckets), "0-30 days");
+        assert_eq!(get_age_bucket_label(15, &buckets), "0-30 days");
+        assert_eq!(get_age_bucket_label(30, &buckets), "0-30 days");
     }
 
     #[test]
     fn test_age_bucket_31_60_days() {
         let buckets = get_default_buckets();
-        assert_eq!(get_age_bucket_label(31, &buckets), "31-60");
-        assert_eq!(get_age_bucket_label(45, &buckets), "31-60");
-        assert_eq!(get_age_bucket_label(60, &buckets), "31-60");
+        assert_eq!(get_age_bucket_label(31, &buckets), "31-60 days");
+        assert_eq!(get_age_bucket_label(45, &buckets), "31-60 days");
+        assert_eq!(get_age_bucket_label(60, &buckets), "31-60 days");
     }
 
     #[test]
     fn test_age_bucket_61_90_days() {
         let buckets = get_default_buckets();
-        assert_eq!(get_age_bucket_label(61, &buckets), "61-90");
-        assert_eq!(get_age_bucket_label(75, &buckets), "61-90");
-        assert_eq!(get_age_bucket_label(90, &buckets), "61-90");
+        assert_eq!(get_age_bucket_label(61, &buckets), "61-90 days");
+        assert_eq!(get_age_bucket_label(75, &buckets), "61-90 days");
+        assert_eq!(get_age_bucket_label(90, &buckets), "61-90 days");
     }
 
     #[test]
     fn test_age_bucket_91_180_days() {
         let buckets = get_default_buckets();
-        assert_eq!(get_age_bucket_label(91, &buckets), "91-180");
-        assert_eq!(get_age_bucket_label(120, &buckets), "91-180");
-        assert_eq!(get_age_bucket_label(180, &buckets), "91-180");
+        assert_eq!(get_age_bucket_label(91, &buckets), "91-180 days");
+        assert_eq!(get_age_bucket_label(120, &buckets), "91-180 days");
+        assert_eq!(get_age_bucket_label(180, &buckets), "91-180 days");
     }
 
     #[test]
     fn test_age_bucket_181_365_days() {
         let buckets = get_default_buckets();
-        assert_eq!(get_age_bucket_label(181, &buckets), "181-365");
-        assert_eq!(get_age_bucket_label(250, &buckets), "181-365");
-        assert_eq!(get_age_bucket_label(365, &buckets), "181-365");
+        assert_eq!(get_age_bucket_label(181, &buckets), "181-365 days");
+        assert_eq!(get_age_bucket_label(270, &buckets), "181-365 days");
+        assert_eq!(get_age_bucket_label(365, &buckets), "181-365 days");
     }
 
     #[test]
     fn test_age_bucket_over_365_days() {
         let buckets = get_default_buckets();
-        assert_eq!(get_age_bucket_label(366, &buckets), "365+");
-        assert_eq!(get_age_bucket_label(500, &buckets), "365+");
-        assert_eq!(get_age_bucket_label(1000, &buckets), "365+");
+        assert_eq!(get_age_bucket_label(366, &buckets), "365+ days");
+        assert_eq!(get_age_bucket_label(500, &buckets), "365+ days");
+        assert_eq!(get_age_bucket_label(1000, &buckets), "365+ days");
     }
 
     // Inventory Turnover tests
@@ -321,10 +321,8 @@ async fn test_stock_aging_report_basic() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let report: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    // Verify response structure
-    assert!(report["rows"].is_array());
-    assert!(report["as_of"].is_string());
-    assert!(report["aging_basis"].is_string());
+    // Verify response structure - API returns Vec<StockAgingEntry> (array)
+    assert!(report.is_array(), "Stock aging API returns an array of entries");
 }
 
 /// Test Stock Aging Report with both aging bases
@@ -456,8 +454,8 @@ async fn test_stock_aging_tenant_isolation() {
     let report_b: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     // Verify Tenant B doesn't see Tenant A's data
-    if let (Some(rows_a), Some(rows_b)) = (report_a["rows"].as_array(), report_b["rows"].as_array())
-    {
+    // API returns Vec<StockAgingEntry> (array at root level)
+    if let (Some(rows_a), Some(rows_b)) = (report_a.as_array(), report_b.as_array()) {
         // Extract product IDs from each report
         let product_ids_a: Vec<&str> = rows_a
             .iter()
@@ -510,11 +508,8 @@ async fn test_inventory_turnover_report_basic() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let report: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    // Verify response structure
-    assert!(report["rows"].is_array());
-    assert!(report["from"].is_string());
-    assert!(report["to"].is_string());
-    assert!(report["period_days"].is_number());
+    // Verify response structure - API returns Vec<InventoryTurnoverEntry> (array)
+    assert!(report.is_array(), "Inventory turnover API returns an array of entries");
 }
 
 /// Test Inventory Turnover Report with different groupings
@@ -635,20 +630,20 @@ async fn test_inventory_turnover_tenant_isolation() {
     let report_b: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     // Verify Tenant B doesn't see Tenant A's data
-    if let (Some(rows_a), Some(rows_b)) = (report_a["rows"].as_array(), report_b["rows"].as_array())
-    {
-        let group_ids_a: Vec<&str> = rows_a
+    // API returns Vec<InventoryTurnoverEntry> (array at root level) with product_id field
+    if let (Some(rows_a), Some(rows_b)) = (report_a.as_array(), report_b.as_array()) {
+        let product_ids_a: Vec<&str> = rows_a
             .iter()
-            .filter_map(|r| r["group_id"].as_str())
+            .filter_map(|r| r["product_id"].as_str())
             .collect();
 
-        let group_ids_b: Vec<&str> = rows_b
+        let product_ids_b: Vec<&str> = rows_b
             .iter()
-            .filter_map(|r| r["group_id"].as_str())
+            .filter_map(|r| r["product_id"].as_str())
             .collect();
 
-        for gid in &group_ids_a {
-            assert!(!group_ids_b.contains(gid), "Tenant B should not see Tenant A's data");
+        for pid in &product_ids_a {
+            assert!(!product_ids_b.contains(pid), "Tenant B should not see Tenant A's data");
         }
     }
 }
@@ -691,13 +686,9 @@ async fn test_reports_tenant_filter_in_queries() {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://user:password@localhost:5432/inventory_db".to_string());
 
-    let pool = match sqlx::PgPool::connect(&database_url).await {
-        Ok(pool) => pool,
-        Err(_) => {
-            eprintln!("Skipping test - database not available");
-            return;
-        },
-    };
+    let pool = sqlx::PgPool::connect(&database_url)
+        .await
+        .expect("Failed to connect to database - ensure DATABASE_URL is set for DB-level tests");
 
     let tenant_a_id = Uuid::now_v7();
     let tenant_b_id = Uuid::now_v7();
@@ -710,7 +701,7 @@ async fn test_reports_tenant_filter_in_queries() {
         (tenant_b_id, "Reports Filter Test B"),
     ] {
         let slug = format!("test-reports-filter-{}", tenant_id);
-        let _ = sqlx::query(
+        sqlx::query(
             "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
              VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
              ON CONFLICT (tenant_id) DO NOTHING",
@@ -719,11 +710,12 @@ async fn test_reports_tenant_filter_in_queries() {
         .bind(name)
         .bind(&slug)
         .execute(&pool)
-        .await;
+        .await
+        .expect("Failed to insert tenant for reports test");
     }
 
     // Insert products for each tenant
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO products (product_id, tenant_id, sku, name, created_at)
          VALUES ($1, $2, 'RPT-TEST-A', 'Report Test A', NOW())
          ON CONFLICT DO NOTHING",
@@ -731,9 +723,10 @@ async fn test_reports_tenant_filter_in_queries() {
     .bind(product_a_id)
     .bind(tenant_a_id)
     .execute(&pool)
-    .await;
+    .await
+    .expect("Failed to insert product for tenant A");
 
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO products (product_id, tenant_id, sku, name, created_at)
          VALUES ($1, $2, 'RPT-TEST-B', 'Report Test B', NOW())
          ON CONFLICT DO NOTHING",
@@ -741,7 +734,8 @@ async fn test_reports_tenant_filter_in_queries() {
     .bind(product_b_id)
     .bind(tenant_b_id)
     .execute(&pool)
-    .await;
+    .await
+    .expect("Failed to insert product for tenant B");
 
     // Query products for tenant A
     let rows_a: Vec<(Uuid,)> =
@@ -770,11 +764,12 @@ async fn test_reports_tenant_filter_in_queries() {
     }
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM products WHERE product_id IN ($1, $2)")
+    sqlx::query("DELETE FROM products WHERE product_id IN ($1, $2)")
         .bind(product_a_id)
         .bind(product_b_id)
         .execute(&pool)
-        .await;
+        .await
+        .expect("Failed to clean up products test data");
 }
 
 /// Test turnover calculation with known values

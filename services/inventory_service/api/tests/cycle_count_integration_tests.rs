@@ -230,8 +230,10 @@ async fn test_cycle_count_create_session() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let create_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(create_response["cycle_count_id"].is_string());
-    assert_eq!(create_response["status"], "draft");
+    // API returns CycleCountResponse with nested cycle_count field
+    let cycle_count = &create_response["cycle_count"];
+    assert!(cycle_count["cycle_count_id"].is_string());
+    assert_eq!(cycle_count["status"], "draft");
 }
 
 /// Test tenant isolation - Tenant B cannot access Tenant A's cycle count
@@ -275,7 +277,10 @@ async fn test_cycle_count_tenant_isolation() {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let create_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let cycle_count_id = create_response["cycle_count_id"].as_str().unwrap();
+    // API returns CycleCountResponse with nested cycle_count field
+    let cycle_count_id = create_response["cycle_count"]["cycle_count_id"]
+        .as_str()
+        .unwrap();
 
     // Tenant B tries to access Tenant A's cycle count - should get 404 (not 403 to avoid leaking existence)
     let response = app
@@ -316,9 +321,10 @@ async fn test_cycle_count_tenant_isolation() {
     let list_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     // Tenant B should have empty list or not contain Tenant A's cycle count
-    if let Some(items) = list_response["items"].as_array() {
-        for item in items {
-            assert_ne!(item["cycle_count_id"].as_str(), Some(cycle_count_id));
+    // API returns CycleCountListResponse with cycle_counts array
+    if let Some(sessions) = list_response["cycle_counts"].as_array() {
+        for session in sessions {
+            assert_ne!(session["cycle_count_id"].as_str(), Some(cycle_count_id));
         }
     }
 }
@@ -359,7 +365,10 @@ async fn test_cycle_count_e2e_workflow() {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let create_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let cycle_count_id = create_response["cycle_count_id"].as_str().unwrap();
+    // API returns CycleCountResponse with nested cycle_count field
+    let cycle_count_id = create_response["cycle_count"]["cycle_count_id"]
+        .as_str()
+        .unwrap();
 
     // 2. Generate lines
     let generate_request = json!({
@@ -384,11 +393,36 @@ async fn test_cycle_count_e2e_workflow() {
     // May return 200 OK or 201 Created depending on implementation
     assert!(response.status().is_success());
 
-    // 3. Submit counts
+    // 3. Get generated lines to obtain line_id for count submission
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(&format!("/api/v1/inventory/cycle-counts/{}", cycle_count_id))
+                .header("x-user-id", auth_user.user_id.to_string())
+                .header("x-tenant-id", auth_user.tenant_id.to_string())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert!(response.status().is_success());
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let session_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    // Get line_id from the generated lines (API returns CycleCountWithLinesResponse)
+    let line_id = session_response["lines"][0]["line_id"]
+        .as_str()
+        .expect("expected at least one generated line");
+
+    // Submit counts using line_id (not product_id)
     let counts_request = json!({
         "counts": [
             {
-                "product_id": product_id,
+                "line_id": line_id,
                 "counted_qty": 100
             }
         ]
@@ -428,16 +462,21 @@ async fn test_cycle_count_e2e_workflow() {
 
     assert!(response.status().is_success());
 
-    // 5. Reconcile
+    // 5. Reconcile (handler expects JSON body with ReconcileRequest)
+    let reconcile_request = json!({
+        "force": false
+    });
+
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method("POST")
                 .uri(&format!("/api/v1/inventory/cycle-counts/{}/reconcile", cycle_count_id))
+                .header("content-type", "application/json")
                 .header("x-user-id", auth_user.user_id.to_string())
                 .header("x-tenant-id", auth_user.tenant_id.to_string())
-                .body(Body::empty())
+                .body(Body::from(reconcile_request.to_string()))
                 .unwrap(),
         )
         .await
@@ -465,7 +504,8 @@ async fn test_cycle_count_e2e_workflow() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let get_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert_eq!(get_response["status"], "reconciled");
+    // API returns CycleCountWithLinesResponse with nested cycle_count field
+    assert_eq!(get_response["cycle_count"]["status"], "reconciled");
 }
 
 /// Test invalid status transitions are rejected
@@ -538,13 +578,9 @@ async fn test_cycle_count_tenant_filter_in_queries() {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://user:password@localhost:5432/inventory_db".to_string());
 
-    let pool = match sqlx::PgPool::connect(&database_url).await {
-        Ok(pool) => pool,
-        Err(_) => {
-            eprintln!("Skipping test - database not available");
-            return;
-        },
-    };
+    let pool = sqlx::PgPool::connect(&database_url)
+        .await
+        .expect("Failed to connect to database - ensure DATABASE_URL is set for DB-level tests");
 
     let tenant_a_id = Uuid::now_v7();
     let tenant_b_id = Uuid::now_v7();
@@ -555,7 +591,7 @@ async fn test_cycle_count_tenant_filter_in_queries() {
         (tenant_b_id, "Filter Test B"),
     ] {
         let slug = format!("test-filter-{}", tenant_id);
-        let _ = sqlx::query(
+        sqlx::query(
             "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
              VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
              ON CONFLICT (tenant_id) DO NOTHING",
@@ -564,7 +600,8 @@ async fn test_cycle_count_tenant_filter_in_queries() {
         .bind(name)
         .bind(&slug)
         .execute(&pool)
-        .await;
+        .await
+        .expect("Failed to insert tenant for cycle count test");
     }
 
     // Create stock_takes (cycle counts) for each tenant
@@ -572,7 +609,7 @@ async fn test_cycle_count_tenant_filter_in_queries() {
     let stock_take_b_id = Uuid::now_v7();
 
     // Insert stock take for tenant A
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO stock_takes (stock_take_id, tenant_id, name, status, created_at, updated_at)
          VALUES ($1, $2, 'Tenant A Stock Take', 'draft', NOW(), NOW())
          ON CONFLICT DO NOTHING",
@@ -580,10 +617,11 @@ async fn test_cycle_count_tenant_filter_in_queries() {
     .bind(stock_take_a_id)
     .bind(tenant_a_id)
     .execute(&pool)
-    .await;
+    .await
+    .expect("Failed to insert stock take for tenant A");
 
     // Insert stock take for tenant B
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO stock_takes (stock_take_id, tenant_id, name, status, created_at, updated_at)
          VALUES ($1, $2, 'Tenant B Stock Take', 'draft', NOW(), NOW())
          ON CONFLICT DO NOTHING",
@@ -591,7 +629,8 @@ async fn test_cycle_count_tenant_filter_in_queries() {
     .bind(stock_take_b_id)
     .bind(tenant_b_id)
     .execute(&pool)
-    .await;
+    .await
+    .expect("Failed to insert stock take for tenant B");
 
     // Query for tenant A - should only see tenant A's stock take
     let rows_a: Vec<(Uuid,)> =
@@ -622,9 +661,10 @@ async fn test_cycle_count_tenant_filter_in_queries() {
     }
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM stock_takes WHERE stock_take_id IN ($1, $2)")
+    sqlx::query("DELETE FROM stock_takes WHERE stock_take_id IN ($1, $2)")
         .bind(stock_take_a_id)
         .bind(stock_take_b_id)
         .execute(&pool)
-        .await;
+        .await
+        .expect("Failed to clean up stock_takes test data");
 }

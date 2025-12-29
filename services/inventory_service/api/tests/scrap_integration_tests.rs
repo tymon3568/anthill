@@ -711,12 +711,12 @@ async fn test_scrap_idempotency() {
         .await
         .unwrap();
 
-    // Idempotent: either 200 OK (returns existing) or 409 Conflict (already posted)
-    // Both are acceptable implementations
+    // Idempotent contract: either 200 OK (returns existing) or 409 Conflict (already posted)
+    // Both are acceptable implementations; BAD_REQUEST would indicate a regression
     assert!(
-        response.status() == StatusCode::OK
-            || response.status() == StatusCode::CONFLICT
-            || response.status() == StatusCode::BAD_REQUEST
+        response.status() == StatusCode::OK || response.status() == StatusCode::CONFLICT,
+        "Double-post should return OK or CONFLICT, got: {}",
+        response.status()
     );
 }
 
@@ -803,13 +803,9 @@ async fn test_scrap_tenant_filter_in_queries() {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://user:password@localhost:5432/inventory_db".to_string());
 
-    let pool = match sqlx::PgPool::connect(&database_url).await {
-        Ok(pool) => pool,
-        Err(_) => {
-            eprintln!("Skipping test - database not available");
-            return;
-        },
-    };
+    let pool = sqlx::PgPool::connect(&database_url)
+        .await
+        .expect("Failed to connect to database - ensure DATABASE_URL is set for DB-level tests");
 
     let tenant_a_id = Uuid::now_v7();
     let tenant_b_id = Uuid::now_v7();
@@ -820,7 +816,7 @@ async fn test_scrap_tenant_filter_in_queries() {
         (tenant_b_id, "Scrap Filter Test B"),
     ] {
         let slug = format!("test-scrap-filter-{}", tenant_id);
-        let _ = sqlx::query(
+        sqlx::query(
             "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
              VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
              ON CONFLICT (tenant_id) DO NOTHING",
@@ -829,33 +825,68 @@ async fn test_scrap_tenant_filter_in_queries() {
         .bind(name)
         .bind(&slug)
         .execute(&pool)
-        .await;
+        .await
+        .expect("Failed to insert tenant for scrap test");
     }
+
+    // Create scrap locations (warehouses) for each tenant to satisfy FK constraint
+    let scrap_location_a_id = Uuid::now_v7();
+    let scrap_location_b_id = Uuid::now_v7();
+
+    sqlx::query(
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (warehouse_id) DO NOTHING",
+    )
+    .bind(scrap_location_a_id)
+    .bind(tenant_a_id)
+    .bind("SCRAP-FILTER-A")
+    .bind("Scrap Filter Warehouse A")
+    .execute(&pool)
+    .await
+    .expect("Failed to insert warehouse for tenant A");
+
+    sqlx::query(
+        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (warehouse_id) DO NOTHING",
+    )
+    .bind(scrap_location_b_id)
+    .bind(tenant_b_id)
+    .bind("SCRAP-FILTER-B")
+    .bind("Scrap Filter Warehouse B")
+    .execute(&pool)
+    .await
+    .expect("Failed to insert warehouse for tenant B");
 
     // Create scrap documents for each tenant (if table exists)
     let scrap_a_id = Uuid::now_v7();
     let scrap_b_id = Uuid::now_v7();
 
-    // Try to insert (may fail if table doesn't exist - that's ok for this test)
-    let _ = sqlx::query(
+    // Insert scrap documents with correct scrap_location_id (not tenant_id)
+    sqlx::query(
         "INSERT INTO scrap_documents (scrap_id, tenant_id, scrap_location_id, status, created_at, updated_at)
-         VALUES ($1, $2, $2, 'draft', NOW(), NOW())
+         VALUES ($1, $2, $3, 'draft', NOW(), NOW())
          ON CONFLICT DO NOTHING",
     )
     .bind(scrap_a_id)
     .bind(tenant_a_id)
+    .bind(scrap_location_a_id)
     .execute(&pool)
-    .await;
+    .await
+    .expect("Failed to insert scrap document for tenant A");
 
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO scrap_documents (scrap_id, tenant_id, scrap_location_id, status, created_at, updated_at)
-         VALUES ($1, $2, $2, 'draft', NOW(), NOW())
+         VALUES ($1, $2, $3, 'draft', NOW(), NOW())
          ON CONFLICT DO NOTHING",
     )
     .bind(scrap_b_id)
     .bind(tenant_b_id)
+    .bind(scrap_location_b_id)
     .execute(&pool)
-    .await;
+    .await
+    .expect("Failed to insert scrap document for tenant B");
 
     // Query for tenant A - should only see tenant A's scraps
     let rows_a: Vec<(Uuid,)> =
@@ -882,9 +913,10 @@ async fn test_scrap_tenant_filter_in_queries() {
     }
 
     // Cleanup
-    let _ = sqlx::query("DELETE FROM scrap_documents WHERE scrap_id IN ($1, $2)")
+    sqlx::query("DELETE FROM scrap_documents WHERE scrap_id IN ($1, $2)")
         .bind(scrap_a_id)
         .bind(scrap_b_id)
         .execute(&pool)
-        .await;
+        .await
+        .expect("Failed to clean up scrap_documents test data");
 }
