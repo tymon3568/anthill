@@ -18,6 +18,7 @@ use inventory_service_core::services::receipt::ReceiptService;
 use inventory_service_core::services::reconciliation::StockReconciliationService;
 use inventory_service_core::services::replenishment::ReplenishmentService;
 use inventory_service_core::services::rma::RmaService;
+use inventory_service_core::services::scrap::ScrapService;
 use inventory_service_core::services::stock_take::StockTakeService;
 use inventory_service_core::services::transfer::TransferService;
 use inventory_service_core::services::valuation::ValuationService;
@@ -46,6 +47,7 @@ pub struct AppState {
     pub replenishment_service: Arc<dyn ReplenishmentService>,
     pub quality_service: Arc<dyn QualityControlPointService>,
     pub putaway_service: Arc<dyn PutawayService>,
+    pub scrap_service: Arc<dyn ScrapService>,
     pub distributed_lock_service: Arc<dyn DistributedLockService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
@@ -72,6 +74,7 @@ impl Clone for AppState {
             replenishment_service: self.replenishment_service.clone(),
             quality_service: self.quality_service.clone(),
             putaway_service: self.putaway_service.clone(),
+            scrap_service: self.scrap_service.clone(),
             distributed_lock_service: self.distributed_lock_service.clone(),
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),

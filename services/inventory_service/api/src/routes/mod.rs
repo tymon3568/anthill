@@ -44,9 +44,9 @@ use inventory_service_infra::repositories::{
 // Inventory-service infra - Service implementations
 use inventory_service_infra::services::{
     CategoryServiceImpl, LotSerialServiceImpl, PgPutawayService, PgQualityControlPointService,
-    PgReplenishmentService, PgRmaService, PgStockReconciliationService, PgStockTakeService,
-    PgTransferService, PickingMethodServiceImpl, ProductServiceImpl, ReceiptServiceImpl,
-    RedisDistributedLockService, ValuationServiceImpl,
+    PgReplenishmentService, PgRmaService, PgScrapService, PgStockReconciliationService,
+    PgStockTakeService, PgTransferService, PickingMethodServiceImpl, ProductServiceImpl,
+    ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
 };
 
 // Local handlers
@@ -64,6 +64,7 @@ use crate::handlers::reconciliation::create_reconciliation_routes;
 use crate::handlers::replenishment::create_replenishment_routes;
 use crate::handlers::reports::create_reports_routes;
 use crate::handlers::rma::create_rma_routes;
+use crate::handlers::scrap::create_scrap_routes;
 use crate::handlers::search::create_search_routes;
 use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
@@ -415,6 +416,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Delivery Service (stub - implementation disabled in infra)
     let delivery_service = Arc::new(StubDeliveryService);
 
+    // Scrap Service
+    let scrap_service = Arc::new(PgScrapService::new(pool_arc.clone()));
+
     // Kanidm Client
     let kanidm_client = create_kanidm_client(config);
 
@@ -438,6 +442,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         replenishment_service,
         quality_service,
         putaway_service,
+        scrap_service,
         distributed_lock_service,
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
@@ -528,7 +533,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         // Reports
         .nest("/api/v1/inventory/reports", create_reports_routes())
         // Search
-        .nest("/api/v1/inventory/search", create_search_routes());
+        .nest("/api/v1/inventory/search", create_search_routes())
+        // Scrap management
+        .nest("/api/v1/inventory/scrap", create_scrap_routes());
 
     // =========================================================================
     // Phase 7: Apply Middleware Layers
