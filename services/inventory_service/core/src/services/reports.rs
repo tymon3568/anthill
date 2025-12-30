@@ -120,7 +120,7 @@ mod tests {
             limit: None,
         };
 
-        // Q1 2024: Jan 1 to Mar 31 = 90 days
-        assert_eq!(query.period_days(), 89); // to - from in whole days
+        // Q1 2024: Jan 1 00:00:00 to Mar 31 23:59:59 = 90 days (31 Jan + 29 Feb leap year + 30 Mar days elapsed)
+        assert_eq!(query.period_days(), 90);
     }
 }
