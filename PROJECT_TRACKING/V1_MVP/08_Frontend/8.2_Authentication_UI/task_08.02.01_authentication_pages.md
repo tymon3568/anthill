@@ -11,7 +11,7 @@
 **Last Updated:** 2025-11-12
 
 ## Detailed Description:
-Create login and registration pages using SvelteKit 5 runes, shadcn-svelte components, and Frappe UI design principles. The pages should provide a clean, professional interface for email/password authentication following the project's design guidelines.
+Create login and registration pages using Svelte 5 runes, shadcn-svelte components, and Frappe UI design principles. The pages should provide a clean, professional interface for email/password authentication following the project's design guidelines.
 
 ## Acceptance Criteria:
 - [x] Login page with email/password fields and submit button
@@ -145,7 +145,7 @@ Create login and registration pages using SvelteKit 5 runes, shadcn-svelte compo
 ---
 *   2025-11-12 10:00: Task created by Claude
     - Set up basic structure for authentication pages task
-    - Focused on SvelteKit 5 runes and shadcn-svelte components
+    - Focused on Svelte 5 runes and shadcn-svelte components
     - Included Frappe UI design requirements
     - Ready for implementation
 *   2025-11-12 11:30: Task completed by Claude

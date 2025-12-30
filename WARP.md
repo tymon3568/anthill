@@ -4,7 +4,7 @@
 
 **Anthill** is a multi-tenant inventory management SaaS platform built with:
 - **Backend**: Rust microservices (Axum 0.8 + Tokio + SQLx)
-- **Frontend**: SvelteKit 5 + TypeScript (TODO)
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript (TODO)
 - **Database**: PostgreSQL with multi-tenant isolation  
 - **Architecture**: Clean Architecture + 3-Crate Pattern
 - **Status**: **Phase 3 - User Service Production Ready (~25% complete)**
@@ -111,7 +111,7 @@ anthill/
 - **Error Handling**: thiserror + custom AppError
 
 ### **Frontend** (TODO)
-- SvelteKit 5 + TypeScript
+- SvelteKit 2 + Svelte 5 + TypeScript
 - Tailwind CSS
 
 ### **Infrastructure**
@@ -203,7 +203,7 @@ cargo build --workspace --release
    - integration_service
 2. Implement inventory service (core domain)
 3. Event-driven architecture (NATS)
-4. Frontend with SvelteKit 5
+4. Frontend with SvelteKit 2 + Svelte 5
 5. Deployment (Docker + CapRover)
 
 ## 📝 Development Guidelines

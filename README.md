@@ -1,6 +1,6 @@
 # 🐜 Anthill - Inventory SaaS Platform
 
-**Anthill** is a modern multi-tenant inventory management SaaS platform built with **Rust** (backend microservices) and **SvelteKit 5** (frontend), optimized for e-commerce businesses.
+**Anthill** is a modern multi-tenant inventory management SaaS platform built with **Rust** (backend microservices) and **SvelteKit 2 with Svelte 5** (frontend), optimized for e-commerce businesses.
 
 ## ✅ SQLx Standard (Enterprise): Compile-time Macros + Offline Mode (Project Policy)
 
@@ -53,7 +53,7 @@ cargo sqlx prepare --check
 The project uses **Event-Driven Microservices** architecture with the following technologies:
 
 - **Backend**: Rust + Axum + Tokio + SQLx
-- **Frontend**: SvelteKit 5 + TypeScript + Tailwind CSS + shadcn-svelte
+- **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Tailwind CSS + shadcn-svelte
 - **Authentication**: Kanidm (OAuth2/OIDC Identity Provider)
 - **Authorization**: Casbin-rs (RBAC)
 - **Database**: PostgreSQL
@@ -75,7 +75,7 @@ anthill/
 │   ├── order-service/          # Order management
 │   ├── integration-service/    # Marketplace integration
 │   └── payment-service/        # Payment processing
-├── frontend/                    # SvelteKit 5 application
+├── frontend/                    # SvelteKit 2 with Svelte 5 application
 │   ├── src/
 │   │   ├── app.html            # Main HTML template
 │   │   ├── app.d.ts            # TypeScript declarations

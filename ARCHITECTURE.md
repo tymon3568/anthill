@@ -102,9 +102,9 @@ Legend:
   3.  Kết nối CapRover với GitHub/GitLab, và nó sẽ tự động build và deploy mỗi khi có `git push`.
   4.  Scaling (tăng/giảm số container) được thực hiện dễ dàng qua giao diện.
 
-### 3. Frontend Application: SvelteKit 5
+### 3. Frontend Application: SvelteKit 2 with Svelte 5
 
-- **Công nghệ**: SvelteKit 5, TypeScript, Tailwind CSS, shadcn-svelte.
+- **Công nghệ**: SvelteKit 2, Svelte 5, TypeScript, Tailwind CSS, shadcn-svelte.
 - **Vai trò**: Giao diện người dùng chính cho hệ thống, bao gồm dashboard, quản lý sản phẩm, đơn hàng, và cài đặt.
 - **Tính năng chính**:
   - **State Management**: Sử dụng Svelte 5 runes cho reactive state.
@@ -321,7 +321,7 @@ All services use standardized ports for consistency across development and produ
 - **Database Driver**: SQLx
 
 ### Frontend Application
-- **Framework**: SvelteKit 5
+- **Framework**: SvelteKit 2 with Svelte 5
 - **Language**: TypeScript (strict mode)
 - **State Management**: Svelte 5 runes
 - **Form Validation**: Valibot
