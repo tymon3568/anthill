@@ -14,7 +14,7 @@
 Initialize SvelteKit project with TypeScript strict mode and configure essential development tools, dependencies, and project structure for the inventory management frontend.
 
 ## Specific Sub-tasks:
-- [x] 1. Initialize SvelteKit 5 project with TypeScript strict mode
+- [x] 1. Initialize SvelteKit 2 with Svelte 5 project with TypeScript strict mode
 - [x] 2. Install essential dependencies (TailwindCSS, shadcn-svelte, Valibot, Frappe UI components)
 - [x] 3. Configure project structure and folder organization
 - [x] 4. Set up development environment with Vite configuration
@@ -27,7 +27,7 @@ Initialize SvelteKit project with TypeScript strict mode and configure essential
 - [x] 11. Set up build and deployment configuration for CapRover
 
 ## Acceptance Criteria:
-- [x] SvelteKit 5 project initialized with TypeScript strict mode
+- [x] SvelteKit 2 with Svelte 5 project initialized with TypeScript strict mode
 - [x] All essential dependencies installed (TailwindCSS, shadcn-svelte, Valibot, Frappe UI)
 - [x] Project structure follows best practices for SvelteKit
 - [x] Development environment fully operational with Vite
@@ -64,10 +64,10 @@ Initialize SvelteKit project with TypeScript strict mode and configure essential
 ---
 *   2025-11-05 14:30: Task claimed by Grok
     - Verified dependencies: all Done
-    - Starting work on sub-task 1: Initialize SvelteKit 5 project with TypeScript strict mode
+    - Starting work on sub-task 1: Initialize SvelteKit 2 with Svelte 5 project with TypeScript strict mode
     - Status: Ready to begin implementation
 *   2025-11-05 15:00: Completed sub-task 1 by Grok
-    - Successfully initialized SvelteKit 5 project with TypeScript
+    - Successfully initialized SvelteKit 2 with Svelte 5 project with TypeScript
     - Used `npx sv create . --template minimal --types ts`
     - Auto-setup included: Vitest, Playwright, TailwindCSS, ESLint, Prettier
     - Files created: package.json, svelte.config.js, vite.config.ts, tsconfig.json, etc.

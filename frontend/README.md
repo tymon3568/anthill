@@ -34,7 +34,7 @@ See [`.svelte-instructions.md`](.svelte-instructions.md) for complete developmen
 
 ## Tech Stack
 
-- **Framework**: SvelteKit 5 with adapter-node
+- **Framework**: SvelteKit 2 with Svelte 5 and adapter-node
 - **Language**: TypeScript 5.9+
 - **Styling**: Tailwind CSS 4.x + shadcn-svelte
 - **State Management**: Svelte 5 runes (no external stores needed)

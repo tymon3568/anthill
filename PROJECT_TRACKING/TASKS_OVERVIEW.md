@@ -479,7 +479,7 @@ open http://localhost:8000/docs  # Swagger UI
       - Synchronized AuthSession and tokenManager storage systems
       - Task status changed to Done
 - ✅ **Authentication UI Tasks Re-authored**: Recreated all 4 tasks with clean folder-tasks format
-      - task_08.02.01_create_login_registration_pages.md: Focus on SvelteKit 5 runes + shadcn-svelte UI + Valibot validation
+      - task_08.02.01_create_login_registration_pages.md: Focus on Svelte 5 runes + shadcn-svelte UI + Valibot validation
       - task_08.02.02_integrate_oauth2_kanidm.md: Repurposed for email/password form actions, session cookies, logout flow
       - task_08.02.03_auth_api_client_integration.md: Centralised email/password auth client with typed DTOs and retries
       - task_08.02.04_api_infrastructure_core_setup.md: Shared fetch layer with retries, tenant headers, AppError mapping
