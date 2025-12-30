@@ -4,7 +4,7 @@
 **Status:** NeedsReview
 **Priority:** P1
 **Assignee:** Claude
-**Last Updated:** 2025-12-31
+**Last Updated:** 2025-12-30
 **Phase:** V1_MVP
 **Module:** 04_Inventory_Service → 4.14_Cycle_Counting_Scrap
 **Dependencies:**
@@ -226,8 +226,83 @@ All dependencies are listed in the header. Before starting:
 - [ ] **cycle_count_integration_tests.rs:326-335** - Extend E2E test to assert inventory reconciliation effects (Severity: Nitpick, Reviewer: sourcery-ai)
 - [ ] **reports_mvp_integration_tests.rs:128-137** - Add test for `AgeBucketPreset::Default` (Severity: Nitpick, Reviewer: sourcery-ai)
 
+## PR #125 Review Issues
+---
+### Valid Issues (Fixed)
+- [x] **Missing tenant cleanup** - Test inserts tenants but doesn't delete them at the end (Severity: Warning, Reviewer: greptile-apps, Suggested Fix: Add tenant cleanup after user deletion) ✅ Fixed
+- [x] **Duplicated setup logic** - Users/warehouses setup is duplicated for tenant A and B (Severity: Style, Reviewer: gemini-code-assist, Suggested Fix: Refactor into loops) ✅ Fixed
+- [x] **Duplicated cleanup logic** - Cleanup deletes are duplicated (Severity: Style, Reviewer: gemini-code-assist, Suggested Fix: Refactor into loop with `= ANY($1)`) ✅ Fixed
+- [x] **Unnecessary ON CONFLICT clauses** - Using `ON CONFLICT DO NOTHING` for users/warehouses with fresh UUIDs (Severity: Style, Reviewer: sourcery-ai, Suggested Fix: Remove ON CONFLICT clauses) ✅ Fixed
+
+### Invalid/Verified Issues (No Action Needed)
+- [x] ~~Missing `password_hash` column~~ - INVALID: Column is nullable in DB schema (verified via `\d users`)
+- [x] ~~Status case mismatch ('Draft' vs 'draft')~~ - INVALID: DB CHECK constraint uses 'Draft' with capital D (verified via `\d stock_takes`)
+- [x] ~~Embedded credentials in test default~~ - NOT A BUG: Standard practice for test defaults
+
 ## AI Agent Log
 ---
+* 2025-12-30 16:15: PR #125 review issues FIXED by Claude
+  - **All 4 valid issues resolved:**
+    1. Added tenant cleanup at end of test (DELETE FROM tenants WHERE tenant_id = ANY($1))
+    2. Refactored users setup into loop with tuple array
+    3. Refactored warehouses setup into loop with tuple array
+    4. Removed unnecessary ON CONFLICT DO NOTHING from users/warehouses inserts
+    5. Refactored cleanup to use `= ANY($1)` array binding pattern
+  - **Files modified:**
+    - `services/inventory_service/api/tests/cycle_count_integration_tests.rs`
+  - **Quality gates:**
+    - `cargo fmt --check` ✓
+    - `cargo check --workspace` ✓
+    - `cargo clippy --workspace -- -D warnings` ✓
+    - All 35 MVP P1 integration tests pass ✓
+  - **Status:** NeedsReview (all PR #125 issues resolved)
+
+* 2025-12-30 16:00: PR #125 review issues analyzed by Claude
+  - **PR URL:** https://github.com/tymon3568/anthill/pull/125
+  - **Reviewers:** sourcery-ai, coderabbitai, codeant-ai, gemini-code-assist, greptile-apps, sonarqubecloud
+  - **Issues identified:** 4 valid issues (1 Warning, 3 Style), 3 invalid issues verified
+  - **Key findings:**
+    - greptile-apps incorrectly flagged `password_hash` as required - it's nullable
+    - codeant-ai incorrectly flagged status case - 'Draft' is correct per DB schema
+    - Valid issues are code style improvements, not blocking bugs
+  - **Quality Gate:** SonarQube passed ✓
+  - **Status:** InProgress_By_Claude (fixing valid style issues)
+
+* 2025-12-30 15:45: COMPLETED - Integration test auth issues FIXED by Claude
+  - **Branch:** feature/04-14-04-integration-tests-auth-fix
+  - **Issues resolved:**
+    1. `test_cycle_count_tenant_filter_in_queries` - Fixed `stock_takes` INSERT to match actual schema:
+       - Replaced non-existent `name` column with proper columns (`warehouse_id`, `created_by`, `notes`)
+       - Added user and warehouse setup for FK constraints
+       - Removed `ON CONFLICT DO NOTHING` (incompatible with deferrable constraints)
+       - Added proper cleanup in reverse FK order
+    2. `test_scrap_tenant_filter_in_queries` - Fixed by running pending migration
+    3. Migration dependency - Added missing `UNIQUE (tenant_id, location_id)` constraint to `storage_locations` table
+       - Required for `stock_takes.location_id` FK reference
+       - Updated migration file `20251205000001_create_storage_locations_table.sql`
+  - **Files modified:**
+    - `services/inventory_service/api/tests/cycle_count_integration_tests.rs` - Fixed schema mismatch
+    - `migrations/20251205000001_create_storage_locations_table.sql` - Added missing unique constraint
+  - **Quality gates:**
+    - `cargo fmt --check` ✓
+    - `cargo check --workspace` ✓
+    - `cargo clippy --workspace -- -D warnings` ✓
+    - All 35 MVP P1 integration tests pass:
+      - `cycle_count_integration_tests`: 8 passed
+      - `scrap_integration_tests`: 9 passed
+      - `reports_mvp_integration_tests`: 18 passed
+  - **Status:** NeedsReview
+
+* 2025-12-30 15:20: Resuming work by Claude
+  - **Task:** Fix existing integration test auth issues (test schema mismatch)
+  - **Branch:** feature/04-14-04-integration-tests-auth-fix
+  - **Issue found:** `test_cycle_count_tenant_filter_in_queries` fails due to `stock_takes` table schema mismatch
+    - Test tries to insert `name` column which doesn't exist in `stock_takes` table
+    - Actual schema uses `stock_take_number` (auto-generated), `reference_number`, and `notes` fields
+    - Need to fix test INSERT statement to match actual schema
+  - **Dependencies check:** All dependencies at NeedsReview status ✓
+  - **Status:** InProgress_By_Claude
+
 * 2025-12-30 14:32: PR #124 Round 4 review issues FIXED by Claude
   - **All Round 4 issues resolved (3/3):**
     - cycle_count_integration_tests.rs:46-96 - Replaced `.unwrap()` with `.expect()` for all 4 test setup DB operations

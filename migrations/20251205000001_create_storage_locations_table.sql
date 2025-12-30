@@ -67,6 +67,9 @@ CREATE TABLE storage_locations (
     CONSTRAINT storage_locations_tenant_updated_by_fk
         FOREIGN KEY (tenant_id, updated_by)
         REFERENCES users (tenant_id, user_id) DEFERRABLE INITIALLY DEFERRED,
+    -- Composite unique constraint for FK referenceability (e.g., stock_takes.location_id)
+    CONSTRAINT storage_locations_tenant_location_unique
+        UNIQUE (tenant_id, location_id),
     CONSTRAINT storage_locations_capacity_check
         CHECK (capacity IS NULL OR capacity > 0),
     CONSTRAINT storage_locations_current_stock_check
