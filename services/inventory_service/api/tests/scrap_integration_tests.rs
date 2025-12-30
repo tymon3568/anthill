@@ -58,7 +58,7 @@ async fn setup_tenant_with_inventory(
     .bind(&slug)
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert tenant for scrap test");
 
     // Insert user
     sqlx::query(
@@ -70,7 +70,7 @@ async fn setup_tenant_with_inventory(
     .bind(format!("scrap-test-{}@example.com", tenant_name))
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert user for scrap test");
 
     // Insert warehouse
     sqlx::query(
@@ -84,7 +84,7 @@ async fn setup_tenant_with_inventory(
     .bind(format!("Scrap Warehouse {}", tenant_name))
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert warehouse for scrap test");
 
     // Insert location (scrap location)
     sqlx::query(
@@ -99,7 +99,7 @@ async fn setup_tenant_with_inventory(
     .bind(format!("Scrap Location {}", tenant_name))
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert location for scrap test");
 
     // Insert product
     sqlx::query(
@@ -113,7 +113,7 @@ async fn setup_tenant_with_inventory(
     .bind(format!("Scrap Product {}", tenant_name))
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert product for scrap test");
 
     (tenant_id, user_id, warehouse_id, location_id, product_id)
 }

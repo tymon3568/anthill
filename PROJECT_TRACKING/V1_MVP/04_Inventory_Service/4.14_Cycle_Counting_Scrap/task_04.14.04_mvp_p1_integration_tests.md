@@ -4,7 +4,7 @@
 **Status:** NeedsReview
 **Priority:** P1
 **Assignee:** Claude
-**Last Updated:** 2025-12-30
+**Last Updated:** 2025-12-31
 **Phase:** V1_MVP
 **Module:** 04_Inventory_Service → 4.14_Cycle_Counting_Scrap
 **Dependencies:**
@@ -214,6 +214,11 @@ All dependencies are listed in the header. Before starting:
 - [x] **cycle_count_integration_tests.rs:638-663** - DB tenant isolation test uses `unwrap_or_default()` and lacks explicit assertions that expected records exist (Severity: Warning, Reviewer: coderabbitai) ✅ Fixed - replaced with `.expect()` and added explicit existence assertions
 - [x] **reports_mvp_integration_tests.rs:756-774** - DB tenant isolation test uses `unwrap_or_default()` and lacks explicit assertions (Severity: Warning, Reviewer: coderabbitai) ✅ Fixed - replaced with `.expect()` and added explicit existence assertions
 
+### Round 4 Issues (Post-commit 829ba59)
+- [x] **cycle_count_integration_tests.rs:46-96** - Test setup helpers use `.unwrap()` instead of `.expect()` with descriptive messages (Severity: Style, Reviewer: coderabbitai) ✅ Fixed - replaced all 4 `.unwrap()` with `.expect("Failed to insert X for cycle count test")`
+- [x] **reports_mvp_integration_tests.rs:52-103** - Test setup helpers use `.unwrap()` instead of `.expect()` with descriptive messages (Severity: Style, Reviewer: coderabbitai) ✅ Fixed - replaced all 4 `.unwrap()` with `.expect("Failed to insert X for reports test")`
+- [x] **scrap_integration_tests.rs:46-118** - Test setup helpers use `.unwrap()` instead of `.expect()` with descriptive messages (Severity: Style, Reviewer: consistency) ✅ Fixed - replaced all 5 `.unwrap()` with `.expect("Failed to insert X for scrap test")`
+
 ### Suggestions (Nice-to-have) - Deferred
 - [ ] **scrap_integration_tests.rs:144-153** - Add more `validate_scrap_line` edge case tests (Severity: Nitpick, Reviewer: sourcery-ai)
 - [ ] **scrap_integration_tests.rs:464-473** - Extend scrap posting test to assert inventory impact (Severity: Nitpick, Reviewer: sourcery-ai)
@@ -223,6 +228,21 @@ All dependencies are listed in the header. Before starting:
 
 ## AI Agent Log
 ---
+* 2025-12-30 14:32: PR #124 Round 4 review issues FIXED by Claude
+  - **All Round 4 issues resolved (3/3):**
+    - cycle_count_integration_tests.rs:46-96 - Replaced `.unwrap()` with `.expect()` for all 4 test setup DB operations
+    - reports_mvp_integration_tests.rs:52-103 - Replaced `.unwrap()` with `.expect()` for all 4 test setup DB operations
+    - scrap_integration_tests.rs:46-118 - Replaced `.unwrap()` with `.expect()` for all 5 test setup DB operations (consistency fix)
+  - **Files modified:**
+    - `services/inventory_service/api/tests/cycle_count_integration_tests.rs`
+    - `services/inventory_service/api/tests/reports_mvp_integration_tests.rs`
+    - `services/inventory_service/api/tests/scrap_integration_tests.rs`
+  - **Quality gates:**
+    - `cargo fmt` ✓
+    - `cargo check --workspace` ✓
+    - `cargo clippy --workspace -- -D warnings` ✓
+  - **Status:** NeedsReview (all Round 4 issues resolved)
+
 * 2025-12-30 13:00: PR #124 Round 3 review issues FIXED by Claude
   - **All Round 3 issues resolved (2/2):**
     - cycle_count_integration_tests.rs:638-663 - Replaced `unwrap_or_default()` with `.expect()`, added explicit assertions that each tenant sees their own stock_take

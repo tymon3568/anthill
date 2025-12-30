@@ -60,7 +60,7 @@ async fn setup_tenant_with_stock_data(
     .bind(&slug)
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert tenant for reports test");
 
     // Insert user
     sqlx::query(
@@ -72,7 +72,7 @@ async fn setup_tenant_with_stock_data(
     .bind(format!("reports-test-{}@example.com", tenant_name))
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert user for reports test");
 
     // Insert warehouse
     sqlx::query(
@@ -86,7 +86,7 @@ async fn setup_tenant_with_stock_data(
     .bind(format!("Reports Warehouse {}", tenant_name))
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert warehouse for reports test");
 
     // Insert product
     sqlx::query(
@@ -100,7 +100,7 @@ async fn setup_tenant_with_stock_data(
     .bind(format!("Reports Product {}", tenant_name))
     .execute(pool)
     .await
-    .unwrap();
+    .expect("Failed to insert product for reports test");
 
     (tenant_id, user_id, warehouse_id, product_id)
 }
