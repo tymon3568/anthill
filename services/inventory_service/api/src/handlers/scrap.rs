@@ -6,18 +6,29 @@
 use axum::{
     extract::{Extension, Path, Query},
     http::StatusCode,
-    Json,
+    routing::{get, post},
+    Json, Router,
 };
 use shared_auth::extractors::AuthUser;
 use shared_error::AppError;
-use std::sync::Arc;
 use uuid::Uuid;
 
 use inventory_service_core::dto::scrap::{
     AddScrapLinesRequest, CreateScrapRequest, PostScrapRequest, ScrapDocumentResponse,
     ScrapDocumentWithLinesResponse, ScrapListQuery, ScrapListResponse,
 };
-use inventory_service_core::services::scrap::ScrapService;
+
+use crate::state::AppState;
+
+/// Create the scrap management routes
+pub fn create_scrap_routes() -> Router {
+    Router::new()
+        .route("/", post(create_scrap).get(list_scraps))
+        .route("/{scrap_id}", get(get_scrap))
+        .route("/{scrap_id}/lines", post(add_scrap_lines))
+        .route("/{scrap_id}/post", post(post_scrap))
+        .route("/{scrap_id}/cancel", post(cancel_scrap))
+}
 
 /// Create a new scrap document (draft)
 #[utoipa::path(
@@ -34,15 +45,16 @@ use inventory_service_core::services::scrap::ScrapService;
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn create_scrap<S: ScrapService>(
+pub async fn create_scrap(
     auth_user: AuthUser,
-    Extension(scrap_service): Extension<Arc<S>>,
+    Extension(state): Extension<AppState>,
     Json(request): Json<CreateScrapRequest>,
 ) -> Result<(StatusCode, Json<ScrapDocumentResponse>), AppError> {
     let tenant_id = auth_user.tenant_id;
     let user_id = auth_user.user_id;
 
-    let response = scrap_service
+    let response = state
+        .scrap_service
         .create_scrap(tenant_id, user_id, request)
         .await?;
 
@@ -66,14 +78,14 @@ pub async fn create_scrap<S: ScrapService>(
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn get_scrap<S: ScrapService>(
+pub async fn get_scrap(
     auth_user: AuthUser,
-    Extension(scrap_service): Extension<Arc<S>>,
+    Extension(state): Extension<AppState>,
     Path(scrap_id): Path<Uuid>,
 ) -> Result<Json<ScrapDocumentWithLinesResponse>, AppError> {
     let tenant_id = auth_user.tenant_id;
 
-    let response = scrap_service.get_scrap(tenant_id, scrap_id).await?;
+    let response = state.scrap_service.get_scrap(tenant_id, scrap_id).await?;
 
     Ok(Json(response))
 }
@@ -99,14 +111,14 @@ pub async fn get_scrap<S: ScrapService>(
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn list_scraps<S: ScrapService>(
+pub async fn list_scraps(
     auth_user: AuthUser,
-    Extension(scrap_service): Extension<Arc<S>>,
+    Extension(state): Extension<AppState>,
     Query(query): Query<ScrapListQuery>,
 ) -> Result<Json<ScrapListResponse>, AppError> {
     let tenant_id = auth_user.tenant_id;
 
-    let response = scrap_service.list_scraps(tenant_id, query).await?;
+    let response = state.scrap_service.list_scraps(tenant_id, query).await?;
 
     Ok(Json(response))
 }
@@ -130,16 +142,17 @@ pub async fn list_scraps<S: ScrapService>(
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn add_scrap_lines<S: ScrapService>(
+pub async fn add_scrap_lines(
     auth_user: AuthUser,
-    Extension(scrap_service): Extension<Arc<S>>,
+    Extension(state): Extension<AppState>,
     Path(scrap_id): Path<Uuid>,
     Json(request): Json<AddScrapLinesRequest>,
 ) -> Result<Json<ScrapDocumentWithLinesResponse>, AppError> {
     let tenant_id = auth_user.tenant_id;
     let user_id = auth_user.user_id;
 
-    let response = scrap_service
+    let response = state
+        .scrap_service
         .add_lines(tenant_id, scrap_id, user_id, request)
         .await?;
 
@@ -168,16 +181,17 @@ pub async fn add_scrap_lines<S: ScrapService>(
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn post_scrap<S: ScrapService>(
+pub async fn post_scrap(
     auth_user: AuthUser,
-    Extension(scrap_service): Extension<Arc<S>>,
+    Extension(state): Extension<AppState>,
     Path(scrap_id): Path<Uuid>,
     Json(request): Json<PostScrapRequest>,
 ) -> Result<Json<ScrapDocumentResponse>, AppError> {
     let tenant_id = auth_user.tenant_id;
     let user_id = auth_user.user_id;
 
-    let response = scrap_service
+    let response = state
+        .scrap_service
         .post_scrap(tenant_id, scrap_id, user_id, request)
         .await?;
 
@@ -204,29 +218,18 @@ pub async fn post_scrap<S: ScrapService>(
     ),
     security(("bearer_auth" = []))
 )]
-pub async fn cancel_scrap<S: ScrapService>(
+pub async fn cancel_scrap(
     auth_user: AuthUser,
-    Extension(scrap_service): Extension<Arc<S>>,
+    Extension(state): Extension<AppState>,
     Path(scrap_id): Path<Uuid>,
 ) -> Result<Json<ScrapDocumentResponse>, AppError> {
     let tenant_id = auth_user.tenant_id;
     let user_id = auth_user.user_id;
 
-    let response = scrap_service
+    let response = state
+        .scrap_service
         .cancel_scrap(tenant_id, scrap_id, user_id)
         .await?;
 
     Ok(Json(response))
-}
-
-/// Create router for scrap management endpoints
-pub fn create_scrap_routes<S: ScrapService + 'static>() -> axum::Router {
-    use axum::routing::{get, post};
-
-    axum::Router::new()
-        .route("/", post(create_scrap::<S>).get(list_scraps::<S>))
-        .route("/{scrap_id}", get(get_scrap::<S>))
-        .route("/{scrap_id}/lines", post(add_scrap_lines::<S>))
-        .route("/{scrap_id}/post", post(post_scrap::<S>))
-        .route("/{scrap_id}/cancel", post(cancel_scrap::<S>))
 }
