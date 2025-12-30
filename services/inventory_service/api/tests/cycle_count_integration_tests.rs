@@ -611,56 +611,39 @@ async fn test_cycle_count_tenant_filter_in_queries() {
     }
 
     // Insert test users for each tenant (required for stock_takes.created_by FK)
-    sqlx::query(
-        "INSERT INTO users (user_id, tenant_id, email, created_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (user_id) DO NOTHING",
-    )
-    .bind(user_a_id)
-    .bind(tenant_a_id)
-    .bind("filter-test-a@example.com")
-    .execute(&pool)
-    .await
-    .expect("Failed to insert user A for cycle count test");
-
-    sqlx::query(
-        "INSERT INTO users (user_id, tenant_id, email, created_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (user_id) DO NOTHING",
-    )
-    .bind(user_b_id)
-    .bind(tenant_b_id)
-    .bind("filter-test-b@example.com")
-    .execute(&pool)
-    .await
-    .expect("Failed to insert user B for cycle count test");
+    for (user_id, tenant_id, email) in [
+        (user_a_id, tenant_a_id, "filter-test-a@example.com"),
+        (user_b_id, tenant_b_id, "filter-test-b@example.com"),
+    ] {
+        sqlx::query(
+            "INSERT INTO users (user_id, tenant_id, email, created_at)
+             VALUES ($1, $2, $3, NOW())",
+        )
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(email)
+        .execute(&pool)
+        .await
+        .expect("Failed to insert user for cycle count test");
+    }
 
     // Insert test warehouses for each tenant (required for stock_takes.warehouse_id FK)
-    sqlx::query(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (warehouse_id) DO NOTHING",
-    )
-    .bind(warehouse_a_id)
-    .bind(tenant_a_id)
-    .bind("WH-FILTER-A")
-    .bind("Filter Test Warehouse A")
-    .execute(&pool)
-    .await
-    .expect("Failed to insert warehouse A for cycle count test");
-
-    sqlx::query(
-        "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (warehouse_id) DO NOTHING",
-    )
-    .bind(warehouse_b_id)
-    .bind(tenant_b_id)
-    .bind("WH-FILTER-B")
-    .bind("Filter Test Warehouse B")
-    .execute(&pool)
-    .await
-    .expect("Failed to insert warehouse B for cycle count test");
+    for (warehouse_id, tenant_id, code, name) in [
+        (warehouse_a_id, tenant_a_id, "WH-FILTER-A", "Filter Test Warehouse A"),
+        (warehouse_b_id, tenant_b_id, "WH-FILTER-B", "Filter Test Warehouse B"),
+    ] {
+        sqlx::query(
+            "INSERT INTO warehouses (warehouse_id, tenant_id, warehouse_code, warehouse_name, created_at)
+             VALUES ($1, $2, $3, $4, NOW())",
+        )
+        .bind(warehouse_id)
+        .bind(tenant_id)
+        .bind(code)
+        .bind(name)
+        .execute(&pool)
+        .await
+        .expect("Failed to insert warehouse for cycle count test");
+    }
 
     // Create stock_takes (cycle counts) for each tenant
     let stock_take_a_id = Uuid::now_v7();
@@ -731,24 +714,27 @@ async fn test_cycle_count_tenant_filter_in_queries() {
     }
 
     // Cleanup - delete in reverse order due to FK constraints
-    sqlx::query("DELETE FROM stock_takes WHERE stock_take_id IN ($1, $2)")
-        .bind(stock_take_a_id)
-        .bind(stock_take_b_id)
+    sqlx::query("DELETE FROM stock_takes WHERE stock_take_id = ANY($1)")
+        .bind(&[stock_take_a_id, stock_take_b_id][..])
         .execute(&pool)
         .await
         .expect("Failed to clean up stock_takes test data");
 
-    sqlx::query("DELETE FROM warehouses WHERE warehouse_id IN ($1, $2)")
-        .bind(warehouse_a_id)
-        .bind(warehouse_b_id)
+    sqlx::query("DELETE FROM warehouses WHERE warehouse_id = ANY($1)")
+        .bind(&[warehouse_a_id, warehouse_b_id][..])
         .execute(&pool)
         .await
         .expect("Failed to clean up warehouses test data");
 
-    sqlx::query("DELETE FROM users WHERE user_id IN ($1, $2)")
-        .bind(user_a_id)
-        .bind(user_b_id)
+    sqlx::query("DELETE FROM users WHERE user_id = ANY($1)")
+        .bind(&[user_a_id, user_b_id][..])
         .execute(&pool)
         .await
         .expect("Failed to clean up users test data");
+
+    sqlx::query("DELETE FROM tenants WHERE tenant_id = ANY($1)")
+        .bind(&[tenant_a_id, tenant_b_id][..])
+        .execute(&pool)
+        .await
+        .expect("Failed to clean up tenants test data");
 }
