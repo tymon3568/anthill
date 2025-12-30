@@ -4,7 +4,7 @@
 **Status:** NeedsReview
 **Priority:** P1
 **Assignee:** Claude
-**Last Updated:** 2025-12-31
+**Last Updated:** 2025-12-30
 **Phase:** V1_MVP
 **Module:** 04_Inventory_Service → 4.14_Cycle_Counting_Scrap
 **Dependencies:**
@@ -228,6 +228,41 @@ All dependencies are listed in the header. Before starting:
 
 ## AI Agent Log
 ---
+* 2025-12-30 15:45: COMPLETED - Integration test auth issues FIXED by Claude
+  - **Branch:** feature/04-14-04-integration-tests-auth-fix
+  - **Issues resolved:**
+    1. `test_cycle_count_tenant_filter_in_queries` - Fixed `stock_takes` INSERT to match actual schema:
+       - Replaced non-existent `name` column with proper columns (`warehouse_id`, `created_by`, `notes`)
+       - Added user and warehouse setup for FK constraints
+       - Removed `ON CONFLICT DO NOTHING` (incompatible with deferrable constraints)
+       - Added proper cleanup in reverse FK order
+    2. `test_scrap_tenant_filter_in_queries` - Fixed by running pending migration
+    3. Migration dependency - Added missing `UNIQUE (tenant_id, location_id)` constraint to `storage_locations` table
+       - Required for `stock_takes.location_id` FK reference
+       - Updated migration file `20251205000001_create_storage_locations_table.sql`
+  - **Files modified:**
+    - `services/inventory_service/api/tests/cycle_count_integration_tests.rs` - Fixed schema mismatch
+    - `migrations/20251205000001_create_storage_locations_table.sql` - Added missing unique constraint
+  - **Quality gates:**
+    - `cargo fmt --check` ✓
+    - `cargo check --workspace` ✓
+    - `cargo clippy --workspace -- -D warnings` ✓
+    - All 35 MVP P1 integration tests pass:
+      - `cycle_count_integration_tests`: 8 passed
+      - `scrap_integration_tests`: 9 passed
+      - `reports_mvp_integration_tests`: 18 passed
+  - **Status:** NeedsReview
+
+* 2025-12-30 15:20: Resuming work by Claude
+  - **Task:** Fix existing integration test auth issues (test schema mismatch)
+  - **Branch:** feature/04-14-04-integration-tests-auth-fix
+  - **Issue found:** `test_cycle_count_tenant_filter_in_queries` fails due to `stock_takes` table schema mismatch
+    - Test tries to insert `name` column which doesn't exist in `stock_takes` table
+    - Actual schema uses `stock_take_number` (auto-generated), `reference_number`, and `notes` fields
+    - Need to fix test INSERT statement to match actual schema
+  - **Dependencies check:** All dependencies at NeedsReview status ✓
+  - **Status:** InProgress_By_Claude
+
 * 2025-12-30 14:32: PR #124 Round 4 review issues FIXED by Claude
   - **All Round 4 issues resolved (3/3):**
     - cycle_count_integration_tests.rs:46-96 - Replaced `.unwrap()` with `.expect()` for all 4 test setup DB operations
