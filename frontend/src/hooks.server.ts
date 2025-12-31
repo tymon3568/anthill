@@ -73,30 +73,30 @@ export const handle: Handle = async ({ event, resolve }) => {
 						}
 					});
 
-				if (refreshResponse.ok) {
-					const refreshData = await refreshResponse.json();
-					// Update cookies with new tokens
-					cookies.set('access_token', refreshData.access_token, {
-						path: '/',
-						httpOnly: true,
-						secure: true,
-						sameSite: 'strict',
-						maxAge: refreshData.expires_in || 3600
-					});
-
-					// Update refresh_token cookie if rotated by backend
-					if (refreshData.refresh_token) {
-						cookies.set('refresh_token', refreshData.refresh_token, {
+					if (refreshResponse.ok) {
+						const refreshData = await refreshResponse.json();
+						// Update cookies with new tokens
+						cookies.set('access_token', refreshData.access_token, {
 							path: '/',
 							httpOnly: true,
 							secure: true,
 							sameSite: 'strict',
-							maxAge: 30 * 24 * 60 * 60 // 30 days default
+							maxAge: refreshData.expires_in || 3600
 						});
-					}
 
-					// Use the new access token for validation
-					currentAccessToken = refreshData.access_token;
+						// Update refresh_token cookie if rotated by backend
+						if (refreshData.refresh_token) {
+							cookies.set('refresh_token', refreshData.refresh_token, {
+								path: '/',
+								httpOnly: true,
+								secure: true,
+								sameSite: 'strict',
+								maxAge: 30 * 24 * 60 * 60 // 30 days default
+							});
+						}
+
+						// Use the new access token for validation
+						currentAccessToken = refreshData.access_token;
 					} else {
 						// Refresh failed, redirect to login
 						handleAuthError(

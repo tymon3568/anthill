@@ -13,7 +13,9 @@ function getUserServiceUrl(): string {
 
 	// Only allow fallback in development
 	if (env.PUBLIC_APP_ENV === 'development') {
-		console.warn('PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000');
+		console.warn(
+			'PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000'
+		);
 		return 'http://localhost:8000';
 	}
 
@@ -33,28 +35,37 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 		const stored_state = cookies.get('oauth_state');
 
 		if (!code_verifier) {
-			throw error(400, JSON.stringify({
-				code: 'MISSING_CODE_VERIFIER',
-				message: 'PKCE code_verifier not found in session'
-			}));
+			throw error(
+				400,
+				JSON.stringify({
+					code: 'MISSING_CODE_VERIFIER',
+					message: 'PKCE code_verifier not found in session'
+				})
+			);
 		}
 
 		// Verify state matches (CSRF protection)
 		if (body.state) {
 			// If OAuth provider sent state, cookie MUST exist
 			if (!stored_state) {
-				throw error(400, JSON.stringify({
-					code: 'MISSING_STATE_COOKIE',
-					message: 'OAuth state cookie not found in session'
-				}));
+				throw error(
+					400,
+					JSON.stringify({
+						code: 'MISSING_STATE_COOKIE',
+						message: 'OAuth state cookie not found in session'
+					})
+				);
 			}
 
 			// Verify state matches
 			if (body.state !== stored_state) {
-				throw error(400, JSON.stringify({
-					code: 'STATE_MISMATCH',
-					message: 'OAuth state parameter mismatch'
-				}));
+				throw error(
+					400,
+					JSON.stringify({
+						code: 'STATE_MISMATCH',
+						message: 'OAuth state parameter mismatch'
+					})
+				);
 			}
 		}
 

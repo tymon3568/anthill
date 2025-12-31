@@ -65,32 +65,32 @@ PUBLIC_KANIDM_CLIENT_ID=anthill-frontend         # Optional (for aud validation)
 
 ## Error Codes
 
-| Code | HTTP Status | Meaning | Client Action |
-|------|-------------|---------|---------------|
-| `INVALID_REQUEST` | 400 | Malformed request | Fix request format |
-| `TOKEN_EXPIRED` | 401 | Token past expiry | Refresh token |
-| `TOKEN_NOT_YET_VALID` | 401 | Token nbf in future | Clock sync issue |
-| `INVALID_ISSUER` | 401 | Wrong issuer | Configuration error |
-| `INVALID_SIGNATURE` | 401 | Signature mismatch | Token forged/corrupted |
-| `INVALID_TOKEN` | 401 | Missing claims | Malformed token |
-| `SERVER_MISCONFIGURED` | 500 | Missing env vars | Server configuration |
+| Code                   | HTTP Status | Meaning             | Client Action          |
+| ---------------------- | ----------- | ------------------- | ---------------------- |
+| `INVALID_REQUEST`      | 400         | Malformed request   | Fix request format     |
+| `TOKEN_EXPIRED`        | 401         | Token past expiry   | Refresh token          |
+| `TOKEN_NOT_YET_VALID`  | 401         | Token nbf in future | Clock sync issue       |
+| `INVALID_ISSUER`       | 401         | Wrong issuer        | Configuration error    |
+| `INVALID_SIGNATURE`    | 401         | Signature mismatch  | Token forged/corrupted |
+| `INVALID_TOKEN`        | 401         | Missing claims      | Malformed token        |
+| `SERVER_MISCONFIGURED` | 500         | Missing env vars    | Server configuration   |
 
 ## Usage Example
 
 ```typescript
 const response = await fetch('/api/v1/auth/verify-token', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ token: 'eyJhbGc...' }),
-  credentials: 'include'
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: JSON.stringify({ token: 'eyJhbGc...' }),
+	credentials: 'include'
 });
 
 if (response.ok) {
-  const userInfo = await response.json();
-  // { userId, email, name, groups, tenantId }
+	const userInfo = await response.json();
+	// { userId, email, name, groups, tenantId }
 } else {
-  const error = await response.json();
-  // { code, message }
+	const error = await response.json();
+	// { code, message }
 }
 ```
 
@@ -102,15 +102,15 @@ Add this middleware in `hooks.server.ts`:
 import { rateLimit } from '@sveltekit-rate-limiter/server';
 
 const limiter = rateLimit({
-  IP: [10, 'm'], // 10 requests per minute per IP
-  IPUA: [5, 'm']  // 5 requests per minute per IP+UserAgent
+	IP: [10, 'm'], // 10 requests per minute per IP
+	IPUA: [5, 'm'] // 5 requests per minute per IP+UserAgent
 });
 
 export async function handle({ event, resolve }) {
-  if (event.url.pathname === '/api/v1/auth/verify-token') {
-    await limiter.check(event);
-  }
-  return resolve(event);
+	if (event.url.pathname === '/api/v1/auth/verify-token') {
+		await limiter.check(event);
+	}
+	return resolve(event);
 }
 ```
 
@@ -124,13 +124,13 @@ import { metrics } from '$lib/monitoring';
 
 // On verification failure:
 metrics.increment('jwt.verification.failed', {
-  error_code: code,
-  issuer: kanidmIssuer
+	error_code: code,
+	issuer: kanidmIssuer
 });
 
 // On success:
 metrics.increment('jwt.verification.success', {
-  tenant_id: tenantId
+	tenant_id: tenantId
 });
 ```
 
@@ -163,11 +163,13 @@ metrics.increment('jwt.verification.success', {
 ### JWKS Endpoint
 
 Kanidm exposes JWKS at:
+
 ```
 {issuer}/.well-known/jwks.json
 ```
 
 Example:
+
 ```
 https://idm.example.com/.well-known/jwks.json
 ```
@@ -176,15 +178,15 @@ https://idm.example.com/.well-known/jwks.json
 
 ```json
 {
-  "sub": "00000000-0000-0000-0000-000000000000",
-  "email": "user@example.com",
-  "name": "Full Name",
-  "preferred_username": "username",
-  "groups": ["tenant_acme_users", "tenant_acme_admins"],
-  "exp": 1700000000,
-  "iat": 1699999000,
-  "iss": "https://idm.example.com",
-  "aud": "anthill-frontend"
+	"sub": "00000000-0000-0000-0000-000000000000",
+	"email": "user@example.com",
+	"name": "Full Name",
+	"preferred_username": "username",
+	"groups": ["tenant_acme_users", "tenant_acme_admins"],
+	"exp": 1700000000,
+	"iat": 1699999000,
+	"iss": "https://idm.example.com",
+	"aud": "anthill-frontend"
 }
 ```
 
@@ -195,6 +197,7 @@ https://idm.example.com/.well-known/jwks.json
 **Cause**: `PUBLIC_KANIDM_ISSUER_URL` not set
 
 **Fix**:
+
 ```bash
 # .env
 PUBLIC_KANIDM_ISSUER_URL=https://idm.example.com
@@ -215,6 +218,7 @@ PUBLIC_KANIDM_ISSUER_URL=https://idm.example.com
 ### "INVALID_SIGNATURE" for Valid Tokens
 
 **Possible Causes**:
+
 1. Wrong JWKS endpoint URL
 2. Kanidm key rotation in progress
 3. Clock skew > 30 seconds
@@ -228,19 +232,19 @@ PUBLIC_KANIDM_ISSUER_URL=https://idm.example.com
 import { POST } from './+server';
 
 describe('verify-token endpoint', () => {
-  it('should verify valid token', async () => {
-    const request = new Request('http://localhost/api/v1/auth/verify-token', {
-      method: 'POST',
-      body: JSON.stringify({ token: validToken })
-    });
-    
-    const response = await POST({ request });
-    expect(response.status).toBe(200);
-  });
-  
-  it('should reject expired token', async () => {
-    // Test with TOKEN_EXPIRED error
-  });
+	it('should verify valid token', async () => {
+		const request = new Request('http://localhost/api/v1/auth/verify-token', {
+			method: 'POST',
+			body: JSON.stringify({ token: validToken })
+		});
+
+		const response = await POST({ request });
+		expect(response.status).toBe(200);
+	});
+
+	it('should reject expired token', async () => {
+		// Test with TOKEN_EXPIRED error
+	});
 });
 ```
 
