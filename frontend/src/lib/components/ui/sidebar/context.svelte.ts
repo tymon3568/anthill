@@ -76,7 +76,12 @@ export function setSidebar(props: SidebarStateProps): SidebarState {
  * Retrieves the `SidebarState` instance from the context. This is a class instance,
  * so you cannot destructure it.
  * @returns The `SidebarState` instance.
+ * @throws Error if called outside of a SidebarProvider component.
  */
 export function useSidebar(): SidebarState {
-	return getContext(Symbol.for(SYMBOL_KEY));
+	const context = getContext<SidebarState>(Symbol.for(SYMBOL_KEY));
+	if (!context) {
+		throw new Error('useSidebar() must be called within a <Sidebar.Provider> component');
+	}
+	return context;
 }

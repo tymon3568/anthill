@@ -13,8 +13,10 @@
 
 	let { metricCardCount = 4, showChart = true, showRecentList = true }: Props = $props();
 
-	// Normalize metricCardCount to prevent RangeError with invalid values
-	const safeMetricCardCount = $derived(Math.max(0, Math.floor(metricCardCount)));
+	// Normalize metricCardCount to prevent RangeError with invalid values (NaN, Infinity, negative)
+	const safeMetricCardCount = $derived(
+		Number.isFinite(metricCardCount) ? Math.max(0, Math.floor(metricCardCount)) : 0
+	);
 </script>
 
 <div class="space-y-6">

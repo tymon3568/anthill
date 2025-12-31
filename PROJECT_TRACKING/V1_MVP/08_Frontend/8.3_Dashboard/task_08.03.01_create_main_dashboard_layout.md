@@ -8,7 +8,7 @@
 **Status:** NeedsReview
 **Assignee:** Claude
 **Created Date:** 2025-01-21
-**Last Updated:** 2025-12-31
+**Last Updated:** 2025-12-31 21:30
 
 ## Detailed Description:
 Create the main dashboard layout with responsive sidebar navigation, header, and content area using shadcn-svelte components. The layout follows modern SaaS dashboard patterns with collapsible sidebar, command palette, and full accessibility support.
@@ -137,7 +137,7 @@ frontend/
 
 ## PR Review Issues (PR #128):
 ---
-### Fixed Issues:
+### Fixed Issues (Batch 1 - 2025-12-31 13:25):
 - [x] Fix `getInitials()` edge case - names with consecutive spaces producing "JUNDEFINED" (nav-user.svelte) - **Severity: Warning**
 - [x] Fix `openItems` effect accumulating state instead of resetting on navigation (nav-main.svelte) - **Severity: Warning**
 - [x] Fix `metricCardCount` RangeError with non-integer/negative values (dashboard-skeleton.svelte) - **Severity: Warning**
@@ -150,10 +150,20 @@ frontend/
 - [x] Remove unused `allItems` variable and import (command-palette.svelte) - **Severity: Style**
 - [x] Fix task file date inconsistency (Last Updated before Created Date) - **Severity: Style**
 
+### Fixed Issues (Batch 2 - 2025-12-31 21:30):
+- [x] Fix `safeMetricCardCount` to handle NaN/Infinity using `Number.isFinite()` (dashboard-skeleton.svelte) - **Severity: Warning**
+- [x] Add null check to `useSidebar()` to throw clear error outside SidebarProvider (context.svelte.ts) - **Severity: Critical**
+- [x] Remove redundant Escape handler - Bits UI Dialog handles this (command-palette.svelte) - **Severity: Nitpick**
+- [x] Remove unused `getItemIcon` function and `FileTextIcon` import (command-palette.svelte) - **Severity: Nitpick**
+- [x] Implement ⌘D, ⌘P, ⌘, keyboard shortcuts for Quick Actions (command-palette.svelte) - **Severity: Warning**
+- [x] Remove redundant setTimeout delay in handleLinkClick (nav-main.svelte) - **Severity: Nitpick**
+- [x] Fix ARIA role semantics - remove role="menu"/role="menuitem" from navigation (nav-main.svelte) - **Severity: Warning**
+
 ### Deferred/Not Applicable:
 - [ ] Security: Upgrade @sveltejs/kit to 2.47.2+ for CVE fixes - **Deferred to separate security task**
 - [N/A] `onclick` vs `on:click` - INVALID for Svelte 5 (onclick is correct syntax for bits-ui components)
 - [N/A] Theme store import path - VALID ($lib/stores/theme.svelte works for .svelte.ts files)
+- [N/A] Task file markdown formatting (hard tabs) - DEFERRED (cosmetic only, not blocking)
 
 ## Notes / Discussion:
 ---
@@ -238,7 +248,7 @@ frontend/
   - Manual testing items remaining: viewport testing (6.4), screen reader (7.4), cross-browser (acceptance criteria)
   - Commits pushed to feature/08.03-dashboard-layout-shadcn
   - Ready for code review and PR creation
-* 2025-12-31 13:25: PR #128 Review Auto-Fix by Claude
+* 2025-12-31 13:25: PR #128 Review Auto-Fix Batch 1 by Claude
   - Fetched PR review comments from CodeRabbit, cubic-dev-ai, codeant-ai, gemini-code-assist
   - Categorized 12 unresolved issues (1 Critical, 9 Warning, 3 Style)
   - Fixed 11 issues:
@@ -256,3 +266,16 @@ frontend/
   - Deferred @sveltejs/kit upgrade to separate security task
   - Validated: `bun run check` passes (0 errors), 63 dashboard tests pass
   - Invalidated 2 false positives (onclick syntax, theme import path are correct for Svelte 5)
+* 2025-12-31 21:30: PR #128 Review Auto-Fix Batch 2 by Claude
+  - Re-fetched PR #128 to find remaining unresolved issues after first batch
+  - Identified 7 additional issues from CodeRabbit and cubic-dev-ai reviews
+  - Fixed all 7 issues:
+    1. dashboard-skeleton.svelte: safeMetricCardCount now uses Number.isFinite() for NaN/Infinity
+    2. context.svelte.ts: useSidebar() now throws clear error when called outside SidebarProvider
+    3. command-palette.svelte: removed redundant Escape handler (Bits UI Dialog handles it)
+    4. command-palette.svelte: removed unused getItemIcon function and FileTextIcon import
+    5. command-palette.svelte: implemented ⌘D, ⌘P, ⌘, keyboard shortcuts for Quick Actions
+    6. nav-main.svelte: removed setTimeout delay in handleLinkClick (immediate close is fine)
+    7. nav-main.svelte: removed role="menu"/role="menuitem" to fix ARIA navigation semantics
+  - Validated: `bun run check` passes (0 errors), 63 dashboard tests pass
+  - Pre-existing auth test failures (URL encoding) unrelated to dashboard changes

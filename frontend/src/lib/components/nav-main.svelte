@@ -41,13 +41,11 @@
 		openItems[title] = !openItems[title];
 	}
 
-	// Handle link click - close mobile sidebar
+	// Handle link click - close mobile sidebar immediately
+	// Note: afterNavigate hook above also handles close, but immediate close provides better UX
 	function handleLinkClick() {
 		if (sidebar.isMobile) {
-			// Small delay to allow navigation to start
-			setTimeout(() => {
-				sidebar.setOpenMobile(false);
-			}, 100);
+			sidebar.setOpenMobile(false);
 		}
 	}
 </script>
@@ -87,20 +85,15 @@
 							{/snippet}
 						</Collapsible.Trigger>
 						<Collapsible.Content>
-							<Sidebar.MenuSub
-								id={`submenu-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-								role="menu"
-								aria-label={`${item.title} submenu`}
-							>
+							<Sidebar.MenuSub id={`submenu-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
 								{#each item.items as subItem (subItem.url)}
 									{@const subIsActive = isPathActive(currentPath, subItem.url)}
-									<Sidebar.MenuSubItem role="none">
+									<Sidebar.MenuSubItem>
 										<Sidebar.MenuSubButton
 											href={subItem.url}
 											isActive={subIsActive}
 											onclick={handleLinkClick}
 											class="min-h-[44px] md:min-h-0"
-											role="menuitem"
 											aria-current={subIsActive ? 'page' : undefined}
 										>
 											<span>{subItem.title}</span>
