@@ -117,7 +117,12 @@ export function isPathActive(currentPath: string, itemPath: string): boolean {
 	if (itemPath === '/dashboard') {
 		return currentPath === '/dashboard';
 	}
-	return currentPath.startsWith(itemPath);
+	// Check for exact match or path prefix followed by / or end of string
+	if (currentPath === itemPath) {
+		return true;
+	}
+	// Ensure we match path boundaries (e.g., /inventory matches /inventory/products but not /inventory-new)
+	return currentPath.startsWith(itemPath + '/');
 }
 
 // Check if a parent item has an active child

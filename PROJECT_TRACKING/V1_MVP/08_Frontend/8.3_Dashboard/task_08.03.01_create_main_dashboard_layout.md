@@ -78,8 +78,8 @@ Create the main dashboard layout with responsive sidebar navigation, header, and
 - [x] 8.3. Implement Suspense boundaries where needed
 
 ### Phase 9: Testing
-- [ ] 9.1. Write Vitest unit tests for navigation logic
-- [ ] 9.2. Write Vitest tests for theme store
+- [x] 9.1. Write Vitest unit tests for navigation logic
+- [x] 9.2. Write Vitest tests for theme store
 - [ ] 9.3. Write Playwright E2E tests for navigation flow
 - [ ] 9.4. Test mobile navigation with Playwright
 
@@ -204,3 +204,10 @@ frontend/
   - Skeletons show during authState.isLoading (auth initialization)
   - Added aria-busy attributes for accessibility
   - All checks pass: `bun run check` 0 errors
+* 2025-01-01 13:00: Phase 9 (Unit Tests) implementation completed by Claude
+  - 9.1 ✅ Created navigation.test.ts with 35 tests for navigation helpers
+  - 9.2 ✅ Created theme.test.ts with 28 tests for theme store logic
+  - Fixed isPathActive() bug: now properly handles path boundaries (/inventory vs /inventory-new)
+  - All 63 unit tests pass
+  - All checks pass: `bun run check` 0 errors
+  - Remaining: 9.3, 9.4 Playwright E2E tests (recommend deferring to separate task)
