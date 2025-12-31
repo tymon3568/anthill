@@ -12,7 +12,9 @@ function getUserServiceUrl(): string {
 
 	// Only allow fallback in development
 	if (env.PUBLIC_APP_ENV === 'development') {
-		console.warn('PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000');
+		console.warn(
+			'PUBLIC_USER_SERVICE_URL not set, using development fallback: http://localhost:8000'
+		);
 		return 'http://localhost:8000';
 	}
 

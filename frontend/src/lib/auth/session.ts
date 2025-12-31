@@ -14,12 +14,16 @@ export class AuthSession {
 	// Tokens are managed by httpOnly cookies on the server
 	// These methods exist for backwards compatibility but should not be used
 	static getAccessToken(): string | null {
-		console.warn('getAccessToken: Tokens should be accessed from httpOnly cookies, not localStorage');
+		console.warn(
+			'getAccessToken: Tokens should be accessed from httpOnly cookies, not localStorage'
+		);
 		return null;
 	}
 
 	static getRefreshToken(): string | null {
-		console.warn('getRefreshToken: Tokens should be accessed from httpOnly cookies, not localStorage');
+		console.warn(
+			'getRefreshToken: Tokens should be accessed from httpOnly cookies, not localStorage'
+		);
 		return null;
 	}
 
@@ -116,7 +120,9 @@ export class AuthSession {
 export function getAuthHeaders(): Record<string, string> {
 	// Tokens are in httpOnly cookies, no need to manually add Authorization header
 	// The browser automatically includes cookies with requests
-	console.warn('getAuthHeaders: Use credentials: "include" instead of manual Authorization headers');
+	console.warn(
+		'getAuthHeaders: Use credentials: "include" instead of manual Authorization headers'
+	);
 	return {};
 }
 

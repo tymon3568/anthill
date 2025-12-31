@@ -1,7 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { authState } from '$lib/stores/auth.svelte';
+	import { authState, authStore } from '$lib/stores/auth.svelte';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import AppSidebar from '$lib/components/app-sidebar.svelte';
+	import AppHeader from '$lib/components/app-header.svelte';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
+
+	// Initialize auth store on mount
+	$effect(() => {
+		authStore.initialize();
+	});
 
 	// Server-side and client-side route protection
 	$effect(() => {
@@ -20,4 +29,15 @@
 	let { children } = $props();
 </script>
 
-{@render children()}
+<Sidebar.Provider>
+	<AppSidebar />
+	<Sidebar.Inset>
+		<AppHeader />
+		<main class="flex-1 overflow-auto p-4 md:p-6">
+			{@render children()}
+		</main>
+	</Sidebar.Inset>
+</Sidebar.Provider>
+
+<!-- Toast notifications -->
+<Toaster />

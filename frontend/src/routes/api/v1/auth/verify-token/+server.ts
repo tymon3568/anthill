@@ -87,7 +87,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		try {
 			verified = await jwtVerify(token, JWKS, {
 				issuer: kanidmIssuer, // Validate issuer matches Kanidm
-				clockTolerance: 30, // Allow 30 seconds clock skew
+				clockTolerance: 30 // Allow 30 seconds clock skew
 				// Audience validation - uncomment if Kanidm sets 'aud' claim
 				// audience: env.PUBLIC_KANIDM_CLIENT_ID,
 			});
