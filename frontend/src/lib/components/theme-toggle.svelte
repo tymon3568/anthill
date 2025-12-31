@@ -10,33 +10,33 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
-			<Button {...props} variant="ghost" size="icon" class="size-8">
+			<Button {...props} variant="ghost" size="icon" class="size-9 md:size-8">
 				{#if themeStore.isDark}
-					<MoonIcon class="size-4" />
+					<MoonIcon class="size-5 md:size-4" />
 				{:else}
-					<SunIcon class="size-4" />
+					<SunIcon class="size-5 md:size-4" />
 				{/if}
 				<span class="sr-only">Toggle theme</span>
 			</Button>
 		{/snippet}
 	</DropdownMenu.Trigger>
-	<DropdownMenu.Content align="end">
-		<DropdownMenu.Item onclick={() => themeStore.setLight()}>
-			<SunIcon class="mr-2 size-4" />
+	<DropdownMenu.Content align="end" class="min-w-[140px]">
+		<DropdownMenu.Item onclick={() => themeStore.setLight()} class="min-h-[44px] md:min-h-0">
+			<SunIcon class="mr-2 size-5 md:size-4" />
 			<span>Light</span>
 			{#if themeStore.theme === 'light'}
 				<span class="ml-auto text-xs text-muted-foreground">✓</span>
 			{/if}
 		</DropdownMenu.Item>
-		<DropdownMenu.Item onclick={() => themeStore.setDark()}>
-			<MoonIcon class="mr-2 size-4" />
+		<DropdownMenu.Item onclick={() => themeStore.setDark()} class="min-h-[44px] md:min-h-0">
+			<MoonIcon class="mr-2 size-5 md:size-4" />
 			<span>Dark</span>
 			{#if themeStore.theme === 'dark'}
 				<span class="ml-auto text-xs text-muted-foreground">✓</span>
 			{/if}
 		</DropdownMenu.Item>
-		<DropdownMenu.Item onclick={() => themeStore.setSystem()}>
-			<MonitorIcon class="mr-2 size-4" />
+		<DropdownMenu.Item onclick={() => themeStore.setSystem()} class="min-h-[44px] md:min-h-0">
+			<MonitorIcon class="mr-2 size-5 md:size-4" />
 			<span>System</span>
 			{#if themeStore.theme === 'system'}
 				<span class="ml-auto text-xs text-muted-foreground">✓</span>

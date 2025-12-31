@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { afterNavigate } from '$app/navigation';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import NavMain from './nav-main.svelte';
 	import NavUser from './nav-user.svelte';
@@ -11,19 +12,38 @@
 	}
 
 	let { variant = 'sidebar', collapsible = 'icon' }: Props = $props();
+
+	// Get sidebar context for mobile handling
+	const sidebar = Sidebar.useSidebar();
+
+	// Auto-close mobile sidebar on navigation
+	afterNavigate(() => {
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+	});
+
+	// Handle link click on mobile - close sidebar
+	function handleMobileLinkClick() {
+		if (sidebar.isMobile) {
+			setTimeout(() => {
+				sidebar.setOpenMobile(false);
+			}, 100);
+		}
+	}
 </script>
 
 <Sidebar.Root {variant} {collapsible}>
 	<Sidebar.Header>
 		<Sidebar.Menu>
 			<Sidebar.MenuItem>
-				<Sidebar.MenuButton size="lg">
+				<Sidebar.MenuButton size="lg" class="min-h-[52px] md:min-h-0">
 					{#snippet child({ props })}
-						<a href="/dashboard" {...props}>
+						<a href="/dashboard" {...props} onclick={handleMobileLinkClick}>
 							<div
-								class="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+								class="flex aspect-square size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground md:size-8"
 							>
-								<BoxesIcon class="size-4" />
+								<BoxesIcon class="size-5 md:size-4" />
 							</div>
 							<div class="grid flex-1 text-left text-sm leading-tight">
 								<span class="truncate font-semibold">Anthill</span>
@@ -46,11 +66,11 @@
 			<Sidebar.Menu>
 				{#each settingsNavigation as item (item.title)}
 					<Sidebar.MenuItem>
-						<Sidebar.MenuButton tooltipContent={item.title}>
+						<Sidebar.MenuButton tooltipContent={item.title} class="min-h-[44px] md:min-h-0">
 							{#snippet child({ props })}
-								<a href={item.url} {...props}>
+								<a href={item.url} {...props} onclick={handleMobileLinkClick}>
 									{#if item.icon}
-										<item.icon class="size-4" />
+										<item.icon class="size-5 md:size-4" />
 									{/if}
 									<span>{item.title}</span>
 								</a>

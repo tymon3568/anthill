@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { afterNavigate } from '$app/navigation';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -10,6 +11,9 @@
 	}
 
 	let { items }: Props = $props();
+
+	// Get sidebar context to close on mobile navigation
+	const sidebar = Sidebar.useSidebar();
 
 	// Track which collapsibles are open
 	let openItems = $state<Record<string, boolean>>({});
@@ -24,8 +28,25 @@
 		}
 	});
 
+	// Auto-close sidebar on mobile after navigation
+	afterNavigate(() => {
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+	});
+
 	function toggleItem(title: string) {
 		openItems[title] = !openItems[title];
+	}
+
+	// Handle link click - close mobile sidebar
+	function handleLinkClick() {
+		if (sidebar.isMobile) {
+			// Small delay to allow navigation to start
+			setTimeout(() => {
+				sidebar.setOpenMobile(false);
+			}, 100);
+		}
 	}
 </script>
 
@@ -47,9 +68,10 @@
 									{...props}
 									isActive={isActive || hasActiveChild(currentPath, item.items)}
 									tooltipContent={item.title}
+									class="min-h-[44px] md:min-h-0"
 								>
 									{#if item.icon}
-										<item.icon class="size-4" />
+										<item.icon class="size-5 md:size-4" />
 									{/if}
 									<span>{item.title}</span>
 									<ChevronRightIcon
@@ -65,7 +87,12 @@
 								{#each item.items as subItem (subItem.url)}
 									{@const subIsActive = isPathActive(currentPath, subItem.url)}
 									<Sidebar.MenuSubItem>
-										<Sidebar.MenuSubButton href={subItem.url} isActive={subIsActive}>
+										<Sidebar.MenuSubButton
+											href={subItem.url}
+											isActive={subIsActive}
+											onclick={handleLinkClick}
+											class="min-h-[44px] md:min-h-0"
+										>
 											<span>{subItem.title}</span>
 											{#if subItem.badge}
 												<Sidebar.MenuBadge>{subItem.badge}</Sidebar.MenuBadge>
@@ -79,11 +106,15 @@
 				</Collapsible.Root>
 			{:else}
 				<Sidebar.MenuItem>
-					<Sidebar.MenuButton {isActive} tooltipContent={item.title}>
+					<Sidebar.MenuButton
+						{isActive}
+						tooltipContent={item.title}
+						class="min-h-[44px] md:min-h-0"
+					>
 						{#snippet child({ props })}
-							<a href={item.url} {...props}>
+							<a href={item.url} {...props} onclick={handleLinkClick}>
 								{#if item.icon}
-									<item.icon class="size-4" />
+									<item.icon class="size-5 md:size-4" />
 								{/if}
 								<span>{item.title}</span>
 								{#if item.badge}
