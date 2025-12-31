@@ -33,11 +33,15 @@
 	}
 </script>
 
-<Sidebar.Root {variant} {collapsible}>
+<Sidebar.Root {variant} {collapsible} aria-label="Main navigation sidebar">
 	<Sidebar.Header>
 		<Sidebar.Menu>
 			<Sidebar.MenuItem>
-				<Sidebar.MenuButton size="lg" class="min-h-[52px] md:min-h-0">
+				<Sidebar.MenuButton
+					size="lg"
+					class="min-h-[52px] md:min-h-0"
+					aria-label="Anthill - Go to Dashboard"
+				>
 					{#snippet child({ props })}
 						<a href="/dashboard" {...props} onclick={handleMobileLinkClick}>
 							<div
@@ -62,11 +66,15 @@
 
 		<!-- Settings Navigation -->
 		<Sidebar.Group class="mt-auto">
-			<Sidebar.GroupLabel>Settings</Sidebar.GroupLabel>
-			<Sidebar.Menu>
+			<Sidebar.GroupLabel id="settings-nav-label">Settings</Sidebar.GroupLabel>
+			<Sidebar.Menu aria-labelledby="settings-nav-label" role="navigation">
 				{#each settingsNavigation as item (item.title)}
 					<Sidebar.MenuItem>
-						<Sidebar.MenuButton tooltipContent={item.title} class="min-h-[44px] md:min-h-0">
+						<Sidebar.MenuButton
+							tooltipContent={item.title}
+							class="min-h-[44px] md:min-h-0"
+							aria-label={item.title}
+						>
 							{#snippet child({ props })}
 								<a href={item.url} {...props} onclick={handleMobileLinkClick}>
 									{#if item.icon}

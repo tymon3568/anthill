@@ -51,8 +51,8 @@
 </script>
 
 <Sidebar.Group>
-	<Sidebar.GroupLabel>Navigation</Sidebar.GroupLabel>
-	<Sidebar.Menu>
+	<Sidebar.GroupLabel id="nav-main-label">Navigation</Sidebar.GroupLabel>
+	<Sidebar.Menu aria-labelledby="nav-main-label" role="navigation">
 		{#each items as item (item.title)}
 			{@const currentPath = page.url.pathname}
 			{@const isActive = isPathActive(currentPath, item.url)}
@@ -69,6 +69,8 @@
 									isActive={isActive || hasActiveChild(currentPath, item.items)}
 									tooltipContent={item.title}
 									class="min-h-[44px] md:min-h-0"
+									aria-expanded={isOpen}
+									aria-controls={`submenu-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
 								>
 									{#if item.icon}
 										<item.icon class="size-5 md:size-4" />
@@ -83,15 +85,21 @@
 							{/snippet}
 						</Collapsible.Trigger>
 						<Collapsible.Content>
-							<Sidebar.MenuSub>
+							<Sidebar.MenuSub
+								id={`submenu-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+								role="menu"
+								aria-label={`${item.title} submenu`}
+							>
 								{#each item.items as subItem (subItem.url)}
 									{@const subIsActive = isPathActive(currentPath, subItem.url)}
-									<Sidebar.MenuSubItem>
+									<Sidebar.MenuSubItem role="none">
 										<Sidebar.MenuSubButton
 											href={subItem.url}
 											isActive={subIsActive}
 											onclick={handleLinkClick}
 											class="min-h-[44px] md:min-h-0"
+											role="menuitem"
+											aria-current={subIsActive ? 'page' : undefined}
 										>
 											<span>{subItem.title}</span>
 											{#if subItem.badge}
@@ -112,7 +120,12 @@
 						class="min-h-[44px] md:min-h-0"
 					>
 						{#snippet child({ props })}
-							<a href={item.url} {...props} onclick={handleLinkClick}>
+							<a
+								href={item.url}
+								{...props}
+								onclick={handleLinkClick}
+								aria-current={isActive ? 'page' : undefined}
+							>
 								{#if item.icon}
 									<item.icon class="size-5 md:size-4" />
 								{/if}

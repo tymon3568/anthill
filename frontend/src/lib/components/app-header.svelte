@@ -9,6 +9,12 @@
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import ThemeToggle from './theme-toggle.svelte';
 
+	interface Props {
+		onSearchClick?: () => void;
+	}
+
+	let { onSearchClick }: Props = $props();
+
 	// Generate breadcrumbs from current path
 	function getBreadcrumbs(pathname: string): { label: string; href: string }[] {
 		const segments = pathname.split('/').filter(Boolean);
@@ -41,6 +47,10 @@
 	function handleMobileMenuClick() {
 		sidebar.toggle();
 	}
+
+	function handleSearchClick() {
+		onSearchClick?.();
+	}
 </script>
 
 <header
@@ -60,12 +70,12 @@
 		</Button>
 
 		<!-- Desktop: Default sidebar trigger -->
-		<Sidebar.Trigger class="-ml-1 hidden md:flex" aria-label="Toggle sidebar" />
+		<Sidebar.Trigger class="-ml-1 hidden md:flex" aria-label="Toggle sidebar (Ctrl+B)" />
 
 		<Separator orientation="vertical" class="mr-2 hidden h-4 md:block" />
 
 		<!-- Desktop: Breadcrumbs -->
-		<Breadcrumb.Root class="hidden md:flex">
+		<Breadcrumb.Root class="hidden md:flex" aria-label="Breadcrumb navigation">
 			<Breadcrumb.List>
 				{#each breadcrumbs as crumb, index (crumb.href)}
 					<Breadcrumb.Item>
@@ -90,7 +100,13 @@
 
 	<div class="flex items-center gap-1 md:gap-2">
 		<!-- Search Button (triggers command palette) -->
-		<Button variant="ghost" size="icon" class="size-9 md:size-8" aria-label="Search (Ctrl+K)">
+		<Button
+			variant="ghost"
+			size="icon"
+			class="size-9 md:size-8"
+			aria-label="Search (Ctrl+K)"
+			onclick={handleSearchClick}
+		>
 			<SearchIcon class="size-5 md:size-4" />
 		</Button>
 
