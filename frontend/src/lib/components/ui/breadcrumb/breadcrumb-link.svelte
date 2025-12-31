@@ -12,6 +12,7 @@
 		...restProps
 	}: WithElementRef<HTMLAnchorAttributes> & {
 		child?: Snippet<[{ props: HTMLAnchorAttributes }]>;
+		children?: Snippet;
 	} = $props();
 
 	const attrs = $derived({

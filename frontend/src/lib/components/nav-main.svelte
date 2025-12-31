@@ -21,11 +21,13 @@
 	// Initialize open state based on current route
 	$effect(() => {
 		const currentPath = page.url.pathname;
+		const nextOpenItems: Record<string, boolean> = {};
 		for (const item of items) {
 			if (item.items && hasActiveChild(currentPath, item.items)) {
-				openItems[item.title] = true;
+				nextOpenItems[item.title] = true;
 			}
 		}
+		openItems = nextOpenItems;
 	});
 
 	// Auto-close sidebar on mobile after navigation

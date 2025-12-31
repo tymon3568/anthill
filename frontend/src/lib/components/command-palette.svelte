@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import * as Command from '$lib/components/ui/command/index.js';
 	import {
-		getAllNavigationItems,
 		mainNavigation,
 		settingsNavigation,
 		type NavItem,
@@ -57,9 +56,6 @@
 		}
 		return FileTextIcon;
 	}
-
-	// Flatten items for search
-	const allItems = getAllNavigationItems();
 
 	// Filter items based on search
 	let filteredMainNav = $derived(

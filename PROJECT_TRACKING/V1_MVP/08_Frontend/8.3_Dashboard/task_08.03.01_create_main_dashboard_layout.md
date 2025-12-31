@@ -5,10 +5,10 @@
 **Phase:** 08_Frontend
 **Module:** 8.3_Dashboard
 **Priority:** High
-**Status:** NeedsReview
+**Status:** InProgress_By_Claude
 **Assignee:** Claude
 **Created Date:** 2025-01-21
-**Last Updated:** 2025-01-01
+**Last Updated:** 2025-12-31
 
 ## Detailed Description:
 Create the main dashboard layout with responsive sidebar navigation, header, and content area using shadcn-svelte components. The layout follows modern SaaS dashboard patterns with collapsible sidebar, command palette, and full accessibility support.
@@ -135,6 +135,26 @@ frontend/
 │               └── +page.svelte            # Update with new layout
 ```
 
+## PR Review Issues (PR #128):
+---
+### Fixed Issues:
+- [x] Fix `getInitials()` edge case - names with consecutive spaces producing "JUNDEFINED" (nav-user.svelte) - **Severity: Warning**
+- [x] Fix `openItems` effect accumulating state instead of resetting on navigation (nav-main.svelte) - **Severity: Warning**
+- [x] Fix `metricCardCount` RangeError with non-integer/negative values (dashboard-skeleton.svelte) - **Severity: Warning**
+- [x] Fix `Math.random()` SSR hydration mismatch - use deterministic heights (dashboard-skeleton.svelte) - **Severity: Warning**
+- [x] Fix `children` prop type missing `Snippet` in type definition (breadcrumb-link.svelte) - **Severity: Warning**
+- [x] Fix breadcrumb ellipsis accessibility - sr-only text hidden by parent aria-hidden (breadcrumb-ellipsis.svelte) - **Severity: Warning**
+- [x] Fix `data-[disabled=true]` vs `data-[disabled]` selector mismatch (command-link-item.svelte) - **Severity: Warning**
+- [x] Fix keyboard shortcut case sensitivity for CapsLock users (context.svelte.ts) - **Severity: Style**
+- [x] Fix Dialog.Header placement - move inside Dialog.Content for accessibility (command-dialog.svelte) - **Severity: Warning**
+- [x] Remove unused `allItems` variable and import (command-palette.svelte) - **Severity: Style**
+- [x] Fix task file date inconsistency (Last Updated before Created Date) - **Severity: Style**
+
+### Deferred/Not Applicable:
+- [ ] Security: Upgrade @sveltejs/kit to 2.47.2+ for CVE fixes - **Deferred to separate security task**
+- [N/A] `onclick` vs `on:click` - INVALID for Svelte 5 (onclick is correct syntax for bits-ui components)
+- [N/A] Theme store import path - VALID ($lib/stores/theme.svelte works for .svelte.ts files)
+
 ## Notes / Discussion:
 ---
 * Using shadcn-svelte Sidebar component for consistent, accessible navigation
@@ -218,3 +238,21 @@ frontend/
   - Manual testing items remaining: viewport testing (6.4), screen reader (7.4), cross-browser (acceptance criteria)
   - Commits pushed to feature/08.03-dashboard-layout-shadcn
   - Ready for code review and PR creation
+* 2025-12-31 13:25: PR #128 Review Auto-Fix by Claude
+  - Fetched PR review comments from CodeRabbit, cubic-dev-ai, codeant-ai, gemini-code-assist
+  - Categorized 12 unresolved issues (1 Critical, 9 Warning, 3 Style)
+  - Fixed 11 issues:
+    1. nav-user.svelte: getInitials() now filters empty parts from name.split()
+    2. nav-main.svelte: openItems effect now resets state instead of accumulating
+    3. dashboard-skeleton.svelte: metricCardCount normalized to prevent RangeError
+    4. dashboard-skeleton.svelte: replaced Math.random() with deterministic heights for SSR
+    5. breadcrumb-link.svelte: added children?: Snippet to props type
+    6. breadcrumb-ellipsis.svelte: moved aria-hidden to icon only for screen reader access
+    7. command-link-item.svelte: changed data-[disabled=true] to data-[disabled]
+    8. context.svelte.ts: added toLowerCase() for case-insensitive keyboard shortcut
+    9. command-dialog.svelte: moved Dialog.Header inside Dialog.Content for a11y
+    10. command-palette.svelte: removed unused allItems variable and import
+    11. task file: fixed date inconsistency (Last Updated was before Created Date)
+  - Deferred @sveltejs/kit upgrade to separate security task
+  - Validated: `bun run check` passes (0 errors), 63 dashboard tests pass
+  - Invalidated 2 false positives (onclick syntax, theme import path are correct for Svelte 5)

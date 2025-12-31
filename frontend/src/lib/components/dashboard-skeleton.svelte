@@ -12,6 +12,9 @@
 	}
 
 	let { metricCardCount = 4, showChart = true, showRecentList = true }: Props = $props();
+
+	// Normalize metricCardCount to prevent RangeError with invalid values
+	const safeMetricCardCount = $derived(Math.max(0, Math.floor(metricCardCount)));
 </script>
 
 <div class="space-y-6">
@@ -23,7 +26,7 @@
 
 	<!-- Metric Cards Grid Skeleton -->
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-		{#each Array(metricCardCount) as _, i (i)}
+		{#each Array(safeMetricCardCount) as _, i (i)}
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Skeleton class="h-4 w-24" />
@@ -47,13 +50,10 @@
 					<Skeleton class="h-3 w-48" />
 				</Card.Header>
 				<Card.Content>
-					<!-- Chart placeholder -->
+					<!-- Chart placeholder - deterministic heights to avoid SSR hydration mismatch -->
 					<div class="flex h-[300px] items-end justify-between gap-2 pt-4">
-						{#each Array(12) as _, i (i)}
-							<Skeleton
-								class="w-full rounded-t"
-								style="height: {Math.floor(Math.random() * 60) + 20}%"
-							/>
+						{#each [45, 72, 38, 85, 52, 28, 65, 78, 42, 90, 55, 35] as height, i (i)}
+							<Skeleton class="w-full rounded-t" style="height: {height}%" />
 						{/each}
 					</div>
 				</Card.Content>
