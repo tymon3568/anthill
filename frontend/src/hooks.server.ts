@@ -3,45 +3,7 @@ import { validateAndParseToken, shouldRefreshToken } from '$lib/auth/jwt';
 import { handleAuthError, createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
-
-/**
- * Parse tenant slug from hostname/subdomain
- *
- * Examples:
- * - acme.localhost:5173 -> "acme"
- * - acme.anthill.example.com -> "acme"
- * - localhost:5173 -> null
- */
-function parseTenantFromHost(host: string): string | null {
-	// Remove port if present
-	const hostname = host.split(':')[0];
-
-	// Handle localhost specifically
-	if (hostname === 'localhost' || hostname === '127.0.0.1') {
-		return null;
-	}
-
-	// Check for *.localhost pattern (e.g., acme.localhost)
-	if (hostname.endsWith('.localhost')) {
-		const subdomain = hostname.replace('.localhost', '');
-		if (subdomain && subdomain !== 'www') {
-			return subdomain;
-		}
-		return null;
-	}
-
-	// For production domains (tenant.domain.tld)
-	const parts = hostname.split('.');
-	if (parts.length >= 3) {
-		const subdomain = parts[0];
-		// Ignore www subdomain
-		if (subdomain && subdomain !== 'www') {
-			return subdomain;
-		}
-	}
-
-	return null;
-}
+import { parseTenantFromHostname } from '$lib/tenant';
 
 // Protected routes that require authentication
 const protectedRoutes = ['/dashboard', '/inventory', '/orders', '/settings', '/profile'];
@@ -81,8 +43,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Detect tenant from subdomain or X-Tenant-ID header
 	const host = request.headers.get('host') || url.host;
-	const headerTenantId = request.headers.get('x-tenant-id');
-	const subdomainTenant = parseTenantFromHost(host);
+	// Remove port before parsing hostname
+	const hostname = host.split(':')[0];
+	const headerTenantId = request.headers.get('X-Tenant-ID');
+	const subdomainTenant = parseTenantFromHostname(hostname);
 
 	// Priority: X-Tenant-ID header > subdomain
 	const tenantSlug = headerTenantId || subdomainTenant;

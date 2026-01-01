@@ -35,7 +35,7 @@ describe('Tenant Context Utilities', () => {
 			expect(parseTenantFromHostname('www.localhost')).toBeNull();
 		});
 
-		it('should extract subdomain from production domains', () => {
+		it('should extract subdomain from production domains with 4+ parts', () => {
 			expect(parseTenantFromHostname('acme.anthill.example.com')).toBe('acme');
 			expect(parseTenantFromHostname('tenant1.app.anthill.io')).toBe('tenant1');
 		});
@@ -44,9 +44,13 @@ describe('Tenant Context Utilities', () => {
 			expect(parseTenantFromHostname('www.anthill.example.com')).toBeNull();
 		});
 
-		it('should return null for domains without subdomain', () => {
+		it('should return null for domains without subdomain (3 parts or less)', () => {
 			expect(parseTenantFromHostname('anthill.com')).toBeNull();
 			expect(parseTenantFromHostname('example.com')).toBeNull();
+			// 3-part domains like anthill.example.com should NOT be treated as tenant
+			expect(parseTenantFromHostname('anthill.example.com')).toBeNull();
+			// ccTLDs like .co.uk should not be treated as tenant
+			expect(parseTenantFromHostname('example.co.uk')).toBeNull();
 		});
 
 		it('should handle empty string', () => {
@@ -55,7 +59,10 @@ describe('Tenant Context Utilities', () => {
 
 		it('should handle port in hostname', () => {
 			expect(parseTenantFromHostname('acme.localhost:3000')).toBe('acme');
-			expect(parseTenantFromHostname('tenant.anthill.io:443')).toBe('tenant');
+			// 3-part domain with port - should NOT be treated as tenant
+			expect(parseTenantFromHostname('anthill.example.io:443')).toBeNull();
+			// 4-part domain with port - should be treated as tenant
+			expect(parseTenantFromHostname('tenant.anthill.example.io:443')).toBe('tenant');
 		});
 	});
 
@@ -198,6 +205,9 @@ describe('Tenant Context Utilities', () => {
 	});
 
 	describe('hasTenantContext', () => {
+		const originalWindow = globalThis.window;
+		const originalLocalStorage = globalThis.localStorage;
+
 		beforeEach(() => {
 			Object.defineProperty(globalThis, 'window', {
 				value: {
@@ -205,6 +215,17 @@ describe('Tenant Context Utilities', () => {
 						hostname: 'acme.localhost'
 					}
 				},
+				writable: true
+			});
+		});
+
+		afterEach(() => {
+			Object.defineProperty(globalThis, 'window', {
+				value: originalWindow,
+				writable: true
+			});
+			Object.defineProperty(globalThis, 'localStorage', {
+				value: originalLocalStorage,
 				writable: true
 			});
 		});

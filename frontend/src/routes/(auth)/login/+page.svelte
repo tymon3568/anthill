@@ -14,12 +14,7 @@
 	import { goto } from '$app/navigation';
 	import { safeParse } from 'valibot';
 	import { onMount } from 'svelte';
-	import {
-		getCurrentTenantSlug,
-		setPersistedTenantSlug,
-		getTenantContext,
-		type TenantContext
-	} from '$lib/tenant';
+	import { setPersistedTenantSlug, getTenantContext, type TenantContext } from '$lib/tenant';
 	import { apiClient } from '$lib/api/client';
 
 	// Form state using Svelte 5 runes
@@ -50,19 +45,28 @@
 		}
 	});
 
-	// Update tenant context when slug changes
+	// Update tenant context when slug changes - always sync with API client
 	function handleTenantChange() {
-		if (tenantSlug.trim()) {
-			apiClient.setTenantSlug(tenantSlug.trim());
-		}
+		// Always sync API client with current input value (even if empty)
+		apiClient.setTenantSlug(tenantSlug.trim() || null);
 	}
 
 	// Form submission handler
 	async function handleSubmit(event: Event) {
 		event.preventDefault();
 
-		// Validate tenant context
-		const effectiveTenantSlug = tenantSlug.trim() || tenantContext.slug;
+		// Determine effective tenant slug based on UI state
+		// When showTenantInput is true, require manual input and do NOT fall back to tenantContext.slug
+		// This prevents silently logging into the old tenant when user clears input after "Switch organization"
+		let effectiveTenantSlug: string | null;
+		if (showTenantInput) {
+			// Manual input mode - require user-provided value
+			effectiveTenantSlug = tenantSlug.trim() || null;
+		} else {
+			// Subdomain mode - use context slug
+			effectiveTenantSlug = tenantContext.slug;
+		}
+
 		if (!effectiveTenantSlug) {
 			error = 'Please enter your organization/tenant name';
 			fieldErrors = { ...fieldErrors, tenant: 'Organization is required' };
@@ -142,7 +146,7 @@
 		<Card>
 			<CardHeader>
 				<CardTitle>Sign In</CardTitle>
-				{#if tenantContext.hasContext && tenantContext.source === 'subdomain'}
+				{#if tenantContext.hasContext && tenantContext.source === 'subdomain' && !showTenantInput}
 					<CardDescription>
 						Signing in to <strong class="text-gray-900">{tenantContext.slug}</strong>
 					</CardDescription>
@@ -151,8 +155,8 @@
 
 			<CardContent>
 				<form onsubmit={handleSubmit} class="space-y-4">
-					<!-- Tenant/Organization Input - shown when not detected from subdomain -->
-					{#if showTenantInput || !tenantContext.hasContext}
+					<!-- Tenant/Organization Input - shown when not detected from subdomain or user wants to switch -->
+					{#if showTenantInput}
 						<div class="space-y-2">
 							<Label for="tenant">Organization</Label>
 							<Input
@@ -160,6 +164,7 @@
 								type="text"
 								placeholder="Enter your organization (e.g., acme)"
 								bind:value={tenantSlug}
+								required
 								disabled={isLoading}
 								class={fieldErrors.tenant ? 'border-red-500' : ''}
 								oninput={() => {
@@ -254,7 +259,13 @@
 						<button
 							type="button"
 							class="text-xs text-gray-500 underline hover:text-gray-700"
-							onclick={() => (showTenantInput = true)}
+							onclick={() => {
+								showTenantInput = true;
+								// Clear the tenant slug when switching to manual mode
+								// so user must explicitly enter a new value
+								tenantSlug = '';
+								apiClient.setTenantSlug(null);
+							}}
 						>
 							Switch organization
 						</button>

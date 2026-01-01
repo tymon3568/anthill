@@ -46,9 +46,14 @@ export function parseTenantFromHostname(hostname: string): string | null {
 		return null;
 	}
 
-	// For production domains (tenant.domain.tld)
+	// For production domains with tenant subdomain (e.g., tenant.anthill.example.com)
+	// Require at least 4 parts to avoid false positives with ccTLDs like .co.uk
+	// Examples:
+	// - tenant.anthill.example.com (4 parts) -> "tenant"
+	// - anthill.example.com (3 parts) -> null (app domain, no tenant)
+	// - example.co.uk (3 parts) -> null (ccTLD, no tenant)
 	const parts = host.split('.');
-	if (parts.length >= 3) {
+	if (parts.length >= 4) {
 		const subdomain = parts[0];
 		// Ignore www subdomain
 		if (subdomain && subdomain !== 'www') {

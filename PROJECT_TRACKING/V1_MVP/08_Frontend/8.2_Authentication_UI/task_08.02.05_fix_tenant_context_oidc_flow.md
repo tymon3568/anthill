@@ -174,7 +174,7 @@ Add to `/etc/hosts`:
   - Analysis completed:
     - Backend CORS config in `services/user_service/api/src/main.rs` uses `config.get_cors_origins()`
     - Config from `shared/config/src/lib.rs` reads `CORS_ORIGINS` env var
-    - Frontend API client in `frontend/src/lib/api/client.ts` does NOT send X-Tenant-Id header
+    - Frontend API client in `frontend/src/lib/api/client.ts` does NOT send X-Tenant-ID header
     - Login page has no tenant input field
   - Implementation plan:
     1. Phase 2 first: Add tenant detection to frontend (subdomain + fallback input)
@@ -208,13 +208,32 @@ Add to `/etc/hosts`:
     - `bun run check`: 0 errors ✅
     - `bun run lint`: Pre-existing errors only (not from this change)
     - `bun run vitest run src/lib/tenant/tenant.test.ts`: 19 passed ✅
-  +  - Next: Commit and push, then test full auth flow
-  +* 2026-01-01 12:45: Task ready for review by Claude
-  +  - Phase 1 (Backend CORS): ✅ Documented, backend already supports CORS_ORIGINS
-  +  - Phase 2 (Frontend Tenant Context): ✅ Fully implemented
-  +  - Phase 3 (Kanidm OIDC): ⏸️ Optional, deferred to separate task
-  +  - Phase 4 (Testing): ⚠️ Requires manual integration testing
-  +  - Committed and pushed to branch: fix/08.02.05-tenant-context-oidc-flow
-  +  - PR URL: https://github.com/tymon3568/anthill/pull/new/fix/08.02.05-tenant-context-oidc-flow
-  +  - Status changed to NeedsReview
-  +  - Remaining acceptance criteria require running backend for integration testing
+    - Next: Commit and push, then test full auth flow
+* 2026-01-01 12:45: Task ready for review by Claude
+    - Phase 1 (Backend CORS): ✅ Documented, backend already supports CORS_ORIGINS
+    - Phase 2 (Frontend Tenant Context): ✅ Fully implemented
+    - Phase 3 (Kanidm OIDC): ⏸️ Optional, deferred to separate task
+    - Phase 4 (Testing): ⚠️ Requires manual integration testing
+    - Committed and pushed to branch: fix/08.02.05-tenant-context-oidc-flow
+    - PR URL: https://github.com/tymon3568/anthill/pull/new/fix/08.02.05-tenant-context-oidc-flow
+    - Status changed to NeedsReview
+    - Remaining acceptance criteria require running backend for integration testing
+* 2026-01-01 14:45: PR Review Auto-Fix by Claude
+    - Fixed 8 unresolved issues from PR #131 review (CodeRabbit, Sourcery, Gemini, Greptile, CodeAnt, Cubic)
+    - Issues resolved:
+        - [x] Code duplication: Removed duplicate `parseTenantFromHost` in hooks.server.ts, now imports `parseTenantFromHostname` from `$lib/tenant`
+        - [x] Bug risk: Fixed switch-organization flow - when `showTenantInput` is true, no longer falls back to `tenantContext.slug`
+        - [x] Bug: Fixed `handleTenantChange` to always sync API client (including clearing to null)
+        - [x] Logic error: Changed `parts.length >= 3` to `>= 4` for production domains to handle ccTLDs correctly
+        - [x] Unused import: Removed unused `getCurrentTenantSlug` import from login page
+        - [x] Missing test cleanup: Added `afterEach` to `hasTenantContext` tests to restore original values
+        - [x] Typo: Fixed `X-Tenant-Id` to `X-Tenant-ID` in task file
+        - [x] Markdown formatting: Fixed indentation in AI log entries
+    - Additional improvements:
+        - Added `required` attribute to tenant input field for browser-level validation
+        - Clear tenant slug when clicking "Switch organization" for cleaner UX
+        - Updated tests for new 4-part domain requirement
+    - Quality gates passed:
+        - `bun run check`: 0 errors ✅
+        - `bun run vitest run src/lib/tenant/tenant.test.ts`: 19 passed ✅
+        - `bun run lint`: Pre-existing errors only (not from this change)
