@@ -1,6 +1,7 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { ApiResponse } from '$lib/types';
 import { tokenManager } from '$lib/auth/token-manager';
+import { getCurrentTenantSlug } from '$lib/tenant';
 
 // Base API configuration
 const API_BASE_URL = PUBLIC_API_BASE_URL;
@@ -8,19 +9,45 @@ const API_BASE_URL = PUBLIC_API_BASE_URL;
 // Generic API client
 class ApiClient {
 	private baseURL: string;
+	private tenantSlug: string | null = null;
 
 	constructor(baseURL: string = API_BASE_URL) {
 		this.baseURL = baseURL;
 	}
 
+	/**
+	 * Set tenant slug for API requests
+	 * This will be sent as X-Tenant-ID header
+	 */
+	setTenantSlug(slug: string | null): void {
+		this.tenantSlug = slug;
+	}
+
+	/**
+	 * Get current tenant slug
+	 */
+	getTenantSlug(): string | null {
+		return this.tenantSlug;
+	}
+
 	private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
 		const url = `${this.baseURL}${endpoint}`;
 
+		// Build headers with tenant context
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			...(options.headers as Record<string, string>)
+		};
+
+		// Add X-Tenant-ID header if tenant context is available
+		// Priority: 1. Explicitly set tenant, 2. Auto-detected from subdomain/storage
+		const tenantSlug = this.tenantSlug ?? getCurrentTenantSlug();
+		if (tenantSlug) {
+			headers['X-Tenant-ID'] = tenantSlug;
+		}
+
 		const config: RequestInit = {
-			headers: {
-				'Content-Type': 'application/json',
-				...options.headers
-			},
+			headers,
 			...options
 		};
 
@@ -36,10 +63,7 @@ class ApiClient {
 		if (!isAuthEndpoint) {
 			const token = tokenManager.getAccessToken();
 			if (token) {
-				config.headers = {
-					...config.headers,
-					Authorization: `Bearer ${token}`
-				};
+				(config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
 			}
 		}
 

@@ -3,6 +3,7 @@ import { validateAndParseToken, shouldRefreshToken } from '$lib/auth/jwt';
 import { handleAuthError, createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
+import { parseTenantFromHostname } from '$lib/tenant';
 
 // Protected routes that require authentication
 const protectedRoutes = ['/dashboard', '/inventory', '/orders', '/settings', '/profile'];
@@ -37,8 +38,21 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const { url, cookies, locals } = event;
+	const { url, cookies, locals, request } = event;
 	const pathname = url.pathname;
+
+	// Detect tenant from subdomain or X-Tenant-ID header
+	const host = request.headers.get('host') || url.host;
+	// Remove port before parsing hostname
+	const hostname = host.split(':')[0];
+	const headerTenantId = request.headers.get('X-Tenant-ID');
+	const subdomainTenant = parseTenantFromHostname(hostname);
+
+	// Priority: X-Tenant-ID header > subdomain
+	const tenantSlug = headerTenantId || subdomainTenant;
+
+	// Store tenant context in locals for use in load functions
+	locals.tenantSlug = tenantSlug;
 
 	// Resolve response first
 	const response = await (async () => {

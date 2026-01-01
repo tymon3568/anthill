@@ -5,6 +5,8 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			user?: import('$lib/auth/jwt').UserInfo;
+			/** Tenant slug detected from subdomain or X-Tenant-ID header */
+			tenantSlug?: string | null;
 		}
 		// interface PageData {}
 		// interface PageState {}
