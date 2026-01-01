@@ -5,10 +5,10 @@
 **Phase:** 08_Frontend
 **Module:** 8.2_Authentication_UI
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** InProgress_By_Claude
+**Assignee:** Claude
 **Created Date:** 2025-12-31
-**Last Updated:** 2025-12-31
+**Last Updated:** 2026-01-01 12:37
 
 ## Detailed Description:
 Fix the authentication flow to properly handle tenant context and implement Kanidm OIDC integration. Currently, the login fails with "400 Bad Request: Tenant context required" because:
@@ -59,15 +59,26 @@ Fix the authentication flow to properly handle tenant context and implement Kani
 ## Specific Sub-tasks:
 
 ### Phase 1: Backend CORS Fix
-- [ ] 1.1. Update user_service CORS config to allow tenant subdomains
-- [ ] 1.2. Add `*.localhost:5173` and `*.localhost:8000` to allowed origins
+- [x] 1.1. Update user_service CORS config to allow tenant subdomains
+  - **Note**: Backend already supports CORS_ORIGINS env var - no code change needed
+  - Set `CORS_ORIGINS=http://localhost:5173,http://acme.localhost:5173` in .env
+- [x] 1.2. Add `*.localhost:5173` and `*.localhost:8000` to allowed origins
+  - Documented in .env.example
 - [ ] 1.3. Test CORS with subdomain requests
 
 ### Phase 2: Frontend Tenant Context
-- [ ] 2.1. Create tenant detection hook in `hooks.server.ts` (parse subdomain)
-- [ ] 2.2. Add tenant context to `event.locals`
-- [ ] 2.3. Pass `X-Tenant-Id` header in API client requests
-- [ ] 2.4. Add fallback tenant input field for localhost development
+- [x] 2.1. Create tenant detection hook in `hooks.server.ts` (parse subdomain)
+  - Created `parseTenantFromHost()` function
+  - Detects tenant from subdomain (e.g., acme.localhost)
+- [x] 2.2. Add tenant context to `event.locals`
+  - Added `tenantSlug` to App.Locals interface in app.d.ts
+  - Hooks now populate `locals.tenantSlug`
+- [x] 2.3. Pass `X-Tenant-Id` header in API client requests
+  - Updated `client.ts` to include X-Tenant-ID header
+  - Added `setTenantSlug()` and `getTenantSlug()` methods
+- [x] 2.4. Add fallback tenant input field for localhost development
+  - Added "Organization" input to login page
+  - Auto-detects from subdomain, falls back to manual input
 
 ### Phase 3: Kanidm OIDC Integration (Optional)
 - [ ] 3.1. Add "Sign in with Kanidm" button to login page
@@ -153,3 +164,44 @@ Add to `/etc/hosts`:
   - Auth flow blocked due to tenant context requirement
   - Three main issues identified: tenant input, CORS, OIDC
   - Recommended approach: Fix CORS + subdomain detection first
+* 2026-01-01 12:30: Task claimed by Claude
+  - Branch created: fix/08.02.05-tenant-context-oidc-flow
+  - Dependencies verified: 08.02.01 (Done), 08.02.03 (Done), 08.02.04 (Done)
+  - Analysis completed:
+    - Backend CORS config in `services/user_service/api/src/main.rs` uses `config.get_cors_origins()`
+    - Config from `shared/config/src/lib.rs` reads `CORS_ORIGINS` env var
+    - Frontend API client in `frontend/src/lib/api/client.ts` does NOT send X-Tenant-Id header
+    - Login page has no tenant input field
+  - Implementation plan:
+    1. Phase 2 first: Add tenant detection to frontend (subdomain + fallback input)
+    2. Phase 1: Document CORS config (backend already supports it via env var)
+    3. Phase 4: Test full flow
+  - Starting implementation...
+* 2026-01-01 12:37: Phase 2 completed by Claude
+  - Created `frontend/src/lib/tenant/index.ts` with tenant utilities:
+    - `parseTenantFromHostname()` - extract tenant from subdomain
+    - `getCurrentTenantSlug()` - get tenant from subdomain or localStorage
+    - `setPersistedTenantSlug()` / `clearPersistedTenantSlug()` - persist tenant
+    - `getTenantContext()` - full context with source info
+  - Updated `frontend/src/lib/api/client.ts`:
+    - Added `X-Tenant-ID` header to all API requests
+    - Added `setTenantSlug()` / `getTenantSlug()` methods
+  - Updated `frontend/src/hooks.server.ts`:
+    - Added `parseTenantFromHost()` function
+    - Detects tenant from X-Tenant-ID header or subdomain
+    - Stores tenant in `event.locals.tenantSlug`
+  - Updated `frontend/src/app.d.ts`:
+    - Added `tenantSlug` to App.Locals interface
+  - Updated `frontend/src/routes/(auth)/login/+page.svelte`:
+    - Added Organization input field (shown when no subdomain detected)
+    - Auto-detects tenant from subdomain
+    - Persists tenant selection for future use
+    - Shows "Switch organization" option when on subdomain
+  - Created `frontend/src/lib/tenant/tenant.test.ts`:
+    - 19 unit tests for tenant utilities
+    - All tests passing ✅
+  - Quality gates:
+    - `bun run check`: 0 errors ✅
+    - `bun run lint`: Pre-existing errors only (not from this change)
+    - `bun run vitest run src/lib/tenant/tenant.test.ts`: 19 passed ✅
+  - Next: Commit and push, then test full auth flow

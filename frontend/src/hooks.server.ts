@@ -4,6 +4,45 @@ import { handleAuthError, createAuthError, AuthErrorCode } from '$lib/auth/error
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 
+/**
+ * Parse tenant slug from hostname/subdomain
+ *
+ * Examples:
+ * - acme.localhost:5173 -> "acme"
+ * - acme.anthill.example.com -> "acme"
+ * - localhost:5173 -> null
+ */
+function parseTenantFromHost(host: string): string | null {
+	// Remove port if present
+	const hostname = host.split(':')[0];
+
+	// Handle localhost specifically
+	if (hostname === 'localhost' || hostname === '127.0.0.1') {
+		return null;
+	}
+
+	// Check for *.localhost pattern (e.g., acme.localhost)
+	if (hostname.endsWith('.localhost')) {
+		const subdomain = hostname.replace('.localhost', '');
+		if (subdomain && subdomain !== 'www') {
+			return subdomain;
+		}
+		return null;
+	}
+
+	// For production domains (tenant.domain.tld)
+	const parts = hostname.split('.');
+	if (parts.length >= 3) {
+		const subdomain = parts[0];
+		// Ignore www subdomain
+		if (subdomain && subdomain !== 'www') {
+			return subdomain;
+		}
+	}
+
+	return null;
+}
+
 // Protected routes that require authentication
 const protectedRoutes = ['/dashboard', '/inventory', '/orders', '/settings', '/profile'];
 
@@ -37,8 +76,19 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const { url, cookies, locals } = event;
+	const { url, cookies, locals, request } = event;
 	const pathname = url.pathname;
+
+	// Detect tenant from subdomain or X-Tenant-ID header
+	const host = request.headers.get('host') || url.host;
+	const headerTenantId = request.headers.get('x-tenant-id');
+	const subdomainTenant = parseTenantFromHost(host);
+
+	// Priority: X-Tenant-ID header > subdomain
+	const tenantSlug = headerTenantId || subdomainTenant;
+
+	// Store tenant context in locals for use in load functions
+	locals.tenantSlug = tenantSlug;
 
 	// Resolve response first
 	const response = await (async () => {
