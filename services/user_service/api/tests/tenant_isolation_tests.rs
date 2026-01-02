@@ -297,7 +297,9 @@ async fn test_tenant_isolation_deleted_tenant_access() {
     assert_eq!(response.status(), StatusCode::OK);
 
     // Soft delete the tenant
-    sqlx::query!("UPDATE tenants SET deleted_at = NOW() WHERE tenant_id = $1", tenant.tenant_id)
+    // Using runtime query instead of macro for test compatibility
+    sqlx::query("UPDATE tenants SET deleted_at = NOW() WHERE tenant_id = $1")
+        .bind(tenant.tenant_id)
         .execute(&pool)
         .await
         .expect("Failed to soft delete tenant");

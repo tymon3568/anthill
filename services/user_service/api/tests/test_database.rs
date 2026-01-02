@@ -93,15 +93,16 @@ impl TestDatabaseConfig {
             None => format!("{}-{}", base_slug, &tenant_id.to_string()[..8]),
         };
 
-        sqlx::query!(
+        // Using runtime queries instead of macros for test compatibility without DB connection at compile time
+        sqlx::query(
             r#"
             INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
             VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
             "#,
-            tenant_id,
-            name,
-            slug
         )
+        .bind(tenant_id)
+        .bind(name)
+        .bind(&slug)
         .execute(&self.pool)
         .await
         .expect("Failed to create test tenant");
@@ -121,7 +122,8 @@ impl TestDatabaseConfig {
     ) -> Uuid {
         let user_id = Uuid::now_v7();
 
-        sqlx::query!(
+        // Using runtime queries instead of macros for test compatibility
+        sqlx::query(
             r#"
             INSERT INTO users (
                 user_id, tenant_id, email, password_hash, role, status,
@@ -132,13 +134,13 @@ impl TestDatabaseConfig {
                 true, NOW(), $6, NOW(), NOW()
             )
             "#,
-            user_id,
-            tenant_id,
-            email,
-            password_hash,
-            role,
-            full_name
         )
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(email)
+        .bind(password_hash)
+        .bind(role)
+        .bind(full_name)
         .execute(&self.pool)
         .await
         .expect("Failed to create test user");
@@ -160,7 +162,8 @@ impl TestDatabaseConfig {
     ) -> Uuid {
         let session_id = Uuid::now_v7();
 
-        sqlx::query!(
+        // Using runtime queries instead of macros for test compatibility
+        sqlx::query(
             r#"
             INSERT INTO sessions (
                 session_id, user_id, tenant_id,
@@ -170,14 +173,14 @@ impl TestDatabaseConfig {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW(), NOW())
             "#,
-            session_id,
-            user_id,
-            tenant_id,
-            access_token_hash,
-            refresh_token_hash,
-            access_expires_at,
-            refresh_expires_at
         )
+        .bind(session_id)
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(access_token_hash)
+        .bind(refresh_token_hash)
+        .bind(access_expires_at)
+        .bind(refresh_expires_at)
         .execute(&self.pool)
         .await
         .expect("Failed to create test session");
@@ -189,9 +192,11 @@ impl TestDatabaseConfig {
     /// Clean up all tracked resources
     pub async fn cleanup(&self) {
         // Clean sessions first (foreign key to users)
+        // Using runtime queries instead of macros for test compatibility
         let session_ids = self.tracked_sessions.lock().await.clone();
         for session_id in session_ids {
-            let _ = sqlx::query!("DELETE FROM sessions WHERE session_id = $1", session_id)
+            let _ = sqlx::query("DELETE FROM sessions WHERE session_id = $1")
+                .bind(session_id)
                 .execute(&self.pool)
                 .await;
         }
@@ -200,14 +205,16 @@ impl TestDatabaseConfig {
         // Clean user profiles (foreign key to users)
         let user_ids = self.tracked_users.lock().await.clone();
         for user_id in &user_ids {
-            let _ = sqlx::query!("DELETE FROM user_profiles WHERE user_id = $1", user_id)
+            let _ = sqlx::query("DELETE FROM user_profiles WHERE user_id = $1")
+                .bind(user_id)
                 .execute(&self.pool)
                 .await;
         }
 
         // Clean users
         for user_id in user_ids {
-            let _ = sqlx::query!("DELETE FROM users WHERE user_id = $1", user_id)
+            let _ = sqlx::query("DELETE FROM users WHERE user_id = $1")
+                .bind(user_id)
                 .execute(&self.pool)
                 .await;
         }
@@ -216,7 +223,8 @@ impl TestDatabaseConfig {
         // Clean tenants last
         let tenant_ids = self.tracked_tenants.lock().await.clone();
         for tenant_id in tenant_ids {
-            let _ = sqlx::query!("DELETE FROM tenants WHERE tenant_id = $1", tenant_id)
+            let _ = sqlx::query("DELETE FROM tenants WHERE tenant_id = $1")
+                .bind(tenant_id)
                 .execute(&self.pool)
                 .await;
         }
@@ -227,23 +235,24 @@ impl TestDatabaseConfig {
     #[allow(dead_code)]
     pub async fn cleanup_all_test_data(&self) {
         // Delete in reverse dependency order to avoid foreign key constraints
-        sqlx::query!("DELETE FROM sessions")
+        // Using runtime queries instead of macros for test compatibility
+        sqlx::query("DELETE FROM sessions")
             .execute(&self.pool)
             .await
             .ok();
-        sqlx::query!("DELETE FROM casbin_rule")
+        sqlx::query("DELETE FROM casbin_rule")
             .execute(&self.pool)
             .await
             .ok();
-        sqlx::query!("DELETE FROM user_profiles")
+        sqlx::query("DELETE FROM user_profiles")
             .execute(&self.pool)
             .await
             .ok();
-        sqlx::query!("DELETE FROM users")
+        sqlx::query("DELETE FROM users")
             .execute(&self.pool)
             .await
             .ok();
-        sqlx::query!("DELETE FROM tenants")
+        sqlx::query("DELETE FROM tenants")
             .execute(&self.pool)
             .await
             .ok();
@@ -252,68 +261,100 @@ impl TestDatabaseConfig {
     /// Verify database is in clean state
     #[allow(dead_code)]
     pub async fn verify_clean(&self) -> bool {
-        let count: i64 = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) as "count!" FROM tenants WHERE slug LIKE 'test-%' OR slug LIKE '%-test-%'"#
+        // Using runtime queries instead of macros for test compatibility
+        let count: (i64,) = sqlx::query_as(
+            r#"SELECT COUNT(*) FROM tenants WHERE slug LIKE 'test-%' OR slug LIKE '%-test-%'"#,
         )
         .fetch_one(&self.pool)
         .await
         .expect("Failed to verify clean state");
 
-        count == 0
+        count.0 == 0
     }
 
     /// Get count of resources in database
     #[allow(dead_code)]
     pub async fn get_resource_counts(&self) -> ResourceCounts {
-        let result = sqlx::query!(
-            r#"
-            SELECT
-                (SELECT COUNT(*) FROM tenants) as "tenant_count!",
-                (SELECT COUNT(*) FROM users) as "user_count!",
-                (SELECT COUNT(*) FROM sessions) as "session_count!",
-                (SELECT COUNT(*) FROM user_profiles) as "profile_count!"
-            "#
-        )
-        .fetch_one(&self.pool)
-        .await
-        .expect("Failed to get resource counts");
+        // Using runtime queries instead of macros for test compatibility
+        let tenants: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tenants")
+            .fetch_one(&self.pool)
+            .await
+            .expect("Failed to count tenants");
+
+        let users: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+            .fetch_one(&self.pool)
+            .await
+            .expect("Failed to count users");
+
+        let sessions: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sessions")
+            .fetch_one(&self.pool)
+            .await
+            .expect("Failed to count sessions");
+
+        let profiles: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM user_profiles")
+            .fetch_one(&self.pool)
+            .await
+            .expect("Failed to count profiles");
 
         ResourceCounts {
-            tenants: result.tenant_count,
-            users: result.user_count,
-            sessions: result.session_count,
-            profiles: result.profile_count,
+            tenants: tenants.0,
+            users: users.0,
+            sessions: sessions.0,
+            profiles: profiles.0,
         }
     }
 
     /// Get tenant details
     pub async fn get_tenant(&self, tenant_id: Uuid) -> Option<TenantDetails> {
-        sqlx::query_as!(
-            TenantDetails,
+        // Using runtime queries instead of macros for test compatibility
+        let row: Option<(Uuid, String, String, String, String)> = sqlx::query_as(
             r#"
-            SELECT
-                tenant_id,
-                name,
-                slug,
-                plan,
-                status,
-                (SELECT COUNT(*) FROM users WHERE tenant_id = $1) as "user_count!",
-                (SELECT COUNT(*) FROM sessions WHERE tenant_id = $1) as "session_count!"
+            SELECT tenant_id, name, slug, plan, status
             FROM tenants
             WHERE tenant_id = $1
             "#,
-            tenant_id
         )
+        .bind(tenant_id)
         .fetch_optional(&self.pool)
         .await
-        .expect("Failed to fetch tenant details")
+        .expect("Failed to fetch tenant details");
+
+        match row {
+            Some((tid, name, slug, plan, status)) => {
+                let user_count: (i64,) =
+                    sqlx::query_as("SELECT COUNT(*) FROM users WHERE tenant_id = $1")
+                        .bind(tenant_id)
+                        .fetch_one(&self.pool)
+                        .await
+                        .expect("Failed to count users");
+
+                let session_count: (i64,) =
+                    sqlx::query_as("SELECT COUNT(*) FROM sessions WHERE tenant_id = $1")
+                        .bind(tenant_id)
+                        .fetch_one(&self.pool)
+                        .await
+                        .expect("Failed to count sessions");
+
+                Some(TenantDetails {
+                    tenant_id: tid,
+                    name,
+                    slug,
+                    plan,
+                    status,
+                    user_count: user_count.0,
+                    session_count: session_count.0,
+                })
+            },
+            None => None,
+        }
     }
 
     /// Get user details
     pub async fn get_user(&self, user_id: Uuid) -> Option<UserDetails> {
-        sqlx::query_as!(
-            UserDetails,
-            r#"
+        // Using runtime queries instead of macros for test compatibility
+        let row: Option<(Uuid, Uuid, String, String, String, bool, Option<String>)> =
+            sqlx::query_as(
+                r#"
             SELECT
                 user_id,
                 tenant_id,
@@ -325,25 +366,39 @@ impl TestDatabaseConfig {
             FROM users
             WHERE user_id = $1
             "#,
-            user_id
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .expect("Failed to fetch user details")
+            )
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .expect("Failed to fetch user details");
+
+        row.map(|(user_id, tenant_id, email, role, status, email_verified, full_name)| {
+            UserDetails {
+                user_id,
+                tenant_id,
+                email,
+                role,
+                status,
+                email_verified,
+                full_name,
+            }
+        })
     }
 
     /// Check if email exists in tenant
     #[allow(dead_code)]
     pub async fn email_exists(&self, tenant_id: Uuid, email: &str) -> bool {
-        sqlx::query_scalar!(
+        // Using runtime queries instead of macros for test compatibility
+        let result: (bool,) = sqlx::query_as(
             "SELECT EXISTS(SELECT 1 FROM users WHERE tenant_id = $1 AND email = $2)",
-            tenant_id,
-            email
         )
+        .bind(tenant_id)
+        .bind(email)
         .fetch_one(&self.pool)
         .await
-        .expect("Failed to check email existence")
-        .unwrap_or(false)
+        .expect("Failed to check email existence");
+
+        result.0
     }
 
     /// Reset auto_increment sequences (useful for predictable IDs in tests)
@@ -366,27 +421,28 @@ impl Drop for TestDatabaseConfig {
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async move {
-                    // Clean sessions
+                    // Clean sessions - using runtime queries for test compatibility
                     let session_ids = sessions.lock().await.clone();
                     for session_id in session_ids {
-                        let _ =
-                            sqlx::query!("DELETE FROM sessions WHERE session_id = $1", session_id)
-                                .execute(&pool)
-                                .await;
+                        let _ = sqlx::query("DELETE FROM sessions WHERE session_id = $1")
+                            .bind(session_id)
+                            .execute(&pool)
+                            .await;
                     }
 
                     // Clean user profiles
                     let user_ids = users.lock().await.clone();
                     for user_id in &user_ids {
-                        let _ =
-                            sqlx::query!("DELETE FROM user_profiles WHERE user_id = $1", user_id)
-                                .execute(&pool)
-                                .await;
+                        let _ = sqlx::query("DELETE FROM user_profiles WHERE user_id = $1")
+                            .bind(user_id)
+                            .execute(&pool)
+                            .await;
                     }
 
                     // Clean users
                     for user_id in user_ids {
-                        let _ = sqlx::query!("DELETE FROM users WHERE user_id = $1", user_id)
+                        let _ = sqlx::query("DELETE FROM users WHERE user_id = $1")
+                            .bind(user_id)
                             .execute(&pool)
                             .await;
                     }
@@ -394,7 +450,8 @@ impl Drop for TestDatabaseConfig {
                     // Clean tenants
                     let tenant_ids = tenants.lock().await.clone();
                     for tenant_id in tenant_ids {
-                        let _ = sqlx::query!("DELETE FROM tenants WHERE tenant_id = $1", tenant_id)
+                        let _ = sqlx::query("DELETE FROM tenants WHERE tenant_id = $1")
+                            .bind(tenant_id)
                             .execute(&pool)
                             .await;
                     }
@@ -511,7 +568,8 @@ mod tests {
 
         // Create user in transaction
         let user_id = Uuid::now_v7();
-        sqlx::query!(
+        // Using runtime query instead of macro for test compatibility
+        sqlx::query(
             r#"
             INSERT INTO users (
                 user_id, tenant_id, email, password_hash, role, status,
@@ -522,10 +580,10 @@ mod tests {
                 true, NOW(), 'Rollback User', NOW(), NOW()
             )
             "#,
-            user_id,
-            tenant_id,
-            "$argon2id$v=19$m=19456,t=2,p=1$test$test"
         )
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind("$argon2id$v=19$m=19456,t=2,p=1$test$test")
         .execute(&mut *tx)
         .await
         .unwrap();

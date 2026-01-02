@@ -104,7 +104,6 @@ fn create_auth_user(user_id: Uuid, tenant_id: Uuid, email: &str) -> AuthUser {
         user_id,
         tenant_id,
         email: Some(email.to_string()),
-        kanidm_user_id: Some(Uuid::new_v4()),
         role: "user".to_string(),
     }
 }
