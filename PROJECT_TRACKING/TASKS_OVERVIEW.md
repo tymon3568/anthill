@@ -46,20 +46,20 @@
           → Completed: 2025-01-10
           → 3/3 migrations applied and tested
 
-### [🔄] Phase 3: User Service (Kanidm Integration & Tenancy) - `In Progress 75%`
+### [🔄] Phase 3: User Service (Authentication & Tenancy) - `In Progress 75%`
 
 > **Timeline**: Weeks 3-5 (21 days)  
-> **Dependencies**: Phase 1, 2 completed, Kanidm server
+> **Dependencies**: Phase 1, 2 completed
 > **Progress**: 14 Done + 5 NeedsReview + 2 InProgress + 7 Todo (28 tasks total) (Updated: 2025-12-24)
 
     - [✅] 3.0 Architecture Implementation - `Completed`
           → [View folder](./V1_MVP/03_User_Service/3.0_Architecture/)
           → Completed: 2025-01-09
 
-    - [🔄] 3.1 Kanidm Integration - `In Progress 67%`
-          → [View folder](./V1_MVP/03_User_Service/3.1_Kanidm_Integration/)
-          → Replaces custom JWT auth with Kanidm OAuth2/OIDC
-          → Progress: 4/6 Done, 1 InProgress, 1 Todo (Updated: 2025-12-24)
+    - [✅] 3.1 Email/Password Authentication - `Done`
+          → [View folder](./V1_MVP/03_User_Service/3.1_Authentication/)
+          → Email/password auth with JWT tokens (User Service managed)
+          → Progress: Done (Updated: 2025-01-15)
 
     - [🔄] 3.2 Authorization with Casbin - `In Progress 92%`
           → [View folder](./V1_MVP/03_User_Service/3.2_Casbin_Authorization/)
@@ -200,10 +200,9 @@
           → [View folder](./V1_MVP/08_Frontend/8.1_Project_Setup/)
           → Progress: 1/1 tasks completed (Updated: 2025-12-24)
 
-    - [🔄] 8.2 Authentication UI (Email/Password + OAuth2) - `In Progress 25%`
+    - [🔄] 8.2 Authentication UI (Email/Password) - `In Progress 25%`
           → [View folder](./V1_MVP/08_Frontend/8.2_Authentication_UI/)
-          → Traditional email/password authentication foundation
-          → OAuth2 integration with Kanidm identity provider
+          → Email/password authentication with JWT tokens
           → API infrastructure and client integration
           → Progress: 1/4 Done, 3 Todo (Updated: 2025-12-24)
 
@@ -324,7 +323,7 @@
 #### By Phase:
 - **Phase 1** (Infrastructure): 🔄 58% - Auth library done, dev tools in progress
 - **Phase 2** (Database): ⏳ 0% in optimization tracking - Foundations complete; optimization backlog pending
-- **Phase 3** (User Service): 🔄 75% - Kanidm 67%, Casbin 92%, User Mgmt 60% (Updated: 2025-12-24)
+- **Phase 3** (User Service): 🔄 75% - Auth Done, Casbin 92%, User Mgmt 60% (Updated: 2025-12-24)
 - **Phase 4** (Inventory): ✅ **91%** - Production Ready! 66/77 Done, 7 Todo (enhancements), 1 Deferred (Updated: 2025-12-30)
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
@@ -343,8 +342,8 @@
 ### 🎯 Critical Path for MVP
 
 **Immediate Next Steps** (P0 tasks that block MVP):
-1. **Kanidm Integration** (3.1.x) - OAuth2/OIDC authentication with Kanidm
-2. **Casbin Authorization** (3.2.x) - Multi-tenant RBAC middleware (works with Kanidm JWT)
+1. **Email/Password Auth** (3.1.x) - ✅ Done (User Service managed JWT)
+2. **Casbin Authorization** (3.2.x) - Multi-tenant RBAC middleware (works with JWT)
 2. **User Management** (3.3.x) - Basic CRUD operations with tenant isolation
 3. **Security Testing** (3.4.x) - Critical tenant isolation validation
 4. **Core Inventory** (4.1-4.4) - Product catalog, warehouse, and stock operations *(optimized)*
@@ -360,9 +359,7 @@
 ```bash
 # 1. Setup environment variables
 export DATABASE_URL="postgresql://user:pass@localhost/anthill"
-export KANIDM_URL="https://idm.example.com"
-export KANIDM_OAUTH2_CLIENT_ID="anthill"
-export KANIDM_OAUTH2_CLIENT_SECRET="your-client-secret"
+export JWT_SECRET="your-jwt-secret-key"
 export REDIS_URL="redis://localhost:6379"
 
 # 2. Run database migrations
@@ -406,9 +403,9 @@ open http://localhost:8000/docs  # Swagger UI
 
 ## 🔄 Current Sprint Focus
 
-**Sprint Goal**: Complete Kanidm integration and Casbin authorization
+**Sprint Goal**: Complete Casbin authorization and user management
 
-**Note**: Authentication strategy changed to use Kanidm (Identity Provider) instead of custom JWT. This provides better security, OAuth2/OIDC compliance, and advanced features like Passkeys/WebAuthn.
+**Note**: Authentication uses Email/Password managed by User Service with JWT tokens. This is simpler for MVP and provides full control over auth flow.
 
 **Sprint Tasks**:
 1. Implement Casbin multi-tenant RBAC (12 tasks) - 🔄 8/12 Done, 3 NeedsReview
@@ -416,10 +413,9 @@ open http://localhost:8000/docs  # Swagger UI
 3. Comprehensive security testing (5 tasks) - 🔄 0/5 Done, 1 NeedsReview
 4. Integration testing (3 tasks) - ⏳ 0/3 pending
 
-**Success Criteria**:
 **Achievements**:
-- ✅ Kanidm server deployed and configured
-- ✅ OAuth2/OIDC integration mostly complete (4/6 Done, 1 InProgress)
+- ✅ Email/Password authentication implemented
+- ✅ JWT token generation and validation working
 - ✅ Multi-tenant authorization (Casbin) 92% complete (8/12 Done, 3 NeedsReview)
 - 🔄 User management partially implemented (2/5 Done, 1 NeedsReview)
 - 🔄 Security testing started (1 NeedsReview)
@@ -428,17 +424,17 @@ open http://localhost:8000/docs  # Swagger UI
 ## 📈 Progress Tracking
 
 ### Weekly Updates
-- **Week 1**: Kanidm server setup and OAuth2 client configuration
-- **Week 2**: Kanidm client library and OAuth2 endpoints
-- **Week 3**: Group-tenant mapping and auth extractors update
-- **Week 3**: User management endpoints
-- **Week 4**: Security testing and validation
+- **Week 1**: Email/password auth implementation
+- **Week 2**: JWT token management and session handling
+- **Week 3**: Casbin authorization and tenant isolation
+- **Week 4**: User management endpoints
+- **Week 5**: Security testing and validation
 
 ### Milestone Targets
-- **Milestone 1** (Week 2): OAuth2 authentication flow working
-- **Milestone 2** (Week 3): Casbin authorization with Kanidm JWT
-- **Milestone 2** (Week 4): Complete user management system
-- **Milestone 3** (Week 6): Security validation complete
+- **Milestone 1** (Week 2): ✅ Email/password authentication working
+- **Milestone 2** (Week 3): Casbin authorization with JWT
+- **Milestone 3** (Week 4): Complete user management system
+- **Milestone 4** (Week 6): Security validation complete
 
 ---
 

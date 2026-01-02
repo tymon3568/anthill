@@ -36,7 +36,7 @@ Kiến trúc này được thiết kế dựa trên triết lý thực dụng: *
 - **Đơn giản & Hiệu quả**: Tận dụng tối đa các tính năng tự động của CapRover để giảm thiểu công sức quản lý hạ tầng.
 - **Hiệu năng cao**: Sử dụng các công cụ tiêu chuẩn ngành (NGINX, Docker Swarm, PostgreSQL, Redis) kết hợp với các microservice viết bằng Rust.
 - **An toàn & Bảo mật**: Tận dụng mạng nội bộ của Docker và các cơ chế bảo mật của CapRover, kết hợp với sự an toàn bộ nhớ của Rust.
-- **Chuyên nghiệp hóa Authentication**: Sử dụng **Kanidm** - một Identity Provider chuyên nghiệp thay vì tự code authentication, đảm bảo tuân thủ chuẩn OAuth2/OIDC.
+- **Authentication nội bộ**: Sử dụng **Email/Password authentication** do User Service quản lý, đơn giản và phù hợp cho MVP.
 
 ## 🏗️ Kiến Trúc Tổng Thể trên CapRover
 
@@ -56,18 +56,14 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 │ ┌──────────────────┴─────────────────────────────────┐   │
 │ │       Docker Swarm Overlay Network                 │   │ (Mạng nội bộ an toàn)
 │ │                                                    │   │
-│ │ ┌──────────────┐   ┌───────────────┐              │   │
-│ │ │  Kanidm      │   │  Rust Service │              │   │
-│ │ │  (IdP)       │◄──┤   User Svc    │              │   │  (Auth & Core Logic)
-│ │ │ OAuth2/OIDC  │   │  + Casbin     │              │   │
-│ │ └──────────────┘   └───────▲───────┘              │   │
-│ │                            │                       │   │
-│ │                    ┌───────┴───────┐              │   │
-│ │                    │  Rust Service │              │   │
-│ │                    │ inventory-svc ├─► ...        │   │  (Business Services)
-│ │                    └───────▲───────┘              │   │
-│ │                            │                       │   │
-│ │ ┌──────────────┐  ┌────────┴───────┐             │   │
+│ │ ┌───────────────┐   ┌───────────────┐              │   │
+│ │ │  Rust Service │   │  Rust Service │              │   │
+│ │ │   User Svc    │   │ inventory-svc ├─► ...        │   │  (Auth & Business Logic)
+│ │ │  + Casbin     │   └───────▲───────┘              │   │
+│ │ │  + JWT Auth   │           │                       │   │
+│ │ └───────▲───────┘           │                       │   │
+│ │         │                    │                       │   │
+│ │ ┌───────┴───────────────────┴───────┐             │   │
 │ │ │  PostgreSQL  │  │ NATS / Redis   │             │   │  (Stateful Services)
 │ │ │(One-Click App│  │ (One-Click App)│             │   │
 │ │ └──────────────┘  └────────────────┘             │   │
@@ -75,8 +71,7 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 └──────────────────────────────────────────────────────────┘
 
 Legend:
-  Kanidm: Identity Provider (authentication, user management)
-  User Svc: User/Tenant management + Casbin authorization
+  User Svc: Authentication (Email/Password), User/Tenant management, Casbin authorization
   Other Services: Inventory, Order, Payment, Integration
 ```
 
@@ -110,7 +105,7 @@ Legend:
   - **State Management**: Sử dụng Svelte 5 runes cho reactive state.
   - **Form Validation**: Valibot cho client-side validation.
   - **UI Components**: shadcn-svelte theo chuẩn thiết kế Frappe UI.
-  - **Authentication**: JWT từ Kanidm OAuth2, handle refresh tokens.
+  - **Authentication**: JWT tokens từ User Service, handle refresh tokens.
   - **API Client**: Native fetch API để call backend APIs.
   - **Testing**: Vitest cho unit tests, Playwright cho E2E tests.
 - **Triển khai**:
@@ -125,7 +120,7 @@ Legend:
 - **Cách hoạt động**: Các service có thể gọi nhau qua tên app. CapRover tự động tạo một hostname là `srv-<app-name>`. Ví dụ, từ `order-service`, bạn có thể kết nối tới `inventory-service` qua địa chỉ `http://srv-inventory-svc:8000`.
 - **Lợi ích**: Đơn giản, an toàn, không cần cấu hình service discovery phức tạp như Consul hay Etcd.
 
-### 4. Database & Message Queue: CapRover One-Click Apps
+### 5. Database & Message Queue: CapRover One-Click Apps
 
 - **Công nghệ**: Sử dụng kho ứng dụng có sẵn của CapRover.
 - **Các lựa chọn**:
@@ -137,7 +132,33 @@ Legend:
   - Vào mục "One-Click Apps", tìm và triển khai các ứng dụng trên chỉ với vài cú click.
   - CapRover tự động quản lý việc lưu trữ dữ liệu bền vững (persistent storage) cho chúng.
 
-### 5. Authorization: Casbin-rs
+### 6. Authentication: Email/Password (User Service)
+
+- **Công nghệ**: User Service (Rust) với bcrypt password hashing, JWT tokens.
+- **Vai trò**:
+  - **User Authentication**: Xử lý login, registration, password management.
+  - **JWT Token Issuance**: Tạo và ký JWT tokens (access + refresh).
+  - **Session Management**: Quản lý user sessions trong database.
+  - **Tenant Context**: Extract tenant từ subdomain hoặc X-Tenant-ID header.
+- **API Endpoints**:
+  ```
+  POST /api/v1/auth/register    - Đăng ký user mới + tạo/join tenant
+  POST /api/v1/auth/login       - Đăng nhập, trả về JWT tokens
+  POST /api/v1/auth/refresh     - Refresh access token
+  POST /api/v1/auth/logout      - Logout, revoke session
+  ```
+- **Security Features**:
+  - ✅ Password hashing với bcrypt (cost factor 12)
+  - ✅ Password strength validation (zxcvbn)
+  - ✅ JWT với expiration (access: 15min, refresh: 7 days)
+  - ✅ Session tracking trong database
+  - ✅ Rate limiting cho login attempts
+- **Lợi ích**:
+  - ✅ Đơn giản, không cần external IdP.
+  - ✅ Full control over authentication flow.
+  - ✅ Phù hợp cho MVP và small-to-medium teams.
+
+### 7. Authorization: Casbin-rs
 
 - **Công nghệ**: Crate `casbin-rs`.
 - **Vai trò**:
@@ -145,29 +166,18 @@ Legend:
   - Models và policies được lưu trong PostgreSQL, sử dụng `casbin-sqlx-adapter`.
   - Một middleware trong Axum sẽ load enforcer và kiểm tra quyền hạn cho mỗi request.
   - Shared crate `shared/auth` cung cấp middleware và extractors cho tất cả services.
-  - **Làm việc với Kanidm JWT**: Extracts user_id và groups từ Kanidm JWT tokens để enforce policies.
+  - **Làm việc với JWT**: Extracts user_id, tenant_id, và role từ JWT tokens để enforce policies.
 
-### 6. Authentication: Kanidm (NEW)
+**Policy Format**: `(role, tenant_id, resource, action)`
 
-- **Công nghệ**: Kanidm - Identity Provider chuyên nghiệp.
-- **Vai trò**:
-  - **User Authentication**: Xử lý login, registration, password management.
-  - **OAuth2/OIDC Provider**: Cung cấp chuẩn OAuth2 Authorization Code Flow + PKCE.
-  - **JWT Token Issuance**: Tạo và ký JWT tokens với các claims chuẩn OIDC.
-  - **Multi-factor Authentication**: Hỗ trợ Passkeys, WebAuthn, TOTP out-of-the-box.
-  - **Session Management**: Quản lý user sessions, refresh tokens.
-  - **Group Management**: Quản lý groups cho multi-tenant mapping.
-- **Triển khai**:
-  - Deployed như một CapRover One-Click App hoặc custom Docker image.
-  - Các Rust services validate JWT tokens từ Kanidm (không tự generate).
-  - User Service sync tenant mapping với Kanidm groups.
-- **Lợi ích**:
-  - ✅ Giảm code complexity (không cần tự code auth).
-  - ✅ Security best practices built-in.
-  - ✅ Compliance với OAuth2/OIDC standards.
-  - ✅ Advanced features (Passkeys, WebAuthn) miễn phí.
+```rust
+// Example policies
+("admin", "tenant-uuid-123", "users", "manage")
+("manager", "tenant-uuid-123", "products", "write")
+("user", "tenant-uuid-123", "products", "read")
+```
 
-### 6. Multi-Tenancy Strategy
+### 8. Multi-Tenancy Strategy
 
 **Quyết định kiến trúc**: Sử dụng **Shared Database với Tenant Isolation bằng tenant_id**
 
@@ -188,29 +198,29 @@ Legend:
 - ✅ **Testing**: Dễ test hơn, không cần setup RLS policies
 - ⚠️ **Trade-off**: Cần cẩn thận thêm `WHERE tenant_id = $1` trong mọi query
 
-#### Kanidm Group Mapping for Multi-Tenancy:
+#### Tenant Context Flow:
 
-**Strategy**: Map Anthill tenants to Kanidm groups
-
-```rust
-// Kanidm Groups → Anthill Tenants
-tenant_acme_users       ↔  tenant_id: uuid-123
-  ├─ alice@acme.com
-  └─ bob@acme.com
-
-tenant_globex_users     ↔  tenant_id: uuid-456
-  └─ charlie@globex.com
-
-// User JWT from Kanidm contains groups claim:
-{
-  "sub": "alice_uuid",
-  "email": "alice@acme.com",
-  "groups": ["tenant_acme_users", "tenant_acme_admins"]
-}
-
-// User Service maps group → tenant_id via PostgreSQL:
-SELECT tenant_id FROM kanidm_tenant_groups 
-WHERE kanidm_group_name = 'tenant_acme_users'
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Request arrives                                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 1. Check X-Tenant-ID header                         │   │
+│  │ 2. Or parse subdomain: acme.anthill.com → "acme"   │   │
+│  │ 3. Lookup tenant by slug/id in database            │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ TenantContext { tenant_id: UUID }                   │   │
+│  │ Injected into request extensions                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ All repository queries include tenant_id           │   │
+│  │ SELECT * FROM products WHERE tenant_id = $1        │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 **Implementation Guidelines**:
@@ -235,7 +245,7 @@ WHERE kanidm_group_name = 'tenant_acme_users'
    }
    ```
 
-3. **Middleware**: Extract tenant_id từ Kanidm JWT groups và inject vào request
+3. **Middleware**: Extract tenant_id từ JWT claims và inject vào request
 4. **Testing**: Unit tests verify tenant isolation
 5. **Audit**: Log tất cả queries với tenant_id
 
@@ -249,9 +259,9 @@ WHERE kanidm_group_name = 'tenant_acme_users'
   FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id)
   ```
 
-### 7. Database Design Standards
+### 9. Database Design Standards
 
-#### 7.1 UUID Version: Use UUID v7
+#### 9.1 UUID Version: Use UUID v7
 
 - **Lý do**: UUID v7 có timestamp prefix → better index locality, improved query performance
 - **Implementation**: Sử dụng `uuid` crate với feature `v7`
@@ -260,7 +270,7 @@ WHERE kanidm_group_name = 'tenant_acme_users'
   let id = Uuid::now_v7(); // Timestamp-based UUID
   ```
 
-#### 7.2 Currency/Money: Use BIGINT (cents)
+#### 9.2 Currency/Money: Use BIGINT (cents)
 
 - **Quyết định**: Lưu tiền dưới dạng `BIGINT` (đơn vị nhỏ nhất - cents, xu)
 - **Lý do**:
@@ -270,7 +280,7 @@ WHERE kanidm_group_name = 'tenant_acme_users'
 - **Example**: $10.50 → 1050 cents, 100.000 VND → 100000
 - **Rust type**: `i64` hoặc custom `Money` type
 
-#### 7.3 Soft Delete Strategy
+#### 9.3 Soft Delete Strategy
 
 - **Pattern**: Add `deleted_at TIMESTAMPTZ` column
 - **Apply to**: Critical tables (products, orders, users)
@@ -281,7 +291,7 @@ WHERE kanidm_group_name = 'tenant_acme_users'
     WHERE deleted_at IS NULL;
   ```
 
-#### 7.4 Timestamps Convention
+#### 9.4 Timestamps Convention
 
 - Use `TIMESTAMPTZ` (timezone-aware) cho tất cả timestamp columns
 - Standard columns: `created_at`, `updated_at`, `deleted_at`
@@ -291,7 +301,7 @@ WHERE kanidm_group_name = 'tenant_acme_users'
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   ```
 
-#### 7.5 Sensitive Data: Application-level Encryption
+#### 9.5 Sensitive Data: Application-level Encryption
 
 - **Use case**: `credentials` field trong bảng `integrations`
 - **Strategy**: Encrypt trong Rust trước khi lưu DB
@@ -331,9 +341,11 @@ All services use standardized ports for consistency across development and produ
 - **Testing**: Vitest (unit) + Playwright (E2E)
 
 ### Authentication & Authorization
-- **Identity Provider**: Kanidm (OAuth2/OIDC)
-- **Authorization**: Casbin-rs (RBAC)
-- **Token Validation**: JWT (via Kanidm public key)
+- **Authentication**: Email/Password (User Service managed)
+- **Password Hashing**: bcrypt (cost factor 12)
+- **Password Validation**: zxcvbn (strength scoring)
+- **Token Format**: JWT (access + refresh tokens)
+- **Authorization**: Casbin-rs (RBAC with tenant context)
 
 ### Infrastructure & Platform
 - **PaaS**: CapRover
@@ -342,11 +354,11 @@ All services use standardized ports for consistency across development and produ
 - **Service Networking**: Docker Swarm Overlay Network
 
 ### Stateful Services & Middleware (deployed như One-Click Apps)
-- **Identity Provider**: Kanidm
-- **Database**: PostgreSQL
-- **Cache**: Redis
-- **Message Queue**: NATS
-- **Analytics**: Cube
+- **Database**: PostgreSQL 16
+- **Cache**: Redis 7
+- **Message Queue**: NATS 2.10
+- **Object Storage**: MinIO
+- **Analytics**: Cube (optional)
 
 ### DevOps
 - **CI/CD**: Tích hợp sẵn trong CapRover (Webhook từ Git) hoặc dùng GitHub Actions để build Docker image và trigger deploy trên CapRover.
@@ -354,10 +366,84 @@ All services use standardized ports for consistency across development and produ
 
 ## 🚀 Quy trình phát triển & triển khai
 
-1.  **Local Dev**: Sử dụng `docker_compose` để mô phỏng môi trường CapRover (các service Rust, Postgres, Redis, NATS).
+1.  **Local Dev**: Sử dụng `docker_compose` để mô phỏng môi trường CapRover (các service Rust, Postgres, Redis, NATS, MinIO).
 2.  **Code**: Viết logic cho các microservice bằng Rust.
 3.  **Push**: Đẩy code lên GitHub.
 4.  **Deploy**: CapRover nhận webhook, tự động build image từ `Dockerfile` và triển khai phiên bản mới.
 5.  **Scale/Manage**: Sử dụng giao diện CapRover để theo dõi logs, scaling, và quản lý các biến môi trường.
+
+## 🔐 Authentication Flow
+
+### Registration Flow
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User fills registration form                               │
+│  - Email, Password, Full Name, Organization Name           │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  POST /api/v1/auth/register                                 │
+│  {                                                          │
+│    "email": "user@example.com",                            │
+│    "password": "SecureP@ss123",                            │
+│    "full_name": "John Doe",                                │
+│    "tenant_name": "ACME Corp"                              │
+│  }                                                          │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  User Service:                                              │
+│  1. Validate password strength (zxcvbn score >= 3)         │
+│  2. Check/Create tenant by slug                            │
+│  3. Check email uniqueness within tenant                   │
+│  4. Hash password with bcrypt                              │
+│  5. Create user record                                     │
+│  6. Generate JWT tokens (access + refresh)                 │
+│  7. Create session record                                  │
+│  8. Return tokens + user info                              │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Response:                                                  │
+│  {                                                          │
+│    "access_token": "eyJhbGc...",                           │
+│    "refresh_token": "eyJhbGc...",                          │
+│    "token_type": "Bearer",                                 │
+│    "expires_in": 900,                                      │
+│    "user": { "id": "...", "email": "...", ... }           │
+│  }                                                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Login Flow
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User enters credentials                                    │
+│  - Tenant context from subdomain or manual input           │
+│  - Email + Password                                         │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  POST /api/v1/auth/login                                    │
+│  Headers: X-Tenant-ID: acme (or from subdomain)            │
+│  Body: { "email": "...", "password": "..." }               │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│  User Service:                                              │
+│  1. Resolve tenant from header/subdomain                   │
+│  2. Find user by email + tenant_id                         │
+│  3. Verify password with bcrypt                            │
+│  4. Check account status (active, not locked)              │
+│  5. Generate JWT tokens                                    │
+│  6. Create session record                                  │
+│  7. Return tokens + user info                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
 Kiến trúc này vừa hiện đại, hiệu năng cao, vừa cực kỳ thực tế và dễ vận hành cho đội ngũ nhỏ, cho phép bạn tập trung vào việc xây dựng sản phẩm.

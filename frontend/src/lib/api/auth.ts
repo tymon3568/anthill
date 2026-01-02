@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { ApiResponse, User, LoginForm } from '$lib/types';
+import type { ApiResponse, LoginForm } from '$lib/types';
 
 // Email/Password authentication DTOs
 export interface EmailLoginRequest {
@@ -111,6 +111,27 @@ export interface OAuth2Tokens {
 	token_type?: string;
 }
 
+// Session info type for session endpoints
+export interface SessionInfo {
+	session_id: string;
+	user_id: string;
+	tenant_id: string;
+	ip_address?: string;
+	user_agent?: string;
+	device_info?: string;
+	created_at: string;
+	last_used_at: string;
+	expires_at: string;
+}
+
+// Register user data type
+export interface RegisterUserData {
+	full_name: string;
+	email: string;
+	password: string;
+	tenant_name?: string;
+}
+
 export interface UserProfile {
 	id: string;
 	email: string;
@@ -120,7 +141,7 @@ export interface UserProfile {
 	tenant_id: string;
 	created_at: string;
 	updated_at: string;
-	preferences?: Record<string, any>;
+	preferences?: Record<string, unknown>;
 	// Additional profile fields for preferences
 	language?: string;
 	timezone?: string;
@@ -227,14 +248,14 @@ export const authApi = {
 	},
 
 	// User Preferences Methods
-	async getPreferences(): Promise<ApiResponse<Record<string, any>>> {
-		return apiClient.get<Record<string, any>>('/auth/preferences');
+	async getPreferences(): Promise<ApiResponse<Record<string, unknown>>> {
+		return apiClient.get<Record<string, unknown>>('/auth/preferences');
 	},
 
 	async updatePreferences(
-		preferences: Record<string, any>
-	): Promise<ApiResponse<Record<string, any>>> {
-		return apiClient.put<Record<string, any>>('/auth/preferences', preferences);
+		preferences: Record<string, unknown>
+	): Promise<ApiResponse<Record<string, unknown>>> {
+		return apiClient.put<Record<string, unknown>>('/auth/preferences', preferences);
 	},
 
 	// Permission Methods
@@ -258,12 +279,12 @@ export const authApi = {
 		return apiClient.get<boolean>('/auth/session/validate');
 	},
 
-	async getSessionInfo(): Promise<ApiResponse<any>> {
-		return apiClient.get<any>('/auth/session');
+	async getSessionInfo(): Promise<ApiResponse<SessionInfo>> {
+		return apiClient.get<SessionInfo>('/auth/session');
 	},
 
-	async getActiveSessions(): Promise<ApiResponse<any[]>> {
-		return apiClient.get<any[]>('/auth/sessions');
+	async getActiveSessions(): Promise<ApiResponse<SessionInfo[]>> {
+		return apiClient.get<SessionInfo[]>('/auth/sessions');
 	},
 
 	async terminateSession(sessionId: string): Promise<ApiResponse<void>> {
@@ -282,12 +303,7 @@ export const authApi = {
 		);
 	},
 
-	async register(userData: {
-		full_name: string;
-		email: string;
-		password: string;
-		tenant_name?: string;
-	}): Promise<ApiResponse<AuthResponse>> {
+	async register(userData: RegisterUserData): Promise<ApiResponse<AuthResponse>> {
 		return apiClient.post<AuthResponse>(
 			'/auth/register',
 			userData as unknown as Record<string, unknown>

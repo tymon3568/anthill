@@ -24,8 +24,7 @@ use inventory_service_core::services::transfer::TransferService;
 use inventory_service_core::services::valuation::ValuationService;
 
 use shared_auth::enforcer::SharedEnforcer;
-use shared_auth::extractors::{JwtSecretProvider, KanidmClientProvider};
-use shared_kanidm_client::KanidmClient;
+use shared_auth::extractors::JwtSecretProvider;
 
 use crate::middleware::IdempotencyState;
 
@@ -51,7 +50,6 @@ pub struct AppState {
     pub distributed_lock_service: Arc<dyn DistributedLockService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
-    pub kanidm_client: KanidmClient,
     pub idempotency_state: Arc<IdempotencyState>,
 }
 
@@ -78,7 +76,6 @@ impl Clone for AppState {
             distributed_lock_service: self.distributed_lock_service.clone(),
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),
-            kanidm_client: self.kanidm_client.clone(),
             idempotency_state: self.idempotency_state.clone(),
         }
     }
@@ -87,11 +84,5 @@ impl Clone for AppState {
 impl JwtSecretProvider for AppState {
     fn get_jwt_secret(&self) -> &str {
         &self.jwt_secret
-    }
-}
-
-impl KanidmClientProvider for AppState {
-    fn get_kanidm_client(&self) -> &KanidmClient {
-        &self.kanidm_client
     }
 }

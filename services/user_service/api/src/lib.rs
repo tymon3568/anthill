@@ -2,7 +2,6 @@
 pub mod admin_handlers;
 pub mod extractors;
 pub mod handlers;
-pub mod oauth_handlers;
 pub mod openapi;
 pub mod permission_handlers;
 pub mod profile_handlers;
@@ -16,7 +15,6 @@ use axum::{Extension, Router};
 use shared_auth::{create_enforcer, AuthzState};
 use shared_config::Config;
 use shared_db::PgPool;
-use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use user_service_infra::auth::{
@@ -36,21 +34,6 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
     let enforcer = create_enforcer(&config.database_url, Some(&config.casbin_model_path))
         .await
         .expect("Failed to initialize Casbin enforcer");
-
-    // Initialize Kanidm client (dev mode for tests)
-    let kanidm_client = {
-        let dev_config = KanidmConfig {
-            kanidm_url: "http://localhost:8300".to_string(),
-            client_id: "dev".to_string(),
-            client_secret: "dev".to_string(),
-            redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
-            scopes: vec!["openid".to_string()],
-            skip_jwt_verification: true,
-            allowed_issuers: vec!["http://localhost:8300".to_string()],
-            expected_audience: Some("dev".to_string()),
-        };
-        KanidmClient::new(dev_config).expect("Failed to initialize dev Kanidm client")
-    };
 
     // Initialize repositories
     let user_repo = PgUserRepository::new(db_pool.clone());
@@ -72,7 +55,6 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         auth_service: Arc::new(auth_service),
         enforcer,
         jwt_secret: config.jwt_secret.clone(),
-        kanidm_client,
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
@@ -87,7 +69,6 @@ pub fn create_router(
     let authz_state = AuthzState {
         enforcer: state.enforcer.clone(),
         jwt_secret: state.jwt_secret.clone(),
-        kanidm_client: state.kanidm_client.clone(),
     };
 
     // Public routes (no auth required)
@@ -96,10 +77,6 @@ pub fn create_router(
         .route("/api/v1/auth/login", post(handlers::login::<ConcreteAuthService>))
         .route("/api/v1/auth/refresh", post(handlers::refresh_token::<ConcreteAuthService>))
         .route("/api/v1/auth/logout", post(handlers::logout::<ConcreteAuthService>))
-        // OAuth2 endpoints
-        .route("/api/v1/auth/oauth/authorize", post(oauth_handlers::oauth_authorize::<ConcreteAuthService>))
-        .route("/api/v1/auth/oauth/callback", post(oauth_handlers::oauth_callback::<ConcreteAuthService>))
-        .route("/api/v1/auth/oauth/refresh", post(oauth_handlers::oauth_refresh::<ConcreteAuthService>))
         .layer(Extension(state.clone()));
 
     // Protected routes (require authentication)
