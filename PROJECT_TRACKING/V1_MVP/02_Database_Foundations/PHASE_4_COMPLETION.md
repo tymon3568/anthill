@@ -6,9 +6,15 @@
 
 ---
 
+> ⚠️ **TECH STACK UPDATE (2026-01-04)**: The project has moved from Kanidm (external IdP) to **self-built email/password authentication**. The database schema and migrations documented here remain valid, but Kanidm-specific features (OAuth2, group mapping, dual-auth) are no longer in use. See `task_03.01.10_remove_kanidm_integration.md` for details.
+
+---
+
 ## Executive Summary
 
-Successfully completed **Phase 4: Database Migration** for dual authentication support (Kanidm OAuth2 + legacy password). All 3 database migrations applied, schema verified, and analytics infrastructure tested with comprehensive test data.
+Successfully completed **Phase 4: Database Migration** for flexible authentication support. All 3 database migrations applied, schema verified, and analytics infrastructure tested with comprehensive test data.
+
+> **Note**: Original goal was Kanidm OAuth2 + legacy password dual-auth. After tech stack change, we now use email/password only, but the schema supports future OAuth2 integrations if needed.
 
 ### Key Achievements
 - ✅ **3 migrations** created and applied (20250110000014, 000015, 000016)
@@ -36,7 +42,7 @@ ALTER TABLE users ADD COLUMN auth_method VARCHAR(50) NOT NULL DEFAULT 'password'
 CREATE INDEX idx_users_auth_method ON users(auth_method) WHERE deleted_at IS NULL;
 ```
 
-**Impact**: Allows users to exist without password (Kanidm-only authentication)
+**Impact**: Allows users to exist without password (originally for Kanidm-only auth; now unused but kept for future OAuth2 support)
 
 ### Migration 20250110000015: Migration Tracking
 **File**: `migrations/20250110000015_add_migration_tracking.sql`

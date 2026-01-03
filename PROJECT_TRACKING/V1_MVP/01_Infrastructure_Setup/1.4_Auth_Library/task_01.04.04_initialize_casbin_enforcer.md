@@ -48,5 +48,6 @@ Initialize Casbin enforcer in the `shared/auth` crate with PostgreSQL adapter. T
 ---
 *   2025-11-05 10:58: Task status updated by Claude
     - Casbin enforcer initialized early in project setup
-    - Still valid and in use for authorization after Kanidm migration
+    - Still valid and in use for authorization with self-built email/password auth
     - Status: Done ✓
+*   2026-01-04: Note updated - Kanidm removed from tech stack, Casbin continues to be used for RBAC

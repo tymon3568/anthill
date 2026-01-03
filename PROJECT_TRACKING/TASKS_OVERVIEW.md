@@ -46,20 +46,23 @@
           → Completed: 2025-01-10
           → 3/3 migrations applied and tested
 
-### [🔄] Phase 3: User Service (Authentication & Tenancy) - `In Progress 75%`
+### [🔄] Phase 3: User Service (Authentication & Tenancy) - `In Progress 80%`
 
 > **Timeline**: Weeks 3-5 (21 days)  
 > **Dependencies**: Phase 1, 2 completed
-> **Progress**: 14 Done + 5 NeedsReview + 2 InProgress + 7 Todo (28 tasks total) (Updated: 2025-12-24)
+> **Progress**: 15 Done + 6 Cancelled + 5 NeedsReview + 2 InProgress + 5 Todo (Updated: 2026-01-04)
 
     - [✅] 3.0 Architecture Implementation - `Completed`
           → [View folder](./V1_MVP/03_User_Service/3.0_Architecture/)
           → Completed: 2025-01-09
 
-    - [✅] 3.1 Email/Password Authentication - `Done`
-          → [View folder](./V1_MVP/03_User_Service/3.1_Authentication/)
-          → Email/password auth with JWT tokens (User Service managed)
-          → Progress: Done (Updated: 2025-01-15)
+    - [✅] 3.1 Authentication (Self-Built) - `Done`
+          → [View folder](./V1_MVP/03_User_Service/3.1_Kanidm_Integration/)
+          → **Tech Stack Changed**: Kanidm removed, using self-built email/password auth
+          → Email/password auth with bcrypt + JWT tokens (User Service managed)
+          → task_03.01.01 to 03.01.06: Cancelled (Kanidm tasks obsolete)
+          → task_03.01.10: NeedsReview (Remove Kanidm integration - completed)
+          → Progress: 1 NeedsReview, 6 Cancelled (Updated: 2026-01-04)
 
     - [🔄] 3.2 Authorization with Casbin - `In Progress 92%`
           → [View folder](./V1_MVP/03_User_Service/3.2_Casbin_Authorization/)
@@ -481,7 +484,7 @@ open http://localhost:8000/docs  # Swagger UI
       - Task status changed to Done
 - ✅ **Authentication UI Tasks Re-authored**: Recreated all 4 tasks with clean folder-tasks format
       - task_08.02.01_create_login_registration_pages.md: Focus on Svelte 5 runes + shadcn-svelte UI + Valibot validation
-      - task_08.02.02_integrate_oauth2_kanidm.md: Repurposed for email/password form actions, session cookies, logout flow
+      - task_08.02.02_form_validation.md: Email/password form validation with Valibot schemas
       - task_08.02.03_auth_api_client_integration.md: Centralised email/password auth client with typed DTOs and retries
       - task_08.02.04_api_infrastructure_core_setup.md: Shared fetch layer with retries, tenant headers, AppError mapping
 - ✅ **Task Structure Cleaned**: Removed all corrupted content and recreated clean task files
