@@ -73,6 +73,11 @@
           → [View folder](./V1_MVP/03_User_Service/3.4_Testing/)
           → Progress: 0/5 Done, 1 NeedsReview, 4 Todo (Updated: 2025-12-24)
 
+    - [⏳] 3.6 Self Auth Enhancements - `Todo 0%`
+          → [View folder](./V1_MVP/03_User_Service/3.6_Self_Auth_Enhancements/)
+          → Production-ready auth features: email verification, password reset, rate limiting
+          → Progress: 0/3 Done, 3 Todo (Updated: 2026-01-04)
+
 ### [✅] Phase 4: Inventory Service - `Done 91%` *(Production Ready for MVP)*
     - [✅] 4.1 Product Master - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.1_Product_Master/)
