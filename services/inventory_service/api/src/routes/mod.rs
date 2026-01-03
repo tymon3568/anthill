@@ -21,7 +21,6 @@ use uuid::Uuid;
 use shared_auth::enforcer::create_enforcer;
 use shared_config::Config;
 use shared_error::AppError;
-use shared_kanidm_client::{KanidmClient, KanidmConfig};
 
 // Inventory-service core - DTOs and traits for delivery stub
 use inventory_service_core::dto::delivery::{
@@ -71,59 +70,6 @@ use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
 use crate::handlers::warehouses::create_warehouse_routes;
 use crate::openapi::ApiDoc;
-
-/// Create Kanidm client from configuration
-fn create_kanidm_client(config: &Config) -> KanidmClient {
-    // Use consistent environment detection with create_router:
-    // Production if EITHER APP_ENV or RUST_ENV is "production"
-    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
-    let rust_env = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string());
-    let is_dev = !(app_env == "production" || rust_env == "production");
-
-    // In production, require full Kanidm configuration
-    if !is_dev
-        && (config.kanidm_url.is_none()
-            || config.kanidm_client_id.is_none()
-            || config.kanidm_client_secret.is_none()
-            || config.kanidm_redirect_url.is_none())
-    {
-        panic!(
-            "Kanidm configuration is required in production environment. \
-             Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
-             and KANIDM_REDIRECT_URL environment variables."
-        );
-    }
-
-    let kanidm_config = KanidmConfig {
-        kanidm_url: config
-            .kanidm_url
-            .clone()
-            .unwrap_or_else(|| "http://localhost:8300".to_string()),
-        client_id: config
-            .kanidm_client_id
-            .clone()
-            .unwrap_or_else(|| "dev".to_string()),
-        client_secret: config
-            .kanidm_client_secret
-            .clone()
-            .unwrap_or_else(|| "dev".to_string()),
-        redirect_uri: config
-            .kanidm_redirect_url
-            .clone()
-            .unwrap_or_else(|| "http://localhost:8001/oauth/callback".to_string()),
-        scopes: vec!["openid".to_string()],
-        skip_jwt_verification: is_dev,
-        allowed_issuers: vec![config
-            .kanidm_url
-            .clone()
-            .unwrap_or_else(|| "http://localhost:8300".to_string())],
-        expected_audience: config.kanidm_client_id.clone(),
-    };
-
-    KanidmClient::new(kanidm_config).expect(
-        "Failed to create Kanidm client. Check kanidm_url, client_id, client_secret, and redirect_uri configuration."
-    )
-}
 
 /// Stub delivery service used when delivery functionality is temporarily unavailable.
 ///
@@ -419,9 +365,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Scrap Service
     let scrap_service = Arc::new(PgScrapService::new(pool_arc.clone()));
 
-    // Kanidm Client
-    let kanidm_client = create_kanidm_client(config);
-
     // =========================================================================
     // Phase 4: Create AppState with All Services
     // =========================================================================
@@ -446,7 +389,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         distributed_lock_service,
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: kanidm_client.clone(),
         idempotency_state: idempotency_state.clone(),
     };
 
@@ -486,6 +428,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
             axum::http::header::CONTENT_TYPE,
             axum::http::header::AUTHORIZATION,
             axum::http::header::HeaderName::from_static("x-idempotency-key"),
+            axum::http::header::HeaderName::from_static("x-tenant-id"),
         ]);
 
     // =========================================================================
@@ -543,7 +486,6 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     let authz_state = crate::middleware::AuthzState {
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: kanidm_client.clone(),
     };
 
     let protected_routes_with_layers = protected_routes

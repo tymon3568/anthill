@@ -7,7 +7,6 @@ use axum::{
 };
 use shared_auth::enforcer::create_enforcer;
 use shared_auth::middleware::AuthzState;
-use shared_kanidm_client::{KanidmClient, KanidmConfig};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -70,63 +69,6 @@ async fn main() {
 
     tracing::info!("✅ Casbin enforcer initialized");
 
-    // Initialize Kanidm client (optional - falls back to dev mode if not configured)
-    let kanidm_client =
-        if let (Some(url), Some(client_id), Some(client_secret), Some(redirect_uri)) = (
-            config.kanidm_url.as_ref(),
-            config.kanidm_client_id.as_ref(),
-            config.kanidm_client_secret.as_ref(),
-            config.kanidm_redirect_url.as_ref(),
-        ) {
-            let kanidm_config = KanidmConfig {
-                kanidm_url: url.clone(),
-                client_id: client_id.clone(),
-                client_secret: client_secret.clone(),
-                redirect_uri: redirect_uri.clone(),
-                scopes: vec![
-                    "openid".to_string(),
-                    "profile".to_string(),
-                    "email".to_string(),
-                    "groups".to_string(),
-                ],
-                skip_jwt_verification: false,
-                allowed_issuers: vec![url.clone()],
-                expected_audience: Some(client_id.clone()),
-            };
-
-            KanidmClient::new(kanidm_config).expect("Failed to initialize Kanidm client")
-        } else {
-            // Check if we're in production - dev mode is not allowed
-            let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".to_string());
-            let rust_env = std::env::var("RUST_ENV").unwrap_or_else(|_| "development".to_string());
-
-            if app_env == "production" || rust_env == "production" {
-                panic!(
-                    "Kanidm configuration is required in production environment. \
-                 Set KANIDM_URL, KANIDM_CLIENT_ID, KANIDM_CLIENT_SECRET, \
-                 and KANIDM_REDIRECT_URL environment variables."
-                );
-            }
-
-            tracing::warn!("⚠️ Kanidm configuration not found - using dev mode (legacy JWT only)");
-
-            // Create a dummy Kanidm client for dev mode
-            let dev_config = KanidmConfig {
-                kanidm_url: "http://localhost:8300".to_string(),
-                client_id: "dev".to_string(),
-                client_secret: "dev".to_string(),
-                redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
-                scopes: vec!["openid".to_string()],
-                skip_jwt_verification: true, // DEV MODE ONLY
-                allowed_issuers: vec!["http://localhost:8300".to_string()],
-                expected_audience: Some("dev".to_string()),
-            };
-
-            KanidmClient::new(dev_config).expect("Failed to initialize dev Kanidm client")
-        };
-
-    tracing::info!("✅ Kanidm client initialized");
-
     // Initialize repositories
     let user_repo = PgUserRepository::new(db_pool.clone());
     let tenant_repo = PgTenantRepository::new(db_pool.clone());
@@ -151,7 +93,6 @@ async fn main() {
         auth_service: Arc::new(auth_service),
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: kanidm_client.clone(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
@@ -174,12 +115,6 @@ async fn main() {
         }
     }
 
-    impl shared_auth::extractors::KanidmClientProvider for CombinedState {
-        fn get_kanidm_client(&self) -> &KanidmClient {
-            &self.app.kanidm_client
-        }
-    }
-
     let combined_state = CombinedState {
         app: state.clone(),
         profile: profile_state.clone(),
@@ -189,7 +124,6 @@ async fn main() {
     let authz_state = AuthzState {
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
-        kanidm_client: kanidm_client.clone(),
     };
 
     tracing::info!("✅ Services initialized");
@@ -334,6 +268,7 @@ async fn main() {
                 .allow_headers([
                     header::CONTENT_TYPE,
                     header::AUTHORIZATION,
+                    axum::http::header::HeaderName::from_static("x-tenant-id"),
                 ]);
 
             if origins.is_empty() {

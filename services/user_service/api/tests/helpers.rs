@@ -33,10 +33,11 @@ pub async fn cleanup_test_data(pool: &PgPool) {
     //
     // Keep this idempotent for repeated test runs: ignore "table missing / constraint" errors
     // by discarding the Result.
-    let _ = sqlx::query!("DELETE FROM sessions").execute(pool).await;
-    let _ = sqlx::query!("DELETE FROM casbin_rule").execute(pool).await;
-    let _ = sqlx::query!("DELETE FROM users").execute(pool).await;
-    let _ = sqlx::query!("DELETE FROM tenants").execute(pool).await;
+    // Using runtime queries instead of macros for test compatibility without DB connection at compile time
+    let _ = sqlx::query("DELETE FROM sessions").execute(pool).await;
+    let _ = sqlx::query("DELETE FROM casbin_rule").execute(pool).await;
+    let _ = sqlx::query("DELETE FROM users").execute(pool).await;
+    let _ = sqlx::query("DELETE FROM tenants").execute(pool).await;
 }
 
 /// Setup test database pool
@@ -147,14 +148,15 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
     let user_str = user_id.to_string();
 
     // First, assign user to role (g rule)
-    sqlx::query!(
+    // Using runtime queries instead of macros for test compatibility
+    sqlx::query(
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5)
          VALUES ('g', $1, $2, $3, '', '', '')
          ON CONFLICT DO NOTHING",
-        user_str,
-        role_key.clone(),
-        tenant_str.clone()
     )
+    .bind(&user_str)
+    .bind(&role_key)
+    .bind(&tenant_str)
     .execute(pool)
     .await
     .expect("Failed to assign user to role");
@@ -173,16 +175,16 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
             ];
 
             for (ptype, v0, v1, v2, v3) in policies {
-                sqlx::query!(
+                sqlx::query(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5)
                      VALUES ($1, $2, $3, $4, $5, '', '')
                      ON CONFLICT DO NOTHING",
-                    ptype,
-                    v0,
-                    v1,
-                    v2,
-                    v3
                 )
+                .bind(ptype)
+                .bind(v0)
+                .bind(v1)
+                .bind(v2)
+                .bind(v3)
                 .execute(pool)
                 .await
                 .expect("Failed to insert policy");
@@ -197,16 +199,16 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
             ];
 
             for (ptype, v0, v1, v2, v3) in policies {
-                sqlx::query!(
+                sqlx::query(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5)
                      VALUES ($1, $2, $3, $4, $5, '', '')
                      ON CONFLICT DO NOTHING",
-                    ptype,
-                    v0,
-                    v1,
-                    v2,
-                    v3
                 )
+                .bind(ptype)
+                .bind(v0)
+                .bind(v1)
+                .bind(v2)
+                .bind(v3)
                 .execute(pool)
                 .await
                 .expect("Failed to insert policy");
@@ -220,16 +222,16 @@ async fn add_default_policies(pool: &PgPool, tenant_id: Uuid, role: &str, user_i
             ];
 
             for (ptype, v0, v1, v2, v3) in policies {
-                sqlx::query!(
+                sqlx::query(
                     "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5)
                      VALUES ($1, $2, $3, $4, $5, '', '')
                      ON CONFLICT DO NOTHING",
-                    ptype,
-                    v0,
-                    v1,
-                    v2,
-                    v3
                 )
+                .bind(ptype)
+                .bind(v0)
+                .bind(v1)
+                .bind(v2)
+                .bind(v3)
                 .execute(pool)
                 .await
                 .expect("Failed to insert policy");
@@ -253,20 +255,6 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         604800, // 7 days
     );
 
-    // Create dev Kanidm client
-    let kanidm_config = shared_kanidm_client::KanidmConfig {
-        kanidm_url: "http://localhost:8300".to_string(),
-        client_id: "dev".to_string(),
-        client_secret: "dev".to_string(),
-        redirect_uri: "http://localhost:8000/oauth/callback".to_string(),
-        scopes: vec!["openid".to_string()],
-        skip_jwt_verification: true, // TEST MODE
-        allowed_issuers: vec!["http://localhost:8300".to_string()],
-        expected_audience: Some("dev".to_string()),
-    };
-    let kanidm_client = shared_kanidm_client::KanidmClient::new(kanidm_config)
-        .expect("Failed to create test Kanidm client");
-
     let state = AppState {
         auth_service: Arc::new(auth_service),
         enforcer: shared_auth::enforcer::create_enforcer(
@@ -276,7 +264,6 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         .await
         .expect("Failed to create enforcer"),
         jwt_secret: get_test_jwt_secret(),
-        kanidm_client,
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
     };
@@ -346,12 +333,13 @@ pub async fn seed_test_data(pool: &PgPool) {
     let tenant_a_id = Uuid::now_v7();
     let tenant_b_id = Uuid::now_v7();
 
-    sqlx::query!(
+    // Using runtime queries instead of macros for test compatibility
+    sqlx::query(
         "INSERT INTO tenants (tenant_id, name, slug)
          VALUES ($1, 'Tenant A', 'tenant-a'), ($2, 'Tenant B', 'tenant-b')",
-        tenant_a_id,
-        tenant_b_id
     )
+    .bind(tenant_a_id)
+    .bind(tenant_b_id)
     .execute(pool)
     .await
     .expect("Failed to seed tenants");
@@ -362,34 +350,34 @@ pub async fn seed_test_data(pool: &PgPool) {
     let user_id = Uuid::now_v7();
     let user_b_id = Uuid::now_v7();
 
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO users (user_id, tenant_id, email, password_hash)
          VALUES
            ($1, $2, 'admin@test.com', 'hash'),
            ($3, $2, 'manager@test.com', 'hash'),
            ($4, $2, 'user@test.com', 'hash'),
            ($5, $6, 'user_b@test.com', 'hash')",
-        admin_id,
-        tenant_a_id,
-        manager_id,
-        user_id,
-        user_b_id,
-        tenant_b_id
     )
+    .bind(admin_id)
+    .bind(tenant_a_id)
+    .bind(manager_id)
+    .bind(user_id)
+    .bind(user_b_id)
+    .bind(tenant_b_id)
     .execute(pool)
     .await
     .expect("Failed to seed users");
 
     // Assign roles
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3)
          VALUES
            ('g', $1, 'role:admin', $3, ''),
            ('g', $2, 'role:manager', $3, '')",
-        admin_id.to_string(),
-        manager_id.to_string(),
-        tenant_a_id.to_string()
     )
+    .bind(admin_id.to_string())
+    .bind(manager_id.to_string())
+    .bind(tenant_a_id.to_string())
     .execute(pool)
     .await
     .expect("Failed to assign roles");
@@ -401,21 +389,22 @@ pub async fn seed_test_policies(pool: &PgPool, tenant_a_id: Uuid, _tenant_b_id: 
     let tenant_a_id = tenant_a_id.to_string();
 
     // Admin policies for tenant A
-    sqlx::query!(
+    // Using runtime queries instead of macros for test compatibility
+    sqlx::query(
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3)
          VALUES ('p', 'role:admin', $1, '/api/v1/admin/policies', 'POST')",
-        tenant_a_id
     )
+    .bind(&tenant_a_id)
     .execute(pool)
     .await
     .expect("Failed to seed admin policies");
 
     // User policies for tenant A
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3)
          VALUES ('p', 'role:user', $1, '/api/v1/users', 'GET')",
-        tenant_a_id
     )
+    .bind(&tenant_a_id)
     .execute(pool)
     .await
     .expect("Failed to seed user policies");

@@ -85,7 +85,7 @@ pub async fn create_lot_serial(
         status: request.status,
         warehouse_id: None,
         location_id: None,
-        created_by: auth_user.kanidm_user_id.unwrap_or(auth_user.user_id),
+        created_by: auth_user.user_id,
         updated_by: None,
         created_at: now,
         updated_at: now,

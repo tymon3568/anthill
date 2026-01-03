@@ -56,6 +56,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
   minio-init:
     image: minio/mc:latest
     container_name: minio_init
@@ -70,43 +71,7 @@ services:
     environment:
       - MC_HOST_local=http://minioadmin:minioadmin@localhost:9000
 
-  kanidm-certs:
-    image: alpine/openssl
-    container_name: kanidm_certs
-    network_mode: host
-    entrypoint: ["sh", "/generate-certs.sh"]
-    volumes:
-      - kanidm_data:/data
-      - ./generate-certs.sh:/generate-certs.sh:ro
-
-  kanidm:
-    image: kanidm/server:1.4.3
-    container_name: kanidm_idm
-    network_mode: host
-    depends_on:
-      kanidm-certs:
-        condition: service_completed_successfully
-    environment:
-      KANIDM_DOMAIN: localhost
-      KANIDM_ORIGIN: https://localhost:8300
-      # ⚠️ Development-only - DO NOT use in production
-      KANIDM_LOG_LEVEL: info
-      # Use SQLite for dev (production should use PostgreSQL)
-      KANIDM_DB_TYPE: sqlite
-    volumes:
-      - kanidm_data:/data
-      - ./kanidm-server.toml:/data/server.toml:ro
-    command: /sbin/kanidmd server -c /data/server.toml
-    healthcheck:
-      test: ["CMD-SHELL", "curl -k -f https://localhost:8300/status || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
-
 volumes:
   postgres_data:
   redis_data:
   minio_data:
-  kanidm_data:

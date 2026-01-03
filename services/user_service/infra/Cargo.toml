@@ -7,7 +7,6 @@ sha2 = {workspace = true}
 shared_db = {workspace = true}
 shared_error = {workspace = true}
 shared_jwt = {workspace = true}
-shared_kanidm_client = {workspace = true}
 # External deps
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"]}
 tracing = {workspace = true}

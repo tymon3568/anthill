@@ -18,7 +18,7 @@ use inventory_service_infra::repositories::{
 };
 use inventory_service_infra::services::{
     CategoryServiceImpl, LotSerialServiceImpl, PgCycleCountingService, PgPutawayService,
-    PgQualityControlPointService, PgReplenishmentService, PgRmaService,
+    PgQualityControlPointService, PgReplenishmentService, PgRmaService, PgScrapService,
     PgStockReconciliationService, PgStockTakeService, PgTransferService, PickingMethodServiceImpl,
     ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
 };
@@ -209,6 +209,7 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         )),
         quality_service: Arc::new(PgQualityControlPointService::new(quality_repo)),
         putaway_service: Arc::new(PgPutawayService::new(putaway_repo, stock_move_for_putaway)),
+        scrap_service: Arc::new(PgScrapService::new(Arc::new(pool_ref.clone()))),
         distributed_lock_service,
         enforcer: shared_auth::enforcer::create_enforcer(
             &std::env::var("DATABASE_URL")
@@ -218,19 +219,6 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         .await
         .unwrap(),
         jwt_secret: "test_jwt_secret".to_string(),
-        kanidm_client: shared_kanidm_client::KanidmClient::new(
-            shared_kanidm_client::KanidmConfig {
-                kanidm_url: "http://localhost:8080".to_string(),
-                client_id: "test_client".to_string(),
-                client_secret: "test_secret".to_string(),
-                redirect_uri: "http://localhost:8000/callback".to_string(),
-                scopes: vec!["openid".to_string()],
-                skip_jwt_verification: true,
-                allowed_issuers: vec!["http://localhost:8080".to_string()],
-                expected_audience: Some("test_client".to_string()),
-            },
-        )
-        .unwrap(),
         idempotency_state: Arc::new(
             inventory_service_api::middleware::IdempotencyState::new(IdempotencyConfig {
                 redis_url: redis_url.clone(),
@@ -251,27 +239,28 @@ pub async fn create_test_user(pool: &PgPool) -> AuthUser {
     let tenant_id = Uuid::now_v7();
 
     // Insert test tenant if not exists
+    // Using runtime queries instead of macros for test compatibility without DB connection at compile time
     let slug = format!("test-tenant-{}", tenant_id);
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO tenants (tenant_id, name, slug, plan, status, settings, created_at, updated_at)
          VALUES ($1, $2, $3, 'free', 'active', '{}'::jsonb, NOW(), NOW())
          ON CONFLICT (tenant_id) DO NOTHING",
-        tenant_id,
-        "Test Tenant",
-        slug
     )
+    .bind(tenant_id)
+    .bind("Test Tenant")
+    .bind(&slug)
     .execute(pool)
     .await
     .unwrap();
 
     // Insert test user if not exists
-    sqlx::query!(
+    sqlx::query(
         "INSERT INTO users (user_id, tenant_id, email, created_at) VALUES ($1, $2, $3, NOW())
          ON CONFLICT (user_id) DO NOTHING",
-        user_id,
-        tenant_id,
-        "test@example.com"
     )
+    .bind(user_id)
+    .bind(tenant_id)
+    .bind("test@example.com")
     .execute(pool)
     .await
     .unwrap();
@@ -280,7 +269,6 @@ pub async fn create_test_user(pool: &PgPool) -> AuthUser {
         user_id,
         tenant_id,
         email: Some("test@example.com".to_string()),
-        kanidm_user_id: Some(Uuid::new_v4()),
         role: "user".to_string(),
     }
 }

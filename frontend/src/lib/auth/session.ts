@@ -1,4 +1,4 @@
-import { authApi, type EmailAuthResponse, type EmailUserInfo } from '$lib/api/auth';
+import { type EmailAuthResponse, type EmailUserInfo } from '$lib/api/auth';
 import { tokenManager } from './token-manager';
 
 /**

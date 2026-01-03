@@ -51,12 +51,13 @@ async fn test_sql_injection_login_email() {
     }
 
     // Verify database is still intact
-    let user_count = sqlx::query!("SELECT COUNT(*) as count FROM users")
+    // Using runtime query instead of macro for test compatibility
+    let user_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
         .fetch_one(&pool)
         .await
         .expect("Database should still be accessible");
 
-    assert!(user_count.count.is_some(), "Users table should still exist");
+    assert!(user_count.0 >= 0, "Users table should still exist");
 }
 
 /// Test: SQL injection in user search/filter
@@ -192,12 +193,13 @@ async fn test_sql_injection_policy_creation() {
     }
 
     // Verify casbin_rule table still exists
-    let rule_count = sqlx::query!("SELECT COUNT(*) as count FROM casbin_rule")
+    // Using runtime query instead of macro for test compatibility
+    let rule_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM casbin_rule")
         .fetch_one(&pool)
         .await
         .expect("casbin_rule table should still exist");
 
-    assert!(rule_count.count.is_some());
+    assert!(rule_count.0 >= 0);
 }
 
 /// Test: Second-order SQL injection prevention
@@ -218,12 +220,13 @@ async fn test_second_order_sql_injection() {
     assert_eq!(result.full_name.as_deref(), Some(malicious_name));
 
     // Verify users table still exists
-    let user_count = sqlx::query!("SELECT COUNT(*) as count FROM users")
+    // Using runtime query instead of macro for test compatibility
+    let user_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
         .fetch_one(&pool)
         .await
         .expect("Users table should still exist");
 
-    assert!(user_count.count.is_some());
+    assert!(user_count.0 >= 0);
 
     // Now try to use this user - the stored malicious string should not execute
     let app = create_test_app(&pool).await;
@@ -260,23 +263,24 @@ async fn test_json_field_injection() {
         }
     });
 
-    sqlx::query!(
-        "UPDATE tenants SET settings = $1 WHERE tenant_id = $2",
-        malicious_json,
-        tenant.tenant_id
-    )
-    .execute(&pool)
-    .await
-    .expect("Should handle JSON safely");
+    // Using runtime query instead of macro for test compatibility
+    sqlx::query("UPDATE tenants SET settings = $1 WHERE tenant_id = $2")
+        .bind(&malicious_json)
+        .bind(tenant.tenant_id)
+        .execute(&pool)
+        .await
+        .expect("Should handle JSON safely");
 
     // Verify tenants table still exists and data is intact
-    let tenant_check =
-        sqlx::query!("SELECT settings FROM tenants WHERE tenant_id = $1", tenant.tenant_id)
+    // Using runtime query instead of macro for test compatibility
+    let tenant_check: (sqlx::types::Json<serde_json::Value>,) =
+        sqlx::query_as("SELECT settings FROM tenants WHERE tenant_id = $1")
+            .bind(tenant.tenant_id)
             .fetch_one(&pool)
             .await
             .expect("Tenants table should still exist");
 
-    assert_eq!(tenant_check.settings, malicious_json);
+    assert_eq!(tenant_check.0 .0, malicious_json);
 }
 
 /// Test: Input validation for email format
@@ -544,20 +548,22 @@ async fn test_mass_assignment_prevention() {
         let user_id = uuid::Uuid::parse_str(user_id_str).expect("user_id should be valid UUID");
 
         // Verify in database that role is NOT admin
-        let user_role = sqlx::query!("SELECT role FROM users WHERE user_id = $1", user_id)
+        // Using runtime query instead of macro for test compatibility
+        let user_role: (String,) = sqlx::query_as("SELECT role FROM users WHERE user_id = $1")
+            .bind(user_id)
             .fetch_one(&pool)
             .await
             .expect("Should find created user");
 
         assert_ne!(
-            user_role.role, "admin",
+            user_role.0, "admin",
             "User should NOT be assigned admin role via mass assignment attack. Actual role: {}",
-            user_role.role
+            user_role.0
         );
 
         // Role should be the default "user" or similar safe default
         assert_eq!(
-            user_role.role, "user",
+            user_role.0, "user",
             "User should have default 'user' role, not attacker-supplied role"
         );
     }

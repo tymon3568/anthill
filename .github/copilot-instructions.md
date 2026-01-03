@@ -19,8 +19,7 @@ Located in `shared/`:
 - `error`: `AppError` enum with `IntoResponse`, standardized error codes
 - `config`: Environment config loader (`Config::from_env()`)
 - `db`: `init_pool()` for PostgreSQL connection pooling
-- `auth`: Casbin enforcer, Kanidm JWT validation, auth extractors (`AuthUser`, `RequireAdmin`)
-- `kanidm_client`: OAuth2/OIDC client for Kanidm integration
+- `auth`: Casbin enforcer, JWT validation, auth extractors (`AuthUser`, `RequireAdmin`)
 
 All services **must** use shared crates instead of duplicating code.
 
@@ -50,7 +49,7 @@ pub async fn find_by_id(&self, ctx: &TenantContext, id: Uuid) -> Result<Product>
 }
 ```
 
-Extract `tenant_id` from Kanidm JWT groups claim in middleware, map to PostgreSQL tenant via `kanidm_tenant_groups` table, inject into request context.
+Extract `tenant_id` from JWT claims in middleware, inject into request context.
 
 ## Database Standards
 
@@ -94,55 +93,48 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
 ## Authentication & Authorization
 
-### Kanidm Integration (OAuth2/OIDC)
-Kanidm is the Identity Provider handling all authentication:
-1. **User registration/login** → Handled by Kanidm UI or API
-2. **OAuth2 flow** → Authorization Code Grant + PKCE
-3. **JWT issuance** → Kanidm signs JWTs with standard OIDC claims
-4. **Token validation** → Services validate JWT using Kanidm public key
-5. **Group management** → Kanidm groups map to Anthill tenants
+### Email/Password Authentication
+User Service handles all authentication internally:
+1. **User registration** → Email/password with tenant context
+2. **User login** → Validate credentials, return JWT tokens
+3. **JWT issuance** → User Service generates and signs JWTs
+4. **Token validation** → Services validate JWT using shared secret
+5. **Session management** → Sessions stored in database
 
-JWT claims from Kanidm:
+JWT claims structure:
 ```rust
 {
-  "sub": "uuid-of-user-in-kanidm",
+  "sub": "uuid-of-user",
+  "tenant_id": "uuid-of-tenant",
   "email": "user@example.com",
-  "preferred_username": "username",
-  "groups": ["tenant_acme_users", "tenant_acme_admins"]
+  "role": "admin",
+  "exp": 1234567890,
+  "token_type": "access"
 }
 ```
 
-### Tenant Mapping
-```sql
--- Map Kanidm groups to tenants
-CREATE TABLE kanidm_tenant_groups (
-  tenant_id UUID NOT NULL REFERENCES tenants(tenant_id),
-  kanidm_group_uuid UUID NOT NULL,
-  kanidm_group_name TEXT NOT NULL,
-  PRIMARY KEY (tenant_id, kanidm_group_uuid)
-);
-
--- Link users to Kanidm
-ALTER TABLE users 
-  ADD COLUMN kanidm_user_id UUID UNIQUE,
-  DROP COLUMN password_hash;
-```
-
-### OAuth2 Endpoints (User Service)
+### Auth Endpoints (User Service)
 ```rust
-// Initiate OAuth2 flow
-GET /api/v1/auth/oauth/authorize
-  → Redirect to Kanidm: https://idm.example.com/ui/oauth2?client_id=...
+// Register new user + create/join tenant
+POST /api/v1/auth/register { email, password, full_name, tenant_name }
+  → Create tenant (if new) or join existing
+  → Hash password with bcrypt
+  → Return JWT tokens
 
-// Handle OAuth2 callback
-POST /api/v1/auth/oauth/callback { code, state }
-  → Exchange code for tokens
-  → Map Kanidm user to tenant
-  → Return access_token
+// Login
+POST /api/v1/auth/login { email, password }
+  Headers: X-Tenant-ID: tenant-slug (or from subdomain)
+  → Validate credentials
+  → Return JWT tokens
 
 // Refresh token
-POST /api/v1/auth/oauth/refresh { refresh_token }
-  → Get new access_token from Kanidm
+POST /api/v1/auth/refresh { refresh_token }
+  → Validate refresh token
+  → Return new access token
+
+// Logout
+POST /api/v1/auth/logout { refresh_token }
+  → Revoke session
 ```
 
 ### Casbin RBAC
@@ -150,16 +142,17 @@ Multi-tenant model: `(subject, tenant, resource, action)`
 - Policies stored in `casbin_rule` table
 - Enforcer in `shared/auth` with PostgreSQL adapter
 - Middleware: `shared_auth::casbin_middleware`
-- Works with Kanidm JWT: extract `sub` + `groups`, map to tenant, enforce policies
+- Works with JWT: extract `user_id`, `tenant_id`, `role` to enforce policies
 
 ### Auth Extractors
 From `shared/auth/extractors.rs`:
 ```rust
-// Validate Kanidm JWT and extract claims
+// Validate JWT and extract claims
 async fn handler(user: AuthUser) -> String { 
-    // user.kanidm_user_id: UUID from "sub" claim
-    // user.tenant_id: mapped from groups claim
+    // user.user_id: UUID from "sub" claim
+    // user.tenant_id: from JWT claim
     // user.email: from "email" claim
+    // user.role: from "role" claim
 }
 
 // Admin-only endpoints
@@ -331,8 +324,8 @@ Err(AppError::ValidationError("Invalid email".to_string()))
 // Database errors auto-convert
 let user = query.fetch_one(&pool).await?; // sqlx::Error → AppError
 
-// Kanidm errors
-.map_err(|e| AppError::AuthenticationError(format!("Kanidm: {}", e)))?
+// Authentication errors
+.map_err(|e| AppError::AuthenticationError(format!("Auth: {}", e)))?
 
 // Manual mapping
 .map_err(|e| AppError::InternalError(format!("Casbin: {}", e)))?
@@ -416,7 +409,7 @@ Each service:
 3. Communicates via `srv-<app-name>` hostname on Docker overlay network
 4. Auto-scaled via CapRover UI
 
-Stateful services (PostgreSQL, Redis, NATS) deployed as One-Click Apps.
+Stateful services (PostgreSQL, Redis, NATS, MinIO) deployed as One-Click Apps.
 
 ## Documentation Lookup with Context7
 
