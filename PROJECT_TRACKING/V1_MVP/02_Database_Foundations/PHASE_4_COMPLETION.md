@@ -6,15 +6,39 @@
 
 ---
 
-> ⚠️ **TECH STACK UPDATE (2026-01-04)**: The project has moved from Kanidm (external IdP) to **self-built email/password authentication**. The database schema and migrations documented here remain valid, but Kanidm-specific features (OAuth2, group mapping, dual-auth) are no longer in use. See `task_03.01.10_remove_kanidm_integration.md` for details.
+## ⚠️ DEPRECATION NOTICE (2026-01-04)
+
+**The Kanidm integration has been removed from the project.**
+
+This document describes database migrations that were originally created for Kanidm OAuth2/OIDC integration. The tech stack has changed to **self-built email/password authentication**.
+
+### What This Means:
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Database migrations | ✅ **Kept** | Schema remains valid, not reverted |
+| `kanidm_user_id` column | 🔸 **Unused** | Nullable, can be repurposed for future OAuth2 |
+| `kanidm_session_id` column | 🔸 **Unused** | Nullable, kept for schema stability |
+| `auth_method` column | ✅ **In Use** | Currently only uses 'password' value |
+| Migration scripts | ❌ **Deleted** | Scripts in `scripts/` removed |
+| `kanidm_tenant_groups` table | 🔸 **Unused** | Migration exists but table is empty |
+| Views (`v_migration_progress`) | 🔸 **Unused** | Can be dropped in future cleanup migration |
+
+### Sections Now Obsolete:
+- Migration scripts section (scripts deleted)
+- User migration flow diagrams
+- Kanidm session handling examples
+- Dual-auth test data descriptions
+
+**See:** `task_03.01.10_remove_kanidm_integration.md` for full removal details.
 
 ---
 
 ## Executive Summary
 
-Successfully completed **Phase 4: Database Migration** for flexible authentication support. All 3 database migrations applied, schema verified, and analytics infrastructure tested with comprehensive test data.
+Successfully completed **Phase 4: Database Migration** for flexible authentication support. All 3 database migrations applied and schema verified.
 
-> **Note**: Original goal was Kanidm OAuth2 + legacy password dual-auth. After tech stack change, we now use email/password only, but the schema supports future OAuth2 integrations if needed.
+> **Current State**: Only email/password authentication is used. The schema retains Kanidm-related columns as nullable for future OAuth2 provider integration if needed.
 
 ### Key Achievements
 - ✅ **3 migrations** created and applied (20250110000014, 000015, 000016)
