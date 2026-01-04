@@ -300,9 +300,10 @@ where
             .ok_or(AppError::InvalidCredentials)?;
 
         // Check auth method - password auth must be enabled
-        if user.auth_method == "oauth2" {
+        // Block login for users who registered via Kanidm (now deprecated)
+        if user.auth_method == "kanidm" {
             return Err(AppError::ValidationError(
-                "This account uses external OAuth2 authentication. Password login is not available.".to_string()
+                "This account was created via external authentication. Please use the password reset flow to set a password.".to_string()
             ));
         }
 

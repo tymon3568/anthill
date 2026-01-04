@@ -46,15 +46,16 @@ check_command() {
 MISSING_DEPS=0
 check_command "docker" || MISSING_DEPS=1
 # Check for docker-compose (standalone) or docker compose (plugin)
-if ! command -v "docker-compose" &> /dev/null; then
-    if ! docker compose version &> /dev/null 2>&1; then
-        echo -e "${RED}❌ docker-compose or docker compose plugin not found${NC}"
-        MISSING_DEPS=1
-    else
-        echo -e "${GREEN}✓ docker compose (plugin) found${NC}"
-    fi
-else
+DOCKER_COMPOSE_CMD=""
+if command -v "docker-compose" &> /dev/null; then
     echo -e "${GREEN}✓ docker-compose found${NC}"
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null 2>&1; then
+    echo -e "${GREEN}✓ docker compose (plugin) found${NC}"
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    echo -e "${RED}❌ docker-compose or docker compose plugin not found${NC}"
+    MISSING_DEPS=1
 fi
 check_command "cargo" || MISSING_DEPS=1
 check_command "bun" || MISSING_DEPS=1
@@ -146,7 +147,7 @@ if docker ps | grep -q postgres_db; then
     echo -e "${GREEN}✓ PostgreSQL already running${NC}"
 else
     echo "Starting PostgreSQL, Redis, NATS, MinIO..."
-    docker-compose up -d postgres redis nats minio
+    $DOCKER_COMPOSE_CMD up -d postgres redis nats minio
 
     # Wait for PostgreSQL to be ready
     echo "Waiting for PostgreSQL to be ready..."

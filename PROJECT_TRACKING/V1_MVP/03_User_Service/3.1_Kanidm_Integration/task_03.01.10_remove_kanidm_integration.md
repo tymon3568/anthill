@@ -257,3 +257,10 @@ Remove Kanidm (IdP) integration from the Anthill codebase and switch to internal
       - Issue #18: Claims struct missing email field (schema decision)
     - Verified: `cargo check --package shared-auth --package user_service_infra` PASS
     - Status: InProgress_By_Claude → NeedsReview
+
+*   2026-01-04 01:15: PR #133 Review Auto-Fix Round 2 by Claude
+    - **Additional fixes from coderabbitai second review (post aaade08):**
+      - **Critical**: Fixed auth_method check to use "kanidm" instead of "oauth2" to match actual values set by migration logic (`services/user_service/infra/src/auth/service.rs:302-307`)
+      - **Major**: Fixed docker-compose command inconsistency - added DOCKER_COMPOSE_CMD variable and use it consistently (`scripts/setup-integration-test.sh`)
+    - Verified: `cargo check` for user_service_infra PASS
+    - Status remains: NeedsReview (waiting for human review on deferred items)
