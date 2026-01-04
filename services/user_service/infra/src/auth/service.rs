@@ -4,7 +4,6 @@ use serde_json;
 use sha2::{Digest, Sha256};
 use shared_error::AppError;
 use shared_jwt::{decode_jwt, encode_jwt, Claims};
-use shared_kanidm_client::KanidmOAuth2Client;
 use user_service_core::domains::auth::{
     domain::{
         model::{Session, Tenant, User},
@@ -29,7 +28,6 @@ where
     jwt_secret: String,
     jwt_expiration: i64,
     jwt_refresh_expiration: i64,
-    kanidm_client: Option<Box<dyn KanidmOAuth2Client + Send + Sync>>,
 }
 
 impl<UR, TR, SR> AuthServiceImpl<UR, TR, SR>
@@ -53,13 +51,7 @@ where
             jwt_secret,
             jwt_expiration,
             jwt_refresh_expiration,
-            kanidm_client: None,
         }
-    }
-
-    pub fn with_kanidm_client(mut self, client: Box<dyn KanidmOAuth2Client + Send + Sync>) -> Self {
-        self.kanidm_client = Some(client);
-        self
     }
 
     fn user_to_user_info(&self, user: &User) -> UserInfo {
@@ -132,24 +124,31 @@ where
     ) -> Result<AuthResp, AppError> {
         // Determine tenant
         let tenant = if let Some(tenant_name) = &req.tenant_name {
-            // Create new tenant
-            let tenant_id = Uuid::new_v4();
-            let now = Utc::now();
             // Generate slug from tenant name (simple implementation)
             let slug = tenant_name.to_lowercase().replace(" ", "-");
-            let tenant = Tenant {
-                tenant_id,
-                name: tenant_name.clone(),
-                slug,
-                plan: "free".to_string(), // Default plan
-                plan_expires_at: None,
-                settings: sqlx::types::Json(serde_json::json!({})), // Empty settings
-                status: "active".to_string(),
-                created_at: now,
-                updated_at: now,
-                deleted_at: None,
-            };
-            self.tenant_repo.create(&tenant).await?
+
+            // Check if tenant with this slug already exists
+            if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
+                // Tenant exists - use the existing tenant for registration
+                existing_tenant
+            } else {
+                // Create new tenant
+                let tenant_id = Uuid::new_v4();
+                let now = Utc::now();
+                let tenant = Tenant {
+                    tenant_id,
+                    name: tenant_name.clone(),
+                    slug,
+                    plan: "free".to_string(), // Default plan
+                    plan_expires_at: None,
+                    settings: sqlx::types::Json(serde_json::json!({})), // Empty settings
+                    status: "active".to_string(),
+                    created_at: now,
+                    updated_at: now,
+                    deleted_at: None,
+                };
+                self.tenant_repo.create(&tenant).await?
+            }
         } else {
             // TODO: Handle multi-tenant scenarios
             return Err(AppError::ValidationError(
@@ -300,25 +299,18 @@ where
             .await?
             .ok_or(AppError::InvalidCredentials)?;
 
-        // DEBUG: Print user info
-        println!(
-            "DEBUG: Found user: email={}, auth_method={}, password_hash={}",
-            user.email,
-            user.auth_method,
-            user.password_hash.is_some()
-        );
-
         // Check auth method - password auth must be enabled
+        // Block login for users who registered via Kanidm (now deprecated)
         if user.auth_method == "kanidm" {
             return Err(AppError::ValidationError(
-                "This account uses Kanidm OAuth2 authentication. Please use 'Login with Kanidm' button.".to_string()
+                "This account was created via external authentication. Please use the password reset flow to set a password.".to_string()
             ));
         }
 
-        // Verify password (must have password_hash for password/dual auth)
+        // Verify password (must have password_hash for password auth)
         let password_hash = user.password_hash.as_ref().ok_or_else(|| {
             AppError::ValidationError(
-                "Password authentication not available for this account. Please use Kanidm OAuth2."
+                "Password authentication not configured for this account. Please use the password reset flow to set a password."
                     .to_string(),
             )
         })?;
@@ -529,14 +521,13 @@ where
         Ok(self.user_to_user_info(&user))
     }
 
-    async fn cleanup_stale_kanidm_sessions(&self) -> Result<u64, AppError> {
-        // This is a placeholder implementation
-        // In production, this would check Kanidm for user existence
-        // and revoke sessions for deleted users
-        tracing::info!("Running cleanup of stale Kanidm sessions");
+    async fn cleanup_stale_sessions(&self) -> Result<u64, AppError> {
+        // Cleanup stale sessions (expired refresh tokens and old revoked sessions)
+        tracing::info!("Running cleanup of stale sessions");
 
-        // For now, just return 0 (no sessions cleaned up)
-        // TODO: Implement actual cleanup logic using Kanidm admin API
-        Ok(0)
+        let deleted = self.session_repo.delete_expired().await?;
+        tracing::info!("Cleanup finished, {} sessions removed", deleted);
+
+        Ok(deleted)
     }
 }

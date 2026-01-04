@@ -51,7 +51,7 @@ pub trait AuthService: Send + Sync {
     /// Get user info by ID
     async fn get_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<UserInfo, AppError>;
 
-    /// Cleanup stale Kanidm sessions (admin operation)
-    /// Revokes sessions for users that no longer exist in Kanidm
-    async fn cleanup_stale_kanidm_sessions(&self) -> Result<u64, AppError>;
+    /// Cleanup stale sessions (admin operation)
+    /// Revokes sessions with expired refresh tokens
+    async fn cleanup_stale_sessions(&self) -> Result<u64, AppError>;
 }

@@ -1,7 +1,6 @@
 import type { AuthStore, User, Tenant } from '$lib/types';
-import { shouldRefreshToken } from '$lib/auth/jwt';
 import { authLogic } from '$lib/auth/auth-logic';
-import { authApi, type EmailAuthResponse } from '$lib/api/auth';
+import { authApi } from '$lib/api/auth';
 import { AuthSession } from '$lib/auth/session';
 
 // Browser detection - fallback for testing environments
@@ -49,7 +48,7 @@ export const authStore = {
 				authStore.setUser(user);
 				return { success: true };
 			} else {
-				return { success: false, error: 'Login failed' };
+				return { success: false, error: response.error || 'Login failed' };
 			}
 		} catch (error) {
 			console.error('Email login error:', error);
@@ -92,7 +91,7 @@ export const authStore = {
 				authStore.setUser(user);
 				return { success: true };
 			} else {
-				return { success: false, error: 'Registration failed' };
+				return { success: false, error: response.error || 'Registration failed' };
 			}
 		} catch (error) {
 			console.error('Email register error:', error);
@@ -172,14 +171,19 @@ export const authStore = {
 				const userData = JSON.parse(userDataStr);
 
 				// Map OAuth2 user data to our User interface
+				// Generate ISO timestamp without instantiating mutable Date in reactive context
+				const nowIso = ((ts: number) => {
+					const d = new Date(ts);
+					return d.toISOString();
+				})(Date.now());
 				const user: User = {
 					id: userData.kanidm_user_id,
 					email: userData.email,
 					name: userData.preferred_username || userData.email,
 					role: 'user', // Default role, could be determined from groups
 					tenantId: userData.tenant?.tenant_id || '',
-					createdAt: new Date().toISOString(), // We don't have this from OAuth2
-					updatedAt: new Date().toISOString(),
+					createdAt: nowIso, // We don't have this from OAuth2
+					updatedAt: nowIso,
 					kanidm_user_id: userData.kanidm_user_id,
 					preferred_username: userData.preferred_username,
 					groups: userData.groups
@@ -190,8 +194,8 @@ export const authStore = {
 							id: userData.tenant.tenant_id,
 							name: userData.tenant.name,
 							slug: userData.tenant.slug,
-							createdAt: new Date().toISOString(),
-							updatedAt: new Date().toISOString()
+							createdAt: nowIso,
+							updatedAt: nowIso
 						}
 					: null;
 
@@ -206,6 +210,9 @@ export const authStore = {
 			authStore.setUser(null);
 			authStore.setTenant(null);
 		}
+
+		// Always set loading to false after initialization completes
+		authStore.setLoading(false);
 	},
 
 	logout: () => {

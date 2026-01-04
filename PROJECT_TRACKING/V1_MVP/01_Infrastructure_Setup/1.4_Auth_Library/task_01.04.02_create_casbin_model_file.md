@@ -40,7 +40,8 @@ Create the Casbin model configuration file at `shared/auth/model.conf`. This mod
 
 ## AI Agent Log:
 ---
-*   2025-11-05 10:56: Task status updated by Claude
+*   2025-11-05 10:58: Task status updated by Claude
   - Casbin model file created early in project setup
-  - Still valid and in use for multi-tenant RBAC after Kanidm migration
+  - Still valid and in use for multi-tenant RBAC with self-built email/password auth
   - Status: Done ✓
+*   2026-01-04: Note updated - Kanidm removed from tech stack, Casbin continues to be used for RBAC

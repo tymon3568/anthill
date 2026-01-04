@@ -117,10 +117,6 @@ fn test_config() -> Config {
         std::env::var("DATABASE_URL").expect("DATABASE_URL must be set to run integration tests");
 
     let redis_url = std::env::var("REDIS_URL").ok();
-    let kanidm_url = std::env::var("KANIDM_URL").ok();
-    let kanidm_client_id = std::env::var("KANIDM_CLIENT_ID").ok();
-    let kanidm_client_secret = std::env::var("KANIDM_CLIENT_SECRET").ok();
-    let kanidm_redirect_url = std::env::var("KANIDM_REDIRECT_URL").ok();
 
     Config {
         database_url,
@@ -130,10 +126,10 @@ fn test_config() -> Config {
         host: "0.0.0.0".to_string(),
         port: 8001,
         cors_origins: None,
-        kanidm_url,
-        kanidm_client_id,
-        kanidm_client_secret,
-        kanidm_redirect_url,
+        kanidm_url: None,
+        kanidm_client_id: None,
+        kanidm_client_secret: None,
+        kanidm_redirect_url: None,
         nats_url: None,
         redis_url,
         casbin_model_path: "shared/auth/model.conf".to_string(),

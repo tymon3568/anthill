@@ -50,6 +50,7 @@ Implement Axum middleware for Casbin authorization that checks JWT tokens and en
 ---
 *   2025-11-05 10:59: Task status updated by Claude
   - Axum middleware implemented early in project setup
-  - Updated to work with Kanidm JWT tokens instead of custom JWT
-  - Still valid and in use for authorization after Kanidm migration
+  - Works with JWT tokens for authorization
+  - Still valid and in use for authorization with self-built email/password auth
   - Status: Done ✓
+*   2026-01-04: Note updated - Kanidm removed from tech stack, middleware uses internal JWT validation

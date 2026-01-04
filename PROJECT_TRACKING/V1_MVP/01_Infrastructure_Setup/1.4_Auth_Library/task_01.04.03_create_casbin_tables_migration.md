@@ -46,7 +46,8 @@ Create database migration for Casbin RBAC tables. The `casbin_rule` table will s
 
 ## AI Agent Log:
 ---
-*   2025-11-05 10:57: Task status updated by Claude
+*   2025-11-05 10:58: Task status updated by Claude
     - Casbin tables migration created and applied early in project
-    - Still valid and in use for storing RBAC policies after Kanidm migration
+    - Still valid and in use for storing RBAC policies with self-built email/password auth
     - Status: Done ✓
+*   2026-01-04: Note updated - Kanidm removed from tech stack, Casbin continues to be used for RBAC
