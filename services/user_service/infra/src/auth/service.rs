@@ -299,25 +299,17 @@ where
             .await?
             .ok_or(AppError::InvalidCredentials)?;
 
-        // DEBUG: Print user info
-        println!(
-            "DEBUG: Found user: email={}, auth_method={}, password_hash={}",
-            user.email,
-            user.auth_method,
-            user.password_hash.is_some()
-        );
-
         // Check auth method - password auth must be enabled
-        if user.auth_method == "kanidm" {
+        if user.auth_method == "oauth2" {
             return Err(AppError::ValidationError(
-                "This account uses Kanidm OAuth2 authentication. Please use 'Login with Kanidm' button.".to_string()
+                "This account uses external OAuth2 authentication. Password login is not available.".to_string()
             ));
         }
 
-        // Verify password (must have password_hash for password/dual auth)
+        // Verify password (must have password_hash for password auth)
         let password_hash = user.password_hash.as_ref().ok_or_else(|| {
             AppError::ValidationError(
-                "Password authentication not available for this account. Please use Kanidm OAuth2."
+                "Password authentication not configured for this account. Please use the password reset flow to set a password."
                     .to_string(),
             )
         })?;
@@ -529,11 +521,12 @@ where
     }
 
     async fn cleanup_stale_sessions(&self) -> Result<u64, AppError> {
-        // Cleanup stale sessions (expired refresh tokens)
+        // Cleanup stale sessions (expired refresh tokens and old revoked sessions)
         tracing::info!("Running cleanup of stale sessions");
 
-        // For now, just return 0 (no sessions cleaned up)
-        // TODO: Implement actual cleanup logic to remove expired sessions
-        Ok(0)
+        let deleted = self.session_repo.delete_expired().await?;
+        tracing::info!("Cleanup finished, {} sessions removed", deleted);
+
+        Ok(deleted)
     }
 }

@@ -119,6 +119,32 @@ Remove Kanidm (IdP) integration from the Anthill codebase and switch to internal
 *   Migrations related to Kanidm (kanidm_tenant_groups table, etc.) are kept for now to preserve schema history
 *   Frontend changes were already in progress (tenant context, auth store fixes)
 
+## PR #133 Review Issues (Added 2026-01-04):
+---
+### Critical (Security)
+- [x] **Issue #1**: JWT validation doesn't check `token_type` - refresh tokens can be used as access tokens (Severity: Critical, Reviewer: codeant-ai, File: `shared/auth/src/extractors.rs:65-73`) ✅ FIXED
+
+### Warning (Logic/Security)
+- [x] **Issue #3**: Debug println! with PII - leaks user email to stdout/logs (Severity: Warning, Reviewer: greptile/codeant-ai/coderabbitai, File: `services/user_service/infra/src/auth/service.rs:301-307`) ✅ FIXED
+- [x] **Issue #4**: Misleading Kanidm error messages - references removed OAuth2 (Severity: Warning, Reviewer: greptile/coderabbitai, File: `services/user_service/infra/src/auth/service.rs:309-323`) ✅ FIXED
+- [x] **Issue #6**: cleanup_stale_sessions is stub - returns 0, never cleans up (Severity: Warning, Reviewer: codeant-ai/coderabbitai, File: `services/user_service/infra/src/auth/service.rs:531-538`) ✅ FIXED
+- [x] **Issue #8**: OAuth2 methods reference deleted endpoints - dead code in frontend (Severity: Warning, Reviewer: greptile, File: `frontend/src/lib/api/auth.ts:184-220`) ✅ FIXED - Methods now return errors with deprecation warnings
+
+### Style/Minor
+- [x] **Issue #9**: Leftover Kanidm config fields in test config (Severity: Style, Reviewer: greptile, File: `services/user_service/api/tests/auth_middleware_test.rs:25-28`) ⏭️ SKIPPED - Fields are intentionally kept as optional in Config struct for future OAuth2 providers
+- [x] **Issue #10**: Stale Kanidm reference in script notes (Severity: Style, Reviewer: coderabbitai, File: `scripts/test-tenant-context.sh:367-369`) ✅ FIXED
+- [x] **Issue #11**: RegisterUserData duplicates EmailRegisterRequest (Severity: Style, Reviewer: codeant-ai, File: `frontend/src/lib/api/auth.ts:128-133`) ✅ FIXED - Converted to type alias
+- [x] **Issue #12**: Health check accepts 4xx as success (Severity: Style, Reviewer: cubic-dev-ai/codeant-ai, File: `scripts/test-tenant-context.sh:92`) ✅ FIXED
+- [x] **Issue #14**: sed -i not portable to macOS (Severity: Style, Reviewer: cubic-dev-ai, File: `scripts/setup-integration-test.sh:100`) ✅ FIXED
+- [x] **Issue #15**: Bash ${var^} not portable to older Bash (Severity: Style, Reviewer: codeant-ai, File: `scripts/setup-integration-test.sh:179`) ✅ FIXED - Using SQL INITCAP instead
+- [x] **Issue #17**: grep regex issue - dot not escaped in /etc/hosts check (Severity: Style, Reviewer: codeant-ai, File: `scripts/test-tenant-context.sh:114`) ✅ FIXED - Using grep -F
+- [x] **Bonus**: Fixed duplicate curl requests in scripts (Issues #13, #16 from cubic-dev-ai)
+- [x] **Bonus**: Fixed docker-compose check redundant logic (scripts/setup-integration-test.sh:48)
+
+### Needs Clarification (Deferred)
+- [ ] **Issue #5/#7**: Race condition in tenant creation + unrestricted tenant joining (Architectural decision needed)
+- [ ] **Issue #18**: Claims struct missing email field (Schema decision needed)
+
 ## AI Agent Log:
 ---
 *   2026-01-02 07:30: Started Kanidm removal task
@@ -200,3 +226,34 @@ Remove Kanidm (IdP) integration from the Anthill codebase and switch to internal
     - Updated TASKS_OVERVIEW.md with new 3.6 module
     - Setting status to NeedsReview for code review
     - Test compilation requires live DB (SQLx macros in tests)
+
+*   2026-01-04 00:30: PR #133 Review Auto-Fix initiated by Claude
+    - Fetched PR content from https://github.com/tymon3568/anthill/pull/133
+    - Extracted 18 unresolved review comments from: greptile-apps, codeant-ai, cubic-dev-ai, coderabbitai, gemini-code-assist
+    - Categorized issues: 1 Critical, 5 Warning, 7 Style, 2 Needs Clarification
+    - Added issues to task file as sub-tasks
+    - Status changed: NeedsReview → InProgress_By_Claude
+    - Starting auto-fix for actionable issues
+
+*   2026-01-04 00:34: PR #133 Review Auto-Fix completed by Claude
+    - **Critical fixes applied:**
+      - Issue #1: Added `token_type` check in JWT validation (`shared/auth/src/extractors.rs`)
+    - **Warning fixes applied:**
+      - Issue #3: Removed debug println! with PII (`services/user_service/infra/src/auth/service.rs`)
+      - Issue #4: Updated error messages to remove Kanidm references
+      - Issue #6: Implemented cleanup_stale_sessions to call session_repo.delete_expired()
+      - Issue #8: Deprecated OAuth2 methods in frontend with error returns and warnings
+    - **Style fixes applied:**
+      - Issue #10: Removed Kanidm OIDC reference from script output
+      - Issue #11: Converted RegisterUserData to type alias for EmailRegisterRequest
+      - Issue #12: Fixed health check to reject 4xx status codes
+      - Issue #14: Added macOS compatibility for sed -i
+      - Issue #15: Replaced Bash ${var^} with SQL INITCAP for portability
+      - Issue #17: Changed grep to grep -F for literal matching
+      - Bonus: Consolidated duplicate curl requests into single calls
+      - Bonus: Fixed docker-compose detection logic
+    - **Deferred issues (need human decision):**
+      - Issue #5/#7: Race condition in tenant creation (architectural decision)
+      - Issue #18: Claims struct missing email field (schema decision)
+    - Verified: `cargo check --package shared-auth --package user_service_infra` PASS
+    - Status: InProgress_By_Claude → NeedsReview

@@ -64,9 +64,21 @@ impl AuthUser {
 }
 
 /// Validate JWT token and return AuthUser
+///
+/// Only accepts "access" tokens - refresh tokens are rejected to prevent
+/// using long-lived refresh tokens for API authentication.
 fn validate_token(token: &str, authz_state: &AuthzState) -> Result<AuthUser, StatusCode> {
     match shared_jwt::decode_jwt(token, &authz_state.jwt_secret) {
         Ok(claims) => {
+            // Security: Ensure only access tokens are accepted for API authentication
+            // Refresh tokens should only be used at the /auth/refresh endpoint
+            if claims.token_type != "access" {
+                warn!(
+                    "JWT validation failed for user {}: expected 'access' token, got '{}'",
+                    claims.sub, claims.token_type
+                );
+                return Err(StatusCode::UNAUTHORIZED);
+            }
             debug!("Validated JWT for user {}", claims.sub);
             Ok(AuthUser::from_claims(claims))
         },

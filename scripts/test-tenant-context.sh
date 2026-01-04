@@ -89,7 +89,7 @@ print_header "Pre-flight Checks"
 
 # Check if backend is running
 print_test "Checking backend service at ${BACKEND_URL}"
-if curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/api/v1/health" 2>/dev/null | grep -qE "^[2-4][0-9]{2}$"; then
+if curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/api/v1/health" 2>/dev/null | grep -qE "^[2-3][0-9]{2}$"; then
     print_pass "Backend is running"
     BACKEND_RUNNING=true
 else
@@ -111,7 +111,7 @@ fi
 
 # Check /etc/hosts for subdomain
 print_test "Checking /etc/hosts for ${TEST_TENANT}.localhost"
-if grep -q "${TEST_TENANT}.localhost" /etc/hosts; then
+if grep -Fq "${TEST_TENANT}.localhost" /etc/hosts; then
     print_pass "${TEST_TENANT}.localhost is configured"
     HOSTS_CONFIGURED=true
 else
@@ -167,17 +167,15 @@ print_header "Test 4.2: Login with X-Tenant-ID Header"
 print_test "Sending login request with X-Tenant-ID header"
 
 # First, check if the backend API accepts the header
-LOGIN_RESPONSE=$(curl -s -X POST "${BACKEND_URL}/api/v1/auth/login" \
+# Use single curl call to capture both response body and HTTP code
+LOGIN_RAW=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/v1/auth/login" \
     -H "Content-Type: application/json" \
     -H "X-Tenant-ID: ${TEST_TENANT}" \
     -d "{\"email\": \"${TEST_EMAIL}\", \"password\": \"${TEST_PASSWORD}\"}" \
     2>/dev/null)
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${BACKEND_URL}/api/v1/auth/login" \
-    -H "Content-Type: application/json" \
-    -H "X-Tenant-ID: ${TEST_TENANT}" \
-    -d "{\"email\": \"${TEST_EMAIL}\", \"password\": \"${TEST_PASSWORD}\"}" \
-    2>/dev/null)
+HTTP_CODE=$(printf '%s\n' "$LOGIN_RAW" | tail -n1)
+LOGIN_RESPONSE=$(printf '%s\n' "$LOGIN_RAW" | sed '$d')
 
 print_info "Response code: $HTTP_CODE"
 print_info "Response body: $LOGIN_RESPONSE"
@@ -214,15 +212,14 @@ fi
 # Test without X-Tenant-ID header (should fail)
 print_test "Sending login request WITHOUT X-Tenant-ID header (should fail)"
 
-NO_HEADER_RESPONSE=$(curl -s -X POST "${BACKEND_URL}/api/v1/auth/login" \
+# Use single curl call to capture both response body and HTTP code
+NO_HEADER_RAW=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/v1/auth/login" \
     -H "Content-Type: application/json" \
     -d "{\"email\": \"${TEST_EMAIL}\", \"password\": \"${TEST_PASSWORD}\"}" \
     2>/dev/null)
 
-NO_HEADER_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${BACKEND_URL}/api/v1/auth/login" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\": \"${TEST_EMAIL}\", \"password\": \"${TEST_PASSWORD}\"}" \
-    2>/dev/null)
+NO_HEADER_CODE=$(printf '%s\n' "$NO_HEADER_RAW" | tail -n1)
+NO_HEADER_RESPONSE=$(printf '%s\n' "$NO_HEADER_RAW" | sed '$d')
 
 print_info "Response code: $NO_HEADER_CODE"
 
@@ -366,7 +363,6 @@ echo ""
 echo -e "${YELLOW}Notes:${NC}"
 echo "  • Full login flow requires a valid user in the test tenant"
 echo "  • Create test user: INSERT INTO users (tenant_id, email, ...) VALUES (...)"
-echo "  • Or use Kanidm OIDC for SSO testing"
 echo ""
 
 exit $EXIT_CODE

@@ -35,50 +35,43 @@ export interface RefreshTokenRequest {
 	refresh_token: string;
 }
 
-// OAuth2 DTOs matching backend OpenAPI specification
+// OAuth2 types - DEPRECATED: OAuth2/Kanidm integration removed in PR #133
+// Kept for backward compatibility with any code that may reference these types
+// TODO: Remove in future cleanup once all references are updated
+
+/** @deprecated OAuth2 integration removed - use email/password auth instead */
 export interface OAuth2AuthorizeReq {
 	state?: string;
 }
 
+/** @deprecated OAuth2 integration removed - use email/password auth instead */
 export interface OAuth2AuthorizeResp {
 	authorization_url: string;
 	state: string;
 	code_verifier: string;
 }
 
+/** @deprecated OAuth2 integration removed - use email/password auth instead */
 export interface OAuth2CallbackReq {
 	code: string;
 	state: string;
 	code_verifier: string;
 }
 
+/** @deprecated OAuth2 integration removed - use email/password auth instead */
 export interface OAuth2CallbackResp {
 	access_token: string;
 	refresh_token?: string;
 	token_type: string;
 	expires_in?: number;
-	user: KanidmUserInfo;
-	tenant?: TenantInfo;
 }
 
-export interface KanidmUserInfo {
-	kanidm_user_id: string;
-	email?: string;
-	preferred_username?: string;
-	groups: string[];
-}
-
-export interface TenantInfo {
-	tenant_id: string;
-	name: string;
-	slug: string;
-	role: string;
-}
-
+/** @deprecated OAuth2 integration removed - use email/password auth instead */
 export interface OAuth2RefreshReq {
 	refresh_token: string;
 }
 
+/** @deprecated OAuth2 integration removed - use email/password auth instead */
 export interface OAuth2RefreshResp {
 	access_token: string;
 	refresh_token?: string;
@@ -124,13 +117,8 @@ export interface SessionInfo {
 	expires_at: string;
 }
 
-// Register user data type
-export interface RegisterUserData {
-	full_name: string;
-	email: string;
-	password: string;
-	tenant_name?: string;
-}
+// Register user data type - alias to EmailRegisterRequest for consistency
+export type RegisterUserData = EmailRegisterRequest;
 
 export interface UserProfile {
 	id: string;
@@ -181,53 +169,71 @@ export const authApi = {
 		return apiClient.post<void>('/auth/logout', { refresh_token: refreshToken });
 	},
 
-	// OAuth2 Flow Methods - matching OpenAPI specification
+	// OAuth2 Flow Methods - DEPRECATED: OAuth2/Kanidm integration removed in PR #133
+	// These methods will throw errors as the backend endpoints no longer exist
+	// Kept for backward compatibility - will be removed in future cleanup
+
+	/** @deprecated OAuth2 integration removed - use emailLogin instead */
 	async initiateOAuth2Authorize(
-		req: OAuth2AuthorizeReq = {}
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		_req: OAuth2AuthorizeReq = {}
 	): Promise<ApiResponse<OAuth2AuthorizeResp>> {
-		return apiClient.post<OAuth2AuthorizeResp>(
-			'/auth/oauth/authorize',
-			req as unknown as Record<string, unknown>
-		);
+		console.warn('OAuth2 integration has been removed. Use email/password authentication instead.');
+		return Promise.resolve({
+			success: false,
+			error: 'OAuth2 integration has been removed. Use email/password authentication instead.'
+		} as ApiResponse<OAuth2AuthorizeResp>);
 	},
 
-	async handleOAuth2Callback(req: OAuth2CallbackReq): Promise<ApiResponse<OAuth2CallbackResp>> {
-		return apiClient.post<OAuth2CallbackResp>(
-			'/auth/oauth/callback',
-			req as unknown as Record<string, unknown>
-		);
+	/** @deprecated OAuth2 integration removed - use emailLogin instead */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	async handleOAuth2Callback(_req: OAuth2CallbackReq): Promise<ApiResponse<OAuth2CallbackResp>> {
+		console.warn('OAuth2 integration has been removed. Use email/password authentication instead.');
+		return Promise.resolve({
+			success: false,
+			error: 'OAuth2 integration has been removed. Use email/password authentication instead.'
+		} as ApiResponse<OAuth2CallbackResp>);
 	},
 
-	async refreshOAuth2Token(req: OAuth2RefreshReq): Promise<ApiResponse<OAuth2RefreshResp>> {
-		return apiClient.post<OAuth2RefreshResp>(
-			'/auth/oauth/refresh',
-			req as unknown as Record<string, unknown>
-		);
+	/** @deprecated OAuth2 integration removed - use refreshEmailToken instead */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	async refreshOAuth2Token(_req: OAuth2RefreshReq): Promise<ApiResponse<OAuth2RefreshResp>> {
+		console.warn('OAuth2 integration has been removed. Use refreshEmailToken instead.');
+		return Promise.resolve({
+			success: false,
+			error: 'OAuth2 integration has been removed. Use refreshEmailToken instead.'
+		} as ApiResponse<OAuth2RefreshResp>);
 	},
 
-	// Legacy OAuth2 methods for backward compatibility
+	/** @deprecated OAuth2 integration removed - use emailLogin instead */
 	async initiateOAuth2Login(): Promise<never> {
-		// This will redirect to Kanidm OAuth2 authorize endpoint
-		// The actual implementation is in the server endpoint
-		window.location.href = '/api/v1/auth/oauth/authorize';
-		// Return a promise that never resolves since navigation is in progress
-		return new Promise<never>(() => {
-			// Intentionally left unresolved; navigation is in progress.
-		});
+		console.warn('OAuth2 integration has been removed. Use email/password authentication instead.');
+		throw new Error(
+			'OAuth2 integration has been removed. Use email/password authentication instead.'
+		);
 	},
 
+	/** @deprecated OAuth2 integration removed - use emailLogin instead */
 	async handleOAuth2CallbackLegacy(
-		code: string,
-		state: string
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		_code: string,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		_state: string
 	): Promise<ApiResponse<OAuth2Tokens>> {
-		// This is handled by the server endpoint, but we can provide a client method
-		// for programmatic access if needed
-		const params = new URLSearchParams({ code, state });
-		return apiClient.get<OAuth2Tokens>(`/auth/oauth/callback?${params.toString()}`);
+		console.warn('OAuth2 integration has been removed. Use email/password authentication instead.');
+		return Promise.resolve({
+			success: false,
+			error: 'OAuth2 integration has been removed. Use email/password authentication instead.'
+		} as ApiResponse<OAuth2Tokens>);
 	},
 
+	/** @deprecated OAuth2 integration removed - use refreshEmailToken instead */
 	async refreshToken(): Promise<ApiResponse<OAuth2Tokens>> {
-		return apiClient.post<OAuth2Tokens>('/auth/oauth/refresh');
+		console.warn('OAuth2 integration has been removed. Use refreshEmailToken instead.');
+		return Promise.resolve({
+			success: false,
+			error: 'OAuth2 integration has been removed. Use refreshEmailToken instead.'
+		} as ApiResponse<OAuth2Tokens>);
 	},
 
 	async logout(redirectTo?: string): Promise<ApiResponse<void>> {

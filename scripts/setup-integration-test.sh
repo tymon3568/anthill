@@ -45,7 +45,17 @@ check_command() {
 
 MISSING_DEPS=0
 check_command "docker" || MISSING_DEPS=1
-check_command "docker-compose" || check_command "docker" || MISSING_DEPS=1
+# Check for docker-compose (standalone) or docker compose (plugin)
+if ! command -v "docker-compose" &> /dev/null; then
+    if ! docker compose version &> /dev/null 2>&1; then
+        echo -e "${RED}❌ docker-compose or docker compose plugin not found${NC}"
+        MISSING_DEPS=1
+    else
+        echo -e "${GREEN}✓ docker compose (plugin) found${NC}"
+    fi
+else
+    echo -e "${GREEN}✓ docker-compose found${NC}"
+fi
 check_command "cargo" || MISSING_DEPS=1
 check_command "bun" || MISSING_DEPS=1
 check_command "curl" || MISSING_DEPS=1
@@ -64,7 +74,7 @@ echo -e "${YELLOW}[Step 2/6] Setting up /etc/hosts for subdomain testing...${NC}
 
 HOSTS_UPDATED=0
 for tenant in "${TEST_TENANTS[@]}"; do
-    if ! grep -q "${tenant}.localhost" /etc/hosts; then
+    if ! grep -Fq "${tenant}.localhost" /etc/hosts; then
         echo -e "${YELLOW}Adding ${tenant}.localhost to /etc/hosts (requires sudo)${NC}"
         echo "127.0.0.1 ${tenant}.localhost" | sudo tee -a /etc/hosts > /dev/null
         HOSTS_UPDATED=1
@@ -96,8 +106,12 @@ done
 if [ -f .env ]; then
     # Check if CORS_ORIGINS exists
     if grep -q "^CORS_ORIGINS=" .env; then
-        # Update existing CORS_ORIGINS
-        sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=${CORS_ORIGINS}|" .env
+        # Update existing CORS_ORIGINS (handle both GNU and BSD sed)
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^CORS_ORIGINS=.*|CORS_ORIGINS=${CORS_ORIGINS}|" .env
+        else
+            sed -i "s|^CORS_ORIGINS=.*|CORS_ORIGINS=${CORS_ORIGINS}|" .env
+        fi
         echo -e "${GREEN}✓ Updated CORS_ORIGINS in .env${NC}"
     else
         # Add CORS_ORIGINS
@@ -174,9 +188,10 @@ for tenant in "${TEST_TENANTS[@]}"; do
 
     if [ "$TENANT_EXISTS" = "0" ] || [ -z "$TENANT_EXISTS" ]; then
         echo "Creating tenant: ${tenant}"
+        # Use SQL INITCAP for portability instead of Bash ${var^} (requires Bash 4+)
         docker exec postgres_db psql -U user -d inventory_db -c "
             INSERT INTO tenants (tenant_id, name, slug, created_at, updated_at)
-            VALUES (gen_random_uuid(), '${tenant^} Corp', '${tenant}', NOW(), NOW())
+            VALUES (gen_random_uuid(), INITCAP('${tenant}') || ' Corp', '${tenant}', NOW(), NOW())
             ON CONFLICT (slug) DO NOTHING;
         " 2>/dev/null || echo -e "${YELLOW}⚠ Could not create tenant ${tenant} (table may not exist yet)${NC}"
     else
