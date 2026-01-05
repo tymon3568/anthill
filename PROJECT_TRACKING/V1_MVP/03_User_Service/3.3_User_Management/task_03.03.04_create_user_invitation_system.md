@@ -83,27 +83,34 @@ CREATE TABLE user_invitations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
+    -- Soft delete (per project pattern)
+    deleted_at TIMESTAMPTZ,                -- NULL = active, set = soft-deleted
+    
     -- Constraints
     CONSTRAINT user_invitations_status_check CHECK (
         status IN ('pending', 'accepted', 'expired', 'revoked')
     ),
     CONSTRAINT user_invitations_role_check CHECK (
         invited_role IN ('owner', 'admin', 'manager', 'user', 'viewer')
-    ),
-    -- Unique pending invitation per email per tenant
-    CONSTRAINT user_invitations_unique_pending UNIQUE (tenant_id, email) 
-        WHERE status = 'pending'
+    )
 );
 
 -- Indexes
 CREATE INDEX idx_invitations_tenant ON user_invitations(tenant_id, status, created_at DESC);
-CREATE INDEX idx_invitations_email ON user_invitations(email, tenant_id) WHERE status = 'pending';
-CREATE INDEX idx_invitations_token ON user_invitations(token_hash) WHERE status = 'pending';
-CREATE INDEX idx_invitations_expires ON user_invitations(expires_at) WHERE status = 'pending';
+CREATE INDEX idx_invitations_email ON user_invitations(email, tenant_id) WHERE status = 'pending' AND deleted_at IS NULL;
+CREATE INDEX idx_invitations_token ON user_invitations(token_hash) WHERE status = 'pending' AND deleted_at IS NULL;
+CREATE INDEX idx_invitations_expires ON user_invitations(expires_at) WHERE status = 'pending' AND deleted_at IS NULL;
 CREATE INDEX idx_invitations_inviter ON user_invitations(invited_by_user_id, created_at DESC);
+-- Soft-delete filtered index for active records
+CREATE INDEX idx_invitations_active ON user_invitations(tenant_id, status) WHERE deleted_at IS NULL;
+
+-- Partial unique index for pending invitations (PostgreSQL requires CREATE UNIQUE INDEX for partial unique)
+CREATE UNIQUE INDEX idx_invitations_unique_pending ON user_invitations(tenant_id, email) 
+    WHERE status = 'pending' AND deleted_at IS NULL;
 
 COMMENT ON TABLE user_invitations IS 'Secure user invitation tokens with hash-at-rest';
 COMMENT ON COLUMN user_invitations.token_hash IS 'SHA-256 hash of invite token - never store plaintext';
+COMMENT ON COLUMN user_invitations.deleted_at IS 'Soft delete timestamp - NULL means active';
 ```
 
 ## Token Security Implementation
@@ -160,11 +167,14 @@ pub async fn accept_invite(
         .ok_or(AppError::NotFound("Invalid or expired invitation".into()))?;
     
     // 3. Rate limit check (max 5 attempts per token)
+    // NOTE: IP-based rate limiting (sub-task 8.1) should be applied BEFORE token lookup
+    // to prevent token enumeration attacks. This per-token limit is a secondary defense.
     if invitation.accept_attempts >= 5 {
         return Err(AppError::TooManyRequests("Too many attempts".into()));
     }
     
-    // 4. Increment attempt counter (even for invalid tokens to prevent enumeration)
+    // 4. Increment attempt counter for this valid token
+    // (IP-based rate limiting in middleware handles enumeration prevention)
     increment_accept_attempts(&invitation.invitation_id).await?;
     
     // 5. Check expiry

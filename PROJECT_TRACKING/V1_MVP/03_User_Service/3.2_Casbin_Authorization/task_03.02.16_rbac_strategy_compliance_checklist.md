@@ -127,21 +127,21 @@ This task does NOT implement anything directly. It serves as:
                     │  task_03.02.16 (This Checklist)         │
                     └─────────────────────────────────────────┘
                                         │
-          ┌─────────────────────────────┼─────────────────────────────┐
+          ┌─────────────────────────────┼─────────────────────────────┬───────────────────────┐
+          │                             │                             │                       │
+          ▼                             ▼                             ▼                       ▼
+┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
+│ task_03.02.14       │   │ task_03.02.15       │   │ task_03.03.04       │   │ task_03.06.03       │
+│ Decision Cache      │   │ Audit Logging       │   │ Invite System       │   │ Rate Limiting       │
+│ Status: Todo        │   │ Status: Todo        │   │ Status: Todo        │   │ Status: Todo        │
+└─────────────────────┘   └─────────────────────┘   └─────────────────────┘   └─────────────────────┘
+          │                             │                             │
           │                             │                             │
           ▼                             ▼                             ▼
 ┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
-│ task_03.02.14       │   │ task_03.02.15       │   │ task_03.03.04       │
-│ Decision Cache      │   │ Audit Logging       │   │ Invite System       │
-│ Status: Todo        │   │ Status: Todo        │   │ Status: Todo        │
-└─────────────────────┘   └─────────────────────┘   └─────────────────────┘
-          │                             │
-          │                             │
-          ▼                             ▼
-┌─────────────────────┐   ┌─────────────────────┐
-│ task_03.05.01       │   │ task_03.03.06       │
-│ AuthZ Version Schema│   │ Tenant Bootstrap    │
-│ Status: NeedsReview │   │ Status: Todo        │
+│ task_03.05.01       │   │ task_03.03.06       │   │ (Invite depends on  │
+│ AuthZ Version Schema│   │ Tenant Bootstrap    │   │  Rate Limiting)     │
+│ Status: NeedsReview │   │ Status: Todo        │   └─────────────────────┘
 └─────────────────────┘   └─────────────────────┘
           │
           ▼

@@ -21,6 +21,8 @@ Per **AUTHORIZATION_RBAC_STRATEGY.md**, even with Rust's fast in-process executi
 The decision cache stores `allow/deny` results for a short time, keyed by:
 - `(tenant_id, policy_version, subject, resource, action) -> allow/deny`
 
+> **Terminology Note:** In code, we use `policy_version` as the variable/parameter name. This value is read from the `authz_version` column in the database schema (on `tenants` and `users` tables). The terms are used interchangeably: `authz_version` in schema, `policy_version` in application code.
+
 **TTL: 10-30 seconds recommended**
 
 This ensures:
@@ -59,9 +61,11 @@ authz:decision:{tenant_id}:{policy_version}:{subject_hash}:{resource_hash}:{acti
 ```
 
 Where:
-- `subject_hash`: SHA256(user_id)[0:16] to keep keys compact
-- `resource_hash`: SHA256(resource)[0:16]
+- `subject_hash`: First 16 bytes of raw SHA256(user_id), hex-encoded (128-bit, 32 hex chars) to keep keys compact while maintaining low collision probability
+- `resource_hash`: First 16 bytes of raw SHA256(resource), hex-encoded (128-bit, 32 hex chars)
 - `policy_version`: from tenant's `authz_version`
+
+> **Note:** Do NOT truncate the hex string representation. Truncate the raw SHA256 bytes first (16 bytes = 128 bits), then hex-encode. This ensures adequate collision resistance for cache keys.
 
 ### Cache Value
 ```rust
@@ -117,8 +121,9 @@ pub struct CacheStats {
 Create a wrapper function or modify existing `enforce()`:
 
 ```rust
+/// NOTE: `cache` must be `Arc<dyn DecisionCache>` to allow cloning for background task
 pub async fn enforce_cached(
-    cache: &dyn DecisionCache,
+    cache: Arc<dyn DecisionCache>,
     enforcer: &SharedEnforcer,
     tenant_id: Uuid,
     policy_version: i64,
@@ -137,8 +142,15 @@ pub async fn enforce_cached(
         .map_err(|e| AppError::InternalError(format!("Casbin error: {}", e)))?;
     drop(e);
     
-    // 3. Store in cache (fire and forget, don't wait)
-    cache.set(&tenant_id, policy_version, subject, resource, action, allowed).await;
+    // 3. Store in cache (fire and forget - spawn background task to avoid blocking)
+    let cache = Arc::clone(&cache);
+    let tenant_id = tenant_id;
+    let subject = subject.to_string();
+    let resource = resource.to_string();
+    let action = action.to_string();
+    tokio::spawn(async move {
+        cache.set(&tenant_id, policy_version, &subject, &resource, &action, allowed).await;
+    });
     
     Ok(allowed)
 }
