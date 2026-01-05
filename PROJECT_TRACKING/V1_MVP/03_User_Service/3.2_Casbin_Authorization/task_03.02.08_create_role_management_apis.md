@@ -5,9 +5,9 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** InProgress
+**Status:** InProgress_By_Gemini
 **Assignee:** Gemini
-**Last Updated:** 2025-10-25
+**Last Updated:** 2026-01-04
 
 ## Detailed Description:
 Implement API endpoints for administrators to manage roles and permissions dynamically. These endpoints should only be accessible to users with an `admin` role.
@@ -38,3 +38,4 @@ Implement API endpoints for administrators to manage roles and permissions dynam
 ## AI Agent Log:
 ---
 * 2025-10-25 13:00: Gemini started working on the task. Researched Casbin API for policy and role management. Implemented handlers and routes for policy and user role management. Updated OpenAPI documentation.
+* 2026-01-04: Status corrected from invalid 'InProgress' to 'InProgress_By_Gemini' per folder-tasks workflow rules. Remaining work: implement `POST /api/v1/admin/roles` endpoint for explicit role creation.
