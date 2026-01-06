@@ -45,7 +45,7 @@ pub struct RegisterReq {
     #[schema(example = "user@example.com")]
     pub email: String,
 
-    /// Password (min 8 characters, should include uppercase, lowercase, number)
+    /// Password (min 8 characters). Recommended: include uppercase, lowercase, and number for stronger security.
     #[validate(length(min = 8))]
     #[schema(example = "SecurePass123!", min_length = 8)]
     pub password: String,

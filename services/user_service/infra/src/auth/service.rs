@@ -124,8 +124,9 @@ where
     ) -> Result<AuthResp, AppError> {
         // Determine tenant and whether it's a new or existing tenant
         let (tenant, is_new_tenant) = if let Some(tenant_name) = &req.tenant_name {
-            // Generate slug from tenant name (simple implementation)
-            let slug = tenant_name.to_lowercase().replace(' ', "-");
+            // Generate URL-safe slug from tenant name
+            // Handles special characters, multiple spaces, and Unicode
+            let slug = generate_slug(tenant_name);
 
             // Check if tenant with this slug already exists
             if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
@@ -133,12 +134,12 @@ where
                 (existing_tenant, false)
             } else {
                 // Create new tenant - user will become 'owner'
-                let tenant_id = Uuid::new_v4();
+                let tenant_id = Uuid::now_v7();
                 let now = Utc::now();
                 let tenant = Tenant {
                     tenant_id,
                     name: tenant_name.clone(),
-                    slug,
+                    slug: slug.clone(),
                     plan: "free".to_string(), // Default plan
                     plan_expires_at: None,
                     settings: sqlx::types::Json(serde_json::json!({})), // Empty settings
@@ -148,8 +149,25 @@ where
                     updated_at: now,
                     deleted_at: None,
                 };
-                let created_tenant = self.tenant_repo.create(&tenant).await?;
-                (created_tenant, true)
+
+                // Handle potential race condition: another request may have created
+                // the same tenant between our check and create. On error, re-check
+                // if the tenant now exists and treat as existing if so.
+                match self.tenant_repo.create(&tenant).await {
+                    Ok(created_tenant) => (created_tenant, true),
+                    Err(_) => {
+                        // Re-check if tenant was created by a concurrent request
+                        if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
+                            // Tenant was created by another request - join as user
+                            (existing_tenant, false)
+                        } else {
+                            // Still doesn't exist - propagate the original error
+                            return Err(AppError::InternalError(
+                                "Failed to create tenant".to_string(),
+                            ));
+                        }
+                    },
+                }
             }
         } else {
             // Tenant name is required for registration
@@ -544,4 +562,21 @@ where
 
         Ok(deleted)
     }
+}
+
+/// Generate a URL-safe slug from a name
+/// - Converts to lowercase
+/// - Replaces non-alphanumeric chars with hyphens
+/// - Removes consecutive hyphens
+/// - Trims leading/trailing hyphens
+fn generate_slug(name: &str) -> String {
+    name.trim()
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-")
 }

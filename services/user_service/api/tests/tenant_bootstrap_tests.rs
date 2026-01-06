@@ -348,10 +348,10 @@ async fn test_multiple_users_joining_tenant_get_user_role() {
     db.cleanup().await;
 }
 
-/// Test: Registration response includes correct JWT with role
+/// Test: Registration response includes JWT tokens
 #[tokio::test]
 #[ignore]
-async fn test_registration_jwt_contains_correct_role() {
+async fn test_registration_response_includes_jwt_tokens() {
     let db = TestDatabaseConfig::new().await;
     let app = create_test_app(db.pool().clone()).await;
 

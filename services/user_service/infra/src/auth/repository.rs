@@ -459,18 +459,21 @@ impl TenantRepository for PgTenantRepository {
     }
 
     async fn set_owner(&self, tenant_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
-        // Verify user belongs to the tenant before setting as owner
+        // Wrap in transaction to avoid race conditions between existence check and update
+        let mut tx = self.pool.begin().await?;
+
+        // Verify user belongs to the tenant and is active before setting as owner
         let user_exists: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL)"
+            "SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL)"
         )
         .bind(user_id)
         .bind(tenant_id)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
 
         if !user_exists.0 {
             return Err(AppError::ValidationError(format!(
-                "User {} does not belong to tenant {}",
+                "User {} does not belong to tenant {} or is not active",
                 user_id, tenant_id
             )));
         }
@@ -484,7 +487,7 @@ impl TenantRepository for PgTenantRepository {
         )
         .bind(user_id)
         .bind(tenant_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?
         .rows_affected();
 
@@ -492,6 +495,7 @@ impl TenantRepository for PgTenantRepository {
             return Err(AppError::NotFound(format!("Tenant {} not found", tenant_id)));
         }
 
+        tx.commit().await?;
         Ok(())
     }
 }

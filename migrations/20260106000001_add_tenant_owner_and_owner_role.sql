@@ -34,40 +34,10 @@ ALTER TABLE users ADD CONSTRAINT users_role_check
 COMMENT ON COLUMN users.role IS 'User role for RBAC. System roles (owner, super_admin, admin) are protected.';
 
 -- =============================================================================
--- STEP 3: Create helper function for setting tenant owner (optional)
--- =============================================================================
-
--- Function to set tenant owner (with validation)
-CREATE OR REPLACE FUNCTION set_tenant_owner(
-    p_tenant_id UUID,
-    p_user_id UUID
-) RETURNS VOID AS $$
-BEGIN
-    -- Verify user belongs to the tenant
-    IF NOT EXISTS (
-        SELECT 1 FROM users
-        WHERE user_id = p_user_id
-        AND tenant_id = p_tenant_id
-        AND deleted_at IS NULL
-    ) THEN
-        RAISE EXCEPTION 'User % does not belong to tenant %', p_user_id, p_tenant_id;
-    END IF;
-
-    -- Update tenant owner
-    UPDATE tenants
-    SET owner_user_id = p_user_id, updated_at = NOW()
-    WHERE tenant_id = p_tenant_id AND deleted_at IS NULL;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Tenant % not found', p_tenant_id;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-COMMENT ON FUNCTION set_tenant_owner IS 'Set the owner of a tenant with validation that user belongs to tenant';
-
--- =============================================================================
--- NOTE: For existing tenants without an owner, you may want to run:
+-- NOTE: The set_tenant_owner logic is implemented in Rust (PgTenantRepository::set_owner)
+-- which is the single source of truth. No SQL function is needed.
+--
+-- For existing tenants without an owner, you may want to run:
 --
 -- UPDATE tenants t
 -- SET owner_user_id = (

@@ -123,15 +123,17 @@ pub async fn register<S: AuthService>(
     let role = &resp.user.role;
 
     // Add grouping: (user_id, role, tenant_id)
-    // This ensures Casbin policies for the role apply to this user
+    // This ensures Casbin policies for the role apply to this user.
+    // Log error but don't fail registration - Casbin grouping can be fixed later via admin APIs.
     if let Err(e) = add_role_for_user(&state.enforcer, &user_id_str, role, &tenant_id_str).await {
-        // Log error but don't fail registration - Casbin grouping can be fixed later
+        // User is created but Casbin grouping failed.
+        // Log loudly so partial-provisioning can be detected and remediated.
         tracing::error!(
             user_id = %user_id_str,
             tenant_id = %tenant_id_str,
             role = %role,
             error = %e,
-            "Failed to add Casbin grouping for registered user"
+            "Failed to add Casbin grouping for registered user; user is partially provisioned"
         );
     }
 
