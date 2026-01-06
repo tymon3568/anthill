@@ -6,7 +6,7 @@ use axum::{
 use chrono::Utc;
 use serde::Deserialize;
 use shared_auth::casbin::{CoreApi, MgmtApi};
-use shared_auth::enforcer::SharedEnforcer;
+use shared_auth::enforcer::{add_role_for_user, SharedEnforcer};
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
 use shared_error::AppError;
 use std::sync::Arc;
@@ -63,6 +63,29 @@ pub async fn health_check() -> Json<HealthResp> {
 }
 
 /// Register a new user
+///
+/// ## Tenant Bootstrap Behavior
+///
+/// The registration endpoint implements automatic role assignment based on tenant state:
+///
+/// - **New Tenant**: If the `tenant_name` corresponds to a tenant that doesn't exist,
+///   a new tenant is created and the registering user becomes the **owner** with full
+///   tenant management privileges.
+///
+/// - **Existing Tenant**: If the `tenant_name` matches an existing tenant (by slug),
+///   the user joins that tenant with the default **user** role.
+///
+/// ## Role Assignment (Option D - Single Role Per User)
+///
+/// | Scenario | Assigned Role | Description |
+/// |----------|---------------|-------------|
+/// | New Tenant | `owner` | Full tenant control, can manage billing, settings, users |
+/// | Existing Tenant | `user` | Standard access, can view resources per Casbin policies |
+///
+/// ## Casbin Integration
+///
+/// Upon successful registration, a Casbin grouping policy is automatically created:
+/// `(user_id, role, tenant_id)` - This ensures the user's role policies are enforced.
 #[utoipa::path(
     post,
     path = "/api/v1/auth/register",
@@ -70,9 +93,9 @@ pub async fn health_check() -> Json<HealthResp> {
     operation_id = "user_register",
     request_body = RegisterReq,
     responses(
-        (status = 201, description = "User registered successfully", body = AuthResp),
-        (status = 400, description = "Invalid request", body = ErrorResp),
-        (status = 409, description = "User already exists", body = ErrorResp),
+        (status = 201, description = "User registered successfully. Role is 'owner' for new tenant, 'user' for existing tenant.", body = AuthResp),
+        (status = 400, description = "Invalid request (validation error)", body = ErrorResp),
+        (status = 409, description = "User already exists in the tenant", body = ErrorResp),
     )
 )]
 pub async fn register<S: AuthService>(
@@ -90,6 +113,30 @@ pub async fn register<S: AuthService>(
         .auth_service
         .register(payload, client_info.ip_address, client_info.user_agent)
         .await?;
+
+    // Add Casbin grouping policy for the new user
+    // The user's role (owner/user) is determined by the service based on:
+    // - 'owner' if user created a new tenant
+    // - 'user' if user joined an existing tenant
+    let user_id_str = resp.user.id.to_string();
+    let tenant_id_str = resp.user.tenant_id.to_string();
+    let role = &resp.user.role;
+
+    // Add grouping: (user_id, role, tenant_id)
+    // This ensures Casbin policies for the role apply to this user.
+    // Log error but don't fail registration - Casbin grouping can be fixed later via admin APIs.
+    if let Err(e) = add_role_for_user(&state.enforcer, &user_id_str, role, &tenant_id_str).await {
+        // User is created but Casbin grouping failed.
+        // Log loudly so partial-provisioning can be detected and remediated.
+        tracing::error!(
+            user_id = %user_id_str,
+            tenant_id = %tenant_id_str,
+            role = %role,
+            error = %e,
+            "Failed to add Casbin grouping for registered user; user is partially provisioned"
+        );
+    }
+
     Ok((StatusCode::CREATED, Json(resp)))
 }
 

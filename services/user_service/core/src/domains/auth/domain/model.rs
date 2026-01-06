@@ -43,6 +43,7 @@ pub struct Tenant {
     pub plan_expires_at: Option<DateTime<Utc>>,
     pub settings: sqlx::types::Json<serde_json::Value>, // JSONB
     pub status: String,                                 // Changed from is_active
+    pub owner_user_id: Option<Uuid>,                    // Owner of the tenant (set on registration)
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>, // Soft delete

@@ -355,9 +355,9 @@ impl TenantRepository for PgTenantRepository {
             r#"
             INSERT INTO tenants (
                 tenant_id, name, slug, plan, plan_expires_at,
-                status, settings, created_at, updated_at, deleted_at
+                status, settings, owner_user_id, created_at, updated_at, deleted_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING *
             "#,
         )
@@ -368,6 +368,7 @@ impl TenantRepository for PgTenantRepository {
         .bind(tenant.plan_expires_at)
         .bind(&tenant.status)
         .bind(&tenant.settings)
+        .bind(tenant.owner_user_id)
         .bind(tenant.created_at)
         .bind(tenant.updated_at)
         .bind(tenant.deleted_at)
@@ -414,6 +415,7 @@ impl TenantRepository for PgTenantRepository {
                 Option<DateTime<Utc>>,
                 sqlx::types::Json<serde_json::Value>,
                 String,
+                Option<Uuid>,
                 DateTime<Utc>,
                 DateTime<Utc>,
                 Option<DateTime<Utc>>,
@@ -422,7 +424,7 @@ impl TenantRepository for PgTenantRepository {
         >(
             r#"
             SELECT t.tenant_id, t.name, t.slug, t.plan, t.plan_expires_at,
-                   t.settings, t.status, t.created_at, t.updated_at, t.deleted_at,
+                   t.settings, t.status, t.owner_user_id, t.created_at, t.updated_at, t.deleted_at,
                    ktg.role
             FROM tenants t
             INNER JOIN kanidm_tenant_groups ktg ON t.tenant_id = ktg.tenant_id
@@ -445,13 +447,55 @@ impl TenantRepository for PgTenantRepository {
                 plan_expires_at: row.4,
                 settings: row.5,
                 status: row.6,
-                created_at: row.7,
-                updated_at: row.8,
-                deleted_at: row.9,
+                owner_user_id: row.7,
+                created_at: row.8,
+                updated_at: row.9,
+                deleted_at: row.10,
             };
-            Ok(Some((tenant, row.10)))
+            Ok(Some((tenant, row.11)))
         } else {
             Ok(None)
         }
+    }
+
+    async fn set_owner(&self, tenant_id: Uuid, user_id: Uuid) -> Result<(), AppError> {
+        // Wrap in transaction to avoid race conditions between existence check and update
+        let mut tx = self.pool.begin().await?;
+
+        // Verify user belongs to the tenant and is active before setting as owner
+        let user_exists: (bool,) = sqlx::query_as(
+            "SELECT EXISTS(SELECT 1 FROM users WHERE user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL)"
+        )
+        .bind(user_id)
+        .bind(tenant_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        if !user_exists.0 {
+            return Err(AppError::ValidationError(format!(
+                "User {} does not belong to tenant {} or is not active",
+                user_id, tenant_id
+            )));
+        }
+
+        let rows_affected = sqlx::query(
+            r#"
+            UPDATE tenants
+            SET owner_user_id = $1, updated_at = NOW()
+            WHERE tenant_id = $2 AND deleted_at IS NULL
+            "#,
+        )
+        .bind(user_id)
+        .bind(tenant_id)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+
+        if rows_affected == 0 {
+            return Err(AppError::NotFound(format!("Tenant {} not found", tenant_id)));
+        }
+
+        tx.commit().await?;
+        Ok(())
     }
 }

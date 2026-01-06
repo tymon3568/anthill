@@ -122,35 +122,61 @@ where
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> Result<AuthResp, AppError> {
-        // Determine tenant
-        let tenant = if let Some(tenant_name) = &req.tenant_name {
-            // Generate slug from tenant name (simple implementation)
-            let slug = tenant_name.to_lowercase().replace(" ", "-");
+        // Determine tenant and whether it's a new or existing tenant
+        let (tenant, is_new_tenant) = if let Some(tenant_name) = &req.tenant_name {
+            // Generate URL-safe slug from tenant name
+            // Handles special characters, multiple spaces, and Unicode
+            let slug = generate_slug(tenant_name).ok_or_else(|| {
+                AppError::ValidationError(
+                    "Tenant name must contain at least one alphanumeric character".to_string(),
+                )
+            })?;
 
             // Check if tenant with this slug already exists
             if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
-                // Tenant exists - use the existing tenant for registration
-                existing_tenant
+                // Tenant exists - user will join with default 'user' role
+                (existing_tenant, false)
             } else {
-                // Create new tenant
-                let tenant_id = Uuid::new_v4();
+                // Create new tenant - user will become 'owner'
+                let tenant_id = Uuid::now_v7();
                 let now = Utc::now();
                 let tenant = Tenant {
                     tenant_id,
                     name: tenant_name.clone(),
-                    slug,
+                    slug: slug.clone(),
                     plan: "free".to_string(), // Default plan
                     plan_expires_at: None,
                     settings: sqlx::types::Json(serde_json::json!({})), // Empty settings
                     status: "active".to_string(),
+                    owner_user_id: None, // Will be set after user creation
                     created_at: now,
                     updated_at: now,
                     deleted_at: None,
                 };
-                self.tenant_repo.create(&tenant).await?
+
+                // Handle potential race condition: another request may have created
+                // the same tenant between our check and create. On error, re-check
+                // if the tenant now exists and treat as existing if so.
+                match self.tenant_repo.create(&tenant).await {
+                    Ok(created_tenant) => (created_tenant, true),
+                    Err(e) => {
+                        // Log the original error for debugging
+                        tracing::warn!(error = ?e, slug = %slug, "Tenant creation failed, checking for race condition");
+                        // Re-check if tenant was created by a concurrent request
+                        if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
+                            // Tenant was created by another request - join as user
+                            (existing_tenant, false)
+                        } else {
+                            // Still doesn't exist - propagate the original error
+                            return Err(AppError::InternalError(
+                                "Failed to create tenant".to_string(),
+                            ));
+                        }
+                    },
+                }
             }
         } else {
-            // TODO: Handle multi-tenant scenarios
+            // Tenant name is required for registration
             return Err(AppError::ValidationError(
                 "Tenant name required for registration".to_string(),
             ));
@@ -178,8 +204,13 @@ where
         let password_hash = bcrypt::hash(&req.password, bcrypt::DEFAULT_COST)
             .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;
 
+        // Determine user role based on tenant creation:
+        // - New tenant: user becomes 'owner' (tenant creator)
+        // - Existing tenant: user gets default 'user' role
+        let user_role = if is_new_tenant { "owner" } else { "user" };
+
         // Create user
-        let user_id = Uuid::new_v4();
+        let user_id = Uuid::now_v7();
         let now = Utc::now();
         let user = User {
             user_id,
@@ -191,7 +222,7 @@ where
             full_name: Some(req.full_name.clone()),
             avatar_url: None,
             phone: None,
-            role: "user".to_string(), // Default role
+            role: user_role.to_string(), // 'owner' for new tenant, 'user' for existing
             status: "active".to_string(),
             last_login_at: None,
             failed_login_attempts: 0,
@@ -199,15 +230,22 @@ where
             password_changed_at: Some(now), // Password just set
             kanidm_user_id: None,           // Not from Kanidm
             kanidm_synced_at: None,
-            auth_method: "password".to_string(), // NEW: Password-only auth
-            migration_invited_at: None,          // NEW: Not invited yet
-            migration_completed_at: None,        // NEW: Not migrated
+            auth_method: "password".to_string(), // Password-only auth
+            migration_invited_at: None,          // Not invited yet
+            migration_completed_at: None,        // Not migrated
             created_at: now,
             updated_at: now,
             deleted_at: None,
         };
 
         let created_user = self.user_repo.create(&user).await?;
+
+        // If this is a new tenant, set the registering user as the tenant owner
+        if is_new_tenant {
+            self.tenant_repo
+                .set_owner(tenant.tenant_id, created_user.user_id)
+                .await?;
+        }
 
         // Generate tokens
         let access_claims = Claims::new_access(
@@ -529,5 +567,30 @@ where
         tracing::info!("Cleanup finished, {} sessions removed", deleted);
 
         Ok(deleted)
+    }
+}
+
+/// Generate a URL-safe slug from a name
+/// - Converts to lowercase
+/// - Replaces non-alphanumeric chars with hyphens
+/// - Removes consecutive hyphens
+/// - Trims leading/trailing hyphens
+/// - Returns None if result would be empty
+fn generate_slug(name: &str) -> Option<String> {
+    let slug = name
+        .trim()
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        .split('-')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+
+    if slug.is_empty() {
+        None
+    } else {
+        Some(slug)
     }
 }

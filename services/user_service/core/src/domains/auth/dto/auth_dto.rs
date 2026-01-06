@@ -32,24 +32,32 @@ pub struct HealthResp {
 }
 
 /// User registration request
+///
+/// ## Tenant Bootstrap Behavior
+///
+/// When registering, the system automatically assigns roles based on tenant state:
+/// - **New tenant** (name doesn't exist): User becomes `owner` with full privileges
+/// - **Existing tenant** (name matches by slug): User joins with default `user` role
 #[derive(Serialize, Deserialize, ToSchema, Validate)]
 pub struct RegisterReq {
-    /// Email address
+    /// Email address (must be unique within the tenant)
     #[validate(email)]
     #[schema(example = "user@example.com")]
     pub email: String,
 
-    /// Password (min 8 characters)
+    /// Password (min 8 characters). Recommended: include uppercase, lowercase, and number for stronger security.
     #[validate(length(min = 8))]
     #[schema(example = "SecurePass123!", min_length = 8)]
     pub password: String,
 
-    /// Full name
+    /// Full name of the user
     #[validate(length(min = 1))]
     #[schema(example = "John Doe")]
     pub full_name: String,
 
-    /// Tenant name (for new tenant creation)
+    /// Tenant name - creates new tenant if doesn't exist, joins if exists.
+    /// The tenant slug is derived from this name (e.g., "Acme Corp" → "acme-corp").
+    /// If creating a new tenant, the registering user becomes the tenant owner.
     #[schema(example = "Acme Corp")]
     pub tenant_name: Option<String>,
 }
@@ -89,10 +97,15 @@ pub struct AuthResp {
     pub user: UserInfo,
 }
 
-/// User information
+/// User information returned in auth responses
+///
+/// The `role` field indicates the user's effective role:
+/// - `owner`: Tenant creator with full management privileges
+/// - `admin`: Administrative access within the tenant
+/// - `user`: Standard user with limited access
 #[derive(Serialize, Deserialize, ToSchema, Clone)]
 pub struct UserInfo {
-    /// User ID
+    /// User ID (UUID v7)
     pub id: Uuid,
 
     /// Email address
@@ -103,11 +116,13 @@ pub struct UserInfo {
     #[schema(example = "John Doe")]
     pub full_name: Option<String>,
 
-    /// Tenant ID
+    /// Tenant ID this user belongs to
     pub tenant_id: Uuid,
 
-    /// User role
-    #[schema(example = "admin")]
+    /// User role (owner/admin/user). Assigned automatically during registration:
+    /// - 'owner' if user created a new tenant
+    /// - 'user' if user joined an existing tenant
+    #[schema(example = "owner")]
     pub role: String,
 
     /// Account creation timestamp

@@ -73,6 +73,10 @@ pub trait TenantRepository: Send + Sync {
         &self,
         group_name: &str,
     ) -> Result<Option<(Tenant, String)>, AppError>;
+
+    /// Set the owner of a tenant
+    /// Called during registration when a new tenant is created
+    async fn set_owner(&self, tenant_id: Uuid, user_id: Uuid) -> Result<(), AppError>;
 }
 
 /// Session repository trait
