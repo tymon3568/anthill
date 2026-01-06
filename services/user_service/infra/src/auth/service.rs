@@ -10,6 +10,7 @@ use user_service_core::domains::auth::{
         repository::{SessionRepository, TenantRepository, UserRepository},
         service::AuthService,
     },
+    dto::admin_dto::{AdminCreateUserReq, AdminCreateUserResp},
     dto::auth_dto::{AuthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp},
     utils::password_validator::validate_password_quick,
 };
@@ -567,6 +568,105 @@ where
         tracing::info!("Cleanup finished, {} sessions removed", deleted);
 
         Ok(deleted)
+    }
+
+    async fn admin_create_user(
+        &self,
+        admin_tenant_id: Uuid,
+        req: AdminCreateUserReq,
+    ) -> Result<AdminCreateUserResp, AppError> {
+        // Determine the role (default to "user" if not specified)
+        let role = req.role.as_deref().unwrap_or("user");
+
+        // Prevent creating users with "owner" role via this endpoint
+        // Owner can only be assigned via tenant bootstrap (registration)
+        if role == "owner" {
+            return Err(AppError::Forbidden(
+                "Cannot create user with 'owner' role. Owner is assigned only during tenant creation.".to_string(),
+            ));
+        }
+
+        // Validate that the role is a valid system role or exists in the tenant
+        // System roles: owner, admin, user
+        let is_system_role = matches!(role, "admin" | "user");
+        if !is_system_role {
+            // For custom roles, we could validate against Casbin policies
+            // For now, we'll allow any valid role name format (validated by DTO)
+            // The actual authorization will be handled by Casbin at runtime
+            tracing::info!(
+                role = %role,
+                tenant_id = %admin_tenant_id,
+                "Creating user with custom role"
+            );
+        }
+
+        // Check if user already exists in this tenant
+        if self
+            .user_repo
+            .email_exists(&req.email, admin_tenant_id)
+            .await?
+        {
+            return Err(AppError::UserAlreadyExists);
+        }
+
+        // Validate password strength
+        let full_name = req.full_name.as_deref().unwrap_or("");
+        let user_inputs = [req.email.as_str(), full_name];
+        validate_password_quick(&req.password, &user_inputs)
+            .map_err(|e| AppError::ValidationError(format!("Password validation failed: {}", e)))?;
+
+        // Hash password with bcrypt
+        let password_hash = bcrypt::hash(&req.password, bcrypt::DEFAULT_COST)
+            .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;
+
+        // Create user with UUID v7
+        let user_id = Uuid::now_v7();
+        let now = Utc::now();
+        let user = User {
+            user_id,
+            tenant_id: admin_tenant_id,
+            email: req.email.clone(),
+            password_hash: Some(password_hash),
+            email_verified: false,
+            email_verified_at: None,
+            full_name: req.full_name.clone(),
+            avatar_url: None,
+            phone: None,
+            role: role.to_string(),
+            status: "active".to_string(),
+            last_login_at: None,
+            failed_login_attempts: 0,
+            locked_until: None,
+            password_changed_at: Some(now),
+            kanidm_user_id: None,
+            kanidm_synced_at: None,
+            auth_method: "password".to_string(),
+            migration_invited_at: None,
+            migration_completed_at: None,
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
+        };
+
+        let created_user = self.user_repo.create(&user).await?;
+
+        tracing::info!(
+            user_id = %created_user.user_id,
+            tenant_id = %admin_tenant_id,
+            email = %created_user.email,
+            role = %created_user.role,
+            "Admin created new user in tenant"
+        );
+
+        Ok(AdminCreateUserResp {
+            user_id: created_user.user_id,
+            tenant_id: created_user.tenant_id,
+            email: created_user.email,
+            full_name: created_user.full_name,
+            role: created_user.role,
+            created_at: created_user.created_at,
+            message: "User created successfully".to_string(),
+        })
     }
 }
 

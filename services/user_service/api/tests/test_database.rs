@@ -407,6 +407,35 @@ impl TestDatabaseConfig {
         // Note: UUID v7 doesn't use sequences, but this is here for future use
         // if we add any serial/sequence-based IDs
     }
+
+    /// Add a Casbin grouping policy (g, user_id, role, tenant_id)
+    /// This assigns a role to a user for authorization
+    #[allow(dead_code)]
+    pub async fn add_casbin_grouping(&self, user_id: Uuid, role: &str, tenant_id: Uuid) {
+        sqlx::query(
+            "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES ('g', $1, $2, $3) ON CONFLICT DO NOTHING",
+        )
+        .bind(user_id.to_string())
+        .bind(role)
+        .bind(tenant_id.to_string())
+        .execute(&self.pool)
+        .await
+        .expect("Failed to add Casbin grouping");
+    }
+
+    /// Remove a Casbin grouping policy
+    #[allow(dead_code)]
+    pub async fn remove_casbin_grouping(&self, user_id: Uuid, role: &str, tenant_id: Uuid) {
+        sqlx::query(
+            "DELETE FROM casbin_rule WHERE ptype = 'g' AND v0 = $1 AND v1 = $2 AND v2 = $3",
+        )
+        .bind(user_id.to_string())
+        .bind(role)
+        .bind(tenant_id.to_string())
+        .execute(&self.pool)
+        .await
+        .expect("Failed to remove Casbin grouping");
+    }
 }
 
 impl Drop for TestDatabaseConfig {

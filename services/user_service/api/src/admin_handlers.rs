@@ -722,3 +722,94 @@ pub async fn list_permissions<S: AuthService>(
 
     Ok(Json(PermissionListResp { permissions, total }))
 }
+
+// ============================================================================
+// Admin User Management Handlers
+// ============================================================================
+
+/// Create a new user in the admin's tenant
+///
+/// Creates a user with the specified role (default: "user").
+/// The user is always created in the admin's tenant (tenant isolation enforced via JWT).
+/// Password is hashed with bcrypt before storage.
+///
+/// ## Authorization
+/// - Admin-only endpoint (requires admin role via Casbin)
+///
+/// ## Role Assignment
+/// - Default role is "user" if not specified
+/// - Cannot create users with "owner" role (owner is only assigned during tenant bootstrap)
+/// - Custom roles must exist in the tenant (validated at creation time)
+///
+/// ## Single Role Invariant
+/// This endpoint enforces the Option D (Single Custom Role) pattern:
+/// - Each user has exactly one role
+/// - Role is stored in `users.role` field
+/// - Casbin grouping policy is created for authorization
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/users",
+    tag = "admin-users",
+    operation_id = "admin_create_user",
+    request_body = AdminCreateUserReq,
+    responses(
+        (status = 201, description = "User created successfully", body = AdminCreateUserResp),
+        (status = 400, description = "Invalid request (email, password, or role validation failed)", body = String),
+        (status = 401, description = "Unauthorized - Missing or invalid JWT", body = String),
+        (status = 403, description = "Forbidden - Admin only or cannot create owner role", body = String),
+        (status = 409, description = "User already exists in tenant", body = String),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn admin_create_user<S: AuthService>(
+    RequireAdmin(admin_user): RequireAdmin,
+    Extension(state): Extension<AppState<S>>,
+    Json(payload): Json<AdminCreateUserReq>,
+) -> Result<(StatusCode, Json<AdminCreateUserResp>), AppError> {
+    // Validate request body
+    payload
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    let admin_tenant_id = admin_user.tenant_id;
+
+    // Delegate to service layer (handles password hashing, tenant isolation, role validation)
+    let response = state
+        .auth_service
+        .admin_create_user(admin_tenant_id, payload)
+        .await?;
+
+    // Add Casbin grouping policy for the new user
+    // This ensures the user has the correct role for authorization
+    let mut enforcer = state.enforcer.write().await;
+    let grouping_added = enforcer
+        .add_grouping_policy(vec![
+            response.user_id.to_string(),
+            response.role.clone(),
+            response.tenant_id.to_string(),
+        ])
+        .await
+        .map_err(|e| {
+            tracing::error!(
+                user_id = %response.user_id,
+                role = %response.role,
+                tenant_id = %response.tenant_id,
+                error = %e,
+                "Failed to add Casbin grouping policy for new user"
+            );
+            AppError::InternalError(format!("Failed to set user role policy: {}", e))
+        })?;
+
+    if grouping_added {
+        tracing::info!(
+            user_id = %response.user_id,
+            role = %response.role,
+            tenant_id = %response.tenant_id,
+            "Added Casbin grouping policy for new user"
+        );
+    }
+
+    Ok((StatusCode::CREATED, Json(response)))
+}

@@ -184,6 +184,10 @@ async fn main() {
 
     // Admin role and permission management routes
     let admin_routes = Router::new()
+        // Admin user management
+        .route("/api/v1/admin/users",
+            post(admin_handlers::admin_create_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
         // Role management
         .route("/api/v1/admin/roles",
             post(admin_handlers::create_role::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)

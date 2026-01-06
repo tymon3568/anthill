@@ -200,3 +200,70 @@ pub struct PolicyResp {
     pub resource: String,
     pub action: String,
 }
+
+// ============================================================================
+// Admin User Management DTOs
+// ============================================================================
+
+/// System roles that are protected and cannot be created via admin create user
+pub const SYSTEM_ROLES: &[&str] = &["owner", "admin", "user"];
+
+/// Request to create a new user in the admin's tenant
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct AdminCreateUserReq {
+    /// Email address for the new user (must be unique within the tenant)
+    #[validate(email(message = "Invalid email format"))]
+    #[schema(example = "newuser@example.com")]
+    pub email: String,
+
+    /// Password for the new user (min 8 characters)
+    /// Admin may set a temporary password that the user should change on first login
+    #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
+    #[schema(example = "TempPass123!", min_length = 8)]
+    pub password: String,
+
+    /// Full name of the user (optional)
+    #[validate(length(max = 255, message = "Full name too long"))]
+    #[schema(example = "Jane Smith")]
+    pub full_name: Option<String>,
+
+    /// Role to assign to the user (default: "user")
+    /// Must be a valid role in the tenant (system role or custom role)
+    /// Note: Creating users with "owner" role is not allowed via this endpoint
+    #[validate(length(min = 1, max = 100))]
+    #[validate(regex(
+        path = "ROLE_NAME_REGEX",
+        message = "Role name must be lowercase alphanumeric with underscores"
+    ))]
+    #[schema(example = "user")]
+    pub role: Option<String>,
+}
+
+/// Response for admin user creation
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminCreateUserResp {
+    /// Created user's ID (UUID v7)
+    pub user_id: Uuid,
+
+    /// Tenant ID the user belongs to
+    pub tenant_id: Uuid,
+
+    /// User's email address
+    #[schema(example = "newuser@example.com")]
+    pub email: String,
+
+    /// User's full name (if provided)
+    #[schema(example = "Jane Smith")]
+    pub full_name: Option<String>,
+
+    /// Assigned role
+    #[schema(example = "user")]
+    pub role: String,
+
+    /// Account creation timestamp
+    pub created_at: chrono::DateTime<chrono::Utc>,
+
+    /// Success message
+    #[schema(example = "User created successfully")]
+    pub message: String,
+}

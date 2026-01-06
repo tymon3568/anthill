@@ -29,6 +29,8 @@ use utoipa::OpenApi;
         crate::admin_handlers::remove_role_from_user,
         crate::admin_handlers::get_user_roles,
         crate::admin_handlers::list_permissions,
+        // Admin user management
+        crate::admin_handlers::admin_create_user,
     ),
     components(
         schemas(
@@ -70,6 +72,9 @@ use utoipa::OpenApi;
             AddPolicyReq,
             RemovePolicyReq,
             PolicyResp,
+            // Admin user management DTOs
+            AdminCreateUserReq,
+            AdminCreateUserResp,
         )
     ),
     tags(
