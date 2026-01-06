@@ -63,6 +63,29 @@ pub async fn health_check() -> Json<HealthResp> {
 }
 
 /// Register a new user
+///
+/// ## Tenant Bootstrap Behavior
+///
+/// The registration endpoint implements automatic role assignment based on tenant state:
+///
+/// - **New Tenant**: If the `tenant_name` corresponds to a tenant that doesn't exist,
+///   a new tenant is created and the registering user becomes the **owner** with full
+///   tenant management privileges.
+///
+/// - **Existing Tenant**: If the `tenant_name` matches an existing tenant (by slug),
+///   the user joins that tenant with the default **user** role.
+///
+/// ## Role Assignment (Option D - Single Role Per User)
+///
+/// | Scenario | Assigned Role | Description |
+/// |----------|---------------|-------------|
+/// | New Tenant | `owner` | Full tenant control, can manage billing, settings, users |
+/// | Existing Tenant | `user` | Standard access, can view resources per Casbin policies |
+///
+/// ## Casbin Integration
+///
+/// Upon successful registration, a Casbin grouping policy is automatically created:
+/// `(user_id, role, tenant_id)` - This ensures the user's role policies are enforced.
 #[utoipa::path(
     post,
     path = "/api/v1/auth/register",
@@ -70,9 +93,9 @@ pub async fn health_check() -> Json<HealthResp> {
     operation_id = "user_register",
     request_body = RegisterReq,
     responses(
-        (status = 201, description = "User registered successfully", body = AuthResp),
-        (status = 400, description = "Invalid request", body = ErrorResp),
-        (status = 409, description = "User already exists", body = ErrorResp),
+        (status = 201, description = "User registered successfully. Role is 'owner' for new tenant, 'user' for existing tenant.", body = AuthResp),
+        (status = 400, description = "Invalid request (validation error)", body = ErrorResp),
+        (status = 409, description = "User already exists in the tenant", body = ErrorResp),
     )
 )]
 pub async fn register<S: AuthService>(
