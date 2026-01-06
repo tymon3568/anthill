@@ -122,17 +122,17 @@ where
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> Result<AuthResp, AppError> {
-        // Determine tenant
-        let tenant = if let Some(tenant_name) = &req.tenant_name {
+        // Determine tenant and whether it's a new or existing tenant
+        let (tenant, is_new_tenant) = if let Some(tenant_name) = &req.tenant_name {
             // Generate slug from tenant name (simple implementation)
-            let slug = tenant_name.to_lowercase().replace(" ", "-");
+            let slug = tenant_name.to_lowercase().replace(' ', "-");
 
             // Check if tenant with this slug already exists
             if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
-                // Tenant exists - use the existing tenant for registration
-                existing_tenant
+                // Tenant exists - user will join with default 'user' role
+                (existing_tenant, false)
             } else {
-                // Create new tenant
+                // Create new tenant - user will become 'owner'
                 let tenant_id = Uuid::new_v4();
                 let now = Utc::now();
                 let tenant = Tenant {
@@ -143,14 +143,16 @@ where
                     plan_expires_at: None,
                     settings: sqlx::types::Json(serde_json::json!({})), // Empty settings
                     status: "active".to_string(),
+                    owner_user_id: None, // Will be set after user creation
                     created_at: now,
                     updated_at: now,
                     deleted_at: None,
                 };
-                self.tenant_repo.create(&tenant).await?
+                let created_tenant = self.tenant_repo.create(&tenant).await?;
+                (created_tenant, true)
             }
         } else {
-            // TODO: Handle multi-tenant scenarios
+            // Tenant name is required for registration
             return Err(AppError::ValidationError(
                 "Tenant name required for registration".to_string(),
             ));
@@ -178,6 +180,11 @@ where
         let password_hash = bcrypt::hash(&req.password, bcrypt::DEFAULT_COST)
             .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;
 
+        // Determine user role based on tenant creation:
+        // - New tenant: user becomes 'owner' (tenant creator)
+        // - Existing tenant: user gets default 'user' role
+        let user_role = if is_new_tenant { "owner" } else { "user" };
+
         // Create user
         let user_id = Uuid::new_v4();
         let now = Utc::now();
@@ -191,7 +198,7 @@ where
             full_name: Some(req.full_name.clone()),
             avatar_url: None,
             phone: None,
-            role: "user".to_string(), // Default role
+            role: user_role.to_string(), // 'owner' for new tenant, 'user' for existing
             status: "active".to_string(),
             last_login_at: None,
             failed_login_attempts: 0,
@@ -199,15 +206,22 @@ where
             password_changed_at: Some(now), // Password just set
             kanidm_user_id: None,           // Not from Kanidm
             kanidm_synced_at: None,
-            auth_method: "password".to_string(), // NEW: Password-only auth
-            migration_invited_at: None,          // NEW: Not invited yet
-            migration_completed_at: None,        // NEW: Not migrated
+            auth_method: "password".to_string(), // Password-only auth
+            migration_invited_at: None,          // Not invited yet
+            migration_completed_at: None,        // Not migrated
             created_at: now,
             updated_at: now,
             deleted_at: None,
         };
 
         let created_user = self.user_repo.create(&user).await?;
+
+        // If this is a new tenant, set the registering user as the tenant owner
+        if is_new_tenant {
+            self.tenant_repo
+                .set_owner(tenant.tenant_id, created_user.user_id)
+                .await?;
+        }
 
         // Generate tokens
         let access_claims = Claims::new_access(

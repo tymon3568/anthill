@@ -5,10 +5,10 @@
 **Phase:** 03_User_Service  
 **Module:** 3.3_User_Management  
 **Priority:** High  
-**Status:** Todo  
-**Assignee:**  
+**Status:** InProgress_By_Claude  
+**Assignee:** Claude  
 **Created Date:** 2026-01-02  
-**Last Updated:** 2026-01-02  
+**Last Updated:** 2026-01-06  
 
 ## Detailed Description
 Implement the agreed registration bootstrap rules for Anthill multi-tenant auth:
@@ -69,15 +69,18 @@ This task also introduces and enforces the invariant that **each user has exactl
 - Issue JWT and session as normal
 
 ## Specific Sub-tasks
-- [ ] 1. Add/confirm tenant ownership field
-  - [ ] 1.1 Confirm schema contains `tenants.owner_user_id` (or create a migration if missing)
-  - [ ] 1.2 Add repository method(s) to update owner (`set_owner`) in a tenant-scoped way
-- [ ] 2. Update `register()` flow in auth service
-  - [ ] 2.1 Detect “new tenant created” vs “existing tenant joined”
-  - [ ] 2.2 Set `users.role` to `owner` or `user` accordingly
-  - [ ] 2.3 Persist tenant owner for new tenant scenario
-- [ ] 3. Ensure Casbin consistency on bootstrap
-  - [ ] 3.1 Add grouping policy assignment for the bootstrapped role (owner/user)
+- [x] 1. Add/confirm tenant ownership field
+  - [x] 1.1 Confirm schema contains `tenants.owner_user_id` (or create a migration if missing)
+    - Created migration `20260106000001_add_tenant_owner_and_owner_role.sql`
+  - [x] 1.2 Add repository method(s) to update owner (`set_owner`) in a tenant-scoped way
+    - Added `set_owner()` to TenantRepository trait and PgTenantRepository impl
+- [x] 2. Update `register()` flow in auth service
+  - [x] 2.1 Detect "new tenant created" vs "existing tenant joined"
+  - [x] 2.2 Set `users.role` to `owner` or `user` accordingly
+  - [x] 2.3 Persist tenant owner for new tenant scenario
+- [x] 3. Ensure Casbin consistency on bootstrap
+  - [x] 3.1 Add grouping policy assignment for the bootstrapped role (owner/user)
+    - Added `add_role_for_user()` call in register handler
   - [ ] 3.2 Ensure default policies for `owner` exist (seed if missing; otherwise document dependency)
 - [ ] 4. Update docs and OpenAPI
   - [ ] 4.1 Document the bootstrap rule in user-service docs (and/or shared OpenAPI)
@@ -111,3 +114,22 @@ This task also introduces and enforces the invariant that **each user has exactl
 ## AI Agent Log
 ---
 * 2026-01-02: Task created to implement registration bootstrap rules (owner on new tenant; user on existing tenant) aligned with Option D (single role per user).
+* 2026-01-05 19:35: Task claimed by Claude. Starting implementation.
+  - Analyzed current `register()` in `services/user_service/infra/src/auth/service.rs`
+  - Found issues: always sets `role: "user"`, missing `owner_user_id` in tenants, no Casbin grouping
+  - Current schema missing `owner` role in constraint and `owner_user_id` column
+  - Plan: (1) Migration for schema changes, (2) Update register logic, (3) Add Casbin grouping
+* 2026-01-06 10:56: Implementation progress by Claude:
+  - Created migration `20260106000001_add_tenant_owner_and_owner_role.sql`:
+    - Added `owner_user_id UUID` column to tenants table
+    - Updated users role CHECK constraint to include 'owner'
+    - Added helper function `set_tenant_owner()` for validation
+  - Updated `Tenant` model in core to include `owner_user_id: Option<Uuid>`
+  - Added `set_owner()` method to TenantRepository trait and PgTenantRepository
+  - Updated `register()` in AuthServiceImpl:
+    - Now detects new tenant (is_new_tenant flag)
+    - Sets role to 'owner' for new tenant creator, 'user' for existing tenant joiner
+    - Calls `set_owner()` after user creation for new tenants
+  - Updated register handler to add Casbin grouping policy via `add_role_for_user()`
+  - `cargo check --package user_service_api` passed (SQLX_OFFLINE=true)
+  - Remaining: seed owner policies, update docs, add tests

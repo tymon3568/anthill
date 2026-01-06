@@ -6,7 +6,7 @@ use axum::{
 use chrono::Utc;
 use serde::Deserialize;
 use shared_auth::casbin::{CoreApi, MgmtApi};
-use shared_auth::enforcer::SharedEnforcer;
+use shared_auth::enforcer::{add_role_for_user, SharedEnforcer};
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
 use shared_error::AppError;
 use std::sync::Arc;
@@ -90,6 +90,28 @@ pub async fn register<S: AuthService>(
         .auth_service
         .register(payload, client_info.ip_address, client_info.user_agent)
         .await?;
+
+    // Add Casbin grouping policy for the new user
+    // The user's role (owner/user) is determined by the service based on:
+    // - 'owner' if user created a new tenant
+    // - 'user' if user joined an existing tenant
+    let user_id_str = resp.user.id.to_string();
+    let tenant_id_str = resp.user.tenant_id.to_string();
+    let role = &resp.user.role;
+
+    // Add grouping: (user_id, role, tenant_id)
+    // This ensures Casbin policies for the role apply to this user
+    if let Err(e) = add_role_for_user(&state.enforcer, &user_id_str, role, &tenant_id_str).await {
+        // Log error but don't fail registration - Casbin grouping can be fixed later
+        tracing::error!(
+            user_id = %user_id_str,
+            tenant_id = %tenant_id_str,
+            role = %role,
+            error = %e,
+            "Failed to add Casbin grouping for registered user"
+        );
+    }
+
     Ok((StatusCode::CREATED, Json(resp)))
 }
 
