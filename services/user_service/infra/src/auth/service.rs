@@ -126,7 +126,11 @@ where
         let (tenant, is_new_tenant) = if let Some(tenant_name) = &req.tenant_name {
             // Generate URL-safe slug from tenant name
             // Handles special characters, multiple spaces, and Unicode
-            let slug = generate_slug(tenant_name);
+            let slug = generate_slug(tenant_name).ok_or_else(|| {
+                AppError::ValidationError(
+                    "Tenant name must contain at least one alphanumeric character".to_string(),
+                )
+            })?;
 
             // Check if tenant with this slug already exists
             if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
@@ -155,7 +159,9 @@ where
                 // if the tenant now exists and treat as existing if so.
                 match self.tenant_repo.create(&tenant).await {
                     Ok(created_tenant) => (created_tenant, true),
-                    Err(_) => {
+                    Err(e) => {
+                        // Log the original error for debugging
+                        tracing::warn!(error = ?e, slug = %slug, "Tenant creation failed, checking for race condition");
                         // Re-check if tenant was created by a concurrent request
                         if let Some(existing_tenant) = self.tenant_repo.find_by_slug(&slug).await? {
                             // Tenant was created by another request - join as user
@@ -204,7 +210,7 @@ where
         let user_role = if is_new_tenant { "owner" } else { "user" };
 
         // Create user
-        let user_id = Uuid::new_v4();
+        let user_id = Uuid::now_v7();
         let now = Utc::now();
         let user = User {
             user_id,
@@ -569,8 +575,10 @@ where
 /// - Replaces non-alphanumeric chars with hyphens
 /// - Removes consecutive hyphens
 /// - Trims leading/trailing hyphens
-fn generate_slug(name: &str) -> String {
-    name.trim()
+/// - Returns None if result would be empty
+fn generate_slug(name: &str) -> Option<String> {
+    let slug = name
+        .trim()
         .to_lowercase()
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
@@ -578,5 +586,11 @@ fn generate_slug(name: &str) -> String {
         .split('-')
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
-        .join("-")
+        .join("-");
+
+    if slug.is_empty() {
+        None
+    } else {
+        Some(slug)
+    }
 }

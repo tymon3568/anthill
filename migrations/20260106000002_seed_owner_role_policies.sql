@@ -29,7 +29,16 @@ INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
 ('p', 'owner', 'default_tenant', '/api/v1/admin/*', 'PATCH'),
 ('p', 'owner', 'default_tenant', '/api/v1/admin/*', 'DELETE');
 
--- NOTE: Roles and policies management is covered by /api/v1/admin/* wildcard above
+-- Roles and policies management (explicit paths needed - keyMatch2 wildcard only matches single segments)
+INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
+('p', 'owner', 'default_tenant', '/api/v1/admin/roles', 'GET'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/roles', 'POST'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/roles/*', 'GET'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/roles/*', 'PUT'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/roles/*', 'DELETE'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/policies', 'GET'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/policies', 'POST'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/policies/*', 'DELETE');
 
 -- Tenant management (owner-only, NOT under /admin so explicitly defined)
 INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
@@ -45,7 +54,13 @@ INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
 ('p', 'owner', 'default_tenant', '/api/v1/tenant/export', 'GET'),
 ('p', 'owner', 'default_tenant', '/api/v1/tenant/delete', 'POST');
 
--- NOTE: Invitations management is covered by /api/v1/admin/* wildcard above
+-- Invitations management (explicit paths needed - keyMatch2 wildcard only matches single segments)
+INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
+('p', 'owner', 'default_tenant', '/api/v1/admin/users/invite', 'POST'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/invitations', 'GET'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/invitations/*', 'GET'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/invitations/*', 'DELETE'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/invitations/*/resend', 'POST');
 
 -- Products management (full access)
 INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
@@ -99,7 +114,10 @@ INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
 ('p', 'owner', 'default_tenant', '/api/v1/integrations/*', 'DELETE'),
 ('p', 'owner', 'default_tenant', '/api/v1/integrations/*/sync', 'POST');
 
--- NOTE: Audit logs is covered by /api/v1/admin/* wildcard above
+-- Audit logs (explicit paths needed - keyMatch2 wildcard only matches single segments)
+INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES
+('p', 'owner', 'default_tenant', '/api/v1/admin/audit-logs', 'GET'),
+('p', 'owner', 'default_tenant', '/api/v1/admin/audit-logs/*', 'GET');
 
 -- Analytics and reports (full access)
 INSERT INTO casbin_rule (ptype, v0, v1, v2, v3) VALUES

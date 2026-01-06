@@ -9,7 +9,7 @@
 **Assignee:** Claude
 **Created Date:** 2026-01-06
 **Last Updated:** 2026-01-06
-**Related PR:** https://github.com/tymon3568/anthill/pull/135
+**Related PR:** [PR #135](https://github.com/tymon3568/anthill/pull/135)
 
 ## Description
 Fix unresolved review comments from PR #135 (feat(auth): implement register bootstrap owner and default role assignment).
@@ -21,6 +21,17 @@ Fix unresolved review comments from PR #135 (feat(auth): implement register boot
   - **File:** `services/user_service/infra/src/auth/service.rs:136`
   - **Fix:** Replace `Uuid::new_v4()` with `Uuid::now_v7()`
   - **Status:** ✅ Fixed
+
+- [x] 1b. Use UUID v7 instead of v4 for user ID generation (CodeRabbit - post-fix review)
+  - **File:** `services/user_service/infra/src/auth/service.rs:207`
+  - **Fix:** Replace `Uuid::new_v4()` with `Uuid::now_v7()` for user_id
+  - **Status:** ✅ Fixed (2nd pass)
+
+- [x] 1c. Casbin keyMatch2 wildcard only matches single path segments (Cubic - post-fix review)
+  - **File:** `migrations/20260106000002_seed_owner_role_policies.sql:32`
+  - **Issue:** `/api/v1/admin/*` doesn't match nested paths like `/api/v1/admin/roles/123`
+  - **Fix:** Restore explicit policies for roles, policies, invitations, audit-logs
+  - **Status:** ✅ Fixed (2nd pass)
 
 ### Warning (Bug Risk)
 - [x] 2. Race condition in `set_owner` - wrap in transaction (Sourcery, Cubic)
@@ -69,6 +80,16 @@ Fix unresolved review comments from PR #135 (feat(auth): implement register boot
   - **Fix:** Change comment to indicate recommendation, not enforced rule
   - **Status:** ✅ Fixed
 
+- [x] 11. `generate_slug()` can return empty string (Cubic - post-fix review)
+  - **File:** `services/user_service/infra/src/auth/service.rs:572`
+  - **Fix:** Change return type to `Option<String>`, validate before use
+  - **Status:** ✅ Fixed (2nd pass)
+
+- [x] 12. Original error discarded in tenant creation race handler (Cubic - post-fix review)
+  - **File:** `services/user_service/infra/src/auth/service.rs:158`
+  - **Fix:** Log original error with `tracing::warn!` before checking for race
+  - **Status:** ✅ Fixed (2nd pass)
+
 ### Deferred (Not Fixing in This PR)
 - Hardcoded 'default_tenant' in seed migration - Intentional for MVP, policies are template
 - Missing partial unique index on owner_user_id - Not needed, single owner enforced by app logic
@@ -104,3 +125,13 @@ Fix unresolved review comments from PR #135 (feat(auth): implement register boot
   - Fix 10: Clarified password complexity as recommendation, not enforced
   - All quality gates passed: cargo check, cargo clippy, tests compile
   - Status set to NeedsReview
+* 2026-01-06 16:00: Second pass fixes by Claude (post-commit reviews from Cubic, CodeRabbit):
+  - Fix 1b: Changed user_id from `Uuid::new_v4()` to `Uuid::now_v7()` (line 207)
+  - Fix 1c: Restored explicit Casbin policies for nested paths (keyMatch2 limitation)
+    - `/api/v1/admin/roles/*`, `/api/v1/admin/policies/*` for role/policy management
+    - `/api/v1/admin/invitations/*`, `/api/v1/admin/invitations/*/resend` for invitations
+    - `/api/v1/admin/audit-logs/*` for audit log access
+  - Fix 11: Changed generate_slug() to return Option<String>, added validation
+  - Fix 12: Added tracing::warn! to log original error in tenant creation race handler
+  - All quality gates passed: cargo check, cargo clippy
+  - Status remains NeedsReview
