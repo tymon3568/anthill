@@ -154,13 +154,13 @@ where
 
         // Increment attempts
         self.invitation_repo
-            .increment_accept_attempts(invitation.invitation_id)
+            .increment_accept_attempts(invitation.tenant_id, invitation.invitation_id)
             .await?;
 
         // Check expiry
         if invitation.expires_at < Utc::now() {
             self.invitation_repo
-                .mark_expired(invitation.invitation_id)
+                .mark_expired(invitation.tenant_id, invitation.invitation_id)
                 .await?;
             return Err(AppError::Gone("Invitation has expired".into()));
         }
@@ -217,6 +217,7 @@ where
         // Mark invitation as accepted
         self.invitation_repo
             .mark_accepted(
+                invitation.tenant_id,
                 invitation.invitation_id,
                 created_user.user_id,
                 accepted_from_ip,
@@ -258,8 +259,14 @@ where
         Ok(updated_invitation)
     }
 
-    async fn get_invitation(&self, invitation_id: Uuid) -> Result<Option<Invitation>, AppError> {
-        self.invitation_repo.find_by_id(invitation_id).await
+    async fn get_invitation(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+    ) -> Result<Option<Invitation>, AppError> {
+        self.invitation_repo
+            .find_by_id(tenant_id, invitation_id)
+            .await
     }
 
     async fn list_invitations(
@@ -284,13 +291,18 @@ where
             .await
     }
 
-    async fn revoke_invitation(&self, invitation_id: Uuid) -> Result<(), AppError> {
+    async fn revoke_invitation(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+    ) -> Result<(), AppError> {
         // Use dedicated revoke method which enforces status = 'pending' check
-        self.invitation_repo.revoke(invitation_id).await
+        self.invitation_repo.revoke(tenant_id, invitation_id).await
     }
 
     async fn resend_invitation(
         &self,
+        tenant_id: Uuid,
         invitation_id: Uuid,
         invited_from_ip: Option<&str>,
         invited_from_user_agent: Option<&str>,
@@ -298,7 +310,7 @@ where
         // Find invitation
         let invitation = self
             .invitation_repo
-            .find_by_id(invitation_id)
+            .find_by_id(tenant_id, invitation_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Invitation not found".into()))?;
 
@@ -317,6 +329,7 @@ where
         let updated_invitation = self
             .invitation_repo
             .update_for_resend(
+                tenant_id,
                 invitation_id,
                 &new_token_hash,
                 new_expires_at,

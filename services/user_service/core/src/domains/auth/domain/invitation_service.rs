@@ -28,8 +28,12 @@ pub trait InvitationService: Send + Sync {
         accepted_from_user_agent: Option<&str>,
     ) -> Result<Invitation, AppError>;
 
-    /// Get invitation by ID
-    async fn get_invitation(&self, invitation_id: Uuid) -> Result<Option<Invitation>, AppError>;
+    /// Get invitation by ID (tenant-scoped)
+    async fn get_invitation(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+    ) -> Result<Option<Invitation>, AppError>;
 
     /// List invitations for a tenant
     async fn list_invitations(
@@ -47,12 +51,14 @@ pub trait InvitationService: Send + Sync {
         status: Option<&str>,
     ) -> Result<i64, AppError>;
 
-    /// Revoke an invitation
-    async fn revoke_invitation(&self, invitation_id: Uuid) -> Result<(), AppError>;
+    /// Revoke an invitation (tenant-scoped)
+    async fn revoke_invitation(&self, tenant_id: Uuid, invitation_id: Uuid)
+        -> Result<(), AppError>;
 
-    /// Resend an invitation (create new token)
+    /// Resend an invitation (create new token) - tenant-scoped
     async fn resend_invitation(
         &self,
+        tenant_id: Uuid,
         invitation_id: Uuid,
         invited_from_ip: Option<&str>,
         invited_from_user_agent: Option<&str>,

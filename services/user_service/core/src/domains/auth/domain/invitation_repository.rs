@@ -10,8 +10,12 @@ pub trait InvitationRepository: Send + Sync {
     /// Create a new invitation
     async fn create(&self, invitation: &Invitation) -> Result<Invitation, AppError>;
 
-    /// Find invitation by ID
-    async fn find_by_id(&self, invitation_id: Uuid) -> Result<Option<Invitation>, AppError>;
+    /// Find invitation by ID (tenant-scoped for isolation)
+    async fn find_by_id(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+    ) -> Result<Option<Invitation>, AppError>;
 
     /// Find pending invitation by token hash (for acceptance)
     async fn find_pending_by_token_hash(
@@ -39,12 +43,18 @@ pub trait InvitationRepository: Send + Sync {
     async fn count_by_tenant(&self, tenant_id: Uuid, status: Option<&str>)
         -> Result<i64, AppError>;
 
-    /// Update invitation status
-    async fn update_status(&self, invitation_id: Uuid, status: &str) -> Result<(), AppError>;
+    /// Update invitation status (tenant-scoped)
+    async fn update_status(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+        status: &str,
+    ) -> Result<(), AppError>;
 
-    /// Update invitation for resend (new token hash, expiry, reset attempts)
+    /// Update invitation for resend (new token hash, expiry, reset attempts) - tenant-scoped
     async fn update_for_resend(
         &self,
+        tenant_id: Uuid,
         invitation_id: Uuid,
         new_token_hash: &str,
         new_expires_at: DateTime<Utc>,
@@ -52,26 +62,31 @@ pub trait InvitationRepository: Send + Sync {
         invited_from_user_agent: Option<&str>,
     ) -> Result<Invitation, AppError>;
 
-    /// Mark invitation as accepted
+    /// Mark invitation as accepted (tenant-scoped)
     async fn mark_accepted(
         &self,
+        tenant_id: Uuid,
         invitation_id: Uuid,
         accepted_user_id: Uuid,
         accepted_from_ip: Option<&str>,
         accepted_from_user_agent: Option<&str>,
     ) -> Result<(), AppError>;
 
-    /// Mark invitation as expired
-    async fn mark_expired(&self, invitation_id: Uuid) -> Result<(), AppError>;
+    /// Mark invitation as expired (tenant-scoped)
+    async fn mark_expired(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError>;
 
-    /// Revoke invitation
-    async fn revoke(&self, invitation_id: Uuid) -> Result<(), AppError>;
+    /// Revoke invitation (tenant-scoped, enforces pending status)
+    async fn revoke(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError>;
 
-    /// Increment accept attempts counter
-    async fn increment_accept_attempts(&self, invitation_id: Uuid) -> Result<(), AppError>;
+    /// Increment accept attempts counter (tenant-scoped)
+    async fn increment_accept_attempts(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+    ) -> Result<(), AppError>;
 
-    /// Soft delete invitation
-    async fn soft_delete(&self, invitation_id: Uuid) -> Result<(), AppError>;
+    /// Soft delete invitation (tenant-scoped)
+    async fn soft_delete(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError>;
 
     /// Cleanup expired invitations (mark as expired)
     async fn cleanup_expired(&self) -> Result<i64, AppError>;

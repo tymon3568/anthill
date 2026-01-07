@@ -60,7 +60,11 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(invitation)
     }
 
-    async fn find_by_id(&self, invitation_id: Uuid) -> Result<Option<Invitation>, AppError> {
+    async fn find_by_id(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+    ) -> Result<Option<Invitation>, AppError> {
         let invitation = sqlx::query_as::<_, Invitation>(
             r#"
             SELECT
@@ -71,9 +75,10 @@ impl InvitationRepository for PgInvitationRepository {
                 last_attempt_at, custom_message, metadata, created_at, updated_at,
                 deleted_at
             FROM user_invitations
-            WHERE invitation_id = $1 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND deleted_at IS NULL
             "#,
         )
+        .bind(tenant_id)
         .bind(invitation_id)
         .fetch_optional(&self.pool)
         .await
@@ -96,7 +101,7 @@ impl InvitationRepository for PgInvitationRepository {
                 last_attempt_at, custom_message, metadata, created_at, updated_at,
                 deleted_at
             FROM user_invitations
-            WHERE token_hash = $1 AND status = 'pending' AND deleted_at IS NULL
+            WHERE token_hash = $1 AND status = 'pending' AND expires_at > NOW() AND deleted_at IS NULL
             "#,
         )
         .bind(token_hash)
@@ -235,15 +240,21 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(count)
     }
 
-    async fn update_status(&self, invitation_id: Uuid, status: &str) -> Result<(), AppError> {
+    async fn update_status(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+        status: &str,
+    ) -> Result<(), AppError> {
         sqlx::query(
             r#"
             UPDATE user_invitations
             SET status = $1, updated_at = NOW()
-            WHERE invitation_id = $2 AND deleted_at IS NULL
+            WHERE tenant_id = $2 AND invitation_id = $3 AND deleted_at IS NULL
             "#,
         )
         .bind(status)
+        .bind(tenant_id)
         .bind(invitation_id)
         .execute(&self.pool)
         .await
@@ -256,6 +267,7 @@ impl InvitationRepository for PgInvitationRepository {
 
     async fn update_for_resend(
         &self,
+        tenant_id: Uuid,
         invitation_id: Uuid,
         new_token_hash: &str,
         new_expires_at: chrono::DateTime<Utc>,
@@ -272,7 +284,7 @@ impl InvitationRepository for PgInvitationRepository {
                 invited_from_ip = COALESCE($3, invited_from_ip),
                 invited_from_user_agent = COALESCE($4, invited_from_user_agent),
                 updated_at = NOW()
-            WHERE invitation_id = $5 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $5 AND invitation_id = $6 AND status = 'pending' AND deleted_at IS NULL
             RETURNING
                 invitation_id, tenant_id, token_hash, email, invited_role,
                 invited_by_user_id, status, expires_at, accepted_at,
@@ -286,6 +298,7 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(new_expires_at)
         .bind(invited_from_ip)
         .bind(invited_from_user_agent)
+        .bind(tenant_id)
         .bind(invitation_id)
         .fetch_one(&self.pool)
         .await
@@ -298,6 +311,7 @@ impl InvitationRepository for PgInvitationRepository {
 
     async fn mark_accepted(
         &self,
+        tenant_id: Uuid,
         invitation_id: Uuid,
         accepted_user_id: Uuid,
         accepted_from_ip: Option<&str>,
@@ -312,12 +326,13 @@ impl InvitationRepository for PgInvitationRepository {
                 accepted_from_ip = $2,
                 accepted_from_user_agent = $3,
                 updated_at = NOW()
-            WHERE invitation_id = $4 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $4 AND invitation_id = $5 AND status = 'pending' AND deleted_at IS NULL
             "#,
         )
         .bind(accepted_user_id)
         .bind(accepted_from_ip)
         .bind(accepted_from_user_agent)
+        .bind(tenant_id)
         .bind(invitation_id)
         .execute(&self.pool)
         .await
@@ -328,14 +343,15 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(())
     }
 
-    async fn mark_expired(&self, invitation_id: Uuid) -> Result<(), AppError> {
+    async fn mark_expired(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError> {
         sqlx::query(
             r#"
             UPDATE user_invitations
             SET status = 'expired', updated_at = NOW()
-            WHERE invitation_id = $1 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND deleted_at IS NULL
             "#,
         )
+        .bind(tenant_id)
         .bind(invitation_id)
         .execute(&self.pool)
         .await
@@ -346,14 +362,15 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(())
     }
 
-    async fn revoke(&self, invitation_id: Uuid) -> Result<(), AppError> {
+    async fn revoke(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError> {
         sqlx::query(
             r#"
             UPDATE user_invitations
             SET status = 'revoked', updated_at = NOW()
-            WHERE invitation_id = $1 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND deleted_at IS NULL
             "#,
         )
+        .bind(tenant_id)
         .bind(invitation_id)
         .execute(&self.pool)
         .await
@@ -362,16 +379,21 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(())
     }
 
-    async fn increment_accept_attempts(&self, invitation_id: Uuid) -> Result<(), AppError> {
+    async fn increment_accept_attempts(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+    ) -> Result<(), AppError> {
         sqlx::query(
             r#"
             UPDATE user_invitations
             SET accept_attempts = accept_attempts + 1,
                 last_attempt_at = NOW(),
                 updated_at = NOW()
-            WHERE invitation_id = $1 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND deleted_at IS NULL
             "#,
         )
+        .bind(tenant_id)
         .bind(invitation_id)
         .execute(&self.pool)
         .await
@@ -382,14 +404,15 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(())
     }
 
-    async fn soft_delete(&self, invitation_id: Uuid) -> Result<(), AppError> {
+    async fn soft_delete(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError> {
         sqlx::query(
             r#"
             UPDATE user_invitations
             SET deleted_at = NOW(), updated_at = NOW()
-            WHERE invitation_id = $1 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND deleted_at IS NULL
             "#,
         )
+        .bind(tenant_id)
         .bind(invitation_id)
         .execute(&self.pool)
         .await

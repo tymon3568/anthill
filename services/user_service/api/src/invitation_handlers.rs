@@ -277,7 +277,7 @@ where
     )
 )]
 pub async fn revoke_invitation<S>(
-    RequireAdmin(_admin_user): RequireAdmin,
+    RequireAdmin(admin_user): RequireAdmin,
     Extension(state): Extension<AppState<S>>,
     Path(invitation_id): Path<Uuid>,
 ) -> Result<StatusCode, AppError>
@@ -289,7 +289,9 @@ where
         .as_ref()
         .ok_or_else(|| AppError::ServiceUnavailable("Invitation service not available".into()))?;
 
-    invitation_service.revoke_invitation(invitation_id).await?;
+    invitation_service
+        .revoke_invitation(admin_user.tenant_id, invitation_id)
+        .await?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -316,7 +318,7 @@ where
     )
 )]
 pub async fn resend_invitation<S>(
-    RequireAdmin(_admin_user): RequireAdmin,
+    RequireAdmin(admin_user): RequireAdmin,
     Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
     Path(invitation_id): Path<Uuid>,
@@ -332,6 +334,7 @@ where
     // Resend invitation
     let (invitation, plaintext_token) = invitation_service
         .resend_invitation(
+            admin_user.tenant_id,
             invitation_id,
             client_info.ip_address.as_deref(),
             client_info.user_agent.as_deref(),
