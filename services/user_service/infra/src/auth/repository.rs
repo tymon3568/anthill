@@ -323,6 +323,16 @@ impl UserRepository for PgUserRepository {
 
         Ok((user, true))
     }
+
+    async fn hard_delete_by_id(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError> {
+        let result = sqlx::query("DELETE FROM users WHERE user_id = $1 AND tenant_id = $2")
+            .bind(user_id)
+            .bind(tenant_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
 }
 
 /// PostgreSQL implementation of TenantRepository

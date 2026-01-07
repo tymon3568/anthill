@@ -78,4 +78,17 @@ pub trait AuthService: Send + Sync {
         admin_tenant_id: Uuid,
         req: AdminCreateUserReq,
     ) -> Result<AdminCreateUserResp, AppError>;
+
+    /// Internal method to delete a user (for compensating transactions)
+    ///
+    /// This is used to roll back user creation when subsequent operations fail
+    /// (e.g., Casbin policy creation failure). Performs a hard delete.
+    ///
+    /// # Arguments
+    /// * `user_id` - ID of the user to delete
+    /// * `tenant_id` - Tenant ID (for tenant isolation verification)
+    ///
+    /// # Returns
+    /// * `bool` - true if user was deleted, false if not found
+    async fn internal_delete_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError>;
 }

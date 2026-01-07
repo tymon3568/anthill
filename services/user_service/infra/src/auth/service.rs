@@ -10,7 +10,7 @@ use user_service_core::domains::auth::{
         repository::{SessionRepository, TenantRepository, UserRepository},
         service::AuthService,
     },
-    dto::admin_dto::{AdminCreateUserReq, AdminCreateUserResp},
+    dto::admin_dto::{AdminCreateUserReq, AdminCreateUserResp, PROTECTED_ROLES},
     dto::auth_dto::{AuthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp},
     utils::password_validator::validate_password_quick,
 };
@@ -575,24 +575,36 @@ where
         admin_tenant_id: Uuid,
         req: AdminCreateUserReq,
     ) -> Result<AdminCreateUserResp, AppError> {
-        // Determine the role (default to "user" if not specified)
-        let role = req.role.as_deref().unwrap_or("user");
+        // Validate tenant exists and is active before creating user
+        let tenant = self
+            .tenant_repo
+            .find_by_id(admin_tenant_id)
+            .await?
+            .ok_or_else(|| AppError::ValidationError("Tenant not found".to_string()))?;
 
-        // Prevent creating users with "owner" role via this endpoint
-        // Owner can only be assigned via tenant bootstrap (registration)
-        if role == "owner" {
-            return Err(AppError::Forbidden(
-                "Cannot create user with 'owner' role. Owner is assigned only during tenant creation.".to_string(),
+        if tenant.status != "active" {
+            return Err(AppError::ValidationError(
+                "Cannot create user in inactive tenant".to_string(),
             ));
         }
 
-        // Validate that the role is a valid system role or exists in the tenant
-        // System roles: owner, admin, user
+        // Determine the role (default to "user" if not specified)
+        let role = req.role.as_deref().unwrap_or("user");
+
+        // Prevent creating users with protected roles (e.g., "owner") via this endpoint
+        // These roles can only be assigned via specific flows (e.g., tenant bootstrap)
+        if PROTECTED_ROLES.contains(&role) {
+            return Err(AppError::Forbidden(format!(
+                "Cannot create user with '{}' role. This role is protected.",
+                role
+            )));
+        }
+
+        // Validate role: system roles (admin, user) are always valid
+        // Custom roles are allowed if they pass DTO format validation
+        // Actual authorization for custom roles is handled by Casbin at runtime
         let is_system_role = matches!(role, "admin" | "user");
         if !is_system_role {
-            // For custom roles, we could validate against Casbin policies
-            // For now, we'll allow any valid role name format (validated by DTO)
-            // The actual authorization will be handled by Casbin at runtime
             tracing::info!(
                 role = %role,
                 tenant_id = %admin_tenant_id,
@@ -609,9 +621,9 @@ where
             return Err(AppError::UserAlreadyExists);
         }
 
-        // Validate password strength
+        // Validate password strength (include tenant name for consistency with registration)
         let full_name = req.full_name.as_deref().unwrap_or("");
-        let user_inputs = [req.email.as_str(), full_name];
+        let user_inputs = [req.email.as_str(), full_name, tenant.name.as_str()];
         validate_password_quick(&req.password, &user_inputs)
             .map_err(|e| AppError::ValidationError(format!("Password validation failed: {}", e)))?;
 
@@ -653,7 +665,6 @@ where
         tracing::info!(
             user_id = %created_user.user_id,
             tenant_id = %admin_tenant_id,
-            email = %created_user.email,
             role = %created_user.role,
             "Admin created new user in tenant"
         );
@@ -667,6 +678,32 @@ where
             created_at: created_user.created_at,
             message: "User created successfully".to_string(),
         })
+    }
+
+    async fn internal_delete_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError> {
+        tracing::warn!(
+            user_id = %user_id,
+            tenant_id = %tenant_id,
+            "Performing compensating delete of user (rolling back failed operation)"
+        );
+
+        let deleted = self.user_repo.hard_delete_by_id(user_id, tenant_id).await?;
+
+        if deleted {
+            tracing::info!(
+                user_id = %user_id,
+                tenant_id = %tenant_id,
+                "Successfully deleted user as compensating action"
+            );
+        } else {
+            tracing::warn!(
+                user_id = %user_id,
+                tenant_id = %tenant_id,
+                "User not found during compensating delete (may have been already deleted)"
+            );
+        }
+
+        Ok(deleted)
     }
 }
 

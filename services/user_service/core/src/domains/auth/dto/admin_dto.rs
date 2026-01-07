@@ -205,8 +205,12 @@ pub struct PolicyResp {
 // Admin User Management DTOs
 // ============================================================================
 
-/// System roles that are protected and cannot be created via admin create user
-pub const SYSTEM_ROLES: &[&str] = &["owner", "admin", "user"];
+/// Protected roles that cannot be assigned via admin create user endpoint.
+///
+/// Currently only "owner" is protected - this role can only be assigned during
+/// tenant bootstrap (registration). Admins can create users with "admin" or
+/// "user" roles, as well as custom tenant-specific roles.
+pub const PROTECTED_ROLES: &[&str] = &["owner"];
 
 /// Request to create a new user in the admin's tenant
 #[derive(Debug, Deserialize, Validate, ToSchema)]

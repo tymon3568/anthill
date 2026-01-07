@@ -412,8 +412,10 @@ impl TestDatabaseConfig {
     /// This assigns a role to a user for authorization
     #[allow(dead_code)]
     pub async fn add_casbin_grouping(&self, user_id: Uuid, role: &str, tenant_id: Uuid) {
+        // Note: casbin_rule table has v3 as NOT NULL, v4/v5 have defaults
+        // For grouping policies (ptype='g'), v3/v4/v5 are typically empty strings
         sqlx::query(
-            "INSERT INTO casbin_rule (ptype, v0, v1, v2) VALUES ('g', $1, $2, $3) ON CONFLICT DO NOTHING",
+            "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ('g', $1, $2, $3, '', '', '') ON CONFLICT DO NOTHING",
         )
         .bind(user_id.to_string())
         .bind(role)

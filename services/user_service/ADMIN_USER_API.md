@@ -21,7 +21,7 @@ Creates a new user in the admin's tenant.
 **Authorization:** Admin only
 
 **Request Headers:**
-```
+```http
 Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
@@ -186,8 +186,8 @@ curl -X POST http://localhost:8000/api/v1/admin/users \
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/v1/admin/users` | List users in tenant |
-| `POST /api/v1/admin/users/{user_id}/roles/assign` | Change user's role |
-| `DELETE /api/v1/admin/users/{user_id}/roles/{role_name}/remove` | Remove role from user |
+| `POST /api/v1/admin/users/{user_id}/roles` | Assign role to user |
+| `DELETE /api/v1/admin/users/{user_id}/roles/{role_name}` | Remove role from user |
 | `GET /api/v1/admin/users/{user_id}/roles` | Get user's current role |
 
 ## OpenAPI Specification

@@ -775,6 +775,27 @@ pub async fn admin_create_user<S: AuthService>(
 
     let admin_tenant_id = admin_user.tenant_id;
 
+    // Validate custom role existence in Casbin policies (per AUTHORIZATION_RBAC_STRATEGY.md)
+    // System roles (admin, user) are always valid; custom roles must have policies defined
+    if let Some(role) = &payload.role {
+        if !matches!(role.as_str(), "admin" | "user") {
+            // For custom roles, check if any policies exist for this role in the tenant
+            // This uses in-memory Casbin policies (no DB query per AUTHORIZATION_RBAC_STRATEGY.md)
+            // Policy format: p = sub(role), dom(tenant_id), obj(resource), act(action)
+            // Index 0 = role, Index 1 = tenant_id
+            let enforcer = state.enforcer.read().await;
+            let role_policies =
+                enforcer.get_filtered_policy(0, vec![role.clone(), admin_tenant_id.to_string()]);
+
+            if role_policies.is_empty() {
+                return Err(AppError::ValidationError(format!(
+                    "Role '{}' does not exist in this tenant. Custom roles must have policies defined before users can be assigned to them.",
+                    role
+                )));
+            }
+        }
+    }
+
     // Delegate to service layer (handles password hashing, tenant isolation, role validation)
     let response = state
         .auth_service
@@ -784,30 +805,86 @@ pub async fn admin_create_user<S: AuthService>(
     // Add Casbin grouping policy for the new user
     // This ensures the user has the correct role for authorization
     let mut enforcer = state.enforcer.write().await;
-    let grouping_added = enforcer
+    let grouping_result = enforcer
         .add_grouping_policy(vec![
             response.user_id.to_string(),
             response.role.clone(),
             response.tenant_id.to_string(),
         ])
-        .await
-        .map_err(|e| {
+        .await;
+
+    // Handle Casbin policy addition failure with compensating delete
+    let grouping_added = match grouping_result {
+        Ok(added) => added,
+        Err(e) => {
             tracing::error!(
                 user_id = %response.user_id,
                 role = %response.role,
                 tenant_id = %response.tenant_id,
                 error = %e,
-                "Failed to add Casbin grouping policy for new user"
+                "Failed to add Casbin grouping policy for new user, attempting compensating delete"
             );
-            AppError::InternalError(format!("Failed to set user role policy: {}", e))
-        })?;
 
+            // Compensating action: delete the user we just created to maintain consistency
+            if let Err(delete_err) = state
+                .auth_service
+                .internal_delete_user(response.user_id, response.tenant_id)
+                .await
+            {
+                tracing::error!(
+                    user_id = %response.user_id,
+                    tenant_id = %response.tenant_id,
+                    error = %delete_err,
+                    "Failed to perform compensating delete after Casbin policy failure"
+                );
+            }
+
+            return Err(AppError::InternalError(format!("Failed to set user role policy: {}", e)));
+        },
+    };
+
+    // Persist the policy to database
     if grouping_added {
+        if let Err(e) = enforcer.save_policy().await {
+            tracing::error!(
+                user_id = %response.user_id,
+                role = %response.role,
+                tenant_id = %response.tenant_id,
+                error = %e,
+                "Failed to save Casbin policy, attempting compensating delete"
+            );
+
+            // Try to remove the in-memory policy we just added
+            let _ = enforcer
+                .remove_grouping_policy(vec![
+                    response.user_id.to_string(),
+                    response.role.clone(),
+                    response.tenant_id.to_string(),
+                ])
+                .await;
+
+            // Compensating action: delete the user
+            if let Err(delete_err) = state
+                .auth_service
+                .internal_delete_user(response.user_id, response.tenant_id)
+                .await
+            {
+                tracing::error!(
+                    user_id = %response.user_id,
+                    tenant_id = %response.tenant_id,
+                    error = %delete_err,
+                    "Failed to perform compensating delete after save_policy failure"
+                );
+            }
+
+            return Err(AppError::InternalError(format!("Failed to save user role policy: {}", e)));
+        }
+
         tracing::info!(
             user_id = %response.user_id,
             role = %response.role,
             tenant_id = %response.tenant_id,
-            "Added Casbin grouping policy for new user"
+            "Added and persisted Casbin grouping policy for new user"
         );
     }
 

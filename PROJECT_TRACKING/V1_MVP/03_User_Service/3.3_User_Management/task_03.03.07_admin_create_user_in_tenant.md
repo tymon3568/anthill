@@ -106,6 +106,58 @@ This task follows **Option D (Single Custom Role)**:
 - Ensure no `unwrap()`/`expect()`; use `AppError`.
 - Consider adding `force_password_change` flag later (not required in this task).
 
+## PR Review Issues (from PR #136)
+
+### Critical
+- [x] 1. Missing `save_policy()` after Casbin grouping policy (Severity: Critical, Reviewers: Cubic, CodeRabbit, Sourcery, CodeAnt)
+  - Location: `services/user_service/api/src/admin_handlers.rs:804-814`
+  - Fix: Call `enforcer.save_policy().await` after `add_grouping_policy`
+  - **Fixed:** Added `save_policy()` call with proper error handling
+- [x] 2. Inconsistent state on Casbin failure - user persisted without policy (Severity: Critical, Reviewers: Gemini, CodeRabbit, Sourcery)
+  - Location: `services/user_service/api/src/admin_handlers.rs:784-814`
+  - Fix: Implement compensating delete - delete user from DB if Casbin policy fails
+  - **Fixed:** Added `internal_delete_user` method and compensating delete logic
+- [x] 3. Custom role validation gap - no enforcement (Severity: Critical, Reviewers: Gemini, Sourcery, CodeRabbit)
+  - Location: `services/user_service/api/src/admin_handlers.rs:777-795`
+  - Fix: Validate custom roles against Casbin policies in handler before calling service
+  - **Fixed:** Added validation in handler using `enforcer.get_filtered_policy()` to check if custom role has policies defined for the tenant (per AUTHORIZATION_RBAC_STRATEGY.md - in-memory policies, no DB queries)
+
+### Warning
+- [x] 4. SYSTEM_ROLES constant unused/misleading (Severity: Warning, Reviewers: Gemini, Sourcery, CodeAnt)
+  - Location: `services/user_service/core/src/domains/auth/dto/admin_dto.rs:208-209`
+  - Fix: Update constant to only "owner" (actual protected role) and clarify comment
+  - **Fixed:** Renamed to `PROTECTED_ROLES`, updated to only include "owner", improved documentation
+- [x] 5. Test helper `add_casbin_grouping` missing v3 column (Severity: Warning, Reviewers: CodeAnt)
+  - Location: `services/user_service/api/tests/test_database.rs:416`
+  - Fix: Add v3, v4, v5 columns to INSERT (v3 is NOT NULL per migration)
+  - **Fixed:** Added v3, v4, v5 empty string values to INSERT
+- [x] 6. Test AppState has user_repo/tenant_repo = None (Severity: Warning, Reviewers: Gemini, CodeAnt)
+  - Location: `services/user_service/api/tests/admin_create_user_tests.rs:57-58`
+  - Fix: Set repos to Some(Arc::new(...)) for consistency
+  - **Fixed:** Wrapped repos in Arc and set to Some(...)
+- [x] 7. Logging PII (email at info level) (Severity: Warning, Reviewer: CodeAnt)
+  - Location: `services/user_service/infra/src/auth/service.rs:656`
+  - Fix: Remove or redact email from log message
+  - **Fixed:** Removed email from log message
+- [x] 8. Missing tenant existence validation (Severity: Warning, Reviewer: CodeAnt)
+  - Location: `services/user_service/infra/src/auth/service.rs:578`
+  - Fix: Validate tenant exists and is active before creating user
+  - **Fixed:** Added tenant validation at start of admin_create_user, included tenant name in password validation
+
+### Style
+- [x] 9. Doc test count mismatch (10 vs 11) (Severity: Style, Reviewer: Cubic)
+  - Location: `task_03.03.07.md:133`
+  - Fix: Change "10" to "11"
+  - **Fixed:** Updated in this file
+- [x] 10. Missing language specifier in code block (Severity: Style, Reviewer: CodeRabbit)
+  - Location: `services/user_service/ADMIN_USER_API.md:24`
+  - Fix: Add `http` language to code fence
+  - **Fixed:** Added `http` language specifier
+- [x] 11. Incorrect endpoint paths in Related Endpoints table (Severity: Style, Reviewer: CodeRabbit)
+  - Location: `services/user_service/ADMIN_USER_API.md:189-191`
+  - Fix: Update paths to match actual handlers
+  - **Fixed:** Updated paths to match actual routes
+
 ## AI Agent Log
 ---
 - 2026-01-02: Task created (Todo). Pending assignment and dependency verification.
@@ -130,7 +182,7 @@ This task follows **Option D (Single Custom Role)**:
     - Adds Casbin grouping policy for new user
     - OpenAPI annotations with unique operation_id `admin_create_user`
   - Sub-task 5: Added route `POST /api/v1/admin/users` in `main.rs`
-  - Sub-task 6: Created `admin_create_user_tests.rs` with 10 integration tests:
+  - Sub-task 6: Created `admin_create_user_tests.rs` with 11 integration tests:
     - `test_admin_create_user_success` - basic creation
     - `test_admin_create_user_with_role` - custom role assignment
     - `test_admin_create_user_owner_role_forbidden` - owner protection
@@ -146,3 +198,34 @@ This task follows **Option D (Single Custom Role)**:
   - Updated OpenAPI in `openapi.rs`
   - Quality gates passed: cargo check, cargo clippy
   - Status updated to NeedsReview
+- 2026-01-06 16:30: PR Review Auto-Fix workflow initiated by Claude:
+  - Fetched PR #136 content
+  - Identified 11 unresolved review issues from automated reviewers
+  - Categorized by severity: 3 Critical, 5 Warning, 3 Style
+  - User confirmed Option A for atomicity: implement compensating delete on Casbin failure
+- 2026-01-06 17:00: PR Review fixes applied by Claude:
+  - **Critical fixes:**
+    - Added `save_policy()` call after `add_grouping_policy` with error handling
+    - Implemented compensating delete: added `hard_delete_by_id` to UserRepository, `internal_delete_user` to AuthService
+    - Handler now rolls back user creation if Casbin policy add or save fails
+    - Added custom role validation against Casbin policies in handler (per AUTHORIZATION_RBAC_STRATEGY.md)
+  - **Warning fixes:**
+    - Renamed `SYSTEM_ROLES` to `PROTECTED_ROLES`, updated to only include "owner"
+    - Fixed `add_casbin_grouping` test helper to include v3, v4, v5 columns
+    - Fixed test AppState to use `Some(Arc::new(...))` for repos
+    - Removed email from info-level log message (PII)
+    - Added tenant existence and active status validation before user creation
+    - Included tenant name in password strength validation (consistency with registration)
+  - **Style fixes:**
+    - Fixed test count (10 → 11) in this task file
+    - Added `http` language specifier to ADMIN_USER_API.md code block
+    - Fixed Related Endpoints paths in ADMIN_USER_API.md
+  - Quality gates passed: `cargo check --workspace`, `cargo clippy --workspace -- -D warnings`
+  - **All 11 issues resolved** - PR ready for final review and merge
+  - Status remains NeedsReview pending PR re-review
+- 2026-01-06 17:30: Bug fix applied by Claude:
+  - Fixed custom role validation policy index bug: changed `get_filtered_policy(1, ...)` to `get_filtered_policy(0, ...)` 
+  - Per Casbin model: `p = sub, dom, obj, act` → index 0 = role/subject, index 1 = tenant_id
+  - Also simplified the check by including tenant_id in filter args and using `is_empty()` instead of manual iteration
+  - Per AUTHORIZATION_RBAC_STRATEGY.md: validation uses in-memory Casbin policies (no DB roundtrip per request)
+  - Quality gates passed: `cargo check --workspace`, `cargo clippy --workspace -- -D warnings`

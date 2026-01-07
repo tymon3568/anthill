@@ -22,16 +22,16 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserRepository,
     };
 
-    let user_repo = PgUserRepository::new(pool.clone());
-    let tenant_repo = PgTenantRepository::new(pool.clone());
+    let user_repo = Arc::new(PgUserRepository::new(pool.clone()));
+    let tenant_repo = Arc::new(PgTenantRepository::new(pool.clone()));
     let session_repo = PgSessionRepository::new(pool.clone());
 
     let jwt_secret = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string());
 
     let auth_service = AuthServiceImpl::new(
-        user_repo,
-        tenant_repo,
+        (*user_repo).clone(),
+        (*tenant_repo).clone(),
         session_repo,
         jwt_secret.clone(),
         900,    // 15 minutes
@@ -54,8 +54,8 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         .await
         .expect("Failed to create enforcer"),
         jwt_secret,
-        user_repo: None,
-        tenant_repo: None,
+        user_repo: Some(user_repo),
+        tenant_repo: Some(tenant_repo),
     };
 
     user_service_api::create_router(&state)
