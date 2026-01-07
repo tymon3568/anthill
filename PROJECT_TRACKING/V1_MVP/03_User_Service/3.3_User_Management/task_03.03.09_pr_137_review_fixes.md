@@ -46,6 +46,16 @@ Auto-fix unresolved issues from PR #137 (Feature/03.03.04 user invitation system
   - Issue: INSERT statement missing invited_from_ip and invited_from_user_agent columns but RETURNING clause expects them.
   - Fix: Added missing columns to INSERT and corresponding binds
 
+- [x] **Multi-tenancy isolation in find_by_id and mutation methods** (Severity: Critical, Reviewer: CodeRabbit)
+  - Files: `invitation_repository.rs` (core + infra), `invitation_service.rs` (core + infra), `invitation_handlers.rs` (api)
+  - Issue: find_by_id and mutation methods filter only by invitation_id, allowing potential cross-tenant access.
+  - Fix: Added tenant_id to find_by_id, update_status, update_for_resend, mark_accepted, mark_expired, revoke, increment_accept_attempts, soft_delete across all layers
+
+- [x] **Missing expiration check in find_pending_by_token_hash** (Severity: Major, Reviewer: CodeRabbit)
+  - File: `services/user_service/infra/src/auth/invitation_repository.rs`
+  - Issue: Query filters by status = 'pending' but doesn't check expires_at > NOW()
+  - Fix: Added `AND expires_at > NOW()` to WHERE clause
+
 ### Warning Issues
 
 - [x] **resend_invitation not persisting updates** (Severity: Warning, Reviewer: Sourcery, Gemini)
@@ -113,3 +123,12 @@ Auto-fix unresolved issues from PR #137 (Feature/03.03.04 user invitation system
       - services/user_service/infra/src/auth/invitation_repository.rs
       - services/user_service/infra/src/auth/invitation_service.rs
       - PROJECT_TRACKING/V1_MVP/03_User_Service/3.4_Testing/task_03.04.02_run_cargo_quality_checks.md
+
+* 2026-01-07 16:30: Round 3 fixes applied by Antigravity
+    - Multi-tenant isolation: added tenant_id to 8 repository methods
+    - Updated service trait and implementation with tenant_id
+    - Updated API handlers to pass tenant context
+    - Added expires_at check to find_pending_by_token_hash
+    - All cargo quality checks pass
+    - Commit: 932c026
+    - Status: NeedsReview
