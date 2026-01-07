@@ -131,14 +131,18 @@ where
         .await?;
 
     // Generate JWT tokens for the new user
+    let user_id = invitation
+        .accepted_user_id
+        .ok_or_else(|| AppError::InternalError("Accepted invitation missing user ID".into()))?;
+
     let access_claims = Claims::new_access(
-        invitation.accepted_user_id.unwrap(),
+        user_id,
         invitation.tenant_id,
         invitation.invited_role.clone(),
         900, // 15 minutes - TODO: from config
     );
     let refresh_claims = Claims::new_refresh(
-        invitation.accepted_user_id.unwrap(),
+        user_id,
         invitation.tenant_id,
         invitation.invited_role.clone(),
         604800, // 7 days - TODO: from config
@@ -153,7 +157,7 @@ where
         token_type: "Bearer".to_string(),
         expires_in: 900,
         user: UserInfo {
-            id: invitation.accepted_user_id.unwrap(),
+            id: user_id,
             email: invitation.email,
             full_name: payload.full_name,
             tenant_id: invitation.tenant_id,
