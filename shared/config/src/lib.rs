@@ -57,6 +57,18 @@ pub struct Config {
 
     /// Maximum database connections (optional, default: 10)
     pub max_connections: Option<u32>,
+
+    /// Invitation base URL for generating invite links
+    #[serde(default = "default_invitation_base_url")]
+    pub invitation_base_url: String,
+
+    /// Invitation expiry in hours
+    #[serde(default = "default_invitation_expiry_hours")]
+    pub invitation_expiry_hours: i64,
+
+    /// Maximum attempts for invitation acceptance
+    #[serde(default = "default_invitation_max_attempts")]
+    pub invitation_max_attempts: i32,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -79,6 +91,18 @@ fn default_casbin_model_path() -> String {
     "shared/auth/model.conf".to_string()
 }
 
+fn default_invitation_base_url() -> String {
+    "https://app.example.com".to_string()
+}
+
+fn default_invitation_expiry_hours() -> i64 {
+    48
+}
+
+fn default_invitation_max_attempts() -> i32 {
+    5
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
@@ -93,7 +117,10 @@ impl Config {
             .set_default("host", "0.0.0.0")?
             .set_default("port", 3000)?
             .set_default("casbin_model_path", "shared/auth/model.conf")?
-            .set_default("max_connections", 10)?;
+            .set_default("max_connections", 10)?
+            .set_default("invitation_base_url", "https://app.example.com")?
+            .set_default("invitation_expiry_hours", 48)?
+            .set_default("invitation_max_attempts", 5)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());

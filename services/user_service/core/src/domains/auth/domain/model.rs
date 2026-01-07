@@ -123,6 +123,26 @@ pub struct UserProfile {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "varchar")]
+pub enum InvitationStatus {
+    Pending,
+    Accepted,
+    Expired,
+    Revoked,
+}
+
+impl std::fmt::Display for InvitationStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvitationStatus::Pending => write!(f, "pending"),
+            InvitationStatus::Accepted => write!(f, "accepted"),
+            InvitationStatus::Expired => write!(f, "expired"),
+            InvitationStatus::Revoked => write!(f, "revoked"),
+        }
+    }
+}
+
 /// Invitation entity
 ///
 /// Represents a secure user invitation with hash-at-rest tokens.
@@ -135,7 +155,7 @@ pub struct Invitation {
     pub email: String,
     pub invited_role: String,
     pub invited_by_user_id: Uuid,
-    pub status: String, // 'pending', 'accepted', 'expired', 'revoked'
+    pub status: InvitationStatus,
     pub expires_at: DateTime<Utc>,
     pub accepted_at: Option<DateTime<Utc>>,
     pub accepted_user_id: Option<Uuid>, // User created on acceptance

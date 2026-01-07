@@ -5,8 +5,9 @@ use shared_error::AppError;
 use tokio::task;
 use tracing;
 use user_service_core::domains::auth::domain::{
-    invitation_repository::InvitationRepository, invitation_service::InvitationService,
-    model::Invitation,
+    invitation_repository::InvitationRepository,
+    invitation_service::InvitationService,
+    model::{Invitation, InvitationStatus},
 };
 use user_service_core::domains::auth::utils::{
     invitation_utils::{generate_invite_token, hash_token},
@@ -107,7 +108,7 @@ where
             email: email.to_string(),
             invited_role: invited_role.to_string(),
             invited_by_user_id,
-            status: "pending".to_string(),
+            status: InvitationStatus::Pending,
             expires_at,
             accepted_at: None,
             accepted_user_id: None,
@@ -167,7 +168,7 @@ where
         }
 
         // Check not already accepted
-        if invitation.status != "pending" {
+        if invitation.status != InvitationStatus::Pending {
             return Err(AppError::Conflict("Invitation already used".into()));
         }
 
@@ -253,7 +254,7 @@ where
 
         // Return updated invitation
         let mut updated_invitation = invitation;
-        updated_invitation.status = "accepted".to_string();
+        updated_invitation.status = InvitationStatus::Accepted;
         updated_invitation.accepted_at = Some(now);
         updated_invitation.accepted_user_id = Some(created_user.user_id);
         updated_invitation.accepted_from_ip = accepted_from_ip.map(|s| s.to_string());
@@ -320,7 +321,7 @@ where
             .ok_or_else(|| AppError::NotFound("Invitation not found".into()))?;
 
         // Check if pending
-        if invitation.status != "pending" {
+        if invitation.status != InvitationStatus::Pending {
             return Err(AppError::Conflict("Can only resend pending invitations".into()));
         }
 

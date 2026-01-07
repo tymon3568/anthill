@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service
 **Module:** 3.3_User_Management
 **Priority:** High
-**Status:** Done
+**Status:** NeedsReview
 **Assignee:** Antigravity
 **Created Date:** 2026-01-07
 **Last Updated:** 2026-01-07
@@ -108,6 +108,45 @@ Auto-fix unresolved issues from PR #137 (Feature/03.03.04 user invitation system
   - Issue: Service trait exposes plaintext tokens in return values for creation and resend flows.
   - Action: Document for future improvement - consider ephemeral types or secure channels
 
+### Additional Unresolved Issues (From Latest Reviews)
+
+- [x] **Hard-coded invite_link base URL** (Severity: Critical, Reviewer: Sourcery)
+  - Files: `services/user_service/api/src/invitation_handlers.rs` (Lines 82, 346)
+  - Issue: `https://app.example.com` is hard-coded. Requires config changes.
+  - Fix: Added `invitation_base_url` to shared Config and wired through services. Now uses `state.config.invitation_base_url` for invite links.
+
+- [x] **Hard-coded inviter email in list responses** (Severity: Warning, Reviewer: Gemini)
+  - File: `services/user_service/api/src/invitation_handlers.rs` (Line 242)
+  - Issue: `"admin@example.com"` hardcoded. Requires user lookup.
+  - Fix: Added user lookup in `list_invitations` handler to fetch actual inviter email and full_name from user_repo, with fallbacks for missing users.
+
+- [ ] **Per-IP rate-limiting middleware** (Severity: Warning, Reviewer: Sourcery)
+  - Issue: No rate-limiting on public accept-invite endpoint.
+  - Action: Add per-IP rate-limiting middleware.
+
+- [ ] **Scheduled cleanup jobs for expired invites** (Severity: Warning, Reviewer: Sourcery)
+  - Issue: No background cleanup for expired invites.
+  - Action: Add scheduled job to call cleanup_expired.
+
+- [ ] **Add more tests (unit/integration)** (Severity: Nitpick, Reviewer: Multiple)
+  - Issue: Limited test coverage for invitation flows.
+  - Action: Add comprehensive unit and integration tests.
+
+- [ ] **Use sqlx::query_as! macro** (Severity: Nitpick, Reviewer: CodeRabbit)
+  - Files: Multiple in `services/user_service/infra/src/auth/invitation_repository.rs`
+  - Issue: Runtime `sqlx::query_as` instead of compile-time validation.
+  - Action: Replace with `sqlx::query_as!` where possible.
+
+- [ ] **Silent failure detection in mutation methods** (Severity: Nitpick, Reviewer: CodeRabbit)
+  - Files: `services/user_service/infra/src/auth/invitation_repository.rs`
+  - Issue: No check for `rows_affected() == 0`.
+  - Action: Add checks for observability.
+
+- [x] **Consider enum for invitation status** (Severity: Nitpick, Reviewer: Greptile)
+  - File: `services/user_service/core/src/domains/auth/domain/model.rs`
+  - Issue: Status uses String instead of enum.
+  - Fix: Added `InvitationStatus` enum with `Pending`, `Accepted`, `Expired`, `Revoked` variants, implemented `Display` and `PartialEq`, updated all usages in core, infra, and API layers.
+
 ## AI Agent Log:
 ---
 * 2026-01-07 15:47: Task created by Antigravity
@@ -154,4 +193,14 @@ Auto-fix unresolved issues from PR #137 (Feature/03.03.04 user invitation system
     - Removed duplicate ListInvitationsQuery struct and imported from core
     - Added pagination validation with clamping in list_invitations handler
     - All cargo quality checks pass (check, clippy, fmt)
-    - Status set to Done
+    - Status set to InProgress_By_Antigravity for fixing remaining unresolved issues
+
+* 2026-01-07 18:00: Antigravity completed enum conversion and config wiring
+    - Converted all `status` fields from String to `InvitationStatus` enum across core, infra, and API layers
+    - Added `PartialEq` derive to `InvitationStatus` for comparisons
+    - Wired config values for invitation settings (base_url, expiry_hours, max_attempts) from shared Config
+    - Fixed hard-coded inviter email by fetching from user_repo with proper error handling
+    - Fixed hard-coded invite URL by using `state.config.invitation_base_url`
+    - Resolved async issues in handlers by using for loops instead of map closures
+    - All cargo quality checks pass (check, clippy, fmt)
+    - Status set to NeedsReview

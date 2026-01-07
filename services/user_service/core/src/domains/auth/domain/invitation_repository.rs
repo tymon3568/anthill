@@ -1,4 +1,4 @@
-use super::model::Invitation;
+use crate::domains::auth::domain::model::{Invitation, InvitationStatus};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use shared_error::AppError;
@@ -48,7 +48,7 @@ pub trait InvitationRepository: Send + Sync {
         &self,
         tenant_id: Uuid,
         invitation_id: Uuid,
-        status: &str,
+        status: InvitationStatus,
     ) -> Result<(), AppError>;
 
     /// Update invitation for resend (new token hash, expiry, reset attempts) - tenant-scoped

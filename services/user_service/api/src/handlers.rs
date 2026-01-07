@@ -31,6 +31,8 @@ pub struct AppState<S: AuthService> {
     pub tenant_repo: Option<Arc<dyn TenantRepository>>,
     // Invitation service
     pub invitation_service: Option<Arc<dyn InvitationService + Send + Sync>>,
+    // Configuration for invitation settings
+    pub config: shared_config::Config,
 }
 
 impl<S: AuthService> Clone for AppState<S> {
@@ -42,6 +44,7 @@ impl<S: AuthService> Clone for AppState<S> {
             user_repo: self.user_repo.clone(),
             tenant_repo: self.tenant_repo.clone(),
             invitation_service: self.invitation_service.clone(),
+            config: self.config.clone(),
         }
     }
 }

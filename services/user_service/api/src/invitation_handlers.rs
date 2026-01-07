@@ -80,7 +80,7 @@ where
         email: invitation.email,
         role: invitation.invited_role,
         expires_at: invitation.expires_at,
-        invite_link: format!("https://app.example.com/invite/{}", plaintext_token), // TODO: Use config
+        invite_link: format!("{}/invite/{}", state.config.invitation_base_url, plaintext_token),
     };
 
     Ok((StatusCode::CREATED, Json(response)))
@@ -140,13 +140,13 @@ where
         user_id,
         invitation.tenant_id,
         invitation.invited_role.clone(),
-        900, // 15 minutes - TODO: from config
+        state.config.jwt_expiration,
     );
     let refresh_claims = Claims::new_refresh(
         user_id,
         invitation.tenant_id,
         invitation.invited_role.clone(),
-        604800, // 7 days - TODO: from config
+        state.config.jwt_refresh_expiration,
     );
 
     let access_token = encode_jwt(&access_claims, &state.jwt_secret)?;
@@ -156,7 +156,7 @@ where
         access_token,
         refresh_token,
         token_type: "Bearer".to_string(),
-        expires_in: 900,
+        expires_in: state.config.jwt_expiration,
         user: UserInfo {
             id: user_id,
             email: invitation.email,
@@ -221,22 +221,33 @@ where
         .await?;
 
     // Convert to response items
-    let items = invitations
-        .into_iter()
-        .map(|inv| InvitationListItem {
+    let mut items = Vec::new();
+    for inv in invitations {
+        let user_repo = state
+            .user_repo
+            .as_ref()
+            .ok_or_else(|| AppError::ServiceUnavailable("User repository not available".into()))?;
+        let user = user_repo
+            .find_by_id(inv.invited_by_user_id, admin_user.tenant_id)
+            .await?;
+        let (inviter_email, inviter_full_name) = match user {
+            Some(u) => (u.email, u.full_name.unwrap_or_else(|| "Unknown".to_string())),
+            None => ("unknown@example.com".to_string(), "Unknown User".to_string()),
+        };
+        items.push(InvitationListItem {
             invitation_id: inv.invitation_id,
             email: inv.email,
             role: inv.invited_role,
-            status: inv.status,
+            status: inv.status.to_string(),
             invited_by: InvitedByInfo {
                 user_id: inv.invited_by_user_id,
-                email: "admin@example.com".to_string(), // TODO: Get from user repo
-                full_name: None,
+                email: inviter_email,
+                full_name: Some(inviter_full_name),
             },
             expires_at: inv.expires_at,
             created_at: inv.created_at,
-        })
-        .collect();
+        });
+    }
 
     let response = ListInvitationsResponse {
         invitations: items,
@@ -337,7 +348,7 @@ where
         email: invitation.email,
         role: invitation.invited_role,
         expires_at: invitation.expires_at,
-        invite_link: format!("https://app.example.com/invite/{}", plaintext_token), // TODO: Use config
+        invite_link: format!("{}/invite/{}", state.config.invitation_base_url, plaintext_token),
     };
 
     Ok(Json(response))

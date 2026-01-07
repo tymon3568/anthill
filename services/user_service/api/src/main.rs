@@ -95,8 +95,8 @@ async fn main() {
         invitation_repo,
         user_repo.clone(),
         enforcer.clone(),
-        48 * 3600, // 48 hours in seconds
-        5,         // max attempts
+        config.invitation_expiry_hours,
+        config.invitation_max_attempts,
     );
 
     // Create application states
@@ -107,6 +107,7 @@ async fn main() {
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
+        config: config.clone(),
     };
 
     let profile_state = ProfileAppState {

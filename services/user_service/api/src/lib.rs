@@ -58,8 +58,8 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         invitation_repo,
         user_repo.clone(),
         enforcer.clone(),
-        48 * 3600, // 48 hours in seconds
-        5,         // max attempts
+        config.invitation_expiry_hours * 3600, // Convert hours to seconds
+        config.invitation_max_attempts,
     );
 
     // Create app state
@@ -70,6 +70,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
+        config: config.clone(),
     };
 
     create_router(&state)

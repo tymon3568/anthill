@@ -5,7 +5,8 @@ use uuid::Uuid;
 
 use shared_error::AppError;
 use user_service_core::domains::auth::domain::{
-    invitation_repository::InvitationRepository, model::Invitation,
+    invitation_repository::InvitationRepository,
+    model::{Invitation, InvitationStatus},
 };
 
 /// PostgreSQL implementation of InvitationRepository
@@ -101,10 +102,11 @@ impl InvitationRepository for PgInvitationRepository {
                 last_attempt_at, custom_message, metadata, created_at, updated_at,
                 deleted_at
             FROM user_invitations
-            WHERE token_hash = $1 AND status = 'pending' AND expires_at > NOW() AND deleted_at IS NULL
+            WHERE token_hash = $1 AND status = $2 AND expires_at > NOW() AND deleted_at IS NULL
             "#,
         )
         .bind(token_hash)
+        .bind(InvitationStatus::Pending)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| {
@@ -132,11 +134,12 @@ impl InvitationRepository for PgInvitationRepository {
                 last_attempt_at, custom_message, metadata, created_at, updated_at,
                 deleted_at
             FROM user_invitations
-            WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND expires_at > NOW() AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND email = $2 AND status = $3 AND expires_at > NOW() AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id)
         .bind(email)
+        .bind(InvitationStatus::Pending)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| {
@@ -244,7 +247,7 @@ impl InvitationRepository for PgInvitationRepository {
         &self,
         tenant_id: Uuid,
         invitation_id: Uuid,
-        status: &str,
+        status: InvitationStatus,
     ) -> Result<(), AppError> {
         sqlx::query(
             r#"
@@ -284,7 +287,7 @@ impl InvitationRepository for PgInvitationRepository {
                 invited_from_ip = COALESCE($3, invited_from_ip),
                 invited_from_user_agent = COALESCE($4, invited_from_user_agent),
                 updated_at = NOW()
-            WHERE tenant_id = $5 AND invitation_id = $6 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $5 AND invitation_id = $6 AND status = $7 AND deleted_at IS NULL
             RETURNING
                 invitation_id, tenant_id, token_hash, email, invited_role,
                 invited_by_user_id, status, expires_at, accepted_at,
@@ -300,6 +303,7 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(invited_from_user_agent)
         .bind(tenant_id)
         .bind(invitation_id)
+        .bind(InvitationStatus::Pending)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| {
@@ -320,20 +324,22 @@ impl InvitationRepository for PgInvitationRepository {
         sqlx::query(
             r#"
             UPDATE user_invitations
-            SET status = 'accepted',
+            SET status = $1,
                 accepted_at = NOW(),
-                accepted_user_id = $1,
-                accepted_from_ip = $2,
-                accepted_from_user_agent = $3,
+                accepted_user_id = $2,
+                accepted_from_ip = $3,
+                accepted_from_user_agent = $4,
                 updated_at = NOW()
-            WHERE tenant_id = $4 AND invitation_id = $5 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $5 AND invitation_id = $6 AND status = $7 AND deleted_at IS NULL
             "#,
         )
+        .bind(InvitationStatus::Accepted)
         .bind(accepted_user_id)
         .bind(accepted_from_ip)
         .bind(accepted_from_user_agent)
         .bind(tenant_id)
         .bind(invitation_id)
+        .bind(InvitationStatus::Pending)
         .execute(&self.pool)
         .await
         .map_err(|e| {
@@ -347,12 +353,14 @@ impl InvitationRepository for PgInvitationRepository {
         sqlx::query(
             r#"
             UPDATE user_invitations
-            SET status = 'expired', updated_at = NOW()
-            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND deleted_at IS NULL
+            SET status = $1, updated_at = NOW()
+            WHERE tenant_id = $2 AND invitation_id = $3 AND status = $4 AND deleted_at IS NULL
             "#,
         )
+        .bind(InvitationStatus::Expired)
         .bind(tenant_id)
         .bind(invitation_id)
+        .bind(InvitationStatus::Pending)
         .execute(&self.pool)
         .await
         .map_err(|e| {
@@ -366,12 +374,14 @@ impl InvitationRepository for PgInvitationRepository {
         sqlx::query(
             r#"
             UPDATE user_invitations
-            SET status = 'revoked', updated_at = NOW()
-            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND deleted_at IS NULL
+            SET status = $1, updated_at = NOW()
+            WHERE tenant_id = $2 AND invitation_id = $3 AND status = $4 AND deleted_at IS NULL
             "#,
         )
+        .bind(InvitationStatus::Revoked)
         .bind(tenant_id)
         .bind(invitation_id)
+        .bind(InvitationStatus::Pending)
         .execute(&self.pool)
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to revoke invitation: {}", e)))?;
@@ -390,11 +400,12 @@ impl InvitationRepository for PgInvitationRepository {
             SET accept_attempts = accept_attempts + 1,
                 last_attempt_at = NOW(),
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = $3 AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id)
         .bind(invitation_id)
+        .bind(InvitationStatus::Pending)
         .execute(&self.pool)
         .await
         .map_err(|e| {
@@ -425,8 +436,8 @@ impl InvitationRepository for PgInvitationRepository {
         let result = sqlx::query(
             r#"
             UPDATE user_invitations
-            SET status = 'expired', updated_at = NOW()
-            WHERE status = 'pending' AND expires_at < NOW() AND deleted_at IS NULL
+            SET status = $1, updated_at = NOW()
+            WHERE status = $2 AND expires_at < NOW() AND deleted_at IS NULL
             "#,
         )
         .execute(&self.pool)
