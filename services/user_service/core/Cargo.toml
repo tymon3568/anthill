@@ -22,6 +22,10 @@ utoipa = {workspace = true}
 uuid = {workspace = true}
 validator = {workspace = true}
 zxcvbn = {workspace = true}
+base64 = "0.22"
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
 
 [dev-dependencies]
 criterion = {workspace = true}

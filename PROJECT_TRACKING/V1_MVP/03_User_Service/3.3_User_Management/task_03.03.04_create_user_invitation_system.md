@@ -5,10 +5,10 @@
 **Phase:** 03_User_Service
 **Module:** 3.3_User_Management
 **Priority:** High
-**Status:** Todo
-**Assignee:**
+**Status:** InProgress_By_Claude
+**Assignee:** Claude
 **Created Date:** 2025-01-21
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-07
 
 ## Context / Goal
 
@@ -310,18 +310,18 @@ Response (200 OK):
 
 ## Specific Sub-tasks
 
-- [ ] 1. Database schema
-    - [ ] 1.1. Create migration for `user_invitations` table
-    - [ ] 1.2. Add indexes for token lookup and cleanup
-    - [ ] 1.3. Add unique constraint for pending invitations
-- [ ] 2. Core layer (traits and DTOs)
-    - [ ] 2.1. Create `InvitationRepository` trait
-    - [ ] 2.2. Create invitation DTOs (CreateInvitationReq, InvitationResp, AcceptInviteReq)
-    - [ ] 2.3. Create `InvitationService` trait
-- [ ] 3. Token security
-    - [ ] 3.1. Implement `generate_invite_token()` with 128-bit entropy
-    - [ ] 3.2. Implement `hash_token()` using SHA-256
-    - [ ] 3.3. Add token validation utilities
+- [x] 1. Database schema
+    - [x] 1.1. Create migration for `user_invitations` table
+    - [x] 1.2. Add indexes for token lookup and cleanup
+    - [x] 1.3. Add unique constraint for pending invitations
+- [x] 2. Core layer (traits and DTOs)
+    - [x] 2.1. Create `InvitationRepository` trait
+    - [x] 2.2. Create invitation DTOs (CreateInvitationReq, InvitationResp, AcceptInviteReq)
+    - [x] 2.3. Create `InvitationService` trait
+- [x] 3. Token security
+    - [x] 3.1. Implement `generate_invite_token()` with 128-bit entropy
+    - [x] 3.2. Implement `hash_token()` using SHA-256
+    - [x] 3.3. Add token validation utilities
 - [ ] 4. Infra layer (repository implementation)
     - [ ] 4.1. Implement `PgInvitationRepository`
     - [ ] 4.2. Implement token lookup by hash
@@ -432,3 +432,41 @@ invitation_email_enabled = false  # Enable when email service ready
     - Added audit logging requirements
     - Added comprehensive security checklist
     - Added token implementation examples
+* 2026-01-07: Task claimed by Claude.
+    - Starting work on secure user invitation system implementation.
+    - Priority security task per RBAC Strategy compliance.
+    - Status changed to InProgress_By_Claude.
+* 2026-01-07: Created migration `20260107000001_create_user_invitations_table.sql`
+    - Implemented complete `user_invitations` table with all security requirements
+    - Added hash-at-rest token storage (SHA-256)
+    - Included rate limiting fields (accept_attempts, last_attempt_at)
+    - Added audit fields (invited_from_ip, user_agent, etc.)
+    - Created performance indexes for token lookup, expiry cleanup, tenant isolation
+    - Added unique constraint for pending invitations per tenant+email
+    - Included soft delete support and proper comments
+    - Sub-task 1.1-1.3 completed
+
+* 2026-01-07: Implemented core layer traits and DTOs
+    - Added `Invitation` model to `domain/model.rs` with all security fields
+    - Created `InvitationRepository` trait in `domain/invitation_repository.rs` with comprehensive methods
+    - Created `InvitationService` trait in `domain/invitation_service.rs` with business logic methods
+    - Created comprehensive DTOs in `dto/invitation_dto.rs`:
+      - `CreateInvitationRequest` with validation
+      - `AcceptInvitationRequest` with password validation
+      - `CreateInvitationResponse` with invite link
+      - `AcceptInvitationResponse` with JWT tokens
+      - `InvitationListItem` and `InvitationDetails` for admin views
+      - `ListInvitationsResponse` with pagination
+    - Updated `domain/mod.rs` and `dto/mod.rs` to include new modules
+    - All DTOs include OpenAPI `ToSchema` annotations and validation
+    - Sub-task 2.1-2.3 completed
+
+* 2026-01-07: Implemented token security utilities
+    - Created `utils/invitation_utils.rs` with cryptographically secure token generation
+    - `generate_invite_token()`: 128-bit entropy, URL-safe base64 encoding, SHA-256 hashing
+    - `hash_token()`: SHA-256 hashing for token lookup
+    - `validate_token_format()`: Basic format validation for URL-safe base64
+    - Comprehensive unit tests for entropy, uniqueness, and format validation
+    - Updated `utils/mod.rs` to include invitation_utils
+    - Security: Never stores plaintext tokens, uses SHA-256 for hash-at-rest
+    - Sub-task 3.1-3.3 completed

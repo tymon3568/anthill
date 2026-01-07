@@ -1,3 +1,4 @@
+pub mod invitation_utils;
 pub mod password_validator;
 
 // Re-export for convenience
