@@ -8,7 +8,7 @@
 **Status:** NeedsReview  
 **Assignee:** Claude  
 **Created Date:** 2026-01-02  
-**Last Updated:** 2026-01-06  
+**Last Updated:** 2026-01-07  
 
 ## Detailed Description
 Implement admin-only API to create a new user inside the admin's tenant.
@@ -144,6 +144,16 @@ This task follows **Option D (Single Custom Role)**:
   - Fix: Validate tenant exists and is active before creating user
   - **Fixed:** Added tenant validation at start of admin_create_user, included tenant name in password validation
 
+### New Issues (Post-908763a Review)
+- [x] 12. Write lock held across async call in add_grouping_policy error handler (Severity: Critical, Reviewer: Cubic)
+  - Location: `services/user_service/api/src/admin_handlers.rs:829`
+  - Fix: Drop the enforcer write lock before calling `internal_delete_user`
+  - **Fixed:** Added `drop(enforcer)` before async `internal_delete_user` call
+- [x] 13. Write lock held across async call in save_policy error handler (Severity: Critical, Reviewer: Cubic)
+  - Location: `services/user_service/api/src/admin_handlers.rs:866`
+  - Fix: Drop the enforcer write lock before calling `internal_delete_user`
+  - **Fixed:** Added `drop(enforcer)` after `remove_grouping_policy` and before async `internal_delete_user` call
+
 ### Style
 - [x] 9. Doc test count mismatch (10 vs 11) (Severity: Style, Reviewer: Cubic)
   - Location: `task_03.03.07.md:133`
@@ -229,3 +239,16 @@ This task follows **Option D (Single Custom Role)**:
   - Also simplified the check by including tenant_id in filter args and using `is_empty()` instead of manual iteration
   - Per AUTHORIZATION_RBAC_STRATEGY.md: validation uses in-memory Casbin policies (no DB roundtrip per request)
   - Quality gates passed: `cargo check --workspace`, `cargo clippy --workspace -- -D warnings`
+- 2026-01-07 00:30: PR Review Auto-Fix (Round 2) initiated by Claude:
+  - Fetched PR #136 content after commit 908763a
+  - Identified 2 new P1 issues from Cubic incremental review
+  - Issues 12-13: Write lock on enforcer held across async `internal_delete_user` calls
+  - This can cause deadlocks/starvation in concurrent scenarios
+  - Status updated to InProgress_By_Claude
+- 2026-01-07 00:45: PR Review fixes (Round 2) applied by Claude:
+  - **Critical fixes:**
+    - Issue 12: Added `drop(enforcer)` before `internal_delete_user` in add_grouping_policy error handler
+    - Issue 13: Added `drop(enforcer)` before `internal_delete_user` in save_policy error handler
+  - Both fixes prevent holding write lock across async `.await` points which could cause deadlocks
+  - Quality gates passed: `cargo check --workspace`, `cargo clippy --workspace -- -D warnings`
+  - **All 13 issues resolved** - Status updated to NeedsReview

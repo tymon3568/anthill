@@ -825,6 +825,9 @@ pub async fn admin_create_user<S: AuthService>(
                 "Failed to add Casbin grouping policy for new user, attempting compensating delete"
             );
 
+            // Drop the enforcer lock before async call to avoid blocking other tasks
+            drop(enforcer);
+
             // Compensating action: delete the user we just created to maintain consistency
             if let Err(delete_err) = state
                 .auth_service
@@ -862,6 +865,9 @@ pub async fn admin_create_user<S: AuthService>(
                     response.tenant_id.to_string(),
                 ])
                 .await;
+
+            // Drop the enforcer lock before async call to avoid blocking other tasks
+            drop(enforcer);
 
             // Compensating action: delete the user
             if let Err(delete_err) = state
