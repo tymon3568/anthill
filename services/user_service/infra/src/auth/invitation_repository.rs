@@ -227,7 +227,10 @@ impl InvitationRepository for PgInvitationRepository {
             AppError::DatabaseError(format!("Failed to count invitations by tenant: {}", e))
         })?;
 
-        Ok(row.try_get("count")?)
+        let count: i64 = row.try_get("count").map_err(|e| {
+            AppError::DatabaseError(format!("Failed to read invitation count: {}", e))
+        })?;
+        Ok(count)
     }
 
     async fn update_status(&self, invitation_id: Uuid, status: &str) -> Result<(), AppError> {
@@ -247,6 +250,48 @@ impl InvitationRepository for PgInvitationRepository {
         })?;
 
         Ok(())
+    }
+
+    async fn update_for_resend(
+        &self,
+        invitation_id: Uuid,
+        new_token_hash: &str,
+        new_expires_at: chrono::DateTime<Utc>,
+        invited_from_ip: Option<&str>,
+        invited_from_user_agent: Option<&str>,
+    ) -> Result<Invitation, AppError> {
+        let invitation = sqlx::query_as::<_, Invitation>(
+            r#"
+            UPDATE user_invitations
+            SET token_hash = $1,
+                expires_at = $2,
+                accept_attempts = 0,
+                last_attempt_at = NULL,
+                invited_from_ip = COALESCE($3, invited_from_ip),
+                invited_from_user_agent = COALESCE($4, invited_from_user_agent),
+                updated_at = NOW()
+            WHERE invitation_id = $5 AND status = 'pending' AND deleted_at IS NULL
+            RETURNING
+                invitation_id, tenant_id, token_hash, email, invited_role,
+                invited_by_user_id, status, expires_at, accepted_at,
+                accepted_user_id, invited_from_ip, invited_from_user_agent,
+                accepted_from_ip, accepted_from_user_agent, accept_attempts,
+                last_attempt_at, custom_message, metadata, created_at, updated_at,
+                deleted_at
+            "#,
+        )
+        .bind(new_token_hash)
+        .bind(new_expires_at)
+        .bind(invited_from_ip)
+        .bind(invited_from_user_agent)
+        .bind(invitation_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            AppError::DatabaseError(format!("Failed to update invitation for resend: {}", e))
+        })?;
+
+        Ok(invitation)
     }
 
     async fn mark_accepted(

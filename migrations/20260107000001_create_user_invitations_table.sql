@@ -15,7 +15,7 @@ CREATE TABLE user_invitations (
     invited_role VARCHAR(50) NOT NULL DEFAULT 'user',
 
     -- Inviter context
-    invited_by_user_id UUID NOT NULL REFERENCES users(user_id),
+    invited_by_user_id UUID NOT NULL,
 
     -- Status tracking
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (
@@ -25,7 +25,11 @@ CREATE TABLE user_invitations (
     -- Expiry and acceptance
     expires_at TIMESTAMPTZ NOT NULL,       -- Default: 48 hours from creation
     accepted_at TIMESTAMPTZ,
-    accepted_user_id UUID REFERENCES users(user_id),  -- User created on acceptance
+    accepted_user_id UUID,  -- User created on acceptance
+
+    -- Composite foreign keys for multi-tenancy (ensure referential integrity within tenant)
+    FOREIGN KEY (tenant_id, invited_by_user_id) REFERENCES users(tenant_id, user_id),
+    FOREIGN KEY (tenant_id, accepted_user_id) REFERENCES users(tenant_id, user_id)
 
     -- Request context for audit
     invited_from_ip TEXT,

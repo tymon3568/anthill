@@ -42,6 +42,16 @@ pub trait InvitationRepository: Send + Sync {
     /// Update invitation status
     async fn update_status(&self, invitation_id: Uuid, status: &str) -> Result<(), AppError>;
 
+    /// Update invitation for resend (new token hash, expiry, reset attempts)
+    async fn update_for_resend(
+        &self,
+        invitation_id: Uuid,
+        new_token_hash: &str,
+        new_expires_at: DateTime<Utc>,
+        invited_from_ip: Option<&str>,
+        invited_from_user_agent: Option<&str>,
+    ) -> Result<Invitation, AppError>;
+
     /// Mark invitation as accepted
     async fn mark_accepted(
         &self,

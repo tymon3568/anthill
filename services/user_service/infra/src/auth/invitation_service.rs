@@ -285,9 +285,8 @@ where
     }
 
     async fn revoke_invitation(&self, invitation_id: Uuid) -> Result<(), AppError> {
-        self.invitation_repo
-            .update_status(invitation_id, "revoked")
-            .await
+        // Use dedicated revoke method which enforces status = 'pending' check
+        self.invitation_repo.revoke(invitation_id).await
     }
 
     async fn resend_invitation(
@@ -311,19 +310,20 @@ where
         // Generate new token
         let (new_plaintext_token, new_token_hash) = generate_invite_token();
 
-        // Update invitation
-        let mut updated_invitation = invitation;
-        updated_invitation.token_hash = new_token_hash;
-        updated_invitation.expires_at = Utc::now() + Duration::hours(self.invitation_expiry_hours);
-        updated_invitation.accept_attempts = 0;
-        updated_invitation.last_attempt_at = None;
-        updated_invitation.invited_from_ip = invited_from_ip.map(|s| s.to_string());
-        updated_invitation.invited_from_user_agent = invited_from_user_agent.map(|s| s.to_string());
-        updated_invitation.updated_at = Utc::now();
+        // Calculate new expiry
+        let new_expires_at = Utc::now() + Duration::hours(self.invitation_expiry_hours);
 
-        // Note: In a real implementation, you'd update the invitation in the database
-        // But since the repository doesn't have an update method, we'd need to add one
-        // For now, return the updated invitation (assuming it's saved elsewhere)
+        // Persist the updated invitation to the database
+        let updated_invitation = self
+            .invitation_repo
+            .update_for_resend(
+                invitation_id,
+                &new_token_hash,
+                new_expires_at,
+                invited_from_ip,
+                invited_from_user_agent,
+            )
+            .await?;
 
         Ok((updated_invitation, new_plaintext_token))
     }
