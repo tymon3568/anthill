@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use serde::Deserialize;
+
 use shared_auth::extractors::RequireAdmin;
 use shared_error::AppError;
 use shared_jwt::{encode_jwt, Claims};
@@ -13,7 +13,8 @@ use user_service_core::domains::auth::{
         auth_dto::{ErrorResp, UserInfo},
         invitation_dto::{
             AcceptInvitationRequest, AcceptInvitationResponse, CreateInvitationRequest,
-            CreateInvitationResponse, InvitationListItem, InvitedByInfo, ListInvitationsResponse,
+            CreateInvitationResponse, InvitationListItem, InvitedByInfo, ListInvitationsQuery,
+            ListInvitationsResponse,
         },
     },
 };
@@ -169,24 +170,6 @@ where
     Ok((StatusCode::CREATED, Json(response)))
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ListInvitationsQuery {
-    #[serde(default = "default_page")]
-    pub page: i64,
-    #[serde(default = "default_page_size")]
-    pub page_size: i64,
-    /// Filter by status (optional)
-    pub status: Option<String>,
-}
-
-fn default_page() -> i64 {
-    1
-}
-
-fn default_page_size() -> i64 {
-    20
-}
-
 /// List invitations for the tenant (Admin only)
 #[utoipa::path(
     get,
@@ -220,12 +203,16 @@ where
         .as_ref()
         .ok_or_else(|| AppError::ServiceUnavailable("Invitation service not available".into()))?;
 
+    // Validate and clamp pagination parameters
+    let page = query.page.unwrap_or(1).max(1);
+    let page_size = query.page_size.unwrap_or(20).clamp(1, 100);
+
     // Calculate offset
-    let offset = (query.page - 1) * query.page_size;
+    let offset = (page - 1) * page_size;
 
     // Get invitations
     let invitations = invitation_service
-        .list_invitations(admin_user.tenant_id, query.status.as_deref(), query.page_size, offset)
+        .list_invitations(admin_user.tenant_id, query.status.as_deref(), page_size, offset)
         .await?;
 
     // Get total count
@@ -254,8 +241,8 @@ where
     let response = ListInvitationsResponse {
         invitations: items,
         total,
-        page: query.page,
-        page_size: query.page_size,
+        page,
+        page_size,
     };
 
     Ok(Json(response))

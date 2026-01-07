@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use shared_auth::enforcer::{add_role_for_user, SharedEnforcer};
 use shared_error::AppError;
+use tokio::task;
 use tracing;
 use user_service_core::domains::auth::domain::{
     invitation_repository::InvitationRepository, invitation_service::InvitationService,
@@ -179,9 +180,13 @@ where
         validate_password_quick(password, &user_inputs)
             .map_err(|e| AppError::ValidationError(format!("Password validation failed: {}", e)))?;
 
-        // Hash password
-        let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)
-            .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;
+        // Hash password (offload to blocking thread pool)
+        let password = password.to_string(); // Clone for move into closure
+        let password_hash =
+            task::spawn_blocking(move || bcrypt::hash(&password, bcrypt::DEFAULT_COST))
+                .await
+                .map_err(|e| AppError::InternalError(format!("Task join error: {}", e)))?
+                .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;
 
         // Create user
         let user_id = Uuid::now_v7();

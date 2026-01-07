@@ -50,7 +50,7 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(&invitation.invited_from_user_agent)
         .bind(invitation.expires_at)
         .bind(&invitation.custom_message)
-        .bind(sqlx::types::Json(&invitation.metadata))
+        .bind(&invitation.metadata)
         .bind(invitation.created_at)
         .bind(invitation.updated_at)
         .fetch_one(&self.pool)
@@ -132,7 +132,7 @@ impl InvitationRepository for PgInvitationRepository {
                 last_attempt_at, custom_message, metadata, created_at, updated_at,
                 deleted_at
             FROM user_invitations
-            WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND expires_at > NOW() AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id)
