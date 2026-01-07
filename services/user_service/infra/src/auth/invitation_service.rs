@@ -51,6 +51,7 @@ where
         }
     }
 
+    #[allow(dead_code)]
     fn user_to_user_info(&self, user: &User) -> UserInfo {
         UserInfo {
             id: user.user_id,
@@ -80,14 +81,15 @@ where
         invited_from_user_agent: Option<&str>,
     ) -> Result<(Invitation, String), AppError> {
         // Check if pending invitation already exists for this email in tenant
-        if let Some(existing) = self
+        if let Some(_existing) = self
             .invitation_repo
             .find_pending_by_tenant_and_email(tenant_id, email)
             .await?
         {
-            return Err(AppError::ValidationError(
-                format!("Pending invitation already exists for {} in this tenant", email).into(),
-            ));
+            return Err(AppError::ValidationError(format!(
+                "Pending invitation already exists for {} in this tenant",
+                email
+            )));
         }
 
         // Generate secure token

@@ -8,7 +8,7 @@ use shared_auth::extractors::RequireAdmin;
 use shared_error::AppError;
 use shared_jwt::{encode_jwt, Claims};
 use user_service_core::domains::auth::{
-    domain::{invitation_service::InvitationService, service::AuthService},
+    domain::service::AuthService,
     dto::{
         auth_dto::{ErrorResp, UserInfo},
         invitation_dto::{
