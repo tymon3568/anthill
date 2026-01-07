@@ -50,6 +50,11 @@ pub trait UserRepository: Send + Sync {
         username: Option<&str>,
         tenant_id: Uuid,
     ) -> Result<(User, bool), AppError>;
+
+    /// Hard delete a user by ID (for compensating transactions)
+    /// This permanently removes the user record - use with caution.
+    /// Primarily used for rollback when subsequent operations fail after user creation.
+    async fn hard_delete_by_id(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError>;
 }
 
 /// Tenant repository trait

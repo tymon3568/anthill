@@ -16,6 +16,8 @@ pub struct TestDatabaseConfig {
     tracked_tenants: Arc<Mutex<Vec<Uuid>>>,
     tracked_users: Arc<Mutex<Vec<Uuid>>>,
     tracked_sessions: Arc<Mutex<Vec<Uuid>>>,
+    /// Track Casbin grouping policies for cleanup (user_id, role, tenant_id)
+    tracked_casbin_rules: Arc<Mutex<Vec<(String, String, String)>>>,
 
     /// Whether to automatically cleanup on drop
     auto_cleanup: bool,
@@ -35,6 +37,7 @@ impl TestDatabaseConfig {
             tracked_tenants: Arc::new(Mutex::new(Vec::new())),
             tracked_users: Arc::new(Mutex::new(Vec::new())),
             tracked_sessions: Arc::new(Mutex::new(Vec::new())),
+            tracked_casbin_rules: Arc::new(Mutex::new(Vec::new())),
             auto_cleanup: true,
         }
     }
@@ -407,6 +410,45 @@ impl TestDatabaseConfig {
         // Note: UUID v7 doesn't use sequences, but this is here for future use
         // if we add any serial/sequence-based IDs
     }
+
+    /// Add a Casbin grouping policy (g, user_id, role, tenant_id)
+    /// This assigns a role to a user for authorization
+    /// Note: The policy is tracked and will be automatically cleaned up on drop
+    #[allow(dead_code)]
+    pub async fn add_casbin_grouping(&self, user_id: Uuid, role: &str, tenant_id: Uuid) {
+        // Note: casbin_rule table has v3 as NOT NULL, v4/v5 have defaults
+        // For grouping policies (ptype='g'), v3/v4/v5 are typically empty strings
+        sqlx::query(
+            "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3, v4, v5) VALUES ('g', $1, $2, $3, '', '', '') ON CONFLICT DO NOTHING",
+        )
+        .bind(user_id.to_string())
+        .bind(role)
+        .bind(tenant_id.to_string())
+        .execute(&self.pool)
+        .await
+        .expect("Failed to add Casbin grouping");
+
+        // Track for automatic cleanup
+        self.tracked_casbin_rules.lock().await.push((
+            user_id.to_string(),
+            role.to_string(),
+            tenant_id.to_string(),
+        ));
+    }
+
+    /// Remove a Casbin grouping policy
+    #[allow(dead_code)]
+    pub async fn remove_casbin_grouping(&self, user_id: Uuid, role: &str, tenant_id: Uuid) {
+        sqlx::query(
+            "DELETE FROM casbin_rule WHERE ptype = 'g' AND v0 = $1 AND v1 = $2 AND v2 = $3",
+        )
+        .bind(user_id.to_string())
+        .bind(role)
+        .bind(tenant_id.to_string())
+        .execute(&self.pool)
+        .await
+        .expect("Failed to remove Casbin grouping");
+    }
 }
 
 impl Drop for TestDatabaseConfig {
@@ -417,10 +459,24 @@ impl Drop for TestDatabaseConfig {
             let tenants = self.tracked_tenants.clone();
             let users = self.tracked_users.clone();
             let sessions = self.tracked_sessions.clone();
+            let casbin_rules = self.tracked_casbin_rules.clone();
 
             std::thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async move {
+                    // Clean Casbin rules first (no FK dependencies)
+                    let rules = casbin_rules.lock().await.clone();
+                    for (user_id, role, tenant_id) in rules {
+                        let _ = sqlx::query(
+                            "DELETE FROM casbin_rule WHERE ptype = 'g' AND v0 = $1 AND v1 = $2 AND v2 = $3",
+                        )
+                        .bind(&user_id)
+                        .bind(&role)
+                        .bind(&tenant_id)
+                        .execute(&pool)
+                        .await;
+                    }
+
                     // Clean sessions - using runtime queries for test compatibility
                     let session_ids = sessions.lock().await.clone();
                     for session_id in session_ids {

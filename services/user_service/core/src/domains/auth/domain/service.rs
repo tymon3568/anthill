@@ -1,3 +1,4 @@
+use crate::domains::auth::dto::admin_dto::{AdminCreateUserReq, AdminCreateUserResp};
 use crate::domains::auth::dto::auth_dto::{
     AuthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
 };
@@ -54,4 +55,40 @@ pub trait AuthService: Send + Sync {
     /// Cleanup stale sessions (admin operation)
     /// Revokes sessions with expired refresh tokens
     async fn cleanup_stale_sessions(&self) -> Result<u64, AppError>;
+
+    /// Admin creates a new user in their tenant
+    ///
+    /// Creates a user with the specified role (default: "user").
+    /// The user is always created in the admin's tenant (from JWT).
+    /// Password is hashed with bcrypt before storage.
+    ///
+    /// # Arguments
+    /// * `admin_tenant_id` - Tenant ID from the admin's JWT (enforces tenant isolation)
+    /// * `req` - Admin create user request with email, password, optional full_name and role
+    ///
+    /// # Returns
+    /// * `AdminCreateUserResp` with created user details (no sensitive data)
+    ///
+    /// # Errors
+    /// * `AppError::UserAlreadyExists` - Email already exists in tenant
+    /// * `AppError::ValidationError` - Invalid email, weak password, or invalid role
+    /// * `AppError::Forbidden` - Cannot create user with "owner" role
+    async fn admin_create_user(
+        &self,
+        admin_tenant_id: Uuid,
+        req: AdminCreateUserReq,
+    ) -> Result<AdminCreateUserResp, AppError>;
+
+    /// Internal method to delete a user (for compensating transactions)
+    ///
+    /// This is used to roll back user creation when subsequent operations fail
+    /// (e.g., Casbin policy creation failure). Performs a hard delete.
+    ///
+    /// # Arguments
+    /// * `user_id` - ID of the user to delete
+    /// * `tenant_id` - Tenant ID (for tenant isolation verification)
+    ///
+    /// # Returns
+    /// * `bool` - true if user was deleted, false if not found
+    async fn internal_delete_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError>;
 }

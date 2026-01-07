@@ -10,6 +10,7 @@ use user_service_core::domains::auth::{
         repository::{SessionRepository, TenantRepository, UserRepository},
         service::AuthService,
     },
+    dto::admin_dto::{AdminCreateUserReq, AdminCreateUserResp, PROTECTED_ROLES},
     dto::auth_dto::{AuthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp},
     utils::password_validator::validate_password_quick,
 };
@@ -565,6 +566,142 @@ where
 
         let deleted = self.session_repo.delete_expired().await?;
         tracing::info!("Cleanup finished, {} sessions removed", deleted);
+
+        Ok(deleted)
+    }
+
+    async fn admin_create_user(
+        &self,
+        admin_tenant_id: Uuid,
+        req: AdminCreateUserReq,
+    ) -> Result<AdminCreateUserResp, AppError> {
+        // Validate tenant exists and is active before creating user
+        let tenant = self
+            .tenant_repo
+            .find_by_id(admin_tenant_id)
+            .await?
+            .ok_or_else(|| AppError::ValidationError("Tenant not found".to_string()))?;
+
+        if tenant.status != "active" {
+            return Err(AppError::ValidationError(
+                "Cannot create user in inactive tenant".to_string(),
+            ));
+        }
+
+        // Determine the role (default to "user" if not specified)
+        let role = req.role.as_deref().unwrap_or("user");
+
+        // Prevent creating users with protected roles (e.g., "owner") via this endpoint
+        // These roles can only be assigned via specific flows (e.g., tenant bootstrap)
+        if PROTECTED_ROLES.contains(&role) {
+            return Err(AppError::Forbidden(format!(
+                "Cannot create user with '{}' role. This role is protected.",
+                role
+            )));
+        }
+
+        // Validate role: system roles (admin, user) are always valid
+        // Custom roles are allowed if they pass DTO format validation
+        // Actual authorization for custom roles is handled by Casbin at runtime
+        let is_system_role = matches!(role, "admin" | "user");
+        if !is_system_role {
+            tracing::info!(
+                role = %role,
+                tenant_id = %admin_tenant_id,
+                "Creating user with custom role"
+            );
+        }
+
+        // Check if user already exists in this tenant
+        if self
+            .user_repo
+            .email_exists(&req.email, admin_tenant_id)
+            .await?
+        {
+            return Err(AppError::UserAlreadyExists);
+        }
+
+        // Validate password strength (include tenant name for consistency with registration)
+        let full_name = req.full_name.as_deref().unwrap_or("");
+        let user_inputs = [req.email.as_str(), full_name, tenant.name.as_str()];
+        validate_password_quick(&req.password, &user_inputs)
+            .map_err(|e| AppError::ValidationError(format!("Password validation failed: {}", e)))?;
+
+        // Hash password with bcrypt
+        let password_hash = bcrypt::hash(&req.password, bcrypt::DEFAULT_COST)
+            .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;
+
+        // Create user with UUID v7
+        let user_id = Uuid::now_v7();
+        let now = Utc::now();
+        let user = User {
+            user_id,
+            tenant_id: admin_tenant_id,
+            email: req.email.clone(),
+            password_hash: Some(password_hash),
+            email_verified: false,
+            email_verified_at: None,
+            full_name: req.full_name.clone(),
+            avatar_url: None,
+            phone: None,
+            role: role.to_string(),
+            status: "active".to_string(),
+            last_login_at: None,
+            failed_login_attempts: 0,
+            locked_until: None,
+            password_changed_at: Some(now),
+            kanidm_user_id: None,
+            kanidm_synced_at: None,
+            auth_method: "password".to_string(),
+            migration_invited_at: None,
+            migration_completed_at: None,
+            created_at: now,
+            updated_at: now,
+            deleted_at: None,
+        };
+
+        let created_user = self.user_repo.create(&user).await?;
+
+        tracing::info!(
+            user_id = %created_user.user_id,
+            tenant_id = %admin_tenant_id,
+            role = %created_user.role,
+            "Admin created new user in tenant"
+        );
+
+        Ok(AdminCreateUserResp {
+            user_id: created_user.user_id,
+            tenant_id: created_user.tenant_id,
+            email: created_user.email,
+            full_name: created_user.full_name,
+            role: created_user.role,
+            created_at: created_user.created_at,
+            message: "User created successfully".to_string(),
+        })
+    }
+
+    async fn internal_delete_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError> {
+        tracing::warn!(
+            user_id = %user_id,
+            tenant_id = %tenant_id,
+            "Performing compensating delete of user (rolling back failed operation)"
+        );
+
+        let deleted = self.user_repo.hard_delete_by_id(user_id, tenant_id).await?;
+
+        if deleted {
+            tracing::info!(
+                user_id = %user_id,
+                tenant_id = %tenant_id,
+                "Successfully deleted user as compensating action"
+            );
+        } else {
+            tracing::warn!(
+                user_id = %user_id,
+                tenant_id = %tenant_id,
+                "User not found during compensating delete (may have been already deleted)"
+            );
+        }
 
         Ok(deleted)
     }
