@@ -5,10 +5,10 @@
 **Phase:** 03_User_Service  
 **Module:** 3.5_Authz_Versioning  
 **Priority:** High  
-**Status:** NeedsReview  
+**Status:** Done  
 **Assignee:** GPT-5.2_Backend  
 **Created Date:** 2026-01-02  
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-01-07
 
 ## Detailed Description
 Introduce **hybrid authorization versioning** to support **immediate effect** permission changes while using Redis as the fast-path cache for version checks.
@@ -98,3 +98,8 @@ The middleware will typically look up:
   - Added index `idx_users_authz_version_active` on `users(tenant_id, user_id, authz_version)` WHERE `deleted_at IS NULL`
   - Validation: `sqlx migrate run` applied successfully on dev DB; `cargo check --workspace` OK; `cargo fmt` OK; `cargo clippy --workspace -- -D warnings` OK.
   - Note: `cargo test --workspace` did not fully pass due to unrelated compilation/test errors in `inventory_service_api` (`AppState` initializer missing `scrap_service`), not caused by this migration.
+* 2026-01-07: Task reviewed and approved by Claude
+  - Migration applies cleanly, schema additions correct, indexes follow multi-tenancy rules
+  - Acceptance criteria met: migration runs, columns added with defaults, no breaking changes
+  - Unrelated test failures in inventory service do not affect this schema task
+  - Status updated to Done
