@@ -27,10 +27,10 @@ impl InvitationRepository for PgInvitationRepository {
             r#"
             INSERT INTO user_invitations (
                 invitation_id, tenant_id, token_hash, email, invited_role,
-                invited_by_user_id, expires_at, custom_message, metadata,
-                created_at, updated_at
+                invited_by_user_id, invited_from_ip, invited_from_user_agent,
+                expires_at, custom_message, metadata, created_at, updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING
                 invitation_id, tenant_id, token_hash, email, invited_role,
                 invited_by_user_id, status, expires_at, accepted_at,
@@ -46,6 +46,8 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(&invitation.email)
         .bind(&invitation.invited_role)
         .bind(invitation.invited_by_user_id)
+        .bind(&invitation.invited_from_ip)
+        .bind(&invitation.invited_from_user_agent)
         .bind(invitation.expires_at)
         .bind(&invitation.custom_message)
         .bind(sqlx::types::Json(&invitation.metadata))

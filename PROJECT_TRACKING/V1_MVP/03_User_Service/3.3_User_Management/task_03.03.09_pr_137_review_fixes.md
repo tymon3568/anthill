@@ -36,6 +36,16 @@ Auto-fix unresolved issues from PR #137 (Feature/03.03.04 user invitation system
   - Issue: `row.try_get("count")?` uses `?` on `sqlx::Error` without mapping to `AppError`, causing type mismatch.
   - Fix: Mapped the error with `.map_err(|e| AppError::DatabaseError(format!("Failed to read invitation count: {}", e)))?`
 
+- [x] **Missing comma in FK constraint** (Severity: Critical, Reviewer: cubic-dev-ai)
+  - File: `migrations/20260107000001_create_user_invitations_table.sql` (Line 32)
+  - Issue: Missing comma after second FOREIGN KEY constraint will cause SQL syntax error and prevent migration from running.
+  - Fix: Added trailing comma after `REFERENCES users(tenant_id, user_id)`
+
+- [x] **Missing columns in INSERT statement** (Severity: Warning, Reviewer: CodeRabbit)
+  - File: `services/user_service/infra/src/auth/invitation_repository.rs` (Lines 25-59)
+  - Issue: INSERT statement missing invited_from_ip and invited_from_user_agent columns but RETURNING clause expects them.
+  - Fix: Added missing columns to INSERT and corresponding binds
+
 ### Warning Issues
 
 - [x] **resend_invitation not persisting updates** (Severity: Warning, Reviewer: Sourcery, Gemini)

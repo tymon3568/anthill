@@ -29,7 +29,7 @@ CREATE TABLE user_invitations (
 
     -- Composite foreign keys for multi-tenancy (ensure referential integrity within tenant)
     FOREIGN KEY (tenant_id, invited_by_user_id) REFERENCES users(tenant_id, user_id),
-    FOREIGN KEY (tenant_id, accepted_user_id) REFERENCES users(tenant_id, user_id)
+    FOREIGN KEY (tenant_id, accepted_user_id) REFERENCES users(tenant_id, user_id),
 
     -- Request context for audit
     invited_from_ip TEXT,
