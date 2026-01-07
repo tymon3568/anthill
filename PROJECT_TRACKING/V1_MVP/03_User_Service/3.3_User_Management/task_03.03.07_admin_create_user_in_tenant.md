@@ -153,6 +153,10 @@ This task follows **Option D (Single Custom Role)**:
   - Location: `services/user_service/api/src/admin_handlers.rs:866`
   - Fix: Drop the enforcer write lock before calling `internal_delete_user`
   - **Fixed:** Added `drop(enforcer)` after `remove_grouping_policy` and before async `internal_delete_user` call
+- [x] 14. Casbin rules not tracked for automatic cleanup (Severity: Warning, Reviewer: Cubic)
+  - Location: `services/user_service/api/tests/test_database.rs:414`
+  - Fix: Add `tracked_casbin_rules` field and track policies for automatic cleanup
+  - **Fixed:** Added `tracked_casbin_rules: Arc<Mutex<Vec<(String, String, String)>>>` field, tracking in `add_casbin_grouping`, and cleanup in `Drop` impl
 
 ### Style
 - [x] 9. Doc test count mismatch (10 vs 11) (Severity: Style, Reviewer: Cubic)
@@ -252,3 +256,11 @@ This task follows **Option D (Single Custom Role)**:
   - Both fixes prevent holding write lock across async `.await` points which could cause deadlocks
   - Quality gates passed: `cargo check --workspace`, `cargo clippy --workspace -- -D warnings`
   - **All 13 issues resolved** - Status updated to NeedsReview
+- 2026-01-07 01:15: PR Review fixes (Round 3) applied by Claude:
+  - **Warning fix:**
+    - Issue 14: Added `tracked_casbin_rules` field to `TestDatabaseConfig` for automatic cleanup
+    - Casbin grouping policies are now tracked when created via `add_casbin_grouping`
+    - Cleanup in `Drop` impl deletes tracked Casbin rules before other resources
+  - This ensures test isolation by automatically cleaning up Casbin policies
+  - Quality gates passed: `cargo check --workspace`
+  - **All 14 issues resolved** - Status remains NeedsReview
