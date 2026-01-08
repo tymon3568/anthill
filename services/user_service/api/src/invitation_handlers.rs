@@ -222,18 +222,42 @@ where
 
     // Convert to response items
     let mut items = Vec::new();
+
+    // Collect unique inviter IDs for batch lookup
+    let inviter_ids: Vec<Uuid> = invitations
+        .iter()
+        .map(|inv| inv.invited_by_user_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    // Batch fetch inviters
+    let user_repo = state
+        .user_repo
+        .as_ref()
+        .ok_or_else(|| AppError::ServiceUnavailable("User repository not available".into()))?;
+    let inviters = user_repo
+        .find_by_ids(admin_user.tenant_id, &inviter_ids)
+        .await?;
+
+    // Build map of user_id -> user
+    let inviter_map: std::collections::HashMap<Uuid, _> =
+        inviters.into_iter().map(|u| (u.user_id, u)).collect();
+
+    // Build response items using the map
     for inv in invitations {
-        let user_repo = state
-            .user_repo
-            .as_ref()
-            .ok_or_else(|| AppError::ServiceUnavailable("User repository not available".into()))?;
-        let user = user_repo
-            .find_by_id(inv.invited_by_user_id, admin_user.tenant_id)
-            .await?;
-        let (inviter_email, inviter_full_name) = match user {
-            Some(u) => (u.email, u.full_name.unwrap_or_else(|| "Unknown".to_string())),
-            None => ("unknown@example.com".to_string(), "Unknown User".to_string()),
-        };
+        let (inviter_email, inviter_full_name) =
+            if let Some(user) = inviter_map.get(&inv.invited_by_user_id) {
+                (
+                    user.email.clone(),
+                    user.full_name
+                        .clone()
+                        .unwrap_or_else(|| "Unknown".to_string()),
+                )
+            } else {
+                ("unknown@example.com".to_string(), "Unknown User".to_string())
+            };
+
         items.push(InvitationListItem {
             invitation_id: inv.invitation_id,
             email: inv.email,

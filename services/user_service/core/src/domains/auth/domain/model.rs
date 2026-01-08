@@ -147,7 +147,7 @@ impl std::fmt::Display for InvitationStatus {
 ///
 /// Represents a secure user invitation with hash-at-rest tokens.
 /// Tokens are never stored in plaintext - only SHA-256 hashes.
-#[derive(Debug, Clone, FromRow)]
+#[derive(Clone, FromRow)]
 pub struct Invitation {
     pub invitation_id: Uuid,
     pub tenant_id: Uuid,

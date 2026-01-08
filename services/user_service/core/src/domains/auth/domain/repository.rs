@@ -15,6 +15,9 @@ pub trait UserRepository: Send + Sync {
     /// Find user by ID within a tenant
     async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError>;
 
+    /// Find multiple users by IDs within a tenant
+    async fn find_by_ids(&self, tenant_id: Uuid, user_ids: &[Uuid]) -> Result<Vec<User>, AppError>;
+
     /// Create a new user
     async fn create(&self, user: &User) -> Result<User, AppError>;
 

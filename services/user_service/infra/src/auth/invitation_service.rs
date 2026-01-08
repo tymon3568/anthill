@@ -3,7 +3,7 @@ use chrono::{Duration, Utc};
 use shared_auth::enforcer::{add_role_for_user, SharedEnforcer};
 use shared_error::AppError;
 use tokio::task;
-use tracing;
+
 use user_service_core::domains::auth::domain::{
     invitation_repository::InvitationRepository,
     invitation_service::InvitationService,
@@ -149,15 +149,19 @@ where
             .await?
             .ok_or_else(|| AppError::NotFound("Invalid or expired invitation".into()))?;
 
-        // Check attempt limit
-        if invitation.accept_attempts >= self.invitation_max_attempts {
+        // Atomically check and increment attempts
+        let increment_successful = self
+            .invitation_repo
+            .check_and_increment_accept_attempts(
+                invitation.tenant_id,
+                invitation.invitation_id,
+                self.invitation_max_attempts,
+            )
+            .await?;
+
+        if !increment_successful {
             return Err(AppError::TooManyRequests("Too many acceptance attempts".into()));
         }
-
-        // Increment attempts
-        self.invitation_repo
-            .increment_accept_attempts(invitation.tenant_id, invitation.invitation_id)
-            .await?;
 
         // Check expiry
         if invitation.expires_at < Utc::now() {
@@ -234,23 +238,11 @@ where
         // Add Casbin role
         let user_id_str = created_user.user_id.to_string();
         let tenant_id_str = invitation.tenant_id.to_string();
-        if let Err(e) = add_role_for_user(
-            &self.enforcer,
-            &user_id_str,
-            &invitation.invited_role,
-            &tenant_id_str,
-        )
-        .await
-        {
-            tracing::error!(
-                error = ?e,
-                user_id = %user_id_str,
-                role = %invitation.invited_role,
-                tenant_id = %tenant_id_str,
-                "Failed to add Casbin role for invited user"
-            );
-            // Don't fail the invitation acceptance - log and continue
-        }
+        add_role_for_user(&self.enforcer, &user_id_str, &invitation.invited_role, &tenant_id_str)
+            .await
+            .map_err(|e| {
+                AppError::InternalError(format!("Failed to assign role to invited user: {}", e))
+            })?;
 
         // Return updated invitation
         let mut updated_invitation = invitation;

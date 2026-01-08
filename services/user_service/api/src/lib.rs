@@ -58,7 +58,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         invitation_repo,
         user_repo.clone(),
         enforcer.clone(),
-        config.invitation_expiry_hours * 3600, // Convert hours to seconds
+        config.invitation_expiry_hours,
         config.invitation_max_attempts,
     );
 

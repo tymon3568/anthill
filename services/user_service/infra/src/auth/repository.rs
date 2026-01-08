@@ -46,6 +46,25 @@ impl UserRepository for PgUserRepository {
         Ok(user)
     }
 
+    async fn find_by_ids(&self, tenant_id: Uuid, user_ids: &[Uuid]) -> Result<Vec<User>, AppError> {
+        if user_ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let _placeholders: Vec<String> = (1..=user_ids.len())
+            .map(|i| format!("${}", i + 1))
+            .collect();
+        let query_str = "SELECT * FROM users WHERE tenant_id = $1 AND user_id = ANY($2) AND status = 'active' AND deleted_at IS NULL".to_string();
+
+        let users = sqlx::query_as::<_, User>(&query_str)
+            .bind(tenant_id)
+            .bind(user_ids)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(users)
+    }
+
     async fn create(&self, user: &User) -> Result<User, AppError> {
         let user = sqlx::query_as::<_, User>(
             r#"

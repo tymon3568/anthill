@@ -85,6 +85,15 @@ pub trait InvitationRepository: Send + Sync {
         invitation_id: Uuid,
     ) -> Result<(), AppError>;
 
+    /// Atomically check and increment accept attempts (tenant-scoped)
+    /// Returns true if increment was successful (attempts < max), false if limit exceeded
+    async fn check_and_increment_accept_attempts(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+        max_attempts: i32,
+    ) -> Result<bool, AppError>;
+
     /// Soft delete invitation (tenant-scoped)
     async fn soft_delete(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError>;
 

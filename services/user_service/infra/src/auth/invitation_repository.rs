@@ -415,6 +415,29 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(())
     }
 
+    async fn check_and_increment_accept_attempts(
+        &self,
+        tenant_id: Uuid,
+        invitation_id: Uuid,
+        max_attempts: i32,
+    ) -> Result<bool, AppError> {
+        let result = sqlx::query(
+            r#"
+            UPDATE user_invitations
+            SET accept_attempts = accept_attempts + 1, last_attempt_at = NOW(), updated_at = NOW()
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND accept_attempts < $3 AND deleted_at IS NULL
+            "#,
+        )
+        .bind(tenant_id)
+        .bind(invitation_id)
+        .bind(max_attempts)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to check and increment accept attempts: {}", e)))?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
     async fn soft_delete(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError> {
         sqlx::query(
             r#"
