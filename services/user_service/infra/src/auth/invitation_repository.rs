@@ -88,6 +88,10 @@ impl InvitationRepository for PgInvitationRepository {
         Ok(invitation)
     }
 
+    /// WARNING: This method does NOT filter by tenant_id for security reasons.
+    /// It is intended for public token acceptance flows where tenant context
+    /// is not yet available. Callers MUST validate the returned Invitation's
+    /// tenant_id against the expected tenant before proceeding.
     async fn find_pending_by_token_hash(
         &self,
         token_hash: &str,
@@ -304,13 +308,16 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(tenant_id)
         .bind(invitation_id)
         .bind(InvitationStatus::Pending)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| {
             AppError::DatabaseError(format!("Failed to update invitation for resend: {}", e))
         })?;
 
-        Ok(invitation)
+        match invitation {
+            Some(inv) => Ok(inv),
+            None => Err(AppError::NotFound("Invitation not found or not pending".to_string())),
+        }
     }
 
     async fn mark_accepted(
