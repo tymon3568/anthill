@@ -103,7 +103,7 @@ pub struct AuthResp {
 /// - `owner`: Tenant creator with full management privileges
 /// - `admin`: Administrative access within the tenant
 /// - `user`: Standard user with limited access
-#[derive(Serialize, Deserialize, ToSchema, Clone)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct UserInfo {
     /// User ID (UUID v7)
     pub id: Uuid,

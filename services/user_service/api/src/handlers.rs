@@ -10,10 +10,15 @@ use shared_auth::enforcer::{add_role_for_user, SharedEnforcer};
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
 use shared_error::AppError;
 use std::sync::Arc;
-use user_service_core::domains::auth::domain::repository::{TenantRepository, UserRepository};
-use user_service_core::domains::auth::domain::service::AuthService;
-use user_service_core::domains::auth::dto::auth_dto::{
-    AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
+use user_service_core::domains::auth::{
+    domain::{
+        invitation_service::InvitationService,
+        repository::{TenantRepository, UserRepository},
+        service::AuthService,
+    },
+    dto::auth_dto::{
+        AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
+    },
 };
 
 /// Application state containing service dependencies
@@ -24,6 +29,10 @@ pub struct AppState<S: AuthService> {
     // Repositories for user/tenant management
     pub user_repo: Option<Arc<dyn UserRepository>>,
     pub tenant_repo: Option<Arc<dyn TenantRepository>>,
+    // Invitation service
+    pub invitation_service: Option<Arc<dyn InvitationService + Send + Sync>>,
+    // Configuration for invitation settings
+    pub config: shared_config::Config,
 }
 
 impl<S: AuthService> Clone for AppState<S> {
@@ -34,6 +43,8 @@ impl<S: AuthService> Clone for AppState<S> {
             jwt_secret: self.jwt_secret.clone(),
             user_repo: self.user_repo.clone(),
             tenant_repo: self.tenant_repo.clone(),
+            invitation_service: self.invitation_service.clone(),
+            config: self.config.clone(),
         }
     }
 }

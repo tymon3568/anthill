@@ -186,7 +186,7 @@ where
         // Check if user already exists
         if self
             .user_repo
-            .email_exists(&req.email, tenant.tenant_id)
+            .email_exists(tenant.tenant_id, &req.email)
             .await?
         {
             return Err(AppError::UserAlreadyExists);
@@ -334,7 +334,7 @@ where
 
         let user = self
             .user_repo
-            .find_by_email(&req.email, tenant_id)
+            .find_by_email(tenant_id, &req.email)
             .await?
             .ok_or(AppError::InvalidCredentials)?;
 
@@ -455,7 +455,7 @@ where
         // Get user to ensure still active
         let user = self
             .user_repo
-            .find_by_id(claims.sub, claims.tenant_id)
+            .find_by_id(claims.tenant_id, claims.sub)
             .await?
             .ok_or(AppError::UserNotFound)?;
 
@@ -553,7 +553,7 @@ where
     async fn get_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<UserInfo, AppError> {
         let user = self
             .user_repo
-            .find_by_id(user_id, tenant_id)
+            .find_by_id(tenant_id, user_id)
             .await?
             .ok_or(AppError::UserNotFound)?;
 
@@ -615,7 +615,7 @@ where
         // Check if user already exists in this tenant
         if self
             .user_repo
-            .email_exists(&req.email, admin_tenant_id)
+            .email_exists(admin_tenant_id, &req.email)
             .await?
         {
             return Err(AppError::UserAlreadyExists);
@@ -687,7 +687,7 @@ where
             "Performing compensating delete of user (rolling back failed operation)"
         );
 
-        let deleted = self.user_repo.hard_delete_by_id(user_id, tenant_id).await?;
+        let deleted = self.user_repo.hard_delete_by_id(tenant_id, user_id).await?;
 
         if deleted {
             tracing::info!(

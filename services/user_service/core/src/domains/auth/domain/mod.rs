@@ -1,3 +1,5 @@
+pub mod invitation_repository;
+pub mod invitation_service;
 pub mod model;
 pub mod profile_repository;
 pub mod profile_service;

@@ -1,14 +1,19 @@
 [dependencies]
 async-trait = {workspace = true}
+base64 = "0.22"
 bcrypt = {workspace = true}
 chrono = {workspace = true}
+hex = "0.4"
+rand = "0.8"
 serde_json = {workspace = true}
 sha2 = {workspace = true}
+shared-auth = {workspace = true}
 shared_db = {workspace = true}
 shared_error = {workspace = true}
 shared_jwt = {workspace = true}
 # External deps
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros"]}
+tokio = {workspace = true}
 tracing = {workspace = true}
 # Internal crates
 user_service_core = {workspace = true}

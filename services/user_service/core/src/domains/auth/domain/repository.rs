@@ -10,10 +10,13 @@ use uuid::Uuid;
 #[async_trait]
 pub trait UserRepository: Send + Sync {
     /// Find user by email within a tenant
-    async fn find_by_email(&self, email: &str, tenant_id: Uuid) -> Result<Option<User>, AppError>;
+    async fn find_by_email(&self, tenant_id: Uuid, email: &str) -> Result<Option<User>, AppError>;
 
     /// Find user by ID within a tenant
-    async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError>;
+    async fn find_by_id(&self, tenant_id: Uuid, id: Uuid) -> Result<Option<User>, AppError>;
+
+    /// Find multiple users by IDs within a tenant
+    async fn find_by_ids(&self, tenant_id: Uuid, user_ids: &[Uuid]) -> Result<Vec<User>, AppError>;
 
     /// Create a new user
     async fn create(&self, user: &User) -> Result<User, AppError>;
@@ -32,29 +35,29 @@ pub trait UserRepository: Send + Sync {
     ) -> Result<(Vec<User>, i64), AppError>;
 
     /// Check if email exists within a tenant
-    async fn email_exists(&self, email: &str, tenant_id: Uuid) -> Result<bool, AppError>;
+    async fn email_exists(&self, tenant_id: Uuid, email: &str) -> Result<bool, AppError>;
 
     /// Find user by Kanidm user ID within a tenant
     async fn find_by_kanidm_id(
         &self,
-        kanidm_user_id: &str,
         tenant_id: Uuid,
+        kanidm_user_id: &str,
     ) -> Result<Option<User>, AppError>;
 
     /// Create or update user from Kanidm authentication
     /// Returns (user, is_new) tuple
     async fn upsert_from_kanidm(
         &self,
+        tenant_id: Uuid,
         kanidm_user_id: &str,
         email: Option<&str>,
         username: Option<&str>,
-        tenant_id: Uuid,
     ) -> Result<(User, bool), AppError>;
 
     /// Hard delete a user by ID (for compensating transactions)
     /// This permanently removes the user record - use with caution.
     /// Primarily used for rollback when subsequent operations fail after user creation.
-    async fn hard_delete_by_id(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError>;
+    async fn hard_delete_by_id(&self, tenant_id: Uuid, user_id: Uuid) -> Result<bool, AppError>;
 }
 
 /// Tenant repository trait

@@ -352,7 +352,7 @@ impl<S: AuthService> JwtSecretProvider for AppState<S> {
 ```rust
 #[async_trait]
 pub trait UserRepository: Send + Sync {
-    async fn find_by_email(&self, email: &str, tenant_id: Uuid) -> Result<Option<User>, AppError>;
+    async fn find_by_email(&self, tenant_id: Uuid, email: &str) -> Result<Option<User>, AppError>;
     async fn create(&self, user: &User) -> Result<User, AppError>;
 }
 ```

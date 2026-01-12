@@ -13,11 +13,12 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use user_service_api::{
-    admin_handlers, handlers, permission_handlers, profile_handlers, AppState, ProfileAppState,
+    admin_handlers, handlers, invitation_handlers, permission_handlers, profile_handlers, AppState,
+    ProfileAppState,
 };
 use user_service_infra::auth::{
-    AuthServiceImpl, PgSessionRepository, PgTenantRepository, PgUserProfileRepository,
-    PgUserRepository, ProfileServiceImpl,
+    AuthServiceImpl, InvitationServiceImpl, PgInvitationRepository, PgSessionRepository,
+    PgTenantRepository, PgUserProfileRepository, PgUserRepository, ProfileServiceImpl,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -88,6 +89,16 @@ async fn main() {
     let profile_service =
         ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo.clone()));
 
+    // Initialize invitation service
+    let invitation_repo = PgInvitationRepository::new(db_pool.clone());
+    let invitation_service = InvitationServiceImpl::new(
+        invitation_repo,
+        user_repo.clone(),
+        enforcer.clone(),
+        config.invitation_expiry_hours,
+        config.invitation_max_attempts,
+    );
+
     // Create application states
     let state = AppState {
         auth_service: Arc::new(auth_service),
@@ -95,6 +106,8 @@ async fn main() {
         jwt_secret: config.jwt_secret.clone(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
+        invitation_service: Some(Arc::new(invitation_service)),
+        config: config.clone(),
     };
 
     let profile_state = ProfileAppState {
@@ -162,6 +175,14 @@ async fn main() {
                 >,
             ),
         )
+        .route(
+            "/api/v1/auth/accept-invite",
+            post(
+                invitation_handlers::accept_invitation::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
         .layer(Extension(combined_state.app.clone()));
 
     // Protected routes (require authentication)
@@ -211,6 +232,19 @@ async fn main() {
         // Permission listing
         .route("/api/v1/admin/permissions",
             get(admin_handlers::list_permissions::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        // Invitation management
+        .route("/api/v1/admin/users/invite",
+            post(invitation_handlers::create_invitation::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/users/invitations",
+            get(invitation_handlers::list_invitations::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/users/invitations/{invitation_id}",
+            delete(invitation_handlers::revoke_invitation::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/users/invitations/{invitation_id}/resend",
+            post(invitation_handlers::resend_invitation::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
         .layer(Extension(combined_state.app.clone()))
         // Apply authorization middleware to admin routes

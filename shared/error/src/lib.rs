@@ -25,11 +25,13 @@ pub enum AppError {
     UserAlreadyExists,
     UserNotFound,
     TenantNotFound,
-    NotFound(String),       // Generic not found with custom message
-    Forbidden(String),      // Forbidden access with custom message
-    Conflict(String),       // Resource conflict with custom message
-    DataCorruption(String), // Data integrity issues
-    BusinessError(String),  // Business logic errors
+    NotFound(String),        // Generic not found with custom message
+    Forbidden(String),       // Forbidden access with custom message
+    Conflict(String),        // Resource conflict with custom message
+    Gone(String),            // Resource is gone (expired, etc.)
+    TooManyRequests(String), // Rate limit exceeded
+    DataCorruption(String),  // Data integrity issues
+    BusinessError(String),   // Business logic errors
 
     // File upload errors
     PayloadTooLarge(String),      // File size exceeds limit
@@ -61,6 +63,8 @@ impl fmt::Display for AppError {
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
             AppError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
             AppError::Conflict(msg) => write!(f, "Conflict: {}", msg),
+            AppError::Gone(msg) => write!(f, "Gone: {}", msg),
+            AppError::TooManyRequests(msg) => write!(f, "Too many requests: {}", msg),
             AppError::DataCorruption(msg) => write!(f, "Data corruption: {}", msg),
             AppError::BusinessError(msg) => write!(f, "Business error: {}", msg),
             AppError::PayloadTooLarge(msg) => write!(f, "Payload too large: {}", msg),
@@ -107,6 +111,10 @@ impl IntoResponse for AppError {
             AppError::NotFound(ref msg) => (StatusCode::NOT_FOUND, msg.clone(), "NOT_FOUND"),
             AppError::Forbidden(ref msg) => (StatusCode::FORBIDDEN, msg.clone(), "FORBIDDEN"),
             AppError::Conflict(ref msg) => (StatusCode::CONFLICT, msg.clone(), "CONFLICT"),
+            AppError::Gone(ref msg) => (StatusCode::GONE, msg.clone(), "GONE"),
+            AppError::TooManyRequests(ref msg) => {
+                (StatusCode::TOO_MANY_REQUESTS, msg.clone(), "TOO_MANY_REQUESTS")
+            },
             AppError::DataCorruption(ref msg) => {
                 tracing::error!("Data corruption: {}", msg);
                 (

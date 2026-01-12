@@ -69,6 +69,7 @@ pub async fn create_test_tenant(pool: &PgPool, name: &str) -> Tenant {
         plan_expires_at: None,
         settings: sqlx::types::Json(serde_json::json!({})),
         status: "active".to_string(),
+        owner_user_id: None,
         created_at: now,
         updated_at: now,
         deleted_at: None,

@@ -8,12 +8,16 @@ name = "database_benchmarks"
 
 [dependencies]
 async-trait = {workspace = true}
+base64 = "0.22"
 chrono = {workspace = true}
+hex = "0.4"
 lazy_static = {workspace = true}
+rand = "0.8"
 regex = {workspace = true}
 # External deps
 serde = {workspace = true}
 serde_json = {workspace = true}
+sha2 = "0.10"
 # Shared crates
 shared_error = {workspace = true}
 shared_types = {workspace = true}

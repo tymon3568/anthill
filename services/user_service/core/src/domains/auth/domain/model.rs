@@ -122,3 +122,52 @@ pub struct UserProfile {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "varchar")]
+pub enum InvitationStatus {
+    Pending,
+    Accepted,
+    Expired,
+    Revoked,
+}
+
+impl std::fmt::Display for InvitationStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InvitationStatus::Pending => write!(f, "pending"),
+            InvitationStatus::Accepted => write!(f, "accepted"),
+            InvitationStatus::Expired => write!(f, "expired"),
+            InvitationStatus::Revoked => write!(f, "revoked"),
+        }
+    }
+}
+
+/// Invitation entity
+///
+/// Represents a secure user invitation with hash-at-rest tokens.
+/// Tokens are never stored in plaintext - only SHA-256 hashes.
+#[derive(Clone, FromRow)]
+pub struct Invitation {
+    pub invitation_id: Uuid,
+    pub tenant_id: Uuid,
+    pub token_hash: String, // SHA-256 hash of the token
+    pub email: String,
+    pub invited_role: String,
+    pub invited_by_user_id: Uuid,
+    pub status: InvitationStatus,
+    pub expires_at: DateTime<Utc>,
+    pub accepted_at: Option<DateTime<Utc>>,
+    pub accepted_user_id: Option<Uuid>, // User created on acceptance
+    pub invited_from_ip: Option<String>,
+    pub invited_from_user_agent: Option<String>,
+    pub accepted_from_ip: Option<String>,
+    pub accepted_from_user_agent: Option<String>,
+    pub accept_attempts: i32,
+    pub last_attempt_at: Option<DateTime<Utc>>,
+    pub custom_message: Option<String>,
+    pub metadata: sqlx::types::Json<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>, // Soft delete
+}

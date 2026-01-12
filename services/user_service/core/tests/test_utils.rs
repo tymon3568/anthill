@@ -167,6 +167,7 @@ pub struct TenantBuilder {
     slug: String,
     plan: String,
     status: String,
+    owner_user_id: Option<Uuid>,
 }
 
 impl TenantBuilder {
@@ -180,6 +181,7 @@ impl TenantBuilder {
             slug,
             plan: "free".to_string(),
             status: "active".to_string(),
+            owner_user_id: None,
         }
     }
 
@@ -214,6 +216,12 @@ impl TenantBuilder {
         self
     }
 
+    /// Set owner user ID
+    pub fn with_owner_user_id(mut self, owner_user_id: Option<Uuid>) -> Self {
+        self.owner_user_id = owner_user_id;
+        self
+    }
+
     /// Build the Tenant instance
     pub fn build(self) -> Tenant {
         let now = Utc::now();
@@ -225,6 +233,7 @@ impl TenantBuilder {
             plan_expires_at: None,
             settings: sqlx::types::Json(serde_json::json!({})),
             status: self.status,
+            owner_user_id: self.owner_user_id,
             created_at: now,
             updated_at: now,
             deleted_at: None,
