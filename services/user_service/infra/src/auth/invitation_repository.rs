@@ -464,6 +464,8 @@ impl InvitationRepository for PgInvitationRepository {
             WHERE status = $2 AND expires_at < NOW() AND deleted_at IS NULL
             "#,
         )
+        .bind(InvitationStatus::Expired)
+        .bind(InvitationStatus::Pending)
         .execute(&self.pool)
         .await
         .map_err(|e| {
