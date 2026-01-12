@@ -82,16 +82,11 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(tenant_id)
         .bind(invitation_id)
         .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| AppError::DatabaseError(format!("Failed to find invitation by ID: {}", e)))?;
+        .await?;
 
         Ok(invitation)
     }
 
-    /// WARNING: This method does NOT filter by tenant_id for security reasons.
-    /// It is intended for public token acceptance flows where tenant context
-    /// is not yet available. Callers MUST validate the returned Invitation's
-    /// tenant_id against the expected tenant before proceeding.
     async fn find_pending_by_token_hash(
         &self,
         token_hash: &str,
@@ -107,6 +102,8 @@ impl InvitationRepository for PgInvitationRepository {
                 deleted_at
             FROM user_invitations
             WHERE token_hash = $1 AND status = $2 AND expires_at > NOW() AND deleted_at IS NULL
+            ORDER BY created_at DESC
+            LIMIT 1
             "#,
         )
         .bind(token_hash)
@@ -253,7 +250,7 @@ impl InvitationRepository for PgInvitationRepository {
         invitation_id: Uuid,
         status: InvitationStatus,
     ) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_invitations
             SET status = $1, updated_at = NOW()
@@ -268,6 +265,10 @@ impl InvitationRepository for PgInvitationRepository {
         .map_err(|e| {
             AppError::DatabaseError(format!("Failed to update invitation status: {}", e))
         })?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Invitation not found".to_string()));
+        }
 
         Ok(())
     }
@@ -328,7 +329,7 @@ impl InvitationRepository for PgInvitationRepository {
         accepted_from_ip: Option<&str>,
         accepted_from_user_agent: Option<&str>,
     ) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_invitations
             SET status = $1,
@@ -337,7 +338,7 @@ impl InvitationRepository for PgInvitationRepository {
                 accepted_from_ip = $3,
                 accepted_from_user_agent = $4,
                 updated_at = NOW()
-            WHERE tenant_id = $5 AND invitation_id = $6 AND status = $7 AND deleted_at IS NULL
+            WHERE tenant_id = $5 AND invitation_id = $6 AND status = $7 AND expires_at > NOW() AND deleted_at IS NULL
             "#,
         )
         .bind(InvitationStatus::Accepted)
@@ -353,11 +354,15 @@ impl InvitationRepository for PgInvitationRepository {
             AppError::DatabaseError(format!("Failed to mark invitation as accepted: {}", e))
         })?;
 
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Invitation not found, not pending, or expired".to_string()));
+        }
+
         Ok(())
     }
 
     async fn mark_expired(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_invitations
             SET status = $1, updated_at = NOW()
@@ -374,11 +379,15 @@ impl InvitationRepository for PgInvitationRepository {
             AppError::DatabaseError(format!("Failed to mark invitation as expired: {}", e))
         })?;
 
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Invitation not found or not pending".to_string()));
+        }
+
         Ok(())
     }
 
     async fn revoke(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_invitations
             SET status = $1, updated_at = NOW()
@@ -393,6 +402,10 @@ impl InvitationRepository for PgInvitationRepository {
         .await
         .map_err(|e| AppError::DatabaseError(format!("Failed to revoke invitation: {}", e)))?;
 
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Invitation not found or not pending".to_string()));
+        }
+
         Ok(())
     }
 
@@ -401,13 +414,13 @@ impl InvitationRepository for PgInvitationRepository {
         tenant_id: Uuid,
         invitation_id: Uuid,
     ) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_invitations
             SET accept_attempts = accept_attempts + 1,
                 last_attempt_at = NOW(),
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND invitation_id = $2 AND status = $3 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = $3 AND expires_at > NOW() AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id)
@@ -418,6 +431,10 @@ impl InvitationRepository for PgInvitationRepository {
         .map_err(|e| {
             AppError::DatabaseError(format!("Failed to increment accept attempts: {}", e))
         })?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Invitation not found, not pending, or expired".to_string()));
+        }
 
         Ok(())
     }
@@ -432,7 +449,7 @@ impl InvitationRepository for PgInvitationRepository {
             r#"
             UPDATE user_invitations
             SET accept_attempts = accept_attempts + 1, last_attempt_at = NOW(), updated_at = NOW()
-            WHERE tenant_id = $1 AND invitation_id = $2 AND status = $3 AND accept_attempts < $4 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = $3 AND accept_attempts < $4 AND expires_at > NOW() AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id)
@@ -447,7 +464,7 @@ impl InvitationRepository for PgInvitationRepository {
     }
 
     async fn soft_delete(&self, tenant_id: Uuid, invitation_id: Uuid) -> Result<(), AppError> {
-        sqlx::query(
+        let result = sqlx::query(
             r#"
             UPDATE user_invitations
             SET deleted_at = NOW(), updated_at = NOW()
@@ -458,7 +475,13 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(invitation_id)
         .execute(&self.pool)
         .await
-        .map_err(|e| AppError::DatabaseError(format!("Failed to soft delete invitation: {}", e)))?;
+        .map_err(|e| {
+            AppError::DatabaseError(format!("Failed to soft delete invitation: {}", e))
+        })?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Invitation not found".to_string()));
+        }
 
         Ok(())
     }
