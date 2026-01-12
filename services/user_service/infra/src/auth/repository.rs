@@ -22,24 +22,24 @@ impl PgUserRepository {
 
 #[async_trait]
 impl UserRepository for PgUserRepository {
-    async fn find_by_email(&self, email: &str, tenant_id: Uuid) -> Result<Option<User>, AppError> {
+    async fn find_by_email(&self, tenant_id: Uuid, email: &str) -> Result<Option<User>, AppError> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE email = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL"
+            "SELECT * FROM users WHERE tenant_id = $1 AND email = $2 AND status = 'active' AND deleted_at IS NULL"
         )
-        .bind(email)
         .bind(tenant_id)
+        .bind(email)
         .fetch_optional(&self.pool)
         .await?;
 
         Ok(user)
     }
 
-    async fn find_by_id(&self, id: Uuid, tenant_id: Uuid) -> Result<Option<User>, AppError> {
+    async fn find_by_id(&self, tenant_id: Uuid, id: Uuid) -> Result<Option<User>, AppError> {
         let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL"
+            "SELECT * FROM users WHERE tenant_id = $1 AND user_id = $2 AND status = 'active' AND deleted_at IS NULL"
         )
-        .bind(id)
         .bind(tenant_id)
+        .bind(id)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -230,12 +230,12 @@ impl UserRepository for PgUserRepository {
         Ok((users, total.0))
     }
 
-    async fn email_exists(&self, email: &str, tenant_id: Uuid) -> Result<bool, AppError> {
+    async fn email_exists(&self, tenant_id: Uuid, email: &str) -> Result<bool, AppError> {
         let exists: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 AND tenant_id = $2)",
+            "SELECT EXISTS(SELECT 1 FROM users WHERE tenant_id = $1 AND email = $2)",
         )
-        .bind(email)
         .bind(tenant_id)
+        .bind(email)
         .fetch_one(&self.pool)
         .await?;
 
@@ -244,17 +244,17 @@ impl UserRepository for PgUserRepository {
 
     async fn find_by_kanidm_id(
         &self,
-        kanidm_user_id: &str,
         tenant_id: Uuid,
+        kanidm_user_id: &str,
     ) -> Result<Option<User>, AppError> {
         let user =
             sqlx::query_as::<_, User>(
-                "SELECT * FROM users WHERE kanidm_user_id = $1 AND tenant_id = $2 AND status = 'active' AND deleted_at IS NULL",
+                "SELECT * FROM users WHERE tenant_id = $1 AND kanidm_user_id = $2 AND status = 'active' AND deleted_at IS NULL",
             )
+            .bind(tenant_id)
             .bind(Uuid::parse_str(kanidm_user_id).map_err(|_| {
                 AppError::ValidationError("Invalid Kanidm user ID format".to_string())
             })?)
-            .bind(tenant_id)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -263,16 +263,16 @@ impl UserRepository for PgUserRepository {
 
     async fn upsert_from_kanidm(
         &self,
+        tenant_id: Uuid,
         kanidm_user_id: &str,
         email: Option<&str>,
         _username: Option<&str>,
-        tenant_id: Uuid,
     ) -> Result<(User, bool), AppError> {
         let kanidm_uuid = Uuid::parse_str(kanidm_user_id)
             .map_err(|_| AppError::ValidationError("Invalid Kanidm user ID format".to_string()))?;
 
         // Try to find existing user by kanidm_user_id
-        if let Some(mut user) = self.find_by_kanidm_id(kanidm_user_id, tenant_id).await? {
+        if let Some(mut user) = self.find_by_kanidm_id(tenant_id, kanidm_user_id).await? {
             // Update existing user
             user.kanidm_synced_at = Some(chrono::Utc::now());
             user.updated_at = chrono::Utc::now();
@@ -343,10 +343,10 @@ impl UserRepository for PgUserRepository {
         Ok((user, true))
     }
 
-    async fn hard_delete_by_id(&self, user_id: Uuid, tenant_id: Uuid) -> Result<bool, AppError> {
-        let result = sqlx::query("DELETE FROM users WHERE user_id = $1 AND tenant_id = $2")
-            .bind(user_id)
+    async fn hard_delete_by_id(&self, tenant_id: Uuid, user_id: Uuid) -> Result<bool, AppError> {
+        let result = sqlx::query("DELETE FROM users WHERE tenant_id = $1 AND user_id = $2")
             .bind(tenant_id)
+            .bind(user_id)
             .execute(&self.pool)
             .await?;
 

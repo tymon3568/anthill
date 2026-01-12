@@ -425,11 +425,12 @@ impl InvitationRepository for PgInvitationRepository {
             r#"
             UPDATE user_invitations
             SET accept_attempts = accept_attempts + 1, last_attempt_at = NOW(), updated_at = NOW()
-            WHERE tenant_id = $1 AND invitation_id = $2 AND status = 'pending' AND accept_attempts < $3 AND deleted_at IS NULL
+            WHERE tenant_id = $1 AND invitation_id = $2 AND status = $3 AND accept_attempts < $4 AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id)
         .bind(invitation_id)
+        .bind(InvitationStatus::Pending)
         .bind(max_attempts)
         .execute(&self.pool)
         .await

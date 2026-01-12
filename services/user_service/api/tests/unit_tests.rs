@@ -45,13 +45,13 @@ mod auth_logic_tests {
         // Setup: User does not exist
         mock_repo
             .expect_find_by_email()
-            .with(eq("nonexistent@example.com"), eq(tenant_id))
+            .with(eq(tenant_id), eq("nonexistent@example.com"))
             .times(1)
             .returning(|_, _| Ok(None));
 
         // Test logic that uses the repository
         let result = mock_repo
-            .find_by_email("nonexistent@example.com", tenant_id)
+            .find_by_email(tenant_id, "nonexistent@example.com")
             .await;
 
         assert!(result.is_ok());

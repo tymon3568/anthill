@@ -223,7 +223,7 @@ async fn test_user_registration_flow() {
     assert!(user.user_id.is_some());
     
     // Verify in database
-    let fetched = ctx.repo.find_by_email("test@example.com", ctx.tenant_id).await?;
+    let fetched = ctx.repo.find_by_email(ctx.tenant_id, "test@example.com").await?;
     assert_eq!(fetched.unwrap().email, "test@example.com");
     
     // Cleanup happens automatically via Drop
@@ -250,7 +250,7 @@ async fn test_tenant_isolation() {
     let user1 = create_user(tenant1_id, "user1@t1.com").await;
     
     // Attempt to access user1 from tenant2 context
-    let result = repo.find_by_id(user1.id, tenant2_id).await;
+    let result = repo.find_by_id(tenant2_id, user1.id).await;
     
     // Should fail - tenant isolation enforced
     assert!(result.is_err() || result.unwrap().is_none());
