@@ -401,30 +401,9 @@ async fn test_jwt_expiration_flow() {
         enforcer: shared_auth::enforcer::create_enforcer(&database_url, None)
             .await
             .expect("Failed to create enforcer"),
-        jwt_secret: jwt_secret.clone(),
+        jwt_secret,
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
-        invitation_service: None,
-        config: shared_config::Config {
-            database_url,
-            jwt_secret,
-            jwt_expiration: 1,
-            jwt_refresh_expiration: 604800,
-            host: "127.0.0.1".to_string(),
-            port: 8000,
-            cors_origins: None,
-            kanidm_url: None,
-            kanidm_client_id: None,
-            kanidm_client_secret: None,
-            kanidm_redirect_url: None,
-            nats_url: None,
-            redis_url: None,
-            casbin_model_path: "../../../shared/auth/model.conf".to_string(),
-            max_connections: Some(5),
-            invitation_base_url: "https://test.example.com".to_string(),
-            invitation_expiry_hours: 48,
-            invitation_max_attempts: 5,
-        },
     };
 
     let app = user_service_api::create_router(&state);

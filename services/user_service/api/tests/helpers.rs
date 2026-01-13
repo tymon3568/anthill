@@ -27,30 +27,6 @@ pub fn get_test_jwt_secret() -> String {
         .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string())
 }
 
-/// Get test configuration
-pub fn get_test_config() -> Config {
-    Config {
-        database_url: get_test_database_url(),
-        jwt_secret: get_test_jwt_secret(),
-        jwt_expiration: 900,
-        jwt_refresh_expiration: 604800,
-        host: "127.0.0.1".to_string(),
-        port: 8000,
-        cors_origins: None,
-        kanidm_url: None,
-        kanidm_client_id: None,
-        kanidm_client_secret: None,
-        kanidm_redirect_url: None,
-        nats_url: None,
-        redis_url: None,
-        casbin_model_path: "../../../shared/auth/model.conf".to_string(),
-        max_connections: Some(5),
-        invitation_base_url: "https://test.example.com".to_string(),
-        invitation_expiry_hours: 48,
-        invitation_max_attempts: 5,
-    }
-}
-
 /// Clean up all test data from the database
 pub async fn cleanup_test_data(pool: &PgPool) {
     // Delete in reverse dependency order to avoid foreign key constraints.
@@ -291,8 +267,6 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         jwt_secret: get_test_jwt_secret(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
-        invitation_service: None, // Not needed for basic auth tests
-        config: get_test_config(),
     };
 
     user_service_api::create_router(&state)

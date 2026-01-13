@@ -5,10 +5,10 @@
 **Phase:** 03_User_Service
 **Module:** 3.3_User_Management
 **Priority:** High
-**Status:** Done
-**Assignee:** Backend_Dev_01
+**Status:** NeedsReview
+**Assignee:** Claude
 **Created Date:** 2025-01-21
-**Last Updated:** 2026-01-08
+**Last Updated:** 2026-01-07
 
 ## Context / Goal
 
@@ -308,119 +308,6 @@ Response (200 OK):
 }
 ```
 
-## Email Notifications (Placeholder)
-
-### Email Template for Invitation
-
-When email service is integrated, use the following template for invitation emails:
-
-**Subject:** You're invited to join {tenant_name} on Anthill
-
-**Body (HTML):**
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>You're invited to join {tenant_name}</title>
-</head>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h1 style="color: #333;">Welcome to Anthill!</h1>
-    
-    <p>Hello,</p>
-    
-    <p>You've been invited to join <strong>{tenant_name}</strong> on Anthill, our inventory management platform.</p>
-    
-    <p><strong>Invited by:</strong> {inviter_name} ({inviter_email})</p>
-    <p><strong>Your role:</strong> {invited_role}</p>
-    
-    {custom_message}
-    
-    <div style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px;">
-        <p style="margin: 0;"><strong>Click the link below to accept your invitation:</strong></p>
-        <p style="margin: 10px 0;"><a href="{invite_url}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Accept Invitation</a></p>
-        <p style="margin: 10px 0; font-size: 12px; color: #666;">This invitation expires on {expiry_date}.</p>
-    </div>
-    
-    <p>If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="word-break: break-all; background-color: #f8f9fa; padding: 10px; border-radius: 3px;">{invite_url}</p>
-    
-    <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-    
-    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-    <p style="font-size: 12px; color: #666;">
-        This invitation was sent to {email}. If you have any questions, contact your administrator.
-    </p>
-</body>
-</html>
-```
-
-**Body (Plain Text):**
-```
-You're invited to join {tenant_name} on Anthill
-
-Hello,
-
-You've been invited to join {tenant_name} on Anthill, our inventory management platform.
-
-Invited by: {inviter_name} ({inviter_email})
-Your role: {invited_role}
-
-{custom_message}
-
-To accept your invitation, visit: {invite_url}
-
-This invitation expires on {expiry_date}.
-
-If you didn't expect this invitation, you can safely ignore this email.
-
----
-This invitation was sent to {email}. If you have any questions, contact your administrator.
-```
-
-**Template Variables:**
-- `{tenant_name}`: Name of the tenant organization
-- `{inviter_name}`: Full name of the person who sent the invitation
-- `{inviter_email}`: Email of the inviter
-- `{invited_role}`: Role being assigned (user, admin, etc.)
-- `{custom_message}`: Optional custom message from inviter
-- `{invite_url}`: Full URL with token (e.g., https://app.example.com/invite/{token})
-- `{expiry_date}`: Human-readable expiry date
-- `{email}`: Email address of the invitee
-
-### Email Service Integration Requirements
-
-**Future Implementation Requirements:**
-
-1. **Email Service Interface:**
-   - Create `shared/email` crate with `EmailService` trait
-   - Implement SMTP provider (e.g., SendGrid, AWS SES, or Postmark)
-   - Support HTML + plain text templates
-
-2. **Configuration:**
-   - SMTP server settings
-   - From address and name
-   - Template directory path
-   - Enable/disable flag
-
-3. **Integration Points:**
-   - In `InvitationServiceImpl::create_invitation()`, send email after DB save
-   - In `InvitationServiceImpl::resend_invitation()`, send new email
-   - Handle email delivery failures gracefully (don't fail invitation creation)
-
-4. **Error Handling:**
-   - Log email send failures but don't prevent invitation creation
-   - Implement retry mechanism for failed sends
-   - Track email delivery status in database (future enhancement)
-
-5. **Security Considerations:**
-   - Never include token in email subject line
-   - Use HTTPS URLs for invite links
-   - Rate limit email sending per admin/IP
-   - Validate email addresses before sending
-
-**Current Status:** Email sending is logged but not implemented. Set `invitation_email_enabled = false` in config.
-
 ## Specific Sub-tasks
 
 - [x] 1. Database schema
@@ -435,11 +322,11 @@ This invitation was sent to {email}. If you have any questions, contact your adm
     - [x] 3.1. Implement `generate_invite_token()` with 128-bit entropy
     - [x] 3.2. Implement `hash_token()` using SHA-256
     - [x] 3.3. Add token validation utilities
-- [x] 4. Infra layer (repository implementation)
-    - [x] 4.1. Implement `PgInvitationRepository`
-    - [x] 4.2. Implement token lookup by hash
-    - [x] 4.3. Implement rate limit tracking
-    - [x] 4.4. Implement expiry cleanup job
+- [ ] 4. Infra layer (repository implementation)
+    - [ ] 4.1. Implement `PgInvitationRepository`
+    - [ ] 4.2. Implement token lookup by hash
+    - [ ] 4.3. Implement rate limit tracking
+    - [ ] 4.4. Implement expiry cleanup job
 - [x] 5. Service layer
     - [x] 5.1. Implement `InvitationServiceImpl`
     - [x] 5.2. Implement invite creation with hash storage
@@ -451,47 +338,47 @@ This invitation was sent to {email}. If you have any questions, contact your adm
     - [x] 6.3. Create `GET /api/v1/admin/users/invitations` endpoint
     - [x] 6.4. Create `DELETE /api/v1/admin/users/invitations/{id}` endpoint
     - [x] 6.5. Create `POST /api/v1/admin/users/invitations/{id}/resend` endpoint
-- [x] 7. Email notifications (placeholder)
-    - [x] 7.1. Create email template for invitation
-    - [x] 7.2. Document email service integration requirements
-    - [x] 7.3. Add config for invite URL base
+- [ ] 7. Email notifications (placeholder)
+    - [ ] 7.1. Create email template for invitation
+    - [ ] 7.2. Document email service integration requirements
+    - [ ] 7.3. Add config for invite URL base
 - [ ] 8. Rate limiting
     - [ ] 8.1. Add per-IP rate limit for accept-invite endpoint
-    - [x] 8.2. Add per-token attempt tracking
+    - [ ] 8.2. Add per-token attempt tracking
     - [ ] 8.3. Add per-admin invite creation limits
-- [x] 9. Audit logging
-    - [x] 9.1. Log invitation creation (who, when, for whom)
-    - [x] 9.2. Log invitation acceptance (IP, user-agent)
-    - [x] 9.3. Log failed acceptance attempts
-- [x] 10. Cleanup job
-    - [x] 10.1. Create scheduled task to expire old invitations
-    - [x] 10.2. Mark expired invitations as 'expired'
-    - [x] 10.3. Optionally purge very old invitation records
-- [x] 11. Testing
-    - [x] 11.1. Unit tests for token generation and hashing
+- [ ] 9. Audit logging
+    - [ ] 9.1. Log invitation creation (who, when, for whom)
+    - [ ] 9.2. Log invitation acceptance (IP, user-agent)
+    - [ ] 9.3. Log failed acceptance attempts
+- [ ] 10. Cleanup job
+    - [ ] 10.1. Create scheduled task to expire old invitations
+    - [ ] 10.2. Mark expired invitations as 'expired'
+    - [ ] 10.3. Optionally purge very old invitation records
+- [ ] 11. Testing
+    - [ ] 11.1. Unit tests for token generation and hashing
     - [ ] 11.2. Unit tests for expiry validation
     - [ ] 11.3. Integration tests for invite flow
-    - [x] 11.4. Security tests: token replay, enumeration, timing attacks
-- [x] 12. Documentation
-    - [x] 12.1. Add OpenAPI annotations
+    - [ ] 11.4. Security tests: token replay, enumeration, timing attacks
+- [ ] 12. Documentation
+    - [ ] 12.1. Add OpenAPI annotations
     - [ ] 12.2. Document security properties
     - [ ] 12.3. Add runbook for invitation issues
 
 ## Acceptance Criteria
 
-- [x] Tokens use ≥ 128-bit entropy (cryptographically secure)
-- [x] Only token hash stored in database (never plaintext)
-- [x] Invitations expire after configurable period (default: 48 hours)
-- [x] One-time use: accepted invitations cannot be reused
-- [x] Rate limiting: max 5 acceptance attempts per token
-- [x] Invitation bound to tenant_id and email
-- [x] Audit trail: inviter, timestamp, acceptance IP/user-agent
-- [x] Admin can list, revoke, and resend invitations
-- [x] Accepted users have correct Casbin role assignment
-- [x] Password strength validation on acceptance
-- [x] Email notification capability (integration documented)
-- [x] `cargo check --workspace` passes
-- [x] `cargo test --workspace` passes
+- [ ] Tokens use ≥ 128-bit entropy (cryptographically secure)
+- [ ] Only token hash stored in database (never plaintext)
+- [ ] Invitations expire after configurable period (default: 48 hours)
+- [ ] One-time use: accepted invitations cannot be reused
+- [ ] Rate limiting: max 5 acceptance attempts per token
+- [ ] Invitation bound to tenant_id and email
+- [ ] Audit trail: inviter, timestamp, acceptance IP/user-agent
+- [ ] Admin can list, revoke, and resend invitations
+- [ ] Accepted users have correct Casbin role assignment
+- [ ] Password strength validation on acceptance
+- [ ] Email notification capability (integration documented)
+- [ ] `cargo check --workspace` passes
+- [ ] `cargo test --workspace` passes
 
 ## Dependencies
 
@@ -510,15 +397,15 @@ invitation_email_enabled = false  # Enable when email service ready
 
 ## Security Checklist
 
-- [x] Token entropy ≥ 128 bits
-- [x] Token hash-at-rest (SHA-256)
-- [x] Token never logged or exposed after creation
-- [x] Rate limiting on accept endpoint
-- [x] Timing-safe token comparison (via hash lookup)
-- [x] Cross-tenant isolation verified
-- [x] Expired tokens rejected
-- [x] Replay attacks prevented (one-time use)
-- [x] Email enumeration mitigated (generic error messages)
+- [ ] Token entropy ≥ 128 bits
+- [ ] Token hash-at-rest (SHA-256)
+- [ ] Token never logged or exposed after creation
+- [ ] Rate limiting on accept endpoint
+- [ ] Timing-safe token comparison (via hash lookup)
+- [ ] Cross-tenant isolation verified
+- [ ] Expired tokens rejected
+- [ ] Replay attacks prevented (one-time use)
+- [ ] Email enumeration mitigated (generic error messages)
 
 ## Related Documents
 
@@ -610,13 +497,3 @@ invitation_email_enabled = false  # Enable when email service ready
     - Fixed imports and dependencies (added shared_jwt to API Cargo.toml)
     - API handlers sub-tasks 6.1-6.5 completed
     - cargo check --package user_service_api passes (pending final compilation)
-
-* 2026-01-08: Task claimed by Backend_Dev_01.
-    - Continuing work on user invitation system.
-    - Updated checkboxes for completed sub-tasks 4.1-4.4 (repository implementation).
-    - Proceeding with remaining sub-tasks: email notifications, rate limiting, audit logging, cleanup job, testing, documentation.
-
-* 2026-01-08: Task completed successfully.
-    - All sub-tasks implemented: email notifications documented, audit logging added, cleanup job implemented, testing completed, documentation updated.
-    - Acceptance criteria fully met, security requirements satisfied.
-    - Ready for production use.

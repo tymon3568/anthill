@@ -30,9 +30,6 @@ async fn setup_test_app() -> (Router, PgPool, Config) {
         redis_url: None,
         casbin_model_path: "../../../shared/auth/model.conf".to_string(),
         max_connections: None,
-        invitation_base_url: "https://test.example.com".to_string(),
-        invitation_expiry_hours: 48,
-        invitation_max_attempts: 5,
     };
 
     let db_pool = helpers::setup_test_db().await;
