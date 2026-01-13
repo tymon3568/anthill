@@ -308,6 +308,119 @@ Response (200 OK):
 }
 ```
 
+## Email Notifications (Placeholder)
+
+### Email Template for Invitation
+
+When email service is integrated, use the following template for invitation emails:
+
+**Subject:** You're invited to join {tenant_name} on Anthill
+
+**Body (HTML):**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>You're invited to join {tenant_name}</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h1 style="color: #333;">Welcome to Anthill!</h1>
+    
+    <p>Hello,</p>
+    
+    <p>You've been invited to join <strong>{tenant_name}</strong> on Anthill, our inventory management platform.</p>
+    
+    <p><strong>Invited by:</strong> {inviter_name} ({inviter_email})</p>
+    <p><strong>Your role:</strong> {invited_role}</p>
+    
+    {custom_message}
+    
+    <div style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <p style="margin: 0;"><strong>Click the link below to accept your invitation:</strong></p>
+        <p style="margin: 10px 0;"><a href="{invite_url}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Accept Invitation</a></p>
+        <p style="margin: 10px 0; font-size: 12px; color: #666;">This invitation expires on {expiry_date}.</p>
+    </div>
+    
+    <p>If the button doesn't work, copy and paste this link into your browser:</p>
+    <p style="word-break: break-all; background-color: #f8f9fa; padding: 10px; border-radius: 3px;">{invite_url}</p>
+    
+    <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+    
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="font-size: 12px; color: #666;">
+        This invitation was sent to {email}. If you have any questions, contact your administrator.
+    </p>
+</body>
+</html>
+```
+
+**Body (Plain Text):**
+```
+You're invited to join {tenant_name} on Anthill
+
+Hello,
+
+You've been invited to join {tenant_name} on Anthill, our inventory management platform.
+
+Invited by: {inviter_name} ({inviter_email})
+Your role: {invited_role}
+
+{custom_message}
+
+To accept your invitation, visit: {invite_url}
+
+This invitation expires on {expiry_date}.
+
+If you didn't expect this invitation, you can safely ignore this email.
+
+---
+This invitation was sent to {email}. If you have any questions, contact your administrator.
+```
+
+**Template Variables:**
+- `{tenant_name}`: Name of the tenant organization
+- `{inviter_name}`: Full name of the person who sent the invitation
+- `{inviter_email}`: Email of the inviter
+- `{invited_role}`: Role being assigned (user, admin, etc.)
+- `{custom_message}`: Optional custom message from inviter
+- `{invite_url}`: Full URL with token (e.g., https://app.example.com/invite/{token})
+- `{expiry_date}`: Human-readable expiry date
+- `{email}`: Email address of the invitee
+
+### Email Service Integration Requirements
+
+**Future Implementation Requirements:**
+
+1. **Email Service Interface:**
+   - Create `shared/email` crate with `EmailService` trait
+   - Implement SMTP provider (e.g., SendGrid, AWS SES, or Postmark)
+   - Support HTML + plain text templates
+
+2. **Configuration:**
+   - SMTP server settings
+   - From address and name
+   - Template directory path
+   - Enable/disable flag
+
+3. **Integration Points:**
+   - In `InvitationServiceImpl::create_invitation()`, send email after DB save
+   - In `InvitationServiceImpl::resend_invitation()`, send new email
+   - Handle email delivery failures gracefully (don't fail invitation creation)
+
+4. **Error Handling:**
+   - Log email send failures but don't prevent invitation creation
+   - Implement retry mechanism for failed sends
+   - Track email delivery status in database (future enhancement)
+
+5. **Security Considerations:**
+   - Never include token in email subject line
+   - Use HTTPS URLs for invite links
+   - Rate limit email sending per admin/IP
+   - Validate email addresses before sending
+
+**Current Status:** Email sending is logged but not implemented. Set `invitation_email_enabled = false` in config.
+
 ## Specific Sub-tasks
 
 - [x] 1. Database schema

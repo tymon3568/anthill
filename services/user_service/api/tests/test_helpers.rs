@@ -5,6 +5,7 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
+use shared_config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower::ServiceExt;
