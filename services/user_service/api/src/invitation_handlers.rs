@@ -115,6 +115,16 @@ where
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
+    // Check per-IP rate limit before processing token (prevents token enumeration attacks)
+    let ip = client_info.ip_address.as_deref().unwrap_or("unknown");
+    let rate_limit_result = state.invitation_rate_limiter.check_rate_limit(ip);
+    if !rate_limit_result.allowed {
+        return Err(AppError::TooManyRequests(format!(
+            "Rate limit exceeded. Try again in {} seconds.",
+            rate_limit_result.reset_in_seconds
+        )));
+    }
+
     let invitation_service = state
         .invitation_service
         .as_ref()

@@ -3,6 +3,7 @@
 // Run: docker-compose -f docker-compose.test.yml up -d && cargo test --test auth_flow_tests -- --ignored
 
 mod test_database;
+mod helpers;
 
 use axum::{http::StatusCode, Router};
 use serde_json::json;

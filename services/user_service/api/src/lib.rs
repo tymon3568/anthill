@@ -72,6 +72,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
         config: config.clone(),
+        invitation_rate_limiter: Arc::new(crate::rate_limiter::InvitationRateLimiter::default()),
     };
 
     create_router(&state)

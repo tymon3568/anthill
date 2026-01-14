@@ -124,6 +124,7 @@ async fn main() {
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
         config: config.clone(),
+        invitation_rate_limiter: Arc::new(InvitationRateLimiter::default()),
     };
 
     let profile_state = ProfileAppState {

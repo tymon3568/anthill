@@ -3,6 +3,7 @@
 // Run: docker-compose -f docker-compose.test.yml up -d && cargo test --test api_endpoint_tests -- --ignored
 
 mod test_database;
+mod helpers;
 
 use axum::{
     body::Body,

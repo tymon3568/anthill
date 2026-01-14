@@ -3,6 +3,7 @@
 // Run: docker-compose -f docker-compose.test.yml up -d && cargo test --test admin_create_user_tests -- --ignored
 
 mod test_database;
+mod helpers;
 
 use axum::{
     body::Body,

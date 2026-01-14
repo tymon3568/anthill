@@ -3,7 +3,7 @@ use chrono::{Duration, Utc};
 use shared_auth::enforcer::{add_role_for_user, SharedEnforcer};
 use shared_error::AppError;
 use tokio::task;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use user_service_core::domains::auth::domain::{
     invitation_repository::InvitationRepository,
@@ -131,13 +131,17 @@ where
 
         // Audit log: invitation creation
         info!(
-            "Invitation created: id={}, email={}, tenant={}, invited_by={}, role={}, ip={:?}",
-            saved_invitation.invitation_id,
-            email,
-            tenant_id,
-            invited_by_user_id,
-            invited_role,
-            invited_from_ip
+            invitation_id = %saved_invitation.invitation_id,
+            tenant_id = %tenant_id,
+            invited_by_user_id = %invited_by_user_id,
+            invited_role = %invited_role,
+            "invitation_created"
+        );
+        debug!(
+            invitation_id = %saved_invitation.invitation_id,
+            email = %email,
+            invited_from_ip = ?invited_from_ip,
+            "invitation_created_pii"
         );
 
         Ok((saved_invitation, plaintext_token))
@@ -161,7 +165,25 @@ where
             .await?
             .ok_or_else(|| AppError::NotFound("Invalid or expired invitation".into()))?;
 
-        // Atomically check and increment attempts
+        // Check expiry first to avoid incrementing attempts on expired invitations
+        if invitation.expires_at < Utc::now() {
+            self.invitation_repo
+                .mark_expired(invitation.tenant_id, invitation.invitation_id)
+                .await?;
+            info!(
+                invitation_id = %invitation.invitation_id,
+                tenant_id = %invitation.tenant_id,
+                "invitation_expired_during_acceptance"
+            );
+            debug!(
+                invitation_id = %invitation.invitation_id,
+                email = %invitation.email,
+                "invitation_expired_during_acceptance_pii"
+            );
+            return Err(AppError::Gone("Invitation has expired".into()));
+        }
+
+        // Atomically check and increment attempts (only for non-expired invitations)
         let increment_successful = self
             .invitation_repo
             .check_and_increment_accept_attempts(
@@ -172,17 +194,17 @@ where
             .await?;
 
         if !increment_successful {
-            warn!("Too many acceptance attempts for invitation: id={}, email={}", invitation.invitation_id, invitation.email);
+            warn!(
+                invitation_id = %invitation.invitation_id,
+                tenant_id = %invitation.tenant_id,
+                "invitation_accept_too_many_attempts"
+            );
+            debug!(
+                invitation_id = %invitation.invitation_id,
+                email = %invitation.email,
+                "invitation_accept_too_many_attempts_pii"
+            );
             return Err(AppError::TooManyRequests("Too many acceptance attempts".into()));
-        }
-
-        // Check expiry
-        if invitation.expires_at < Utc::now() {
-            self.invitation_repo
-                .mark_expired(invitation.tenant_id, invitation.invitation_id)
-                .await?;
-            info!("Invitation expired during acceptance attempt: id={}, email={}", invitation.invitation_id, invitation.email);
-            return Err(AppError::Gone("Invitation has expired".into()));
         }
 
         // Check not already accepted
@@ -259,7 +281,19 @@ where
             })?;
 
         // Audit log: invitation acceptance
-        info!("Invitation accepted: id={}, email={}, user_id={}, tenant={}, ip={:?}, user_agent={:?}", invitation.invitation_id, invitation.email, created_user.user_id, invitation.tenant_id, accepted_from_ip, accepted_from_user_agent);
+        info!(
+            invitation_id = %invitation.invitation_id,
+            tenant_id = %invitation.tenant_id,
+            user_id = %created_user.user_id,
+            "invitation_accepted"
+        );
+        debug!(
+            invitation_id = %invitation.invitation_id,
+            email = %invitation.email,
+            accepted_from_ip = ?accepted_from_ip,
+            accepted_from_user_agent = ?accepted_from_user_agent,
+            "invitation_accepted_pii"
+        );
 
         // Return updated invitation
         let mut updated_invitation = invitation;
@@ -311,15 +345,17 @@ where
         tenant_id: Uuid,
         invitation_id: Uuid,
     ) -> Result<(), AppError> {
-        // Find invitation for audit logging
-        let invitation = self.invitation_repo.find_by_id(tenant_id, invitation_id).await?
-            .ok_or_else(|| AppError::NotFound("Invitation not found".into()))?;
-
         // Use dedicated revoke method which enforces status = 'pending' check
-        self.invitation_repo.revoke(tenant_id, invitation_id).await?;
+        self.invitation_repo
+            .revoke(tenant_id, invitation_id)
+            .await?;
 
-        // Audit log: invitation revocation
-        info!("Invitation revoked: id={}, email={}, tenant={}", invitation.invitation_id, invitation.email, tenant_id);
+        // Audit log: invitation revocation (avoid extra DB read / TOCTOU)
+        info!(
+            invitation_id = %invitation_id,
+            tenant_id = %tenant_id,
+            "invitation_revoked"
+        );
 
         Ok(())
     }
@@ -363,7 +399,17 @@ where
             .await?;
 
         // Audit log: invitation resend
-        info!("Invitation resent: id={}, email={}, tenant={}, new_expires_at={}", updated_invitation.invitation_id, updated_invitation.email, tenant_id, updated_invitation.expires_at);
+        info!(
+            invitation_id = %updated_invitation.invitation_id,
+            tenant_id = %tenant_id,
+            new_expires_at = %updated_invitation.expires_at,
+            "invitation_resent"
+        );
+        debug!(
+            invitation_id = %updated_invitation.invitation_id,
+            email = %updated_invitation.email,
+            "invitation_resent_pii"
+        );
 
         Ok((updated_invitation, new_plaintext_token))
     }
@@ -372,7 +418,10 @@ where
         let count = self.invitation_repo.cleanup_expired().await?;
 
         // Audit log: cleanup
-        info!("Cleaned up {} expired invitations", count);
+        info!(
+            expired_count = %count,
+            "invitations_cleanup_completed"
+        );
 
         Ok(count)
     }
