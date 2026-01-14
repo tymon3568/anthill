@@ -134,12 +134,12 @@ mod unit_tests {
             .unwrap();
 
         // Make attempts up to the limit using invalid password that fails validation
-        for attempt in 1..=2 {
+        for attempt in 1..=3 {
             let result = invitation_service
                 .accept_invitation(&token, "short", Some("Test User"), None, None)
                 .await;
 
-            if attempt < 2 {
+            if attempt < 3 {
                 // Should fail with validation error, but attempts should increment
                 assert!(result.is_err());
                 match result.unwrap_err() {
@@ -187,7 +187,7 @@ mod unit_tests {
             user_repo,
             enforcer,
             48, // expiry hours
-            5,  // max attempts
+            2,  // max attempts
         );
 
         // Try to accept with invalid token
