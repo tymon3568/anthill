@@ -253,7 +253,7 @@ mod integration_tests {
             tenant_repo: Some(Arc::new(PgTenantRepository::new(pool.clone()))),
             invitation_service: Some(Arc::new(invitation_service)),
             config: get_test_config(),
-            invitation_rate_limiter: Arc::new(crate::rate_limiter::InvitationRateLimiter::default()),
+            invitation_rate_limiter: Arc::new(user_service_api::rate_limiter::InvitationRateLimiter::default()),
         };
 
         let app = user_service_api::create_router(&state);
