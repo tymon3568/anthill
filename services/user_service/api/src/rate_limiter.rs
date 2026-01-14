@@ -11,6 +11,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use tracing::warn;
+
 /// Rate limit configuration
 #[derive(Debug, Clone)]
 pub struct InvitationRateLimitConfig {
@@ -62,7 +64,14 @@ impl InvitationRateLimiter {
         let now = SystemTime::now();
         let window_start = now - Duration::from_secs(self.config.window_seconds);
 
-        let mut attempts = self.attempts.write().unwrap();
+        let mut attempts = match self.attempts.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                // Log and recover from poisoned lock
+                warn!("Rate limiter lock was poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
 
         // Get or create entry for this IP
         let timestamps = attempts.entry(ip.to_string()).or_insert_with(Vec::new);
@@ -116,7 +125,14 @@ impl InvitationRateLimiter {
     /// Get current attempt count for an IP (for testing)
     #[cfg(test)]
     pub fn get_attempt_count(&self, ip: &str) -> usize {
-        let attempts = self.attempts.read().unwrap();
+        let attempts = match self.attempts.read() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                // Log and recover from poisoned lock
+                warn!("Rate limiter lock was poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
         attempts.get(ip).map(|v| v.len()).unwrap_or(0)
     }
 }

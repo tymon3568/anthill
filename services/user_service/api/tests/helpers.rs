@@ -283,12 +283,12 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
     let state = AppState {
         auth_service: Arc::new(auth_service),
         enforcer: shared_auth::enforcer::create_enforcer(
-            &database_url,
+            &get_test_database_url(),
             Some("../../../shared/auth/model.conf"), // Path from tests/ to workspace root
         )
         .await
         .expect("Failed to create enforcer"),
-        jwt_secret: jwt_secret.clone(),
+        jwt_secret: get_test_jwt_secret(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: None,

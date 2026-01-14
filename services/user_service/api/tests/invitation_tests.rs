@@ -1,4 +1,3 @@
-services/user_service/api/tests/invitation_tests.rs
 //! Invitation system tests
 //!
 //! Unit tests for expiry validation and acceptance attempt logic,
@@ -134,15 +133,19 @@ mod unit_tests {
             .await
             .unwrap();
 
-        // Make attempts up to the limit
+        // Make attempts up to the limit using invalid password that fails validation
         for attempt in 1..=2 {
             let result = invitation_service
-                .accept_invitation(&token, "ValidPass123!", Some("Test User"), None, None)
+                .accept_invitation(&token, "short", Some("Test User"), None, None)
                 .await;
 
             if attempt < 2 {
-                // Should fail with validation or other error, but attempts should increment
+                // Should fail with validation error, but attempts should increment
                 assert!(result.is_err());
+                match result.unwrap_err() {
+                    shared_error::AppError::ValidationError(_) => {}, // Expected validation error
+                    _ => panic!("Expected validation error on attempt {}", attempt),
+                }
             } else {
                 // Last attempt should fail with TooManyRequests
                 match result.unwrap_err() {

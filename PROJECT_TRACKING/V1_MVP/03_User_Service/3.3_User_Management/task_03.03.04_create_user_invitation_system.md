@@ -513,7 +513,7 @@ invitation_email_enabled = false  # Enable when email service ready
 - [x] Token entropy ≥ 128 bits
 - [x] Token hash-at-rest (SHA-256)
 - [x] Token never logged or exposed after creation
-- [x] Rate limiting on accept endpoint
+- [ ] Rate limiting on accept endpoint (per-IP rate limiting pending - sub-task 8.1)
 - [x] Timing-safe token comparison (via hash lookup)
 - [x] Cross-tenant isolation verified
 - [x] Expired tokens rejected
