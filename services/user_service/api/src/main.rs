@@ -99,6 +99,7 @@ async fn main() {
         enforcer.clone(),
         config.invitation_expiry_hours,
         config.invitation_max_attempts,
+        config.invitation_max_per_admin_per_day,
     );
 
     // Initialize email verification service

@@ -31,6 +31,7 @@ where
     enforcer: SharedEnforcer,
     invitation_expiry_hours: i64,
     invitation_max_attempts: i32,
+    invitation_max_per_admin_per_day: i32,
 }
 
 impl<IR, UR> InvitationServiceImpl<IR, UR>
@@ -44,6 +45,7 @@ where
         enforcer: SharedEnforcer,
         invitation_expiry_hours: i64,
         invitation_max_attempts: i32,
+        invitation_max_per_admin_per_day: i32,
     ) -> Self {
         Self {
             invitation_repo,
@@ -51,6 +53,7 @@ where
             enforcer,
             invitation_expiry_hours,
             invitation_max_attempts,
+            invitation_max_per_admin_per_day,
         }
     }
 
@@ -83,6 +86,24 @@ where
         invited_from_ip: Option<&str>,
         invited_from_user_agent: Option<&str>,
     ) -> Result<(Invitation, String), AppError> {
+        // Check daily invitation limit for admin
+        let today_start = Utc::now().date_naive().and_hms_opt(0, 0, 0).unwrap();
+        let today_end = today_start + Duration::days(1);
+        let today_count = self
+            .invitation_repo
+            .count_created_by_user_today(
+                invited_by_user_id,
+                today_start.and_utc(),
+                today_end.and_utc(),
+            )
+            .await?;
+        if today_count >= self.invitation_max_per_admin_per_day as i64 {
+            return Err(AppError::TooManyRequests(format!(
+                "Daily invitation limit exceeded (max {} per day)",
+                self.invitation_max_per_admin_per_day
+            )));
+        }
+
         // Check if pending invitation already exists for this email in tenant
         if let Some(_existing) = self
             .invitation_repo

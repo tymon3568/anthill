@@ -48,6 +48,7 @@ pub fn get_test_config() -> Config {
         invitation_base_url: "https://test.example.com".to_string(),
         invitation_expiry_hours: 48,
         invitation_max_attempts: 5,
+        invitation_max_per_admin_per_day: 10,
     }
 }
 

@@ -55,6 +55,9 @@ pub async fn create_test_app(
             jwt_secret,
             ..Default::default()
         },
+        invitation_rate_limiter: Arc::new(
+            user_service_api::rate_limiter::InvitationRateLimiter::default(),
+        ),
     };
 
     (user_service_api::create_router(&state), state)

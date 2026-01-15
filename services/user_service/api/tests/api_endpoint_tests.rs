@@ -2,8 +2,8 @@
 // Tests all user service API endpoints with real database
 // Run: docker-compose -f docker-compose.test.yml up -d && cargo test --test api_endpoint_tests -- --ignored
 
-mod test_database;
 mod helpers;
+mod test_database;
 
 use axum::{
     body::Body,
@@ -66,6 +66,9 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
             jwt_secret,
             ..Default::default()
         },
+        invitation_rate_limiter: Arc::new(
+            user_service_api::rate_limiter::InvitationRateLimiter::default(),
+        ),
     };
 
     user_service_api::create_router(&state)

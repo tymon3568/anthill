@@ -34,18 +34,26 @@ mod unit_tests {
         cleanup_test_data(&pool).await;
 
         let tenant = create_test_tenant(&pool, "Expiry Test Tenant").await;
-        let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin").await;
+        let admin =
+            create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin")
+                .await;
 
         // Create invitation service
         let invitation_repo = PgInvitationRepository::new(pool.clone());
         let user_repo = PgUserRepository::new(pool.clone());
-        let enforcer = create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap();
+        let enforcer = create_enforcer(
+            &get_test_config().database_url,
+            Some("../../../shared/auth/model.conf"),
+        )
+        .await
+        .unwrap();
         let invitation_service = InvitationServiceImpl::new(
             invitation_repo,
             user_repo,
             enforcer,
             48, // expiry hours
             5,  // max attempts
+            10, // max per admin per day
         );
 
         // Create an invitation
@@ -105,18 +113,26 @@ mod unit_tests {
         cleanup_test_data(&pool).await;
 
         let tenant = create_test_tenant(&pool, "Attempt Limit Test Tenant").await;
-        let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin").await;
+        let admin =
+            create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin")
+                .await;
 
         // Create invitation service with low attempt limit
         let invitation_repo = PgInvitationRepository::new(pool.clone());
         let user_repo = PgUserRepository::new(pool.clone());
-        let enforcer = create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap();
+        let enforcer = create_enforcer(
+            &get_test_config().database_url,
+            Some("../../../shared/auth/model.conf"),
+        )
+        .await
+        .unwrap();
         let invitation_service = InvitationServiceImpl::new(
             invitation_repo,
             user_repo,
             enforcer,
             48, // expiry hours
             2,  // max attempts (low for testing)
+            10, // max per admin per day
         );
 
         // Create an invitation
@@ -149,7 +165,9 @@ mod unit_tests {
             } else {
                 // Last attempt should fail with TooManyRequests
                 match result.unwrap_err() {
-                    shared_error::AppError::TooManyRequests(msg) => assert!(msg.contains("attempts")),
+                    shared_error::AppError::TooManyRequests(msg) => {
+                        assert!(msg.contains("attempts"))
+                    },
                     _ => panic!("Expected TooManyRequests error on final attempt"),
                 }
             }
@@ -176,18 +194,26 @@ mod unit_tests {
         cleanup_test_data(&pool).await;
 
         let tenant = create_test_tenant(&pool, "Invalid Token Test Tenant").await;
-        let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin").await;
+        let admin =
+            create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin")
+                .await;
 
         // Create invitation service
         let invitation_repo = PgInvitationRepository::new(pool.clone());
         let user_repo = PgUserRepository::new(pool.clone());
-        let enforcer = create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap();
+        let enforcer = create_enforcer(
+            &get_test_config().database_url,
+            Some("../../../shared/auth/model.conf"),
+        )
+        .await
+        .unwrap();
         let invitation_service = InvitationServiceImpl::new(
             invitation_repo,
             user_repo,
             enforcer,
             48, // expiry hours
             2,  // max attempts
+            10, // max per admin per day
         );
 
         // Try to accept with invalid token
@@ -219,7 +245,9 @@ mod integration_tests {
         cleanup_test_data(&pool).await;
 
         let tenant = create_test_tenant(&pool, "Full Flow Test Tenant").await;
-        let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin").await;
+        let admin =
+            create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin")
+                .await;
 
         // Create app with invitation service
         let user_repo = PgUserRepository::new(pool.clone());
@@ -236,24 +264,31 @@ mod integration_tests {
             604800,
         );
 
-        let enforcer = create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap();
-        let invitation_service = InvitationServiceImpl::new(
-            invitation_repo,
-            user_repo,
-            enforcer,
-            48,
-            5,
-        );
+        let enforcer = create_enforcer(
+            &get_test_config().database_url,
+            Some("../../../shared/auth/model.conf"),
+        )
+        .await
+        .unwrap();
+        let invitation_service =
+            InvitationServiceImpl::new(invitation_repo, user_repo, enforcer, 48, 5, 10);
 
         let state = AppState {
             auth_service: Arc::new(auth_service),
-            enforcer: create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap(),
+            enforcer: create_enforcer(
+                &get_test_config().database_url,
+                Some("../../../shared/auth/model.conf"),
+            )
+            .await
+            .unwrap(),
             jwt_secret: get_test_config().jwt_secret,
             user_repo: Some(Arc::new(PgUserRepository::new(pool.clone()))),
             tenant_repo: Some(Arc::new(PgTenantRepository::new(pool.clone()))),
             invitation_service: Some(Arc::new(invitation_service)),
             config: get_test_config(),
-            invitation_rate_limiter: Arc::new(user_service_api::rate_limiter::InvitationRateLimiter::default()),
+            invitation_rate_limiter: Arc::new(
+                user_service_api::rate_limiter::InvitationRateLimiter::default(),
+            ),
         };
 
         let app = user_service_api::create_router(&state);
@@ -348,19 +383,21 @@ mod integration_tests {
         cleanup_test_data(&pool).await;
 
         let tenant = create_test_tenant(&pool, "Expiry Integration Test Tenant").await;
-        let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin").await;
+        let admin =
+            create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin")
+                .await;
 
         // Create invitation service
         let invitation_repo = PgInvitationRepository::new(pool.clone());
         let user_repo = PgUserRepository::new(pool.clone());
-        let enforcer = create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap();
-        let invitation_service = InvitationServiceImpl::new(
-            invitation_repo,
-            user_repo,
-            enforcer,
-            48,
-            5,
-        );
+        let enforcer = create_enforcer(
+            &get_test_config().database_url,
+            Some("../../../shared/auth/model.conf"),
+        )
+        .await
+        .unwrap();
+        let invitation_service =
+            InvitationServiceImpl::new(invitation_repo, user_repo, enforcer, 48, 5, 10);
 
         // Create an invitation
         let (invitation, token) = invitation_service
@@ -419,19 +456,21 @@ mod integration_tests {
         cleanup_test_data(&pool).await;
 
         let tenant = create_test_tenant(&pool, "Resend Test Tenant").await;
-        let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin").await;
+        let admin =
+            create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin")
+                .await;
 
         // Create invitation service
         let invitation_repo = PgInvitationRepository::new(pool.clone());
         let user_repo = PgUserRepository::new(pool.clone());
-        let enforcer = create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap();
-        let invitation_service = InvitationServiceImpl::new(
-            invitation_repo,
-            user_repo,
-            enforcer,
-            48,
-            5,
-        );
+        let enforcer = create_enforcer(
+            &get_test_config().database_url,
+            Some("../../../shared/auth/model.conf"),
+        )
+        .await
+        .unwrap();
+        let invitation_service =
+            InvitationServiceImpl::new(invitation_repo, user_repo, enforcer, 48, 5);
 
         // Create an invitation
         let (invitation, original_token) = invitation_service
@@ -449,12 +488,7 @@ mod integration_tests {
 
         // Resend the invitation
         let (updated_invitation, new_token) = invitation_service
-            .resend_invitation(
-                tenant.tenant_id,
-                invitation.invitation_id,
-                None,
-                None,
-            )
+            .resend_invitation(tenant.tenant_id, invitation.invitation_id, None, None)
             .await
             .unwrap();
 
@@ -488,19 +522,21 @@ mod integration_tests {
         cleanup_test_data(&pool).await;
 
         let tenant = create_test_tenant(&pool, "Revoke Test Tenant").await;
-        let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin").await;
+        let admin =
+            create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin User", "admin")
+                .await;
 
         // Create invitation service
         let invitation_repo = PgInvitationRepository::new(pool.clone());
         let user_repo = PgUserRepository::new(pool.clone());
-        let enforcer = create_enforcer(&get_test_config().database_url, Some("../../../shared/auth/model.conf")).await.unwrap();
-        let invitation_service = InvitationServiceImpl::new(
-            invitation_repo,
-            user_repo,
-            enforcer,
-            48,
-            5,
-        );
+        let enforcer = create_enforcer(
+            &get_test_config().database_url,
+            Some("../../../shared/auth/model.conf"),
+        )
+        .await
+        .unwrap();
+        let invitation_service =
+            InvitationServiceImpl::new(invitation_repo, user_repo, enforcer, 48, 5, 10);
 
         // Create an invitation
         let (invitation, token) = invitation_service

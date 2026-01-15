@@ -523,4 +523,32 @@ impl InvitationRepository for PgInvitationRepository {
 
         Ok(result.rows_affected() as i64)
     }
+
+    async fn count_created_by_user_today(
+        &self,
+        user_id: Uuid,
+        day_start: DateTime<Utc>,
+        day_end: DateTime<Utc>,
+    ) -> Result<i64, AppError> {
+        let row = sqlx::query(
+            r#"
+            SELECT COUNT(*) as count
+            FROM user_invitations
+            WHERE invited_by_user_id = $1 AND created_at >= $2 AND created_at < $3 AND deleted_at IS NULL
+            "#,
+        )
+        .bind(user_id)
+        .bind(day_start)
+        .bind(day_end)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            AppError::DatabaseError(format!("Failed to count invitations created by user today: {}", e))
+        })?;
+
+        let count: i64 = row.try_get("count").map_err(|e| {
+            AppError::DatabaseError(format!("Failed to read invitation count: {}", e))
+        })?;
+        Ok(count)
+    }
 }
