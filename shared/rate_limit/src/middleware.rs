@@ -41,6 +41,21 @@ impl RateLimitEndpoint {
             Self::Global => "rate_limit:global:ip",
         }
     }
+
+    /// Check if this endpoint uses IP-based rate limiting
+    pub fn is_ip_based(&self) -> bool {
+        matches!(self, Self::Login | Self::Register | Self::AcceptInvite | Self::Global)
+    }
+
+    /// Check if this endpoint uses email-based rate limiting
+    pub fn is_email_based(&self) -> bool {
+        matches!(self, Self::ForgotPassword)
+    }
+
+    /// Check if this endpoint uses user-based rate limiting
+    pub fn is_user_based(&self) -> bool {
+        matches!(self, Self::ResendVerification | Self::Refresh)
+    }
 }
 
 /// Shared rate limiter that can use either Redis or in-memory storage
@@ -93,6 +108,22 @@ impl SharedRateLimiter {
         }
     }
 
+    /// Get current count for a key
+    pub async fn get_count(&self, key: &str) -> Result<u32, RateLimitError> {
+        match self {
+            Self::Redis(limiter) => limiter.get_count(key).await,
+            Self::InMemory(limiter) => limiter.get_count(key).await,
+        }
+    }
+
+    /// Get TTL for a key
+    pub async fn get_ttl(&self, key: &str) -> Result<u64, RateLimitError> {
+        match self {
+            Self::Redis(limiter) => limiter.get_ttl(key).await,
+            Self::InMemory(limiter) => limiter.get_ttl(key).await,
+        }
+    }
+
     /// Check if healthy
     pub async fn is_healthy(&self) -> bool {
         match self {
@@ -122,6 +153,10 @@ impl RateLimitState {
     }
 
     /// Check rate limit for an endpoint
+    /// The identifier should be:
+    /// - IP address for IP-based endpoints (Login, Register, AcceptInvite, Global)
+    /// - Email for email-based endpoints (ForgotPassword)
+    /// - User ID for user-based endpoints (ResendVerification, Refresh)
     pub async fn check_endpoint(
         &self,
         endpoint: RateLimitEndpoint,
@@ -147,7 +182,20 @@ impl RateLimitState {
             RateLimitEndpoint::Global => (self.config.global_requests_per_second * 60, 60),
         };
 
-        let key = KeyGenerator::ip_key(endpoint.key_prefix(), identifier);
+        // Use appropriate key generator based on endpoint type
+        let key = match endpoint {
+            RateLimitEndpoint::Login
+            | RateLimitEndpoint::Register
+            | RateLimitEndpoint::AcceptInvite
+            | RateLimitEndpoint::Global => KeyGenerator::ip_key(endpoint.key_prefix(), identifier),
+            RateLimitEndpoint::ForgotPassword => {
+                KeyGenerator::email_key(endpoint.key_prefix(), identifier)
+            },
+            RateLimitEndpoint::ResendVerification | RateLimitEndpoint::Refresh => {
+                KeyGenerator::user_key(endpoint.key_prefix(), identifier)
+            },
+        };
+
         self.limiter
             .check(&key, max_requests, Duration::from_secs(window_seconds))
             .await
@@ -212,8 +260,8 @@ where
                 return inner.call(req).await;
             }
 
-            // Extract client IP
-            let ip = extract_client_ip(&req);
+            // Extract client IP using configuration
+            let ip = extract_client_ip(&req, &state.config);
 
             // Check if IP is trusted
             if state.config.is_trusted_ip(&ip) {
@@ -246,14 +294,38 @@ where
     }
 }
 
-/// Extract client IP from request, handling X-Forwarded-For and X-Real-IP headers
-fn extract_client_ip<B>(req: &Request<B>) -> String {
-    // First, try X-Forwarded-For header (for proxied requests)
-    if let Some(xff) = req.headers().get("x-forwarded-for") {
-        if let Ok(xff_str) = xff.to_str() {
-            // X-Forwarded-For can contain multiple IPs, take the first one (client)
-            if let Some(first_ip) = xff_str.split(',').next() {
-                let ip = first_ip.trim();
+/// Extract client IP from request
+///
+/// Security considerations:
+/// - Only trust proxy headers (X-Forwarded-For, X-Real-IP) when `trust_proxy_headers` is enabled
+/// - When behind a trusted proxy, use rightmost-trusted strategy based on `proxy_count`
+/// - Falls back to connection info when headers are disabled or unavailable
+fn extract_client_ip<B>(req: &Request<B>, config: &RateLimitConfig) -> String {
+    // Only trust proxy headers if explicitly configured
+    if config.trust_proxy_headers {
+        // Try X-Forwarded-For header (for proxied requests)
+        if let Some(xff) = req.headers().get("x-forwarded-for") {
+            if let Ok(xff_str) = xff.to_str() {
+                // X-Forwarded-For contains: client, proxy1, proxy2, ...
+                // Use rightmost-trusted strategy: trust the IP at position (len - proxy_count)
+                let ips: Vec<&str> = xff_str.split(',').map(|s| s.trim()).collect();
+                if !ips.is_empty() {
+                    // Calculate index: we trust `proxy_count` proxies from the right
+                    // So the client IP is at position (len - proxy_count - 1), but we want
+                    // the rightmost IP added by a trusted proxy, which is (len - proxy_count)
+                    let index = ips.len().saturating_sub(config.proxy_count as usize + 1);
+                    let ip = ips.get(index).unwrap_or(&ips[0]).trim();
+                    if !ip.is_empty() {
+                        return ip.to_string();
+                    }
+                }
+            }
+        }
+
+        // Try X-Real-IP header (simpler, single IP from reverse proxy)
+        if let Some(real_ip) = req.headers().get("x-real-ip") {
+            if let Ok(ip) = real_ip.to_str() {
+                let ip = ip.trim();
                 if !ip.is_empty() {
                     return ip.to_string();
                 }
@@ -261,17 +333,7 @@ fn extract_client_ip<B>(req: &Request<B>) -> String {
         }
     }
 
-    // Try X-Real-IP header
-    if let Some(real_ip) = req.headers().get("x-real-ip") {
-        if let Ok(ip) = real_ip.to_str() {
-            let ip = ip.trim();
-            if !ip.is_empty() {
-                return ip.to_string();
-            }
-        }
-    }
-
-    // Fall back to connection info
+    // Fall back to connection info (direct connection IP)
     if let Some(connect_info) = req.extensions().get::<ConnectInfo<SocketAddr>>() {
         return connect_info.0.ip().to_string();
     }
@@ -351,6 +413,18 @@ mod tests {
         assert_eq!(RateLimitEndpoint::AcceptInvite.key_prefix(), "rate_limit:accept_invite:ip");
     }
 
+    #[test]
+    fn test_endpoint_types() {
+        assert!(RateLimitEndpoint::Login.is_ip_based());
+        assert!(RateLimitEndpoint::Register.is_ip_based());
+        assert!(RateLimitEndpoint::AcceptInvite.is_ip_based());
+
+        assert!(RateLimitEndpoint::ForgotPassword.is_email_based());
+
+        assert!(RateLimitEndpoint::Refresh.is_user_based());
+        assert!(RateLimitEndpoint::ResendVerification.is_user_based());
+    }
+
     #[tokio::test]
     async fn test_shared_limiter_in_memory() {
         let config = RateLimitConfig::default();
@@ -362,6 +436,24 @@ mod tests {
             .unwrap();
         assert!(result.allowed);
         assert_eq!(result.remaining, 4);
+    }
+
+    #[tokio::test]
+    async fn test_shared_limiter_get_count() {
+        let config = RateLimitConfig::default();
+        let limiter = SharedRateLimiter::from_config(&config).await;
+
+        // Initial count should be 0
+        let count = limiter.get_count("test:count:key").await.unwrap();
+        assert_eq!(count, 0);
+
+        // After one request, count should be 1
+        limiter
+            .check("test:count:key", 10, Duration::from_secs(60))
+            .await
+            .unwrap();
+        let count = limiter.get_count("test:count:key").await.unwrap();
+        assert_eq!(count, 1);
     }
 
     #[tokio::test]

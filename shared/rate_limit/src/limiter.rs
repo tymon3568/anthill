@@ -89,6 +89,10 @@ pub trait RateLimiter: Send + Sync {
     /// Get the current count for a key without incrementing
     async fn get_count(&self, key: &str) -> Result<u32, RateLimitError>;
 
+    /// Get the remaining TTL (time-to-live) for a key in seconds
+    /// Returns 0 if the key doesn't exist or has no TTL
+    async fn get_ttl(&self, key: &str) -> Result<u64, RateLimitError>;
+
     /// Check if the limiter is healthy (e.g., Redis connection is alive)
     async fn is_healthy(&self) -> bool;
 }

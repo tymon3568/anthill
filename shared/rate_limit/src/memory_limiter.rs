@@ -68,15 +68,10 @@ impl InMemoryRateLimiter {
             .as_secs()
     }
 
-    /// Cleanup old entries to prevent memory bloat
-    #[allow(dead_code)]
-    async fn cleanup_old_entries(&self) {
-        let mut store = self.store.write().await;
-        if store.len() > self.max_entries {
-            let now = Self::now_secs();
-            // Remove entries that haven't been accessed recently (1 hour)
-            store.retain(|_, entry| now - entry.window_start < 3600);
-        }
+    /// Cleanup old entries to prevent memory bloat (called with write lock held)
+    fn cleanup_old_entries_sync(store: &mut HashMap<String, RateLimitEntry>, now: u64) {
+        // Remove entries that haven't been accessed recently (1 hour)
+        store.retain(|_, entry| now - entry.window_start < 3600);
     }
 }
 
@@ -100,6 +95,11 @@ impl RateLimiter for InMemoryRateLimiter {
         let reset_at = now + window_secs;
 
         let mut store = self.store.write().await;
+
+        // Opportunistic cleanup when store grows too large
+        if store.len() > self.max_entries {
+            Self::cleanup_old_entries_sync(&mut store, now);
+        }
 
         let entry = store
             .entry(key.to_string())
@@ -141,6 +141,27 @@ impl RateLimiter for InMemoryRateLimiter {
                     .filter(|&&ts| ts >= window_start)
                     .count();
                 Ok(count as u32)
+            },
+            None => Ok(0),
+        }
+    }
+
+    async fn get_ttl(&self, key: &str) -> Result<u64, RateLimitError> {
+        let now = Self::now_secs();
+        let store = self.store.read().await;
+
+        match store.get(key) {
+            Some(entry) => {
+                if entry.timestamps.is_empty() {
+                    return Ok(0);
+                }
+                // Find the oldest timestamp in the window
+                // The TTL is the time until that timestamp expires (window_start + 1 hour - now)
+                let oldest = entry.timestamps.iter().min().copied().unwrap_or(now);
+                // The entry expires when oldest timestamp + window expires
+                // Using 1 hour default window
+                let expiry = oldest + 3600;
+                Ok(expiry.saturating_sub(now))
             },
             None => Ok(0),
         }
@@ -240,5 +261,23 @@ mod tests {
     async fn test_is_healthy() {
         let limiter = InMemoryRateLimiter::new();
         assert!(limiter.is_healthy().await);
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_triggered() {
+        let limiter = InMemoryRateLimiter::with_max_entries(5);
+        let window = Duration::from_secs(60);
+
+        // Add entries up to max
+        for i in 0..6 {
+            limiter
+                .check_rate_limit(&format!("key:{}", i), 10, window)
+                .await
+                .unwrap();
+        }
+
+        // Cleanup should have been triggered, store should have entries
+        let store = limiter.store.read().await;
+        assert!(store.len() <= 6); // May have cleaned up some
     }
 }

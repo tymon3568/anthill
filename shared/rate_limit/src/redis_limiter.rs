@@ -107,6 +107,7 @@ impl RateLimiter for RedisRateLimiter {
         drop(conn_guard);
 
         // Use a Lua script for atomic sliding window operation
+        // Uses a counter to ensure unique members even for same-millisecond requests
         let script = redis::Script::new(
             r#"
             local key = KEYS[1]
@@ -124,8 +125,12 @@ impl RateLimiter for RedisRateLimiter {
             if count >= max_requests then
                 return {0, count, 0}  -- Denied
             else
-                -- Add new entry with current timestamp as both score and member
-                redis.call('ZADD', key, now, now)
+                -- Add new entry with unique member (timestamp:counter) to avoid collisions
+                local counter_key = key .. ':counter'
+                local counter = redis.call('INCR', counter_key)
+                redis.call('EXPIRE', counter_key, window_seconds)
+                local member = tostring(now) .. ':' .. tostring(counter)
+                redis.call('ZADD', key, now, member)
                 redis.call('EXPIRE', key, window_seconds)
                 return {1, count + 1, max_requests - count - 1}  -- Allowed
             end
@@ -189,6 +194,24 @@ impl RateLimiter for RedisRateLimiter {
             .map_err(|e| RateLimitError::RedisError(e.to_string()))?;
 
         Ok(count)
+    }
+
+    async fn get_ttl(&self, key: &str) -> Result<u64, RateLimitError> {
+        let full_key = self.build_key(key);
+
+        let conn_guard = self.connection.read().await;
+        let mut conn = conn_guard
+            .clone()
+            .ok_or_else(|| RateLimitError::RedisError("No connection".to_string()))?;
+        drop(conn_guard);
+
+        let ttl: i64 = conn
+            .ttl(&full_key)
+            .await
+            .map_err(|e| RateLimitError::RedisError(e.to_string()))?;
+
+        // TTL returns -2 if key doesn't exist, -1 if no TTL set
+        Ok(if ttl > 0 { ttl as u64 } else { 0 })
     }
 
     async fn is_healthy(&self) -> bool {

@@ -116,8 +116,18 @@ impl AccountLockout {
         };
 
         if lockout_count > 0 {
-            // Account is locked
-            return Ok(LockoutStatus::locked(self.threshold, self.lockout_duration));
+            // Account is locked - get actual remaining TTL
+            let remaining = match &*self.limiter {
+                SharedRateLimiter::Redis(l) => l.get_ttl(&lockout_key).await?,
+                SharedRateLimiter::InMemory(l) => l.get_ttl(&lockout_key).await?,
+            };
+            // Use actual TTL if available, otherwise fall back to full duration
+            let remaining_seconds = if remaining > 0 {
+                remaining
+            } else {
+                self.lockout_duration
+            };
+            return Ok(LockoutStatus::locked(self.threshold, remaining_seconds));
         }
 
         // Get failed attempt count

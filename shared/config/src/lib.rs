@@ -115,7 +115,33 @@ pub struct Config {
     #[serde(default = "default_rate_limit_lockout_duration")]
     pub rate_limit_lockout_duration: u64,
 
-    /// Trusted IPs that bypass rate limiting (comma-separated, optional)
+    /// Refresh token endpoint: max attempts per user (default: 30)
+    #[serde(default = "default_rate_limit_refresh_max")]
+    pub rate_limit_refresh_max: u32,
+
+    /// Refresh token endpoint: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_refresh_window")]
+    pub rate_limit_refresh_window: u64,
+
+    /// Resend verification: max attempts per user (default: 3)
+    #[serde(default = "default_rate_limit_resend_max")]
+    pub rate_limit_resend_max: u32,
+
+    /// Resend verification: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_resend_window")]
+    pub rate_limit_resend_window: u64,
+
+    /// Trust proxy headers for IP extraction (default: false)
+    /// Only enable if behind a trusted reverse proxy
+    #[serde(default)]
+    pub rate_limit_trust_proxy_headers: bool,
+
+    /// Number of trusted proxies in front of the service (default: 0)
+    /// Used with trust_proxy_headers for rightmost-trusted IP extraction
+    #[serde(default)]
+    pub rate_limit_proxy_count: u8,
+
+    /// Trusted IPs that bypass rate limiting (comma-separated, supports CIDR notation, optional)
     pub rate_limit_trusted_ips: Option<String>,
 }
 
@@ -196,6 +222,22 @@ fn default_rate_limit_lockout_duration() -> u64 {
     3600 // 1 hour
 }
 
+fn default_rate_limit_refresh_max() -> u32 {
+    30
+}
+
+fn default_rate_limit_refresh_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_resend_max() -> u32 {
+    3
+}
+
+fn default_rate_limit_resend_window() -> u64 {
+    3600 // 1 hour
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
@@ -225,7 +267,13 @@ impl Config {
             .set_default("rate_limit_accept_invite_max", 10)?
             .set_default("rate_limit_accept_invite_window", 3600)?
             .set_default("rate_limit_lockout_threshold", 10)?
-            .set_default("rate_limit_lockout_duration", 3600)?;
+            .set_default("rate_limit_lockout_duration", 3600)?
+            .set_default("rate_limit_refresh_max", 30)?
+            .set_default("rate_limit_refresh_window", 3600)?
+            .set_default("rate_limit_resend_max", 3)?
+            .set_default("rate_limit_resend_window", 3600)?
+            .set_default("rate_limit_trust_proxy_headers", false)?
+            .set_default("rate_limit_proxy_count", 0)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());
