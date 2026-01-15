@@ -15,7 +15,8 @@ members = [
   "shared/types",
   "shared/db",
   "shared/auth",
-  "shared/events"
+  "shared/events",
+  "shared/rate_limit"
 ]
 resolver = "2"
 
@@ -35,6 +36,8 @@ dotenvy = "0.15"
 fake = {version = "2.9", features = ["derive", "uuid", "chrono"]}
 # Futures
 futures = "0.3"
+# Hex encoding
+hex = "0.4"
 # Inventory service crates (internal)
 inventory_service_core = {path = "services/inventory_service/core"}
 inventory_service_infra = {path = "services/inventory_service/infra"}
@@ -62,6 +65,7 @@ shared_db = {path = "shared/db"}
 shared_error = {path = "shared/error"}
 shared_events = {path = "shared/events"}
 shared_jwt = {path = "shared/jwt"}
+shared_rate_limit = {path = "shared/rate_limit"}
 shared_types = {path = "shared/types"}
 # SQLx - database
 sqlx = {version = "0.8", features = ["runtime-tokio-rustls", "postgres", "json", "uuid", "chrono"]}

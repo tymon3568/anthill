@@ -16,6 +16,7 @@ shared_config = {workspace = true}
 shared_db = {workspace = true}
 shared_error = {workspace = true}
 shared_jwt = {workspace = true}
+shared_rate_limit = {workspace = true}
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
 # Async runtime
 tokio = {workspace = true}

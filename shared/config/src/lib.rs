@@ -69,6 +69,54 @@ pub struct Config {
     /// Maximum attempts for invitation acceptance
     #[serde(default = "default_invitation_max_attempts")]
     pub invitation_max_attempts: i32,
+
+    // ===== Rate Limiting Configuration =====
+    /// Enable rate limiting (default: true)
+    #[serde(default = "default_rate_limit_enabled")]
+    pub rate_limit_enabled: bool,
+
+    /// Login endpoint: max attempts per IP (default: 5)
+    #[serde(default = "default_rate_limit_login_max")]
+    pub rate_limit_login_max: u32,
+
+    /// Login endpoint: window in seconds (default: 900 = 15 min)
+    #[serde(default = "default_rate_limit_login_window")]
+    pub rate_limit_login_window: u64,
+
+    /// Register endpoint: max attempts per IP (default: 3)
+    #[serde(default = "default_rate_limit_register_max")]
+    pub rate_limit_register_max: u32,
+
+    /// Register endpoint: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_register_window")]
+    pub rate_limit_register_window: u64,
+
+    /// Forgot password: max attempts per email (default: 3)
+    #[serde(default = "default_rate_limit_forgot_max")]
+    pub rate_limit_forgot_max: u32,
+
+    /// Forgot password: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_forgot_window")]
+    pub rate_limit_forgot_window: u64,
+
+    /// Accept invite: max attempts per IP (default: 10)
+    #[serde(default = "default_rate_limit_accept_invite_max")]
+    pub rate_limit_accept_invite_max: u32,
+
+    /// Accept invite: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_accept_invite_window")]
+    pub rate_limit_accept_invite_window: u64,
+
+    /// Account lockout: threshold for consecutive failures (default: 10)
+    #[serde(default = "default_rate_limit_lockout_threshold")]
+    pub rate_limit_lockout_threshold: u32,
+
+    /// Account lockout: duration in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_lockout_duration")]
+    pub rate_limit_lockout_duration: u64,
+
+    /// Trusted IPs that bypass rate limiting (comma-separated, optional)
+    pub rate_limit_trusted_ips: Option<String>,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -103,6 +151,51 @@ fn default_invitation_max_attempts() -> i32 {
     5
 }
 
+// Rate limiting defaults
+fn default_rate_limit_enabled() -> bool {
+    true
+}
+
+fn default_rate_limit_login_max() -> u32 {
+    5
+}
+
+fn default_rate_limit_login_window() -> u64 {
+    900 // 15 minutes
+}
+
+fn default_rate_limit_register_max() -> u32 {
+    3
+}
+
+fn default_rate_limit_register_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_forgot_max() -> u32 {
+    3
+}
+
+fn default_rate_limit_forgot_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_accept_invite_max() -> u32 {
+    10
+}
+
+fn default_rate_limit_accept_invite_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_lockout_threshold() -> u32 {
+    10
+}
+
+fn default_rate_limit_lockout_duration() -> u64 {
+    3600 // 1 hour
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
@@ -120,7 +213,19 @@ impl Config {
             .set_default("max_connections", 10)?
             .set_default("invitation_base_url", "https://app.example.com")?
             .set_default("invitation_expiry_hours", 48)?
-            .set_default("invitation_max_attempts", 5)?;
+            .set_default("invitation_max_attempts", 5)?
+            // Rate limiting defaults
+            .set_default("rate_limit_enabled", true)?
+            .set_default("rate_limit_login_max", 5)?
+            .set_default("rate_limit_login_window", 900)?
+            .set_default("rate_limit_register_max", 3)?
+            .set_default("rate_limit_register_window", 3600)?
+            .set_default("rate_limit_forgot_max", 3)?
+            .set_default("rate_limit_forgot_window", 3600)?
+            .set_default("rate_limit_accept_invite_max", 10)?
+            .set_default("rate_limit_accept_invite_window", 3600)?
+            .set_default("rate_limit_lockout_threshold", 10)?
+            .set_default("rate_limit_lockout_duration", 3600)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());

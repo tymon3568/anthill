@@ -1,0 +1,47 @@
+[package]
+name = "shared_rate_limit"
+authors.workspace = true
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+# Async runtime
+tokio = { workspace = true }
+async-trait = { workspace = true }
+
+# Web framework
+axum = { workspace = true }
+tower = { workspace = true }
+
+# Redis client
+redis = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Time and hashing
+chrono = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+
+# Shared crates
+shared_config = { workspace = true }
+shared_error = { workspace = true }
+
+# HTTP types
+http = "1.0"
+
+# Pin utilities for futures
+pin-project-lite = "0.2"
+futures-core = "0.3"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+uuid = { workspace = true }
