@@ -355,7 +355,9 @@ impl InvitationRepository for PgInvitationRepository {
         })?;
 
         if result.rows_affected() == 0 {
-            return Err(AppError::NotFound("Invitation not found, not pending, or expired".to_string()));
+            return Err(AppError::NotFound(
+                "Invitation not found, not pending, or expired".to_string(),
+            ));
         }
 
         Ok(())
@@ -433,7 +435,9 @@ impl InvitationRepository for PgInvitationRepository {
         })?;
 
         if result.rows_affected() == 0 {
-            return Err(AppError::NotFound("Invitation not found, not pending, or expired".to_string()));
+            return Err(AppError::NotFound(
+                "Invitation not found, not pending, or expired".to_string(),
+            ));
         }
 
         Ok(())
@@ -475,9 +479,7 @@ impl InvitationRepository for PgInvitationRepository {
         .bind(invitation_id)
         .execute(&self.pool)
         .await
-        .map_err(|e| {
-            AppError::DatabaseError(format!("Failed to soft delete invitation: {}", e))
-        })?;
+        .map_err(|e| AppError::DatabaseError(format!("Failed to soft delete invitation: {}", e)))?;
 
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound("Invitation not found".to_string()));
