@@ -153,10 +153,16 @@ async fn main() {
         forgot_password_window: config.rate_limit_forgot_window,
         accept_invite_max: config.rate_limit_accept_invite_max,
         accept_invite_window: config.rate_limit_accept_invite_window,
+        refresh_max: config.rate_limit_refresh_max,
+        refresh_window: config.rate_limit_refresh_window,
+        resend_verification_max: config.rate_limit_resend_max,
+        resend_verification_window: config.rate_limit_resend_window,
         lockout_threshold: config.rate_limit_lockout_threshold,
         lockout_duration_seconds: config.rate_limit_lockout_duration,
         enabled: config.rate_limit_enabled,
         trusted_ips: config.rate_limit_trusted_ips.clone(),
+        trust_proxy_headers: config.rate_limit_trust_proxy_headers,
+        proxy_count: config.rate_limit_proxy_count,
         ..Default::default()
     };
     let rate_limit_state = RateLimitState::from_config(rate_limit_config).await;

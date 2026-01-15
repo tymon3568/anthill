@@ -139,7 +139,7 @@ pub struct Config {
     /// Number of trusted proxies in front of the service (default: 0)
     /// Used with trust_proxy_headers for rightmost-trusted IP extraction
     #[serde(default)]
-    pub rate_limit_proxy_count: u8,
+    pub rate_limit_proxy_count: u32,
 
     /// Trusted IPs that bypass rate limiting (comma-separated, supports CIDR notation, optional)
     pub rate_limit_trusted_ips: Option<String>,
