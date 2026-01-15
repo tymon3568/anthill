@@ -27,19 +27,7 @@ fn test_config() -> Config {
         }),
         jwt_secret: std::env::var("JWT_SECRET")
             .unwrap_or_else(|_| "test-secret-key-at-least-32-characters-long".to_string()),
-        jwt_expiration: 900,
-        jwt_refresh_expiration: 604800,
-        host: "0.0.0.0".to_string(),
-        port: 8001,
-        cors_origins: None,
-        kanidm_url: None,
-        kanidm_client_id: None,
-        kanidm_client_secret: None,
-        kanidm_redirect_url: None,
-        nats_url: None,
-        redis_url: None,
-        casbin_model_path: "shared/auth/model.conf".to_string(),
-        max_connections: Some(10),
+        ..Default::default()
     }
 }
 

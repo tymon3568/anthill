@@ -17,19 +17,7 @@ async fn setup_test_app() -> (Router, PgPool, Config) {
     let config = Config {
         database_url: "postgres://user:password@localhost:5432/inventory_db".to_string(),
         jwt_secret: "test-secret-key-for-integration-tests".to_string(),
-        jwt_expiration: 3600,
-        jwt_refresh_expiration: 2592000,
-        host: "0.0.0.0".to_string(),
-        port: 8000,
-        cors_origins: None,
-        kanidm_url: None,
-        kanidm_client_id: None,
-        kanidm_client_secret: None,
-        kanidm_redirect_url: None,
-        nats_url: None,
-        redis_url: None,
-        casbin_model_path: "../../../shared/auth/model.conf".to_string(),
-        max_connections: None,
+        ..Default::default()
     };
 
     let db_pool = helpers::setup_test_db().await;

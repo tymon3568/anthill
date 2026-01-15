@@ -353,6 +353,7 @@ impl TestDatabaseConfig {
     }
 
     /// Get user details
+    #[allow(clippy::type_complexity)]
     pub async fn get_user(&self, user_id: Uuid) -> Option<UserDetails> {
         // Using runtime queries instead of macros for test compatibility
         let row: Option<(Uuid, Uuid, String, String, String, bool, Option<String>)> =

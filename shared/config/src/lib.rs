@@ -69,6 +69,80 @@ pub struct Config {
     /// Maximum attempts for invitation acceptance
     #[serde(default = "default_invitation_max_attempts")]
     pub invitation_max_attempts: i32,
+
+    // ===== Rate Limiting Configuration =====
+    /// Enable rate limiting (default: true)
+    #[serde(default = "default_rate_limit_enabled")]
+    pub rate_limit_enabled: bool,
+
+    /// Login endpoint: max attempts per IP (default: 5)
+    #[serde(default = "default_rate_limit_login_max")]
+    pub rate_limit_login_max: u32,
+
+    /// Login endpoint: window in seconds (default: 900 = 15 min)
+    #[serde(default = "default_rate_limit_login_window")]
+    pub rate_limit_login_window: u64,
+
+    /// Register endpoint: max attempts per IP (default: 3)
+    #[serde(default = "default_rate_limit_register_max")]
+    pub rate_limit_register_max: u32,
+
+    /// Register endpoint: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_register_window")]
+    pub rate_limit_register_window: u64,
+
+    /// Forgot password: max attempts per email (default: 3)
+    #[serde(default = "default_rate_limit_forgot_max")]
+    pub rate_limit_forgot_max: u32,
+
+    /// Forgot password: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_forgot_window")]
+    pub rate_limit_forgot_window: u64,
+
+    /// Accept invite: max attempts per IP (default: 10)
+    #[serde(default = "default_rate_limit_accept_invite_max")]
+    pub rate_limit_accept_invite_max: u32,
+
+    /// Accept invite: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_accept_invite_window")]
+    pub rate_limit_accept_invite_window: u64,
+
+    /// Account lockout: threshold for consecutive failures (default: 10)
+    #[serde(default = "default_rate_limit_lockout_threshold")]
+    pub rate_limit_lockout_threshold: u32,
+
+    /// Account lockout: duration in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_lockout_duration")]
+    pub rate_limit_lockout_duration: u64,
+
+    /// Refresh token endpoint: max attempts per user (default: 30)
+    #[serde(default = "default_rate_limit_refresh_max")]
+    pub rate_limit_refresh_max: u32,
+
+    /// Refresh token endpoint: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_refresh_window")]
+    pub rate_limit_refresh_window: u64,
+
+    /// Resend verification: max attempts per user (default: 3)
+    #[serde(default = "default_rate_limit_resend_max")]
+    pub rate_limit_resend_max: u32,
+
+    /// Resend verification: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_resend_window")]
+    pub rate_limit_resend_window: u64,
+
+    /// Trust proxy headers for IP extraction (default: false)
+    /// Only enable if behind a trusted reverse proxy
+    #[serde(default)]
+    pub rate_limit_trust_proxy_headers: bool,
+
+    /// Number of trusted proxies in front of the service (default: 0)
+    /// Used with trust_proxy_headers for rightmost-trusted IP extraction
+    #[serde(default)]
+    pub rate_limit_proxy_count: u32,
+
+    /// Trusted IPs that bypass rate limiting (comma-separated, supports CIDR notation, optional)
+    pub rate_limit_trusted_ips: Option<String>,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -103,6 +177,67 @@ fn default_invitation_max_attempts() -> i32 {
     5
 }
 
+// Rate limiting defaults
+fn default_rate_limit_enabled() -> bool {
+    true
+}
+
+fn default_rate_limit_login_max() -> u32 {
+    5
+}
+
+fn default_rate_limit_login_window() -> u64 {
+    900 // 15 minutes
+}
+
+fn default_rate_limit_register_max() -> u32 {
+    3
+}
+
+fn default_rate_limit_register_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_forgot_max() -> u32 {
+    3
+}
+
+fn default_rate_limit_forgot_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_accept_invite_max() -> u32 {
+    10
+}
+
+fn default_rate_limit_accept_invite_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_lockout_threshold() -> u32 {
+    10
+}
+
+fn default_rate_limit_lockout_duration() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_refresh_max() -> u32 {
+    30
+}
+
+fn default_rate_limit_refresh_window() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_rate_limit_resend_max() -> u32 {
+    3
+}
+
+fn default_rate_limit_resend_window() -> u64 {
+    3600 // 1 hour
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
@@ -120,7 +255,25 @@ impl Config {
             .set_default("max_connections", 10)?
             .set_default("invitation_base_url", "https://app.example.com")?
             .set_default("invitation_expiry_hours", 48)?
-            .set_default("invitation_max_attempts", 5)?;
+            .set_default("invitation_max_attempts", 5)?
+            // Rate limiting defaults
+            .set_default("rate_limit_enabled", true)?
+            .set_default("rate_limit_login_max", 5)?
+            .set_default("rate_limit_login_window", 900)?
+            .set_default("rate_limit_register_max", 3)?
+            .set_default("rate_limit_register_window", 3600)?
+            .set_default("rate_limit_forgot_max", 3)?
+            .set_default("rate_limit_forgot_window", 3600)?
+            .set_default("rate_limit_accept_invite_max", 10)?
+            .set_default("rate_limit_accept_invite_window", 3600)?
+            .set_default("rate_limit_lockout_threshold", 10)?
+            .set_default("rate_limit_lockout_duration", 3600)?
+            .set_default("rate_limit_refresh_max", 30)?
+            .set_default("rate_limit_refresh_window", 3600)?
+            .set_default("rate_limit_resend_max", 3)?
+            .set_default("rate_limit_resend_window", 3600)?
+            .set_default("rate_limit_trust_proxy_headers", false)?
+            .set_default("rate_limit_proxy_count", 0)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());
@@ -143,5 +296,48 @@ impl Config {
                     .collect()
             })
             .unwrap_or_default()
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            database_url: String::new(),
+            jwt_secret: String::new(),
+            jwt_expiration: default_jwt_expiration(),
+            jwt_refresh_expiration: default_jwt_refresh_expiration(),
+            host: default_host(),
+            port: default_port(),
+            cors_origins: None,
+            kanidm_url: None,
+            kanidm_client_id: None,
+            kanidm_client_secret: None,
+            kanidm_redirect_url: None,
+            nats_url: None,
+            redis_url: None,
+            casbin_model_path: default_casbin_model_path(),
+            max_connections: Some(10),
+            invitation_base_url: default_invitation_base_url(),
+            invitation_expiry_hours: default_invitation_expiry_hours(),
+            invitation_max_attempts: default_invitation_max_attempts(),
+            rate_limit_enabled: default_rate_limit_enabled(),
+            rate_limit_login_max: default_rate_limit_login_max(),
+            rate_limit_login_window: default_rate_limit_login_window(),
+            rate_limit_register_max: default_rate_limit_register_max(),
+            rate_limit_register_window: default_rate_limit_register_window(),
+            rate_limit_forgot_max: default_rate_limit_forgot_max(),
+            rate_limit_forgot_window: default_rate_limit_forgot_window(),
+            rate_limit_accept_invite_max: default_rate_limit_accept_invite_max(),
+            rate_limit_accept_invite_window: default_rate_limit_accept_invite_window(),
+            rate_limit_lockout_threshold: default_rate_limit_lockout_threshold(),
+            rate_limit_lockout_duration: default_rate_limit_lockout_duration(),
+            rate_limit_refresh_max: default_rate_limit_refresh_max(),
+            rate_limit_refresh_window: default_rate_limit_refresh_window(),
+            rate_limit_resend_max: default_rate_limit_resend_max(),
+            rate_limit_resend_window: default_rate_limit_resend_window(),
+            rate_limit_trust_proxy_headers: false,
+            rate_limit_proxy_count: 0,
+            rate_limit_trusted_ips: None,
+        }
     }
 }

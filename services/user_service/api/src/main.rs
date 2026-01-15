@@ -7,6 +7,7 @@ use axum::{
 };
 use shared_auth::enforcer::create_enforcer;
 use shared_auth::middleware::AuthzState;
+use shared_rate_limit::{RateLimitConfig, RateLimitEndpoint, RateLimitLayer, RateLimitState};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -141,8 +142,46 @@ async fn main() {
 
     tracing::info!("✅ Services initialized");
 
-    // Public routes (no auth required)
-    let public_routes = Router::new()
+    // Initialize rate limiting
+    let rate_limit_config = RateLimitConfig {
+        redis_url: config.redis_url.clone(),
+        login_max_attempts: config.rate_limit_login_max,
+        login_window_seconds: config.rate_limit_login_window,
+        register_max_attempts: config.rate_limit_register_max,
+        register_window_seconds: config.rate_limit_register_window,
+        forgot_password_max: config.rate_limit_forgot_max,
+        forgot_password_window: config.rate_limit_forgot_window,
+        accept_invite_max: config.rate_limit_accept_invite_max,
+        accept_invite_window: config.rate_limit_accept_invite_window,
+        refresh_max: config.rate_limit_refresh_max,
+        refresh_window: config.rate_limit_refresh_window,
+        resend_verification_max: config.rate_limit_resend_max,
+        resend_verification_window: config.rate_limit_resend_window,
+        lockout_threshold: config.rate_limit_lockout_threshold,
+        lockout_duration_seconds: config.rate_limit_lockout_duration,
+        enabled: config.rate_limit_enabled,
+        trusted_ips: config.rate_limit_trusted_ips.clone(),
+        trust_proxy_headers: config.rate_limit_trust_proxy_headers,
+        proxy_count: config.rate_limit_proxy_count,
+        ..Default::default()
+    };
+    let rate_limit_state = RateLimitState::from_config(rate_limit_config).await;
+
+    if config.rate_limit_enabled {
+        tracing::info!(
+            "✅ Rate limiting enabled (login: {}/{}s, register: {}/{}s)",
+            config.rate_limit_login_max,
+            config.rate_limit_login_window,
+            config.rate_limit_register_max,
+            config.rate_limit_register_window
+        );
+    } else {
+        tracing::warn!("⚠️ Rate limiting is DISABLED");
+    }
+
+    // Public routes (no auth required) with rate limiting
+    // Register route with rate limiting
+    let register_route = Router::new()
         .route(
             "/api/v1/auth/register",
             post(
@@ -151,6 +190,11 @@ async fn main() {
                 >,
             ),
         )
+        .layer(Extension(combined_state.app.clone()))
+        .layer(RateLimitLayer::new(rate_limit_state.clone(), RateLimitEndpoint::Register));
+
+    // Login route with rate limiting
+    let login_route = Router::new()
         .route(
             "/api/v1/auth/login",
             post(
@@ -159,6 +203,11 @@ async fn main() {
                 >,
             ),
         )
+        .layer(Extension(combined_state.app.clone()))
+        .layer(RateLimitLayer::new(rate_limit_state.clone(), RateLimitEndpoint::Login));
+
+    // Refresh route with rate limiting
+    let refresh_route = Router::new()
         .route(
             "/api/v1/auth/refresh",
             post(
@@ -167,14 +216,11 @@ async fn main() {
                 >,
             ),
         )
-        .route(
-            "/api/v1/auth/logout",
-            post(
-                handlers::logout::<
-                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
-                >,
-            ),
-        )
+        .layer(Extension(combined_state.app.clone()))
+        .layer(RateLimitLayer::new(rate_limit_state.clone(), RateLimitEndpoint::Refresh));
+
+    // Accept invite route with rate limiting
+    let accept_invite_route = Router::new()
         .route(
             "/api/v1/auth/accept-invite",
             post(
@@ -183,7 +229,28 @@ async fn main() {
                 >,
             ),
         )
+        .layer(Extension(combined_state.app.clone()))
+        .layer(RateLimitLayer::new(rate_limit_state.clone(), RateLimitEndpoint::AcceptInvite));
+
+    // Logout route (no rate limiting needed)
+    let logout_route = Router::new()
+        .route(
+            "/api/v1/auth/logout",
+            post(
+                handlers::logout::<
+                    AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+                >,
+            ),
+        )
         .layer(Extension(combined_state.app.clone()));
+
+    // Combine public routes
+    let public_routes = Router::new()
+        .merge(register_route)
+        .merge(login_route)
+        .merge(refresh_route)
+        .merge(accept_invite_route)
+        .merge(logout_route);
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()

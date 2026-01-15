@@ -121,19 +121,8 @@ fn test_config() -> Config {
     Config {
         database_url,
         jwt_secret: "test-secret-key-at-least-32-characters-long".to_string(),
-        jwt_expiration: 900,
-        jwt_refresh_expiration: 604800,
-        host: "0.0.0.0".to_string(),
-        port: 8001,
-        cors_origins: None,
-        kanidm_url: None,
-        kanidm_client_id: None,
-        kanidm_client_secret: None,
-        kanidm_redirect_url: None,
-        nats_url: None,
         redis_url,
-        casbin_model_path: "shared/auth/model.conf".to_string(),
-        max_connections: Some(10),
+        ..Default::default()
     }
 }
 
@@ -466,7 +455,7 @@ fn create_auth_header(tenant_id: Uuid, user_id: Uuid) -> String {
     let jwt_secret = "test-secret-key-at-least-32-characters-long";
 
     let claims = Claims::new_access(user_id, tenant_id, "admin".to_string(), 3600);
-    let token = encode_jwt(&claims, &jwt_secret).expect("Failed to encode JWT token for test");
+    let token = encode_jwt(&claims, jwt_secret).expect("Failed to encode JWT token for test");
 
     format!("Bearer {}", token)
 }
