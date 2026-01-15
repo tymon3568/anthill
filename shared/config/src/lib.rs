@@ -298,3 +298,46 @@ impl Config {
             .unwrap_or_default()
     }
 }
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            database_url: String::new(),
+            jwt_secret: String::new(),
+            jwt_expiration: default_jwt_expiration(),
+            jwt_refresh_expiration: default_jwt_refresh_expiration(),
+            host: default_host(),
+            port: default_port(),
+            cors_origins: None,
+            kanidm_url: None,
+            kanidm_client_id: None,
+            kanidm_client_secret: None,
+            kanidm_redirect_url: None,
+            nats_url: None,
+            redis_url: None,
+            casbin_model_path: default_casbin_model_path(),
+            max_connections: Some(10),
+            invitation_base_url: default_invitation_base_url(),
+            invitation_expiry_hours: default_invitation_expiry_hours(),
+            invitation_max_attempts: default_invitation_max_attempts(),
+            rate_limit_enabled: default_rate_limit_enabled(),
+            rate_limit_login_max: default_rate_limit_login_max(),
+            rate_limit_login_window: default_rate_limit_login_window(),
+            rate_limit_register_max: default_rate_limit_register_max(),
+            rate_limit_register_window: default_rate_limit_register_window(),
+            rate_limit_forgot_max: default_rate_limit_forgot_max(),
+            rate_limit_forgot_window: default_rate_limit_forgot_window(),
+            rate_limit_accept_invite_max: default_rate_limit_accept_invite_max(),
+            rate_limit_accept_invite_window: default_rate_limit_accept_invite_window(),
+            rate_limit_lockout_threshold: default_rate_limit_lockout_threshold(),
+            rate_limit_lockout_duration: default_rate_limit_lockout_duration(),
+            rate_limit_refresh_max: default_rate_limit_refresh_max(),
+            rate_limit_refresh_window: default_rate_limit_refresh_window(),
+            rate_limit_resend_max: default_rate_limit_resend_max(),
+            rate_limit_resend_window: default_rate_limit_resend_window(),
+            rate_limit_trust_proxy_headers: false,
+            rate_limit_proxy_count: 0,
+            rate_limit_trusted_ips: None,
+        }
+    }
+}

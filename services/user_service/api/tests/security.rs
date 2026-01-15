@@ -208,6 +208,12 @@ async fn test_tenant_isolation_users_cannot_see_other_tenants() {
         jwt_secret: get_test_jwt_secret(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
+        invitation_service: None,
+        config: shared_config::Config {
+            database_url: get_test_database_url(),
+            jwt_secret: get_test_jwt_secret(),
+            ..Default::default()
+        },
     };
 
     let app = Router::new()
@@ -349,6 +355,12 @@ async fn test_cross_tenant_access_admin_cannot_access_other_tenant_users() {
         jwt_secret: get_test_jwt_secret(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
+        invitation_service: None,
+        config: shared_config::Config {
+            database_url: get_test_database_url(),
+            jwt_secret: get_test_jwt_secret(),
+            ..Default::default()
+        },
     };
 
     let app = Router::new()
@@ -473,6 +485,12 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
         jwt_secret: get_test_jwt_secret(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
+        invitation_service: None,
+        config: shared_config::Config {
+            database_url: get_test_database_url(),
+            jwt_secret: get_test_jwt_secret(),
+            ..Default::default()
+        },
     };
 
     let app = Router::new()

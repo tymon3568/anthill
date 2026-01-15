@@ -267,6 +267,12 @@ pub async fn create_test_app(pool: &PgPool) -> Router {
         jwt_secret: get_test_jwt_secret(),
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
+        invitation_service: None,
+        config: Config {
+            database_url: get_test_database_url(),
+            jwt_secret: get_test_jwt_secret(),
+            ..Default::default()
+        },
     };
 
     user_service_api::create_router(&state)

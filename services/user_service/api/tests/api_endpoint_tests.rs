@@ -56,9 +56,15 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
         )
         .await
         .expect("Failed to create enforcer"),
-        jwt_secret,
+        jwt_secret: jwt_secret.clone(),
         user_repo: None,
         tenant_repo: None,
+        invitation_service: None,
+        config: shared_config::Config {
+            database_url,
+            jwt_secret,
+            ..Default::default()
+        },
     };
 
     user_service_api::create_router(&state)
