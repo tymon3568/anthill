@@ -338,8 +338,10 @@ mod tests {
 
     #[test]
     fn test_trusted_ips_exact() {
-        let mut config = RateLimitConfig::default();
-        config.trusted_ips = Some("127.0.0.1, 10.0.0.1, 192.168.1.1".to_string());
+        let config = RateLimitConfig {
+            trusted_ips: Some("127.0.0.1, 10.0.0.1, 192.168.1.1".to_string()),
+            ..Default::default()
+        };
 
         assert!(config.is_trusted_ip("127.0.0.1"));
         assert!(config.is_trusted_ip("10.0.0.1"));
@@ -349,8 +351,10 @@ mod tests {
 
     #[test]
     fn test_trusted_ips_cidr() {
-        let mut config = RateLimitConfig::default();
-        config.trusted_ips = Some("10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12".to_string());
+        let config = RateLimitConfig {
+            trusted_ips: Some("10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12".to_string()),
+            ..Default::default()
+        };
 
         // 10.0.0.0/8
         assert!(config.is_trusted_ip("10.0.0.1"));
@@ -370,8 +374,10 @@ mod tests {
 
     #[test]
     fn test_trusted_ips_mixed() {
-        let mut config = RateLimitConfig::default();
-        config.trusted_ips = Some("127.0.0.1, 10.0.0.0/8".to_string());
+        let config = RateLimitConfig {
+            trusted_ips: Some("127.0.0.1, 10.0.0.0/8".to_string()),
+            ..Default::default()
+        };
 
         assert!(config.is_trusted_ip("127.0.0.1"));
         assert!(config.is_trusted_ip("10.1.2.3"));
@@ -380,8 +386,10 @@ mod tests {
 
     #[test]
     fn test_trusted_ips_invalid() {
-        let mut config = RateLimitConfig::default();
-        config.trusted_ips = Some("invalid, 10.0.0.0/8".to_string());
+        let config = RateLimitConfig {
+            trusted_ips: Some("invalid, 10.0.0.0/8".to_string()),
+            ..Default::default()
+        };
 
         assert!(!config.is_trusted_ip("invalid"));
         assert!(config.is_trusted_ip("10.1.2.3"));
