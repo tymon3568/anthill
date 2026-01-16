@@ -192,7 +192,18 @@ impl LandedCostService for LandedCostServiceImpl {
         page: i32,
         page_size: i32,
     ) -> Result<LandedCostDocumentListResponse, AppError> {
-        let status_enum = status.and_then(|s| LandedCostStatus::parse(&s));
+        let status_enum = match status {
+            Some(s) => {
+                let parsed = LandedCostStatus::parse(&s).ok_or_else(|| {
+                    AppError::ValidationError(format!(
+                        "Invalid status '{}'. Valid values: draft, posted, cancelled",
+                        s
+                    ))
+                })?;
+                Some(parsed)
+            },
+            None => None,
+        };
 
         let (documents, total) = self
             .document_repo

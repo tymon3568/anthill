@@ -107,13 +107,13 @@ pub async fn create_document(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
     Json(request): Json<CreateLandedCostDocumentRequest>,
-) -> Result<Json<LandedCostDocumentWithLinesDto>, AppError> {
+) -> Result<(axum::http::StatusCode, Json<LandedCostDocumentWithLinesDto>), AppError> {
     let document = state
         .landed_cost_service
         .create_document(auth_user.tenant_id, auth_user.user_id, request)
         .await?;
 
-    Ok(Json(document))
+    Ok((axum::http::StatusCode::CREATED, Json(document)))
 }
 
 /// GET /api/v1/inventory/landed-costs - List landed cost documents
@@ -308,13 +308,13 @@ pub async fn delete_document(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
     Path(document_id): Path<Uuid>,
-) -> Result<(), AppError> {
+) -> Result<axum::http::StatusCode, AppError> {
     state
         .landed_cost_service
         .delete_document(auth_user.tenant_id, document_id)
         .await?;
 
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
 /// POST /api/v1/inventory/landed-costs/{document_id}/lines - Add a cost line
@@ -366,13 +366,13 @@ pub async fn add_line(
     Extension(state): Extension<AppState>,
     Path(document_id): Path<Uuid>,
     Json(request): Json<AddLandedCostLineRequest>,
-) -> Result<Json<LandedCostLineDto>, AppError> {
+) -> Result<(axum::http::StatusCode, Json<LandedCostLineDto>), AppError> {
     let line = state
         .landed_cost_service
         .add_line(auth_user.tenant_id, document_id, request)
         .await?;
 
-    Ok(Json(line))
+    Ok((axum::http::StatusCode::CREATED, Json(line)))
 }
 
 /// Path parameters for line operations
@@ -481,13 +481,13 @@ pub async fn delete_line(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
     Path(params): Path<LinePathParams>,
-) -> Result<(), AppError> {
+) -> Result<axum::http::StatusCode, AppError> {
     state
         .landed_cost_service
         .delete_line(auth_user.tenant_id, params.line_id)
         .await?;
 
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
 /// GET /api/v1/inventory/landed-costs/{document_id}/preview - Get allocation preview
@@ -621,11 +621,11 @@ pub async fn cancel_document(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
     Path(document_id): Path<Uuid>,
-) -> Result<(), AppError> {
+) -> Result<axum::http::StatusCode, AppError> {
     state
         .landed_cost_service
         .cancel_document(auth_user.tenant_id, document_id)
         .await?;
 
-    Ok(())
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
