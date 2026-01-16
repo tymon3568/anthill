@@ -1,3 +1,4 @@
+pub mod authz_version_repository;
 pub mod email_verification_repository;
 pub mod email_verification_service;
 pub mod invitation_repository;

@@ -5,6 +5,7 @@ bcrypt = {workspace = true}
 chrono = {workspace = true}
 hex = "0.4"
 rand = "0.8"
+redis = {workspace = true}
 serde_json = {workspace = true}
 sha2 = {workspace = true}
 shared-auth = {workspace = true}

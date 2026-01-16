@@ -1,4 +1,5 @@
 // Auth infrastructure implementations
+pub mod authz_version_repository;
 pub mod email_verification_repository;
 pub mod email_verification_service;
 pub mod invitation_repository;
@@ -10,6 +11,7 @@ pub mod service;
 pub mod session_repository;
 
 // Re-export for convenience
+pub use authz_version_repository::RedisAuthzVersionRepository;
 pub use email_verification_repository::PgEmailVerificationRepository;
 pub use email_verification_service::EmailVerificationServiceImpl;
 pub use invitation_repository::PgInvitationRepository;
