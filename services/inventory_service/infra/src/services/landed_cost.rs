@@ -6,10 +6,10 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use inventory_service_core::domains::inventory::dto::landed_cost_dto::{
-    AddLandedCostLineRequest, AllocationPreviewItem, AllocationPreviewResponse,
-    CreateLandedCostDocumentRequest, LandedCostDocumentListResponse,
-    LandedCostDocumentWithLinesDto, LandedCostLineDto, PostLandedCostResponse,
-    UpdateLandedCostDocumentRequest, UpdateLandedCostLineRequest,
+    AllocationPreviewItem, AllocationPreviewResponse, CreateLandedCostDocumentRequest,
+    CreateLandedCostLineRequest, LandedCostDocumentListResponse, LandedCostDocumentWithLinesDto,
+    LandedCostLineDto, PostLandedCostResponse, UpdateLandedCostDocumentRequest,
+    UpdateLandedCostLineRequest,
 };
 use inventory_service_core::domains::inventory::landed_cost::{
     LandedCostAllocation, LandedCostDocument, LandedCostDocumentWithLines, LandedCostStatus,
@@ -44,16 +44,17 @@ impl LandedCostServiceImpl {
     }
 
     /// Recalculate and update the document total cost.
+    /// Uses SQL aggregation for efficiency instead of fetching all lines.
     async fn recalculate_total_cost(
         &self,
         tenant_id: Uuid,
         document_id: Uuid,
     ) -> Result<(), AppError> {
-        let lines = self
+        // Use SQL SUM aggregation - more efficient than fetching all lines
+        let total = self
             .line_repo
-            .find_by_document_id(tenant_id, document_id)
+            .sum_lines_amount(tenant_id, document_id)
             .await?;
-        let total: i64 = lines.iter().map(|l| l.amount).sum();
         self.document_repo
             .update_total_cost(tenant_id, document_id, total)
             .await
@@ -268,7 +269,7 @@ impl LandedCostService for LandedCostServiceImpl {
         &self,
         tenant_id: Uuid,
         document_id: Uuid,
-        request: AddLandedCostLineRequest,
+        request: CreateLandedCostLineRequest,
     ) -> Result<LandedCostLineDto, AppError> {
         // Verify document exists and is in draft status
         let doc = self

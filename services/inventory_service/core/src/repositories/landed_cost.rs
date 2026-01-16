@@ -131,6 +131,10 @@ pub trait LandedCostLineRepository: Send + Sync {
         tenant_id: Uuid,
         document_id: Uuid,
     ) -> Result<i64, AppError>;
+
+    /// Sum all line amounts for a document using SQL aggregation.
+    /// More efficient than fetching all lines and summing in application code.
+    async fn sum_lines_amount(&self, tenant_id: Uuid, document_id: Uuid) -> Result<i64, AppError>;
 }
 
 /// Repository for landed cost allocations.

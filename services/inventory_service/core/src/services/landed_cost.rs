@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::domains::inventory::dto::landed_cost_dto::{
-    AddLandedCostLineRequest, AllocationPreviewResponse, CreateLandedCostDocumentRequest,
+    AllocationPreviewResponse, CreateLandedCostDocumentRequest, CreateLandedCostLineRequest,
     LandedCostDocumentListResponse, LandedCostDocumentWithLinesDto, LandedCostLineDto,
     PostLandedCostResponse, UpdateLandedCostDocumentRequest, UpdateLandedCostLineRequest,
 };
@@ -124,7 +124,7 @@ pub trait LandedCostService: Send + Sync {
         &self,
         tenant_id: Uuid,
         document_id: Uuid,
-        request: AddLandedCostLineRequest,
+        request: CreateLandedCostLineRequest,
     ) -> Result<LandedCostLineDto>;
 
     /// Update a cost line.

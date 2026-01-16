@@ -672,6 +672,23 @@ impl LandedCostLineRepository for LandedCostLineRepositoryImpl {
 
         Ok(result.rows_affected() as i64)
     }
+
+    async fn sum_lines_amount(&self, tenant_id: Uuid, document_id: Uuid) -> Result<i64, AppError> {
+        let result = sqlx::query!(
+            r#"
+            SELECT COALESCE(SUM(amount), 0) as "total!"
+            FROM landed_cost_lines
+            WHERE tenant_id = $1 AND document_id = $2
+            "#,
+            tenant_id,
+            document_id
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to sum landed cost lines: {e}")))?;
+
+        Ok(result.total)
+    }
 }
 
 /// PostgreSQL implementation of `LandedCostAllocationRepository`.

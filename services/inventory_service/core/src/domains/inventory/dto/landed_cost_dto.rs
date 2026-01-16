@@ -83,19 +83,8 @@ pub struct UpdateLandedCostLineRequest {
     pub vendor_reference: Option<String>,
 }
 
-/// Request to add a cost line to a document.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct AddLandedCostLineRequest {
-    /// Type of cost
-    pub cost_type: String,
-    /// Description of the cost
-    pub description: Option<String>,
-    /// Cost amount in cents
-    pub amount: i64,
-    /// Vendor reference
-    pub vendor_reference: Option<String>,
-}
+// NOTE: AddLandedCostLineRequest was removed - use CreateLandedCostLineRequest instead.
+// Both DTOs had identical fields, so we consolidated to reduce code duplication.
 
 /// Request to post a landed cost document.
 #[derive(Debug, Clone, Serialize, Deserialize)]

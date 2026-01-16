@@ -12,7 +12,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::landed_cost_dto::{
-    AddLandedCostLineRequest, AllocationPreviewResponse, CreateLandedCostDocumentRequest,
+    AllocationPreviewResponse, CreateLandedCostDocumentRequest, CreateLandedCostLineRequest,
     LandedCostDocumentListResponse, LandedCostDocumentWithLinesDto, LandedCostLineDto,
     PostLandedCostResponse, UpdateLandedCostDocumentRequest, UpdateLandedCostLineRequest,
 };
@@ -350,7 +350,7 @@ pub async fn delete_document(
     params(
         ("document_id" = Uuid, Path, description = "Document ID")
     ),
-    request_body = AddLandedCostLineRequest,
+    request_body = CreateLandedCostLineRequest,
     responses(
         (status = 201, description = "Created line", body = LandedCostLineDto),
         (status = 400, description = "Cannot add lines to non-draft document"),
@@ -365,7 +365,7 @@ pub async fn add_line(
     auth_user: AuthUser,
     Extension(state): Extension<AppState>,
     Path(document_id): Path<Uuid>,
-    Json(request): Json<AddLandedCostLineRequest>,
+    Json(request): Json<CreateLandedCostLineRequest>,
 ) -> Result<(axum::http::StatusCode, Json<LandedCostLineDto>), AppError> {
     let line = state
         .landed_cost_service
