@@ -1,4 +1,5 @@
 pub mod authz_version;
+pub mod decision_cache;
 pub mod enforcer;
 pub mod extractors;
 pub mod layer;
@@ -8,6 +9,12 @@ pub mod middleware;
 pub use enforcer::{
     add_policy, add_role_for_user, create_enforcer, enforce, get_roles_for_user, remove_policy,
     remove_role_for_user, SharedEnforcer,
+};
+
+// Re-export decision cache
+pub use decision_cache::{
+    enforce_cached, CacheStats, CachedDecision, DecisionCache, InMemoryDecisionCache,
+    NoOpDecisionCache,
 };
 
 // Re-export middleware
