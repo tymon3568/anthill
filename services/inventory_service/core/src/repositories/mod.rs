@@ -57,5 +57,5 @@ pub use rma::{RmaItemRepository, RmaRepository};
 pub use stock::{InventoryLevelRepository, StockMoveRepository};
 pub use stock_take::{StockTakeLineRepository, StockTakeRepository};
 pub use transfer::{TransferItemRepository, TransferRepository};
-pub use valuation::ValuationRepository;
+pub use valuation::{ValuationRepository, ValuationSettingsRepository};
 pub use warehouse::WarehouseRepository;

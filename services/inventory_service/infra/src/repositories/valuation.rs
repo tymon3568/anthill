@@ -9,10 +9,12 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::valuation::{
-    Valuation, ValuationHistory, ValuationLayer, ValuationMethod,
+    Valuation, ValuationHistory, ValuationLayer, ValuationMethod, ValuationScopeType,
+    ValuationSettings,
 };
 use inventory_service_core::repositories::valuation::{
     ValuationHistoryRepository, ValuationLayerRepository, ValuationRepository,
+    ValuationSettingsRepository,
 };
 use inventory_service_core::Result;
 
@@ -1162,5 +1164,369 @@ impl ValuationHistoryRepository for ValuationRepositoryImpl {
         .await?;
 
         Ok(row.count.unwrap_or(0))
+    }
+}
+
+// ============================================
+// Valuation Settings Repository Implementation
+// ============================================
+
+/// Row struct for sqlx::query_as to avoid type mismatches in conditional queries
+#[derive(sqlx::FromRow)]
+struct ValuationSettingsRow {
+    id: Uuid,
+    tenant_id: Uuid,
+    scope_type: String,
+    scope_id: Option<Uuid>,
+    method: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// PostgreSQL implementation of ValuationSettingsRepository
+pub struct ValuationSettingsRepositoryImpl {
+    pool: PgPool,
+}
+
+impl ValuationSettingsRepositoryImpl {
+    /// Create new repository instance
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
+
+    /// Convert database string to ValuationScopeType enum
+    fn string_to_scope_type(s: &str) -> Result<ValuationScopeType> {
+        match s {
+            "tenant" => Ok(ValuationScopeType::Tenant),
+            "category" => Ok(ValuationScopeType::Category),
+            "product" => Ok(ValuationScopeType::Product),
+            unknown => Err(shared_error::AppError::DataCorruption(format!(
+                "Unknown scope type in database: {}",
+                unknown
+            ))),
+        }
+    }
+
+    /// Convert ValuationScopeType to database string
+    fn scope_type_to_string(scope_type: &ValuationScopeType) -> &'static str {
+        match scope_type {
+            ValuationScopeType::Tenant => "tenant",
+            ValuationScopeType::Category => "category",
+            ValuationScopeType::Product => "product",
+        }
+    }
+
+    /// Convert database string to ValuationMethod enum
+    fn string_to_method(s: &str) -> Result<ValuationMethod> {
+        match s {
+            "fifo" => Ok(ValuationMethod::Fifo),
+            "avco" => Ok(ValuationMethod::Avco),
+            "standard" => Ok(ValuationMethod::Standard),
+            unknown => Err(shared_error::AppError::DataCorruption(format!(
+                "Unknown valuation method in database: {}",
+                unknown
+            ))),
+        }
+    }
+
+    /// Convert ValuationMethod to database string
+    fn method_to_string(method: &ValuationMethod) -> &'static str {
+        match method {
+            ValuationMethod::Fifo => "fifo",
+            ValuationMethod::Avco => "avco",
+            ValuationMethod::Standard => "standard",
+        }
+    }
+}
+
+#[async_trait]
+impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
+    async fn find_tenant_default(&self, tenant_id: Uuid) -> Result<Option<ValuationSettings>> {
+        let row = sqlx::query!(
+            r#"
+            SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+            FROM inventory_valuation_settings
+            WHERE tenant_id = $1 AND scope_type = 'tenant'
+            "#,
+            tenant_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        row.map(|r| -> Result<ValuationSettings> {
+            Ok(ValuationSettings {
+                id: r.id,
+                tenant_id: r.tenant_id,
+                scope_type: Self::string_to_scope_type(&r.scope_type)?,
+                scope_id: r.scope_id,
+                method: Self::string_to_method(&r.method)?,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+            })
+        })
+        .transpose()
+    }
+
+    async fn find_by_scope(
+        &self,
+        tenant_id: Uuid,
+        scope_type: ValuationScopeType,
+        scope_id: Option<Uuid>,
+    ) -> Result<Option<ValuationSettings>> {
+        let scope_type_str = Self::scope_type_to_string(&scope_type).to_owned();
+
+        // Use runtime query to avoid type mismatch between branches
+        let row: Option<ValuationSettingsRow> = if scope_id.is_some() {
+            sqlx::query_as(
+                r#"
+                SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+                FROM inventory_valuation_settings
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id = $3
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(&scope_type_str)
+            .bind(scope_id)
+            .fetch_optional(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as(
+                r#"
+                SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+                FROM inventory_valuation_settings
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id IS NULL
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(&scope_type_str)
+            .fetch_optional(&self.pool)
+            .await?
+        };
+
+        row.map(|r| -> Result<ValuationSettings> {
+            Ok(ValuationSettings {
+                id: r.id,
+                tenant_id: r.tenant_id,
+                scope_type: Self::string_to_scope_type(&r.scope_type)?,
+                scope_id: r.scope_id,
+                method: Self::string_to_method(&r.method)?,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+            })
+        })
+        .transpose()
+    }
+
+    async fn create(&self, settings: &ValuationSettings) -> Result<ValuationSettings> {
+        let scope_type_str = Self::scope_type_to_string(&settings.scope_type);
+        let method_str = Self::method_to_string(&settings.method);
+
+        let row = sqlx::query!(
+            r#"
+            INSERT INTO inventory_valuation_settings
+                (id, tenant_id, scope_type, scope_id, method, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+            "#,
+            settings.id,
+            settings.tenant_id,
+            scope_type_str,
+            settings.scope_id,
+            method_str,
+            settings.created_at,
+            settings.updated_at
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(ValuationSettings {
+            id: row.id,
+            tenant_id: row.tenant_id,
+            scope_type: Self::string_to_scope_type(&row.scope_type)?,
+            scope_id: row.scope_id,
+            method: Self::string_to_method(&row.method)?,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+
+    async fn update(&self, settings: &ValuationSettings) -> Result<ValuationSettings> {
+        let method_str = Self::method_to_string(&settings.method);
+
+        let row = sqlx::query!(
+            r#"
+            UPDATE inventory_valuation_settings
+            SET method = $1, updated_at = NOW()
+            WHERE id = $2 AND tenant_id = $3
+            RETURNING id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+            "#,
+            method_str,
+            settings.id,
+            settings.tenant_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(ValuationSettings {
+            id: row.id,
+            tenant_id: row.tenant_id,
+            scope_type: Self::string_to_scope_type(&row.scope_type)?,
+            scope_id: row.scope_id,
+            method: Self::string_to_method(&row.method)?,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+
+    async fn upsert(&self, settings: &ValuationSettings) -> Result<ValuationSettings> {
+        let scope_type_str = Self::scope_type_to_string(&settings.scope_type);
+        let method_str = Self::method_to_string(&settings.method);
+
+        // Use runtime query_as to avoid type mismatch between branches
+        let row: ValuationSettingsRow = if settings.scope_id.is_some() {
+            // For category/product overrides
+            sqlx::query_as(
+                r#"
+                INSERT INTO inventory_valuation_settings
+                    (id, tenant_id, scope_type, scope_id, method, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (tenant_id, scope_type, scope_id) WHERE scope_id IS NOT NULL
+                DO UPDATE SET method = EXCLUDED.method, updated_at = NOW()
+                RETURNING id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+                "#,
+            )
+            .bind(settings.id)
+            .bind(settings.tenant_id)
+            .bind(scope_type_str)
+            .bind(settings.scope_id)
+            .bind(method_str)
+            .bind(settings.created_at)
+            .bind(settings.updated_at)
+            .fetch_one(&self.pool)
+            .await?
+        } else {
+            // For tenant default
+            sqlx::query_as(
+                r#"
+                INSERT INTO inventory_valuation_settings
+                    (id, tenant_id, scope_type, scope_id, method, created_at, updated_at)
+                VALUES ($1, $2, $3, NULL, $4, $5, $6)
+                ON CONFLICT (tenant_id, scope_type) WHERE scope_type = 'tenant'
+                DO UPDATE SET method = EXCLUDED.method, updated_at = NOW()
+                RETURNING id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+                "#,
+            )
+            .bind(settings.id)
+            .bind(settings.tenant_id)
+            .bind(scope_type_str)
+            .bind(method_str)
+            .bind(settings.created_at)
+            .bind(settings.updated_at)
+            .fetch_one(&self.pool)
+            .await?
+        };
+
+        Ok(ValuationSettings {
+            id: row.id,
+            tenant_id: row.tenant_id,
+            scope_type: Self::string_to_scope_type(&row.scope_type)?,
+            scope_id: row.scope_id,
+            method: Self::string_to_method(&row.method)?,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        })
+    }
+
+    async fn delete(
+        &self,
+        tenant_id: Uuid,
+        scope_type: ValuationScopeType,
+        scope_id: Option<Uuid>,
+    ) -> Result<()> {
+        let scope_type_str = Self::scope_type_to_string(&scope_type);
+
+        let rows_affected = if scope_id.is_some() {
+            sqlx::query!(
+                r#"
+                DELETE FROM inventory_valuation_settings
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id = $3
+                "#,
+                tenant_id,
+                scope_type_str,
+                scope_id
+            )
+            .execute(&self.pool)
+            .await?
+            .rows_affected()
+        } else {
+            sqlx::query!(
+                r#"
+                DELETE FROM inventory_valuation_settings
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id IS NULL
+                "#,
+                tenant_id,
+                scope_type_str
+            )
+            .execute(&self.pool)
+            .await?
+            .rows_affected()
+        };
+
+        if rows_affected == 0 {
+            return Err(shared_error::AppError::NotFound(
+                "Valuation settings not found".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    async fn list_by_tenant(
+        &self,
+        tenant_id: Uuid,
+        scope_type: Option<ValuationScopeType>,
+    ) -> Result<Vec<ValuationSettings>> {
+        // Use runtime query_as to avoid type mismatch between branches
+        let rows: Vec<ValuationSettingsRow> = if let Some(st) = scope_type {
+            let scope_type_str = Self::scope_type_to_string(&st);
+            sqlx::query_as(
+                r#"
+                SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+                FROM inventory_valuation_settings
+                WHERE tenant_id = $1 AND scope_type = $2
+                ORDER BY scope_type, scope_id
+                "#,
+            )
+            .bind(tenant_id)
+            .bind(scope_type_str)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as(
+                r#"
+                SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
+                FROM inventory_valuation_settings
+                WHERE tenant_id = $1
+                ORDER BY scope_type, scope_id
+                "#,
+            )
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await?
+        };
+
+        rows.into_iter()
+            .map(|r| -> Result<ValuationSettings> {
+                Ok(ValuationSettings {
+                    id: r.id,
+                    tenant_id: r.tenant_id,
+                    scope_type: Self::string_to_scope_type(&r.scope_type)?,
+                    scope_id: r.scope_id,
+                    method: Self::string_to_method(&r.method)?,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                })
+            })
+            .collect()
     }
 }

@@ -38,7 +38,8 @@ use inventory_service_infra::repositories::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
     PgStockTakeLineRepository, PgStockTakeRepository, PgTransferItemRepository,
     PgTransferRepository, PickingMethodRepositoryImpl, ProductRepositoryImpl,
-    ReceiptRepositoryImpl, ValuationRepositoryImpl, WarehouseRepositoryImpl,
+    ReceiptRepositoryImpl, ValuationRepositoryImpl, ValuationSettingsRepositoryImpl,
+    WarehouseRepositoryImpl,
 };
 
 // Inventory-service infra - Service implementations
@@ -259,6 +260,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
 
     // Valuation
     let valuation_repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
+    let valuation_settings_repo = Arc::new(ValuationSettingsRepositoryImpl::new(pool.clone()));
 
     // Landed Cost
     let landed_cost_document_repo = Arc::new(LandedCostDocumentRepositoryImpl::new(pool.clone()));
@@ -363,8 +365,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Valuation Service
     let valuation_service = Arc::new(ValuationServiceImpl::new(
         valuation_repo.clone(),
-        valuation_repo.clone(), // layer_repo
-        valuation_repo,         // history_repo
+        valuation_repo.clone(),  // layer_repo
+        valuation_repo,          // history_repo
+        valuation_settings_repo, // settings_repo
     ));
 
     // Landed Cost Service

@@ -15,7 +15,8 @@ use inventory_service_infra::repositories::{
     PgStockMoveRepository, PgStockReconciliationItemRepository, PgStockReconciliationRepository,
     PgStockTakeLineRepository, PgStockTakeRepository, PgTransferItemRepository,
     PgTransferRepository, PickingMethodRepositoryImpl, ProductRepositoryImpl,
-    ReceiptRepositoryImpl, ValuationRepositoryImpl, WarehouseRepositoryImpl,
+    ReceiptRepositoryImpl, ValuationRepositoryImpl, ValuationSettingsRepositoryImpl,
+    WarehouseRepositoryImpl,
 };
 use inventory_service_infra::services::{
     CategoryServiceImpl, LandedCostServiceImpl, LotSerialServiceImpl, PgCycleCountingService,
@@ -94,6 +95,9 @@ pub async fn create_test_app(pool: PgPool) -> Router {
     let valuation_history_trait: Arc<
         dyn inventory_service_core::repositories::valuation::ValuationHistoryRepository,
     > = valuation_repo_impl.clone();
+    let valuation_settings_trait: Arc<
+        dyn inventory_service_core::repositories::valuation::ValuationSettingsRepository,
+    > = Arc::new(ValuationSettingsRepositoryImpl::new(pool_ref.clone()));
 
     // Category
     let category_repo = CategoryRepositoryImpl::new(pool_ref.clone());
@@ -181,6 +185,7 @@ pub async fn create_test_app(pool: PgPool) -> Router {
             valuation_repo_trait,
             valuation_layer_trait,
             valuation_history_trait,
+            valuation_settings_trait,
         )),
         warehouse_repository: warehouse_repo.clone(),
         receipt_service: Arc::new(ReceiptServiceImpl::new(

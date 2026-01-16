@@ -29,6 +29,116 @@ impl From<String> for ValuationMethod {
     }
 }
 
+/// Scope type for valuation settings
+///
+/// Defines the level at which a valuation method setting applies:
+/// - Tenant: Default for the entire tenant
+/// - Category: Override for a specific product category
+/// - Product: Override for a specific product
+///
+/// Precedence: Product > Category > Tenant
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "TEXT", rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum ValuationScopeType {
+    Tenant,
+    Category,
+    Product,
+}
+
+impl From<String> for ValuationScopeType {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "tenant" => ValuationScopeType::Tenant,
+            "category" => ValuationScopeType::Category,
+            "product" => ValuationScopeType::Product,
+            _ => ValuationScopeType::Tenant,
+        }
+    }
+}
+
+/// Valuation settings entity for tenant-scoped configuration
+///
+/// Stores the default valuation method at different scope levels:
+/// - Tenant default (scope_id = None)
+/// - Category override (scope_id = category_id)
+/// - Product override (scope_id = product_id)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValuationSettings {
+    /// Primary key
+    pub id: Uuid,
+
+    /// Multi-tenancy
+    pub tenant_id: Uuid,
+
+    /// Scope definition
+    pub scope_type: ValuationScopeType,
+    pub scope_id: Option<Uuid>,
+
+    /// Valuation method for this scope
+    pub method: ValuationMethod,
+
+    /// Timestamps
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl ValuationSettings {
+    /// Create a new tenant-level default setting
+    pub fn new_tenant_default(tenant_id: Uuid, method: ValuationMethod) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            tenant_id,
+            scope_type: ValuationScopeType::Tenant,
+            scope_id: None,
+            method,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Create a new category-level override
+    pub fn new_category_override(
+        tenant_id: Uuid,
+        category_id: Uuid,
+        method: ValuationMethod,
+    ) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            tenant_id,
+            scope_type: ValuationScopeType::Category,
+            scope_id: Some(category_id),
+            method,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Create a new product-level override
+    pub fn new_product_override(
+        tenant_id: Uuid,
+        product_id: Uuid,
+        method: ValuationMethod,
+    ) -> Self {
+        Self {
+            id: Uuid::now_v7(),
+            tenant_id,
+            scope_type: ValuationScopeType::Product,
+            scope_id: Some(product_id),
+            method,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// Update the valuation method
+    pub fn update_method(&mut self, method: ValuationMethod) {
+        self.method = method;
+        self.updated_at = Utc::now();
+    }
+}
+
 /// Inventory valuation entity representing current valuation for a product
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Valuation {
