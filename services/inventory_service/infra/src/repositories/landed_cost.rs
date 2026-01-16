@@ -690,11 +690,27 @@ impl LandedCostAllocationRepositoryImpl {
 impl LandedCostAllocationRepository for LandedCostAllocationRepositoryImpl {
     async fn create_batch(
         &self,
+        tenant_id: Uuid,
         allocations: Vec<LandedCostAllocation>,
     ) -> Result<Vec<LandedCostAllocation>, AppError> {
         if allocations.is_empty() {
             return Ok(vec![]);
         }
+
+        // Validate all allocations belong to the specified tenant (multi-tenant security)
+        for alloc in &allocations {
+            if alloc.tenant_id != tenant_id {
+                return Err(AppError::ValidationError(
+                    "All allocations must belong to the specified tenant".to_string(),
+                ));
+            }
+        }
+
+        // Use transaction for atomicity - partial commits are prevented
+        let mut tx =
+            self.pool.begin().await.map_err(|e| {
+                AppError::DatabaseError(format!("Failed to start transaction: {e}"))
+            })?;
 
         let mut created = Vec::with_capacity(allocations.len());
 
@@ -719,7 +735,7 @@ impl LandedCostAllocationRepository for LandedCostAllocationRepositoryImpl {
                 alloc.new_unit_cost,
                 alloc.created_at
             )
-            .fetch_one(&self.pool)
+            .fetch_one(&mut *tx)
             .await
             .map_err(|e| AppError::DatabaseError(format!("Failed to create allocation: {e}")))?;
 
@@ -734,6 +750,11 @@ impl LandedCostAllocationRepository for LandedCostAllocationRepositoryImpl {
                 created_at: row.created_at,
             });
         }
+
+        // Commit transaction
+        tx.commit()
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to commit transaction: {e}")))?;
 
         Ok(created)
     }

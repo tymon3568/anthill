@@ -301,6 +301,7 @@ impl LandedCostService for LandedCostServiceImpl {
     async fn update_line(
         &self,
         tenant_id: Uuid,
+        document_id: Uuid,
         line_id: Uuid,
         request: UpdateLandedCostLineRequest,
     ) -> Result<LandedCostLineDto, AppError> {
@@ -311,10 +312,17 @@ impl LandedCostService for LandedCostServiceImpl {
             .await?
             .ok_or_else(|| AppError::NotFound("Landed cost line not found".to_string()))?;
 
+        // Validate line belongs to the specified document (prevents unauthorized access)
+        if existing_line.document_id != document_id {
+            return Err(AppError::ValidationError(
+                "Line does not belong to the specified document".to_string(),
+            ));
+        }
+
         // Verify document is in draft status
         let doc = self
             .document_repo
-            .find_by_id(tenant_id, existing_line.document_id)
+            .find_by_id(tenant_id, document_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Landed cost document not found".to_string()))?;
 
@@ -340,7 +348,12 @@ impl LandedCostService for LandedCostServiceImpl {
         Ok(LandedCostLineDto { line })
     }
 
-    async fn delete_line(&self, tenant_id: Uuid, line_id: Uuid) -> Result<(), AppError> {
+    async fn delete_line(
+        &self,
+        tenant_id: Uuid,
+        document_id: Uuid,
+        line_id: Uuid,
+    ) -> Result<(), AppError> {
         // Get the line to find its document
         let existing_line = self
             .line_repo
@@ -348,10 +361,17 @@ impl LandedCostService for LandedCostServiceImpl {
             .await?
             .ok_or_else(|| AppError::NotFound("Landed cost line not found".to_string()))?;
 
+        // Validate line belongs to the specified document (prevents unauthorized access)
+        if existing_line.document_id != document_id {
+            return Err(AppError::ValidationError(
+                "Line does not belong to the specified document".to_string(),
+            ));
+        }
+
         // Verify document is in draft status
         let doc = self
             .document_repo
-            .find_by_id(tenant_id, existing_line.document_id)
+            .find_by_id(tenant_id, document_id)
             .await?
             .ok_or_else(|| AppError::NotFound("Landed cost document not found".to_string()))?;
 

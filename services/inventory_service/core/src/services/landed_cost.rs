@@ -132,9 +132,11 @@ pub trait LandedCostService: Send + Sync {
     /// # Business Rules
     /// - Only lines on draft documents can be updated
     /// - Updates document total cost
+    /// - Validates that line belongs to the specified document
     ///
     /// # Arguments
     /// * `tenant_id` - Tenant identifier
+    /// * `document_id` - Document identifier (for ownership validation)
     /// * `line_id` - Line identifier
     /// * `request` - Update request
     ///
@@ -143,6 +145,7 @@ pub trait LandedCostService: Send + Sync {
     async fn update_line(
         &self,
         tenant_id: Uuid,
+        document_id: Uuid,
         line_id: Uuid,
         request: UpdateLandedCostLineRequest,
     ) -> Result<LandedCostLineDto>;
@@ -152,11 +155,13 @@ pub trait LandedCostService: Send + Sync {
     /// # Business Rules
     /// - Only lines on draft documents can be deleted
     /// - Updates document total cost
+    /// - Validates that line belongs to the specified document
     ///
     /// # Arguments
     /// * `tenant_id` - Tenant identifier
+    /// * `document_id` - Document identifier (for ownership validation)
     /// * `line_id` - Line identifier
-    async fn delete_line(&self, tenant_id: Uuid, line_id: Uuid) -> Result<()>;
+    async fn delete_line(&self, tenant_id: Uuid, document_id: Uuid, line_id: Uuid) -> Result<()>;
 
     /// Get allocation preview before posting.
     ///

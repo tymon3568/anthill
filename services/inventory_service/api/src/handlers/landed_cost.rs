@@ -436,7 +436,7 @@ pub async fn update_line(
 ) -> Result<Json<LandedCostLineDto>, AppError> {
     let line = state
         .landed_cost_service
-        .update_line(auth_user.tenant_id, params.line_id, request)
+        .update_line(auth_user.tenant_id, params.document_id, params.line_id, request)
         .await?;
 
     Ok(Json(line))
@@ -484,7 +484,7 @@ pub async fn delete_line(
 ) -> Result<axum::http::StatusCode, AppError> {
     state
         .landed_cost_service
-        .delete_line(auth_user.tenant_id, params.line_id)
+        .delete_line(auth_user.tenant_id, params.document_id, params.line_id)
         .await?;
 
     Ok(axum::http::StatusCode::NO_CONTENT)

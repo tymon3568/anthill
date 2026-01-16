@@ -1,11 +1,11 @@
 # Task: Implement Landed Costs
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/task_04.06.02_implement_landed_costs.md`  
-**Status:** Complete_PR_Submitted  
+**Status:** NeedsReview  
 **Priority:** P1  
 **Phase:** V1_MVP  
 **Module:** 04_Inventory_Service / 4.6_Inventory_Valuation  
-**Assignee:** Claude  
+**Assignee:** Claude_PR_Autofix  
 **Last Updated:** 2026-01-16  
 **Dependencies:**  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.01_create_goods_receipts_table.md`  
@@ -246,6 +246,15 @@ Edge cases:
 
 ## AI Agent Log:
 ---
+* 2026-01-16 14:00: PR Review Auto-Fix by Claude_PR_Autofix
+    - Status corrected: `Complete_PR_Submitted` → `NeedsReview` (per workflow rules)
+    - Applying safe fixes from bot reviews (C4, W5, C3/M3)
+    - Issues NOT fixed (Hard Stop - needs human decision):
+      - post_document allocation logic (placeholder)
+      - get_allocation_preview implementation
+      - cancel_document restore costs
+    - PR #155: https://github.com/tymon3568/anthill/pull/155
+
 * 2025-12-28 00:00: Task file created by AI
     - Added MVP scope and acceptance criteria for landed costs feature
     - Status: Todo

@@ -137,8 +137,13 @@ pub trait LandedCostLineRepository: Send + Sync {
 #[async_trait]
 pub trait LandedCostAllocationRepository: Send + Sync {
     /// Create allocations in batch.
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for multi-tenant isolation
+    /// * `allocations` - Allocations to create (must all belong to the same tenant)
     async fn create_batch(
         &self,
+        tenant_id: Uuid,
         allocations: Vec<LandedCostAllocation>,
     ) -> Result<Vec<LandedCostAllocation>, AppError>;
 
