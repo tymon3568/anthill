@@ -20,6 +20,7 @@ use user_service_core::domains::auth::{
         AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
     },
 };
+use crate::rate_limiter::InvitationRateLimiter;
 
 /// Application state containing service dependencies
 pub struct AppState<S: AuthService> {
@@ -33,6 +34,8 @@ pub struct AppState<S: AuthService> {
     pub invitation_service: Option<Arc<dyn InvitationService + Send + Sync>>,
     // Configuration for invitation settings
     pub config: shared_config::Config,
+    // Rate limiter for invitation acceptance
+    pub invitation_rate_limiter: Arc<InvitationRateLimiter>,
 }
 
 impl<S: AuthService> Clone for AppState<S> {
@@ -45,6 +48,7 @@ impl<S: AuthService> Clone for AppState<S> {
             tenant_repo: self.tenant_repo.clone(),
             invitation_service: self.invitation_service.clone(),
             config: self.config.clone(),
+            invitation_rate_limiter: Arc::clone(&self.invitation_rate_limiter),
         }
     }
 }

@@ -5,6 +5,7 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use serde_json::{json, Value};
+use shared_config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -54,6 +55,9 @@ pub async fn create_test_app(
             jwt_secret,
             ..Default::default()
         },
+        invitation_rate_limiter: Arc::new(
+            user_service_api::rate_limiter::InvitationRateLimiter::default(),
+        ),
     };
 
     (user_service_api::create_router(&state), state)

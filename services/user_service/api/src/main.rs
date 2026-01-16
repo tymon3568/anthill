@@ -15,7 +15,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use user_service_api::{
     admin_handlers, handlers, invitation_handlers, permission_handlers, profile_handlers,
-    verification_handlers, AppState, ProfileAppState,
+    rate_limiter::InvitationRateLimiter, verification_handlers, AppState, ProfileAppState,
 };
 use user_service_infra::auth::{
     AuthServiceImpl, EmailVerificationServiceImpl, InvitationServiceImpl,
@@ -99,6 +99,7 @@ async fn main() {
         enforcer.clone(),
         config.invitation_expiry_hours,
         config.invitation_max_attempts,
+        config.invitation_max_per_admin_per_day,
     );
 
     // Initialize email verification service
@@ -124,6 +125,7 @@ async fn main() {
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
         config: config.clone(),
+        invitation_rate_limiter: Arc::new(InvitationRateLimiter::default()),
     };
 
     let profile_state = ProfileAppState {

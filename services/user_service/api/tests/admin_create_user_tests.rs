@@ -2,6 +2,7 @@
 // Tests POST /api/v1/admin/users endpoint
 // Run: docker-compose -f docker-compose.test.yml up -d && cargo test --test admin_create_user_tests -- --ignored
 
+mod helpers;
 mod test_database;
 
 use axum::{
@@ -62,6 +63,9 @@ async fn create_test_app(pool: &sqlx::PgPool) -> axum::Router {
             jwt_secret,
             ..Default::default()
         },
+        invitation_rate_limiter: Arc::new(
+            user_service_api::rate_limiter::InvitationRateLimiter::default(),
+        ),
     };
 
     user_service_api::create_router(&state)

@@ -294,7 +294,7 @@ services/user_service/api/tests/
 ---
 ### 2025-01-10 - Task Updated for Kanidm Migration
 
-**Status:** Original implementation (custom JWT) is now DEPRECATED. Task needs complete rewrite for Kanidm OAuth2 flow.
+**Note:** Original implementation (custom JWT) is now DEPRECATED. Task needs complete rewrite for Kanidm OAuth2 flow.
 
 **Changes Required:**
 1. Replace JWT generation tests with OAuth2 flow tests
