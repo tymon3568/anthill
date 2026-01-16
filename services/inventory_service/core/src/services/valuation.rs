@@ -7,9 +7,13 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::domains::inventory::dto::valuation_dto::{
-    CostAdjustmentRequest, GetValuationHistoryRequest, GetValuationLayersRequest,
-    GetValuationRequest, RevaluationRequest, SetStandardCostRequest, SetValuationMethodRequest,
-    ValuationDto, ValuationHistoryResponse, ValuationLayersResponse,
+    CostAdjustmentRequest, DeleteValuationSettingsRequest, EffectiveValuationMethodResponse,
+    GetEffectiveValuationMethodRequest, GetTenantValuationSettingsRequest,
+    GetValuationHistoryRequest, GetValuationLayersRequest, GetValuationRequest,
+    ListValuationSettingsRequest, RevaluationRequest, SetCategoryValuationMethodRequest,
+    SetProductValuationMethodRequest, SetStandardCostRequest, SetTenantValuationMethodRequest,
+    SetValuationMethodRequest, ValuationDto, ValuationHistoryResponse, ValuationLayersResponse,
+    ValuationSettingsDto, ValuationSettingsListResponse,
 };
 use crate::domains::inventory::valuation::ValuationMethod;
 use crate::Result;
@@ -194,4 +198,122 @@ pub trait ValuationService: Send + Sync {
         tenant_id: Uuid,
         product_id: Uuid,
     ) -> Result<ValuationMethod>;
+
+    // ============================================
+    // Valuation Settings Methods
+    // ============================================
+
+    /// Get tenant default valuation settings
+    ///
+    /// # Business Rules
+    /// - Returns the default valuation method for the tenant
+    /// - Creates a default (FIFO) if none exists
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant ID
+    ///
+    /// # Returns
+    /// Tenant default valuation settings
+    async fn get_tenant_valuation_settings(
+        &self,
+        request: GetTenantValuationSettingsRequest,
+    ) -> Result<ValuationSettingsDto>;
+
+    /// Get effective valuation method for a product
+    ///
+    /// # Business Rules
+    /// - Checks for product-level override first
+    /// - Then checks for category-level override
+    /// - Falls back to tenant default
+    /// - Returns the method and its source
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant, product, and optional category IDs
+    ///
+    /// # Returns
+    /// Effective valuation method with source information
+    async fn get_effective_valuation_method(
+        &self,
+        request: GetEffectiveValuationMethodRequest,
+    ) -> Result<EffectiveValuationMethodResponse>;
+
+    /// Set tenant default valuation method
+    ///
+    /// # Business Rules
+    /// - Creates or updates the tenant default
+    /// - Does not affect existing product-level settings
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant ID and method
+    ///
+    /// # Returns
+    /// Updated settings
+    async fn set_tenant_valuation_method(
+        &self,
+        request: SetTenantValuationMethodRequest,
+    ) -> Result<ValuationSettingsDto>;
+
+    /// Set category valuation method override
+    ///
+    /// # Business Rules
+    /// - Creates or updates a category-level override
+    /// - Products in this category will use this method unless overridden
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant, category, and method
+    ///
+    /// # Returns
+    /// Updated settings
+    async fn set_category_valuation_method(
+        &self,
+        request: SetCategoryValuationMethodRequest,
+    ) -> Result<ValuationSettingsDto>;
+
+    /// Set product valuation method override
+    ///
+    /// # Business Rules
+    /// - Creates or updates a product-level override
+    /// - Takes precedence over category and tenant settings
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant, product, and method
+    ///
+    /// # Returns
+    /// Updated settings
+    async fn set_product_valuation_method(
+        &self,
+        request: SetProductValuationMethodRequest,
+    ) -> Result<ValuationSettingsDto>;
+
+    /// Delete valuation settings override
+    ///
+    /// # Business Rules
+    /// - Removes the specified override
+    /// - Cannot delete tenant default (use set to change it)
+    ///
+    /// # Arguments
+    /// * `request` - Request with scope details
+    ///
+    /// # Returns
+    /// Success or error
+    async fn delete_valuation_settings(
+        &self,
+        request: DeleteValuationSettingsRequest,
+    ) -> Result<()>;
+
+    /// List all valuation settings for a tenant
+    ///
+    /// # Business Rules
+    /// - Returns all settings including tenant default and overrides
+    /// - Can optionally filter by scope type
+    ///
+    /// # Arguments
+    /// * `request` - Request with tenant ID and optional scope filter
+    ///
+    /// # Returns
+    /// List of valuation settings
+    async fn list_valuation_settings(
+        &self,
+        request: ListValuationSettingsRequest,
+    ) -> Result<ValuationSettingsListResponse>;
 }

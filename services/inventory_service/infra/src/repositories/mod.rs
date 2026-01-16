@@ -45,5 +45,5 @@ pub use rma::{PgRmaItemRepository, PgRmaRepository};
 pub use stock::{PgInventoryLevelRepository, PgStockMoveRepository};
 pub use stock_take::{PgStockTakeLineRepository, PgStockTakeRepository};
 pub use transfer::{PgTransferItemRepository, PgTransferRepository};
-pub use valuation::ValuationRepositoryImpl;
+pub use valuation::{ValuationRepositoryImpl, ValuationSettingsRepositoryImpl};
 pub use warehouse::WarehouseRepositoryImpl;

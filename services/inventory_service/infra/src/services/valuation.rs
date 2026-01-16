@@ -4,19 +4,25 @@
 //! Supports FIFO, AVCO, and Standard costing methods with cost layer management.
 
 use async_trait::async_trait;
+use chrono::Utc;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::valuation_dto::{
-    CostAdjustmentRequest, GetValuationHistoryRequest, GetValuationLayersRequest,
-    GetValuationRequest, RevaluationRequest, SetStandardCostRequest, SetValuationMethodRequest,
-    ValuationDto, ValuationHistoryDto, ValuationHistoryResponse, ValuationLayersResponse,
+    CostAdjustmentRequest, DeleteValuationSettingsRequest, EffectiveValuationMethodResponse,
+    GetEffectiveValuationMethodRequest, GetTenantValuationSettingsRequest,
+    GetValuationHistoryRequest, GetValuationLayersRequest, GetValuationRequest,
+    ListValuationSettingsRequest, RevaluationRequest, SetCategoryValuationMethodRequest,
+    SetProductValuationMethodRequest, SetStandardCostRequest, SetTenantValuationMethodRequest,
+    SetValuationMethodRequest, ValuationDto, ValuationHistoryDto, ValuationHistoryResponse,
+    ValuationLayersResponse, ValuationSettingsDto, ValuationSettingsListResponse,
 };
 use inventory_service_core::domains::inventory::valuation::{
-    Valuation, ValuationHistory, ValuationMethod,
+    Valuation, ValuationHistory, ValuationMethod, ValuationScopeType, ValuationSettings,
 };
 use inventory_service_core::repositories::valuation::{
     ValuationHistoryRepository, ValuationLayerRepository, ValuationRepository,
+    ValuationSettingsRepository,
 };
 use inventory_service_core::services::valuation::ValuationService;
 use inventory_service_core::Result;
@@ -29,6 +35,7 @@ use inventory_service_core::Result;
 /// - Stock movement processing with automatic cost calculation
 /// - Cost adjustments and revaluations with audit trails
 /// - Historical valuation tracking and reporting
+/// - Tenant-scoped valuation settings with hierarchical overrides
 pub struct ValuationServiceImpl {
     /// Repository for core valuation operations
     valuation_repo: Arc<dyn ValuationRepository>,
@@ -36,6 +43,8 @@ pub struct ValuationServiceImpl {
     layer_repo: Arc<dyn ValuationLayerRepository>,
     /// Repository for valuation history and audit trails
     history_repo: Arc<dyn ValuationHistoryRepository>,
+    /// Repository for tenant valuation settings
+    settings_repo: Arc<dyn ValuationSettingsRepository>,
 }
 
 impl ValuationServiceImpl {
@@ -45,6 +54,7 @@ impl ValuationServiceImpl {
     /// * `valuation_repo` - Repository for valuation operations
     /// * `layer_repo` - Repository for cost layer management
     /// * `history_repo` - Repository for historical tracking
+    /// * `settings_repo` - Repository for tenant valuation settings
     ///
     /// # Returns
     /// New ValuationServiceImpl instance
@@ -52,11 +62,13 @@ impl ValuationServiceImpl {
         valuation_repo: Arc<dyn ValuationRepository>,
         layer_repo: Arc<dyn ValuationLayerRepository>,
         history_repo: Arc<dyn ValuationHistoryRepository>,
+        settings_repo: Arc<dyn ValuationSettingsRepository>,
     ) -> Self {
         Self {
             valuation_repo,
             layer_repo,
             history_repo,
+            settings_repo,
         }
     }
 }
@@ -483,6 +495,163 @@ impl ValuationService for ValuationServiceImpl {
 
         Ok(valuation.valuation_method)
     }
+
+    // ========================================
+    // Valuation Settings Methods
+    // ========================================
+
+    /// Get tenant default valuation settings
+    async fn get_tenant_valuation_settings(
+        &self,
+        request: GetTenantValuationSettingsRequest,
+    ) -> Result<ValuationSettingsDto> {
+        let settings = self
+            .settings_repo
+            .find_tenant_default(request.tenant_id)
+            .await?
+            .ok_or_else(|| {
+                shared_error::AppError::NotFound("Tenant valuation settings not found".to_string())
+            })?;
+
+        Ok(self.settings_to_dto(settings))
+    }
+
+    /// Get effective valuation method for a product with hierarchical fallback
+    ///
+    /// Resolution order: product > category > tenant default
+    async fn get_effective_valuation_method(
+        &self,
+        request: GetEffectiveValuationMethodRequest,
+    ) -> Result<EffectiveValuationMethodResponse> {
+        // 1. Check product-specific override
+        if let Some(settings) = self
+            .settings_repo
+            .find_by_scope(request.tenant_id, ValuationScopeType::Product, Some(request.product_id))
+            .await?
+        {
+            return Ok(EffectiveValuationMethodResponse {
+                method: settings.method,
+                source: ValuationScopeType::Product,
+                source_id: Some(request.product_id),
+            });
+        }
+
+        // 2. Check category override if category_id provided
+        if let Some(category_id) = request.category_id {
+            if let Some(settings) = self
+                .settings_repo
+                .find_by_scope(request.tenant_id, ValuationScopeType::Category, Some(category_id))
+                .await?
+            {
+                return Ok(EffectiveValuationMethodResponse {
+                    method: settings.method,
+                    source: ValuationScopeType::Category,
+                    source_id: Some(category_id),
+                });
+            }
+        }
+
+        // 3. Fall back to tenant default
+        let tenant_settings = self
+            .settings_repo
+            .find_tenant_default(request.tenant_id)
+            .await?
+            .ok_or_else(|| {
+                shared_error::AppError::NotFound(
+                    "No valuation settings found for tenant".to_string(),
+                )
+            })?;
+
+        Ok(EffectiveValuationMethodResponse {
+            method: tenant_settings.method,
+            source: ValuationScopeType::Tenant,
+            source_id: None,
+        })
+    }
+
+    /// Set tenant default valuation method
+    async fn set_tenant_valuation_method(
+        &self,
+        request: SetTenantValuationMethodRequest,
+    ) -> Result<ValuationSettingsDto> {
+        let settings = ValuationSettings {
+            id: Uuid::now_v7(),
+            tenant_id: request.tenant_id,
+            scope_type: ValuationScopeType::Tenant,
+            scope_id: None,
+            method: request.method,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let result = self.settings_repo.upsert(&settings).await?;
+        Ok(self.settings_to_dto(result))
+    }
+
+    /// Set category-level valuation method override
+    async fn set_category_valuation_method(
+        &self,
+        request: SetCategoryValuationMethodRequest,
+    ) -> Result<ValuationSettingsDto> {
+        let settings = ValuationSettings {
+            id: Uuid::now_v7(),
+            tenant_id: request.tenant_id,
+            scope_type: ValuationScopeType::Category,
+            scope_id: Some(request.category_id),
+            method: request.method,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let result = self.settings_repo.upsert(&settings).await?;
+        Ok(self.settings_to_dto(result))
+    }
+
+    /// Set product-level valuation method override
+    async fn set_product_valuation_method(
+        &self,
+        request: SetProductValuationMethodRequest,
+    ) -> Result<ValuationSettingsDto> {
+        let settings = ValuationSettings {
+            id: Uuid::now_v7(),
+            tenant_id: request.tenant_id,
+            scope_type: ValuationScopeType::Product,
+            scope_id: Some(request.product_id),
+            method: request.method,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let result = self.settings_repo.upsert(&settings).await?;
+        Ok(self.settings_to_dto(result))
+    }
+
+    /// Delete valuation settings
+    async fn delete_valuation_settings(
+        &self,
+        request: DeleteValuationSettingsRequest,
+    ) -> Result<()> {
+        self.settings_repo
+            .delete(request.tenant_id, request.scope_type, request.scope_id)
+            .await
+    }
+
+    /// List valuation settings for a tenant
+    async fn list_valuation_settings(
+        &self,
+        request: ListValuationSettingsRequest,
+    ) -> Result<ValuationSettingsListResponse> {
+        let settings = self
+            .settings_repo
+            .list_by_tenant(request.tenant_id, request.scope_type)
+            .await?;
+
+        let dtos = settings
+            .into_iter()
+            .map(|s| self.settings_to_dto(s))
+            .collect();
+        Ok(ValuationSettingsListResponse { settings: dtos })
+    }
 }
 
 impl ValuationServiceImpl {
@@ -591,6 +760,25 @@ impl ValuationServiceImpl {
             total_value: valuation.total_value,
             standard_cost: valuation.standard_cost,
             last_updated: valuation.last_updated,
+        }
+    }
+
+    /// Convert ValuationSettings entity to ValuationSettingsDto
+    ///
+    /// # Arguments
+    /// * `settings` - ValuationSettings entity
+    ///
+    /// # Returns
+    /// ValuationSettingsDto for API responses
+    fn settings_to_dto(&self, settings: ValuationSettings) -> ValuationSettingsDto {
+        ValuationSettingsDto {
+            id: settings.id,
+            tenant_id: settings.tenant_id,
+            scope_type: settings.scope_type,
+            scope_id: settings.scope_id,
+            method: settings.method,
+            created_at: settings.created_at,
+            updated_at: settings.updated_at,
         }
     }
 }

@@ -75,7 +75,9 @@ pub async fn setup_test_pool() -> PgPool {
 // Service Factories
 // ============================================================================
 
-use inventory_service_infra::repositories::ValuationRepositoryImpl;
+use inventory_service_infra::repositories::{
+    ValuationRepositoryImpl, ValuationSettingsRepositoryImpl,
+};
 use inventory_service_infra::services::ValuationServiceImpl;
 
 /// Create a ValuationService instance for testing.
@@ -83,7 +85,8 @@ use inventory_service_infra::services::ValuationServiceImpl;
 pub fn create_valuation_service(pool: &PgPool) -> ValuationServiceImpl {
     // ValuationRepositoryImpl implements all three repository traits
     let repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
-    ValuationServiceImpl::new(repo.clone(), repo.clone(), repo)
+    let settings_repo = Arc::new(ValuationSettingsRepositoryImpl::new(pool.clone()));
+    ValuationServiceImpl::new(repo.clone(), repo.clone(), repo, settings_repo)
 }
 
 use inventory_service_infra::repositories::{PgInventoryLevelRepository, PgReorderRuleRepository};

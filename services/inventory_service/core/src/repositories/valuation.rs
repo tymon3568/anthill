@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::domains::inventory::valuation::{
-    Valuation, ValuationHistory, ValuationLayer, ValuationMethod,
+    Valuation, ValuationHistory, ValuationLayer, ValuationMethod, ValuationScopeType,
+    ValuationSettings,
 };
 use crate::Result;
 
@@ -252,4 +253,90 @@ pub trait ValuationHistoryRepository: Send + Sync {
     /// # Returns
     /// Total number of history records
     async fn count_by_product_id(&self, tenant_id: Uuid, product_id: Uuid) -> Result<i64>;
+}
+
+/// Repository trait for valuation settings data access
+#[async_trait]
+pub trait ValuationSettingsRepository: Send + Sync {
+    /// Get tenant default valuation settings
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    ///
+    /// # Returns
+    /// Tenant default settings if exists
+    async fn find_tenant_default(&self, tenant_id: Uuid) -> Result<Option<ValuationSettings>>;
+
+    /// Get settings by scope
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `scope_type` - Scope type (tenant, category, product)
+    /// * `scope_id` - Scope ID (None for tenant, Some for category/product)
+    ///
+    /// # Returns
+    /// Settings if exists
+    async fn find_by_scope(
+        &self,
+        tenant_id: Uuid,
+        scope_type: ValuationScopeType,
+        scope_id: Option<Uuid>,
+    ) -> Result<Option<ValuationSettings>>;
+
+    /// Create new valuation settings
+    ///
+    /// # Arguments
+    /// * `settings` - Settings to create
+    ///
+    /// # Returns
+    /// Created settings
+    async fn create(&self, settings: &ValuationSettings) -> Result<ValuationSettings>;
+
+    /// Update existing valuation settings
+    ///
+    /// # Arguments
+    /// * `settings` - Updated settings
+    ///
+    /// # Returns
+    /// Updated settings
+    async fn update(&self, settings: &ValuationSettings) -> Result<ValuationSettings>;
+
+    /// Upsert valuation settings (create or update)
+    ///
+    /// # Arguments
+    /// * `settings` - Settings to upsert
+    ///
+    /// # Returns
+    /// Upserted settings
+    async fn upsert(&self, settings: &ValuationSettings) -> Result<ValuationSettings>;
+
+    /// Delete valuation settings
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `scope_type` - Scope type
+    /// * `scope_id` - Scope ID
+    ///
+    /// # Returns
+    /// Success or error
+    async fn delete(
+        &self,
+        tenant_id: Uuid,
+        scope_type: ValuationScopeType,
+        scope_id: Option<Uuid>,
+    ) -> Result<()>;
+
+    /// List all settings for a tenant
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `scope_type` - Optional filter by scope type
+    ///
+    /// # Returns
+    /// List of settings
+    async fn list_by_tenant(
+        &self,
+        tenant_id: Uuid,
+        scope_type: Option<ValuationScopeType>,
+    ) -> Result<Vec<ValuationSettings>>;
 }

@@ -11,11 +11,15 @@ use axum::{
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::valuation_dto::{
-    CostAdjustmentRequest, GetValuationHistoryRequest, GetValuationLayersRequest,
-    GetValuationRequest, RevaluationRequest, SetStandardCostRequest, SetValuationMethodRequest,
-    ValuationDto, ValuationHistoryResponse, ValuationLayersResponse,
+    CostAdjustmentRequest, DeleteValuationSettingsRequest, EffectiveValuationMethodResponse,
+    GetEffectiveValuationMethodRequest, GetTenantValuationSettingsRequest,
+    GetValuationHistoryRequest, GetValuationLayersRequest, GetValuationRequest,
+    ListValuationSettingsRequest, RevaluationRequest, SetCategoryValuationMethodRequest,
+    SetProductValuationMethodRequest, SetStandardCostRequest, SetTenantValuationMethodRequest,
+    SetValuationMethodRequest, ValuationDto, ValuationHistoryResponse, ValuationLayersResponse,
+    ValuationSettingsDto, ValuationSettingsListResponse,
 };
-use inventory_service_core::domains::inventory::valuation::ValuationMethod;
+use inventory_service_core::domains::inventory::valuation::{ValuationMethod, ValuationScopeType};
 
 use crate::state::AppState;
 use shared_auth::extractors::AuthUser;
@@ -40,6 +44,12 @@ pub fn create_valuation_routes() -> Router {
         .route("/{product_id}/history", get(get_valuation_history))
         .route("/{product_id}/adjust", post(adjust_cost))
         .route("/{product_id}/revalue", post(revalue_inventory))
+        // Valuation settings endpoints
+        .route("/settings", get(list_valuation_settings))
+        .route("/settings/tenant", get(get_tenant_settings).put(set_tenant_method))
+        .route("/settings/effective/{product_id}", get(get_effective_method))
+        .route("/settings/category/{category_id}", put(set_category_method).delete(delete_category_settings))
+        .route("/settings/product/{product_id}", put(set_product_method).delete(delete_product_settings))
 }
 
 /// GET /api/v1/inventory/valuation/{product_id} - Get current valuation for a product
@@ -458,6 +468,267 @@ pub async fn revalue_inventory(
     Ok(Json(valuation))
 }
 
+// ============================================
+// Valuation Settings Handlers
+// ============================================
+
+/// GET /api/v1/inventory/valuation/settings - List all valuation settings for tenant
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/valuation/settings",
+    tag = "valuation",
+    operation_id = "list_valuation_settings",
+    params(ListSettingsQueryParams),
+    responses(
+        (status = 200, description = "List of valuation settings", body = ValuationSettingsListResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn list_valuation_settings(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Query(params): Query<ListSettingsQueryParams>,
+) -> Result<Json<ValuationSettingsListResponse>, AppError> {
+    let request = ListValuationSettingsRequest {
+        tenant_id: auth_user.tenant_id,
+        scope_type: params.scope_type,
+    };
+
+    let response = state
+        .valuation_service
+        .list_valuation_settings(request)
+        .await?;
+    Ok(Json(response))
+}
+
+/// GET /api/v1/inventory/valuation/settings/tenant - Get tenant default settings
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/valuation/settings/tenant",
+    tag = "valuation",
+    operation_id = "get_tenant_valuation_settings",
+    responses(
+        (status = 200, description = "Tenant default valuation settings", body = ValuationSettingsDto),
+        (status = 404, description = "No tenant default configured", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_tenant_settings(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+) -> Result<Json<ValuationSettingsDto>, AppError> {
+    let request = GetTenantValuationSettingsRequest {
+        tenant_id: auth_user.tenant_id,
+    };
+
+    let settings = state
+        .valuation_service
+        .get_tenant_valuation_settings(request)
+        .await?;
+    Ok(Json(settings))
+}
+
+/// PUT /api/v1/inventory/valuation/settings/tenant - Set tenant default method
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/valuation/settings/tenant",
+    tag = "valuation",
+    operation_id = "set_tenant_valuation_method",
+    request_body = SetMethodPayload,
+    responses(
+        (status = 200, description = "Updated tenant valuation settings", body = ValuationSettingsDto),
+        (status = 400, description = "Invalid valuation method", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn set_tenant_method(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Json(payload): Json<SetMethodPayload>,
+) -> Result<Json<ValuationSettingsDto>, AppError> {
+    let request = SetTenantValuationMethodRequest {
+        tenant_id: auth_user.tenant_id,
+        method: payload.method,
+    };
+
+    let settings = state
+        .valuation_service
+        .set_tenant_valuation_method(request)
+        .await?;
+    Ok(Json(settings))
+}
+
+/// GET /api/v1/inventory/valuation/settings/effective/{product_id} - Get effective method for product
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/valuation/settings/effective/{product_id}",
+    tag = "valuation",
+    operation_id = "get_effective_valuation_method",
+    params(
+        ("product_id" = Uuid, Path, description = "Product ID"),
+        EffectiveMethodQueryParams
+    ),
+    responses(
+        (status = 200, description = "Effective valuation method with source", body = EffectiveValuationMethodResponse),
+        (status = 404, description = "No valuation settings configured", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn get_effective_method(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(product_id): Path<Uuid>,
+    Query(params): Query<EffectiveMethodQueryParams>,
+) -> Result<Json<EffectiveValuationMethodResponse>, AppError> {
+    let request = GetEffectiveValuationMethodRequest {
+        tenant_id: auth_user.tenant_id,
+        product_id,
+        category_id: params.category_id,
+    };
+
+    let response = state
+        .valuation_service
+        .get_effective_valuation_method(request)
+        .await?;
+    Ok(Json(response))
+}
+
+/// PUT /api/v1/inventory/valuation/settings/category/{category_id} - Set category override
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/valuation/settings/category/{category_id}",
+    tag = "valuation",
+    operation_id = "set_category_valuation_method",
+    params(("category_id" = Uuid, Path, description = "Category ID")),
+    request_body = SetMethodPayload,
+    responses(
+        (status = 200, description = "Category valuation settings", body = ValuationSettingsDto),
+        (status = 400, description = "Invalid valuation method", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn set_category_method(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(category_id): Path<Uuid>,
+    Json(payload): Json<SetMethodPayload>,
+) -> Result<Json<ValuationSettingsDto>, AppError> {
+    let request = SetCategoryValuationMethodRequest {
+        tenant_id: auth_user.tenant_id,
+        category_id,
+        method: payload.method,
+    };
+
+    let settings = state
+        .valuation_service
+        .set_category_valuation_method(request)
+        .await?;
+    Ok(Json(settings))
+}
+
+/// DELETE /api/v1/inventory/valuation/settings/category/{category_id} - Delete category override
+#[utoipa::path(
+    delete,
+    path = "/api/v1/inventory/valuation/settings/category/{category_id}",
+    tag = "valuation",
+    operation_id = "delete_category_valuation_settings",
+    params(("category_id" = Uuid, Path, description = "Category ID")),
+    responses(
+        (status = 204, description = "Category settings deleted"),
+        (status = 404, description = "Settings not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn delete_category_settings(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(category_id): Path<Uuid>,
+) -> Result<axum::http::StatusCode, AppError> {
+    let request = DeleteValuationSettingsRequest {
+        tenant_id: auth_user.tenant_id,
+        scope_type: ValuationScopeType::Category,
+        scope_id: Some(category_id),
+    };
+
+    state
+        .valuation_service
+        .delete_valuation_settings(request)
+        .await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+/// PUT /api/v1/inventory/valuation/settings/product/{product_id} - Set product override
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/valuation/settings/product/{product_id}",
+    tag = "valuation",
+    operation_id = "set_product_valuation_method",
+    params(("product_id" = Uuid, Path, description = "Product ID")),
+    request_body = SetMethodPayload,
+    responses(
+        (status = 200, description = "Product valuation settings", body = ValuationSettingsDto),
+        (status = 400, description = "Invalid valuation method", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn set_product_method(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(product_id): Path<Uuid>,
+    Json(payload): Json<SetMethodPayload>,
+) -> Result<Json<ValuationSettingsDto>, AppError> {
+    let request = SetProductValuationMethodRequest {
+        tenant_id: auth_user.tenant_id,
+        product_id,
+        method: payload.method,
+    };
+
+    let settings = state
+        .valuation_service
+        .set_product_valuation_method(request)
+        .await?;
+    Ok(Json(settings))
+}
+
+/// DELETE /api/v1/inventory/valuation/settings/product/{product_id} - Delete product override
+#[utoipa::path(
+    delete,
+    path = "/api/v1/inventory/valuation/settings/product/{product_id}",
+    tag = "valuation",
+    operation_id = "delete_product_valuation_settings",
+    params(("product_id" = Uuid, Path, description = "Product ID")),
+    responses(
+        (status = 204, description = "Product settings deleted"),
+        (status = 404, description = "Settings not found", body = ErrorResponse),
+        (status = 401, description = "Authentication required", body = ErrorResponse)
+    ),
+    security(("bearer_auth" = []))
+)]
+pub async fn delete_product_settings(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(product_id): Path<Uuid>,
+) -> Result<axum::http::StatusCode, AppError> {
+    let request = DeleteValuationSettingsRequest {
+        tenant_id: auth_user.tenant_id,
+        scope_type: ValuationScopeType::Product,
+        scope_id: Some(product_id),
+    };
+
+    state
+        .valuation_service
+        .delete_valuation_settings(request)
+        .await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
 // Payload structures for request bodies
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -488,4 +759,22 @@ pub struct RevaluationPayload {
 pub struct HistoryQueryParams {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
+}
+
+#[derive(serde::Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
+pub struct ListSettingsQueryParams {
+    /// Filter by scope type (tenant, category, product)
+    pub scope_type: Option<ValuationScopeType>,
+}
+
+#[derive(serde::Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
+pub struct EffectiveMethodQueryParams {
+    /// Category ID for hierarchical lookup
+    pub category_id: Option<Uuid>,
+}
+
+/// Payload for setting valuation method
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub struct SetMethodPayload {
+    pub method: ValuationMethod,
 }
