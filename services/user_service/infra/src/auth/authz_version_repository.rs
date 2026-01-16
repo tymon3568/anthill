@@ -391,6 +391,7 @@ impl std::fmt::Debug for RedisAuthzVersionRepository {
             .finish()
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
