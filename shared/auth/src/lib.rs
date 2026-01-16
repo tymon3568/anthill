@@ -1,3 +1,4 @@
+pub mod authz_version;
 pub mod enforcer;
 pub mod extractors;
 pub mod layer;
@@ -11,6 +12,11 @@ pub use enforcer::{
 
 // Re-export middleware
 pub use middleware::{casbin_middleware, AuthError, AuthzState};
+
+// Re-export authz version middleware
+pub use authz_version::{
+    authz_version_middleware, AuthzVersionError, AuthzVersionProvider, AuthzVersionState,
+};
 
 // Re-export layer
 pub use layer::CasbinAuthLayer;

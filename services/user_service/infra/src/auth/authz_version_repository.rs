@@ -373,6 +373,17 @@ impl AuthzVersionRepository for RedisAuthzVersionRepository {
     }
 }
 
+// Implement AuthzVersionProvider trait from shared_auth for middleware integration
+#[async_trait]
+impl shared_auth::AuthzVersionProvider for RedisAuthzVersionRepository {
+    async fn get_versions(&self, tenant_id: Uuid, user_id: Uuid) -> Result<(i64, i64), String> {
+        // Delegate to AuthzVersionRepository implementation, converting error type
+        AuthzVersionRepository::get_versions(self, tenant_id, user_id)
+            .await
+            .map_err(|e| e.to_string())
+    }
+}
+
 impl std::fmt::Debug for RedisAuthzVersionRepository {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RedisAuthzVersionRepository")

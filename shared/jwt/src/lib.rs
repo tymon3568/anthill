@@ -23,6 +23,21 @@ pub struct Claims {
 
     /// Token type: "access" or "refresh"
     pub token_type: String,
+
+    /// Tenant authorization version at token issuance time
+    /// Used for immediate-effect permission invalidation
+    #[serde(default = "default_version")]
+    pub tenant_v: i64,
+
+    /// User authorization version at token issuance time
+    /// Used for immediate-effect permission invalidation
+    #[serde(default = "default_version")]
+    pub user_v: i64,
+}
+
+/// Default version for backward compatibility with existing tokens
+fn default_version() -> i64 {
+    0
 }
 
 impl Claims {
@@ -36,6 +51,30 @@ impl Claims {
             iat: now,
             exp: now + expiration,
             token_type: "access".to_string(),
+            tenant_v: 0,
+            user_v: 0,
+        }
+    }
+
+    /// Create new access token claims with authorization versions
+    pub fn new_access_with_versions(
+        user_id: Uuid,
+        tenant_id: Uuid,
+        role: String,
+        expiration: i64,
+        tenant_v: i64,
+        user_v: i64,
+    ) -> Self {
+        let now = chrono::Utc::now().timestamp();
+        Self {
+            sub: user_id,
+            tenant_id,
+            role,
+            iat: now,
+            exp: now + expiration,
+            token_type: "access".to_string(),
+            tenant_v,
+            user_v,
         }
     }
 
@@ -49,7 +88,37 @@ impl Claims {
             iat: now,
             exp: now + expiration,
             token_type: "refresh".to_string(),
+            tenant_v: 0,
+            user_v: 0,
         }
+    }
+
+    /// Create new refresh token claims with authorization versions
+    pub fn new_refresh_with_versions(
+        user_id: Uuid,
+        tenant_id: Uuid,
+        role: String,
+        expiration: i64,
+        tenant_v: i64,
+        user_v: i64,
+    ) -> Self {
+        let now = chrono::Utc::now().timestamp();
+        Self {
+            sub: user_id,
+            tenant_id,
+            role,
+            iat: now,
+            exp: now + expiration,
+            token_type: "refresh".to_string(),
+            tenant_v,
+            user_v,
+        }
+    }
+
+    /// Check if this token has authorization versions set
+    /// Tokens without versions (legacy) should skip version validation
+    pub fn has_authz_versions(&self) -> bool {
+        self.tenant_v > 0 || self.user_v > 0
     }
 }
 
