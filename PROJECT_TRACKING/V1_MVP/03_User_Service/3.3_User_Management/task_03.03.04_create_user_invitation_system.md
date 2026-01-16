@@ -308,6 +308,119 @@ Response (200 OK):
 }
 ```
 
+## Email Notifications (Placeholder)
+
+### Email Template for Invitation
+
+When email service is integrated, use the following template for invitation emails:
+
+**Subject:** You're invited to join {tenant_name} on Anthill
+
+**Body (HTML):**
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>You're invited to join {tenant_name}</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h1 style="color: #333;">Welcome to Anthill!</h1>
+    
+    <p>Hello,</p>
+    
+    <p>You've been invited to join <strong>{tenant_name}</strong> on Anthill, our inventory management platform.</p>
+    
+    <p><strong>Invited by:</strong> {inviter_name} ({inviter_email})</p>
+    <p><strong>Your role:</strong> {invited_role}</p>
+    
+    {custom_message}
+    
+    <div style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <p style="margin: 0;"><strong>Click the link below to accept your invitation:</strong></p>
+        <p style="margin: 10px 0;"><a href="{invite_url}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Accept Invitation</a></p>
+        <p style="margin: 10px 0; font-size: 12px; color: #666;">This invitation expires on {expiry_date}.</p>
+    </div>
+    
+    <p>If the button doesn't work, copy and paste this link into your browser:</p>
+    <p style="word-break: break-all; background-color: #f8f9fa; padding: 10px; border-radius: 3px;">{invite_url}</p>
+    
+    <p>If you didn't expect this invitation, you can safely ignore this email.</p>
+    
+    <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+    <p style="font-size: 12px; color: #666;">
+        This invitation was sent to {email}. If you have any questions, contact your administrator.
+    </p>
+</body>
+</html>
+```
+
+**Body (Plain Text):**
+```
+You're invited to join {tenant_name} on Anthill
+
+Hello,
+
+You've been invited to join {tenant_name} on Anthill, our inventory management platform.
+
+Invited by: {inviter_name} ({inviter_email})
+Your role: {invited_role}
+
+{custom_message}
+
+To accept your invitation, visit: {invite_url}
+
+This invitation expires on {expiry_date}.
+
+If you didn't expect this invitation, you can safely ignore this email.
+
+---
+This invitation was sent to {email}. If you have any questions, contact your administrator.
+```
+
+**Template Variables:**
+- `{tenant_name}`: Name of the tenant organization
+- `{inviter_name}`: Full name of the person who sent the invitation
+- `{inviter_email}`: Email of the inviter
+- `{invited_role}`: Role being assigned (user, admin, etc.)
+- `{custom_message}`: Optional custom message from inviter
+- `{invite_url}`: Full URL with token (e.g., https://app.example.com/invite/{token})
+- `{expiry_date}`: Human-readable expiry date
+- `{email}`: Email address of the invitee
+
+### Email Service Integration Requirements
+
+**Future Implementation Requirements:**
+
+1. **Email Service Interface:**
+   - Create `shared/email` crate with `EmailService` trait
+   - Implement SMTP provider (e.g., SendGrid, AWS SES, or Postmark)
+   - Support HTML + plain text templates
+
+2. **Configuration:**
+   - SMTP server settings
+   - From address and name
+   - Template directory path
+   - Enable/disable flag
+
+3. **Integration Points:**
+   - In `InvitationServiceImpl::create_invitation()`, send email after DB save
+   - In `InvitationServiceImpl::resend_invitation()`, send new email
+   - Handle email delivery failures gracefully (don't fail invitation creation)
+
+4. **Error Handling:**
+   - Log email send failures but don't prevent invitation creation
+   - Implement retry mechanism for failed sends
+   - Track email delivery status in database (future enhancement)
+
+5. **Security Considerations:**
+   - Never include token in email subject line
+   - Use HTTPS URLs for invite links
+   - Rate limit email sending per admin/IP
+   - Validate email addresses before sending
+
+**Current Status:** Email sending is logged but not implemented. Set `invitation_email_enabled = false` in config.
+
 ## Specific Sub-tasks
 
 - [x] 1. Database schema
@@ -400,7 +513,7 @@ invitation_email_enabled = false  # Enable when email service ready
 - [x] Token entropy ≥ 128 bits
 - [x] Token hash-at-rest (SHA-256)
 - [x] Token never logged or exposed after creation
-- [x] Rate limiting on accept endpoint
+- [ ] Rate limiting on accept endpoint (per-IP rate limiting pending - sub-task 8.1)
 - [x] Timing-safe token comparison (via hash lookup)
 - [x] Cross-tenant isolation verified
 - [x] Expired tokens rejected
@@ -420,6 +533,168 @@ invitation_email_enabled = false  # Enable when email service ready
 - Consider adding invite link expiry warning emails (future enhancement)
 - Resend creates a new token (old token invalidated)
 - Admin can only invite roles ≤ their own level (prevent privilege escalation)
+
+## Security Properties Documentation
+
+### Token Security Properties
+
+**Cryptographic Strength:**
+- Tokens use ≥ 128-bit entropy from cryptographically secure random number generator (`rand::thread_rng()`)
+- SHA-256 hash-at-rest prevents plaintext token exposure
+- URL-safe base64 encoding for transmission compatibility
+
+**Attack Mitigation:**
+- **Replay Prevention:** One-time use tokens (status changes to 'accepted' after successful acceptance)
+- **Timing Attacks:** Hash-based token lookup prevents timing side-channels
+- **Brute Force:** Rate limiting on acceptance attempts (max 5 per token)
+- **Enumeration:** Generic error messages prevent email/user enumeration
+- **Cross-Tenant Isolation:** All queries filtered by `tenant_id`
+- **Expiry:** Configurable token expiry (default 48 hours) with automatic cleanup
+
+**Storage Security:**
+- Plaintext tokens never persisted in database
+- SHA-256 hashes stored for lookup
+- Audit trail includes IP addresses and user agents
+- Soft delete support for compliance
+
+### Rate Limiting Properties
+
+**Per-Token Limiting:**
+- Maximum 5 acceptance attempts per invitation token
+- Attempts tracked atomically to prevent race conditions
+- Failed attempts logged for monitoring
+
+**Per-Admin Limiting:**
+- Maximum 10 invitations per admin per day
+- Daily reset based on UTC date boundaries
+- Prevents abuse and ensures fair usage
+
+**Future IP-Based Limiting:**
+- Per-IP rate limiting planned for accept-invite endpoint
+- Will prevent token enumeration attacks
+- Configurable limits per IP address
+
+### Multi-Tenancy Security
+
+**Isolation Guarantees:**
+- All database queries include `tenant_id` filter
+- Composite indexes ensure performance
+- Foreign key constraints prevent cross-tenant data leakage
+- JWT claims include tenant context
+
+**Authorization:**
+- Admin-only invitation creation
+- Role-based access control via Casbin
+- Invitation acceptance bypasses normal auth (public endpoint)
+
+## Runbook for Invitation Issues
+
+### Common Issues and Resolutions
+
+#### 1. Invitation Not Received
+**Symptoms:** User reports not receiving invitation email
+**Check:**
+- Verify invitation status in database: `SELECT status FROM user_invitations WHERE invitation_id = ?`
+- Check email service logs (when implemented)
+- Confirm email address is correct
+**Resolution:**
+- If status is 'pending': Resend invitation via admin API
+- If status is 'expired': Create new invitation
+- If email service down: Document issue for future email implementation
+
+#### 2. Invalid/Expired Token
+**Symptoms:** User gets "Invalid or expired invitation" error
+**Check:**
+- Verify token hash exists: `SELECT * FROM user_invitations WHERE token_hash = ?`
+- Check expiry: `expires_at > NOW()`
+- Check status: `status = 'pending'`
+- Check attempts: `accept_attempts < max_attempts`
+**Resolution:**
+- If expired: Mark as expired, advise admin to resend
+- If too many attempts: Token is locked, create new invitation
+- If not found: Possible token tampering or copy-paste error
+
+#### 3. Rate Limit Exceeded
+**Symptoms:** "Too many attempts" or "Daily limit exceeded" errors
+**Check:**
+- For acceptance: Check `accept_attempts` in database
+- For creation: Check daily count via `count_created_by_user_today()`
+**Resolution:**
+- Wait for reset (daily for creation limits, token expiry for acceptance)
+- Contact admin for manual reset if needed
+
+#### 4. User Creation Fails
+**Symptoms:** Invitation accepted but user not created
+**Check:**
+- Database transaction logs
+- Password validation errors
+- Casbin role assignment failures
+**Resolution:**
+- Check application logs for detailed error
+- Verify password meets strength requirements
+- Check Casbin enforcer status
+
+#### 5. Cross-Tenant Issues
+**Symptoms:** User sees invitations from wrong tenant
+**Check:**
+- JWT tenant_id claims
+- Database query filters
+- API request headers
+**Resolution:**
+- Verify tenant isolation in all queries
+- Check JWT token generation
+
+### Monitoring and Alerts
+
+**Key Metrics to Monitor:**
+- Invitation creation rate per admin
+- Acceptance success/failure rates
+- Token expiry rates
+- Rate limit hits
+- Cross-tenant access attempts
+
+**Alert Conditions:**
+- High failure rate (>10%) on invitation acceptance
+- Rate limit hits >5% of total attempts
+- Expired invitations >20% of total created
+- Cross-tenant access detected
+
+### Maintenance Tasks
+
+**Daily:**
+- Run cleanup job: `cleanup_expired_invitations()`
+- Review failed acceptance attempts
+- Monitor invitation creation patterns
+
+**Weekly:**
+- Review security logs for suspicious patterns
+- Audit invitation usage by tenant/admin
+- Update rate limits if needed
+
+**Monthly:**
+- Review and rotate encryption keys (future)
+- Audit invitation system compliance
+- Update security documentation
+
+### Emergency Procedures
+
+**Token Compromise Suspected:**
+1. Immediately revoke affected invitations
+2. Notify affected users to change passwords
+3. Audit access logs for compromise indicators
+4. Consider temporary system lockdown
+
+**High-Rate Attack Detected:**
+1. Enable additional rate limiting
+2. Monitor for IP-based attacks
+3. Consider temporary invitation creation disable
+4. Alert security team
+
+**Data Breach:**
+1. Follow incident response plan
+2. Rotate all tokens (resend all pending invitations)
+3. Audit all recent acceptances
+4. Notify affected tenants
 
 ## AI Agent Log
 

@@ -102,4 +102,12 @@ pub trait InvitationRepository: Send + Sync {
 
     /// Hard delete old invitations (for cleanup)
     async fn hard_delete_old(&self, before_date: DateTime<Utc>) -> Result<i64, AppError>;
+
+    /// Count invitations created by a user today (for rate limiting)
+    async fn count_created_by_user_today(
+        &self,
+        user_id: Uuid,
+        day_start: DateTime<Utc>,
+        day_end: DateTime<Utc>,
+    ) -> Result<i64, AppError>;
 }
