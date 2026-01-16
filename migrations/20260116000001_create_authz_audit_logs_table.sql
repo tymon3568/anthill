@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS authz_audit_logs (
     audit_id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
 
     -- Context
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES tenants(tenant_id) ON DELETE CASCADE,
     user_id UUID,                          -- NULL for system/anonymous actions
     session_id UUID,                       -- Link to session if available
 

@@ -2,6 +2,7 @@ pub mod category;
 pub mod cycle_count;
 pub mod delivery;
 pub mod health;
+pub mod landed_cost;
 pub mod lot_serial;
 pub mod picking;
 pub mod products;
@@ -25,6 +26,10 @@ pub use cycle_count::{
     get_cycle_count, list_cycle_counts, reconcile, skip_lines, submit_counts,
 };
 pub use health::health_check;
+pub use landed_cost::{
+    add_landed_cost_line, cancel_landed_cost, compute_allocations, create_landed_cost,
+    create_landed_cost_routes, get_landed_cost, list_landed_costs, post_landed_cost,
+};
 pub use lot_serial::{
     create_lot_serial, delete_lot_serial, get_lot_serial, get_lot_serial_lifecycle,
     list_lot_serials_by_product, quarantine_expired_lots, update_lot_serial,

@@ -8,6 +8,7 @@ pub mod cycle_count;
 pub mod delivery;
 pub mod distributed_lock;
 pub mod inventory;
+pub mod landed_cost;
 pub mod lot_serial;
 
 pub mod picking_method;
@@ -60,5 +61,6 @@ pub use valuation::ValuationServiceImpl;
 
 // New services for MVP P1 features
 pub use cycle_count::PgCycleCountingService;
+pub use landed_cost::PgLandedCostService;
 pub use reports::PgReportsService;
 pub use scrap::PgScrapService;

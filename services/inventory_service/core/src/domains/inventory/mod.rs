@@ -1,4 +1,5 @@
 pub mod dto;
+pub mod landed_cost;
 pub mod picking_method;
 pub mod product;
 pub mod reconciliation;

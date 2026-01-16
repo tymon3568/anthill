@@ -42,10 +42,10 @@ use inventory_service_infra::repositories::{
 
 // Inventory-service infra - Service implementations
 use inventory_service_infra::services::{
-    CategoryServiceImpl, LotSerialServiceImpl, PgPutawayService, PgQualityControlPointService,
-    PgReplenishmentService, PgRmaService, PgScrapService, PgStockReconciliationService,
-    PgStockTakeService, PgTransferService, PickingMethodServiceImpl, ProductServiceImpl,
-    ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
+    CategoryServiceImpl, LotSerialServiceImpl, PgLandedCostService, PgPutawayService,
+    PgQualityControlPointService, PgReplenishmentService, PgRmaService, PgScrapService,
+    PgStockReconciliationService, PgStockTakeService, PgTransferService, PickingMethodServiceImpl,
+    ProductServiceImpl, ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
 };
 
 // Local handlers
@@ -53,6 +53,7 @@ use crate::handlers::category::create_category_routes;
 use crate::handlers::cycle_count::create_cycle_count_routes;
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::health::health_check;
+use crate::handlers::landed_cost::create_landed_cost_routes;
 use crate::handlers::lot_serial::create_lot_serial_routes;
 use crate::handlers::picking::create_picking_routes;
 use crate::handlers::products::create_product_routes;
@@ -365,6 +366,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Scrap Service
     let scrap_service = Arc::new(PgScrapService::new(pool_arc.clone()));
 
+    // Landed Cost Service
+    let landed_cost_service = Arc::new(PgLandedCostService::new(pool_arc.clone()));
+
     // =========================================================================
     // Phase 4: Create AppState with All Services
     // =========================================================================
@@ -386,6 +390,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         quality_service,
         putaway_service,
         scrap_service,
+        landed_cost_service,
         distributed_lock_service,
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
@@ -478,7 +483,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         // Search
         .nest("/api/v1/inventory/search", create_search_routes())
         // Scrap management
-        .nest("/api/v1/inventory/scrap", create_scrap_routes());
+        .nest("/api/v1/inventory/scrap", create_scrap_routes())
+        // Landed cost management
+        .nest("/api/v1/inventory/landed-costs", create_landed_cost_routes());
 
     // =========================================================================
     // Phase 7: Apply Middleware Layers

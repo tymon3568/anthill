@@ -13,6 +13,11 @@ use crate::handlers::category::{
 #[allow(unused_imports)]
 use crate::handlers::health::HealthResp;
 #[allow(unused_imports)]
+use crate::handlers::landed_cost::{
+    add_landed_cost_line, cancel_landed_cost, compute_allocations, create_landed_cost,
+    get_landed_cost, list_landed_costs, post_landed_cost,
+};
+#[allow(unused_imports)]
 use crate::handlers::lot_serial::{
     create_lot_serial, delete_lot_serial, get_lot_serial, get_lot_serial_lifecycle,
     list_lot_serials_by_product, quarantine_expired_lots, update_lot_serial,
@@ -77,6 +82,12 @@ use crate::handlers::warehouses::{
 };
 
 // Import DTOs for components
+use inventory_service_core::domains::inventory::dto::landed_cost_dto::{
+    AddLandedCostLineRequest, ComputeAllocationsRequest, ComputeAllocationsResponse,
+    CreateLandedCostRequest, LandedCostAllocationDto, LandedCostDetailDto, LandedCostDto,
+    LandedCostLineDto, ListLandedCostsRequest, ListLandedCostsResponse, PostLandedCostRequest,
+    PostLandedCostResponse,
+};
 use inventory_service_core::domains::inventory::dto::picking_method_dto::{
     CreatePickingMethodRequest, PickingMethodResponse, UpdatePickingMethodRequest,
 };
@@ -93,6 +104,9 @@ use inventory_service_core::domains::inventory::dto::valuation_dto::{
 use inventory_service_core::domains::inventory::dto::warehouse_dto::{
     CreateWarehouseLocationRequest, CreateWarehouseRequest, CreateWarehouseZoneRequest,
     WarehouseLocationResponse, WarehouseResponse, WarehouseTreeResponse, WarehouseZoneResponse,
+};
+use inventory_service_core::domains::inventory::landed_cost::{
+    AllocationMethod, CostType, LandedCostStatus, TargetType,
 };
 use inventory_service_core::domains::quality::{
     CreateQualityControlPoint, QualityControlPoint, UpdateQualityControlPoint,
@@ -465,6 +479,14 @@ pub struct WarehouseApiDoc;
         crate::handlers::rma::create_rma,
         crate::handlers::rma::approve_rma,
         crate::handlers::rma::receive_rma,
+        // Landed Cost - Full operations
+        crate::handlers::landed_cost::create_landed_cost,
+        crate::handlers::landed_cost::get_landed_cost,
+        crate::handlers::landed_cost::list_landed_costs,
+        crate::handlers::landed_cost::add_landed_cost_line,
+        crate::handlers::landed_cost::compute_allocations,
+        crate::handlers::landed_cost::post_landed_cost,
+        crate::handlers::landed_cost::cancel_landed_cost,
         // Transfer - Full operations
         crate::handlers::transfer::create_transfer,
         crate::handlers::transfer::confirm_transfer,
@@ -571,6 +593,23 @@ pub struct WarehouseApiDoc;
             ApproveRmaResponse,
             ReceiveRmaRequest,
             ReceiveRmaResponse,
+            // Landed Cost
+            CreateLandedCostRequest,
+            LandedCostDto,
+            LandedCostDetailDto,
+            LandedCostLineDto,
+            LandedCostAllocationDto,
+            AddLandedCostLineRequest,
+            ComputeAllocationsRequest,
+            ComputeAllocationsResponse,
+            PostLandedCostRequest,
+            PostLandedCostResponse,
+            ListLandedCostsRequest,
+            ListLandedCostsResponse,
+            LandedCostStatus,
+            CostType,
+            AllocationMethod,
+            TargetType,
             // Transfer
             CreateTransferRequest,
             CreateTransferResponse,
@@ -606,6 +645,7 @@ pub struct WarehouseApiDoc;
         (name = "replenishment", description = "Automatic replenishment rules"),
         (name = "reports", description = "Inventory reports and analytics"),
         (name = "rma", description = "Return merchandise authorization"),
+        (name = "landed_costs", description = "Landed cost management and allocation"),
         (name = "transfer", description = "Stock transfer operations"),
         (name = "valuation", description = "Inventory valuation and costing operations"),
     ),
