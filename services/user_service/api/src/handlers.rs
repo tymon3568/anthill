@@ -109,6 +109,52 @@ pub(crate) async fn bump_tenant_authz_version<S: AuthService>(
     }
 }
 
+/// Bump the user authorization version after a user-level security change.
+///
+/// This helper is called after successful user mutations (role assignment,
+/// suspend, password reset, etc.) to ensure tokens minted before the change
+/// are rejected by the AuthZ version middleware.
+///
+/// If Redis is not configured, this is a no-op (logs a debug message).
+/// If the bump fails, logs an error but does not fail the request.
+pub(crate) async fn bump_user_authz_version<S: AuthService>(
+    state: &AppState<S>,
+    user_id: Uuid,
+    tenant_id: Uuid,
+    operation: &str,
+) {
+    if let Some(ref version_repo) = state.authz_version_repo {
+        match version_repo.bump_user_version(user_id).await {
+            Ok(new_version) => {
+                tracing::info!(
+                    user_id = %user_id,
+                    tenant_id = %tenant_id,
+                    new_version = new_version,
+                    operation = operation,
+                    "Bumped user authz version after security change"
+                );
+            },
+            Err(e) => {
+                // Log error but don't fail the request - middleware will fallback to DB
+                tracing::error!(
+                    user_id = %user_id,
+                    tenant_id = %tenant_id,
+                    operation = operation,
+                    error = %e,
+                    "Failed to bump user authz version (middleware will fallback to DB)"
+                );
+            },
+        }
+    } else {
+        tracing::debug!(
+            user_id = %user_id,
+            tenant_id = %tenant_id,
+            operation = operation,
+            "Skipping user authz version bump (Redis not configured)"
+        );
+    }
+}
+
 /// Health check endpoint
 #[utoipa::path(
     get,

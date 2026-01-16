@@ -12,7 +12,7 @@ use user_service_core::domains::auth::dto::admin_dto::*;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::handlers::{bump_tenant_authz_version, AppState};
+use crate::handlers::{bump_tenant_authz_version, bump_user_authz_version, AppState};
 
 // ============================================================================
 // Role Management Handlers
@@ -493,6 +493,9 @@ pub async fn assign_role_to_user<S: AuthService>(
 
     drop(enforcer);
 
+    // Bump user authz version to invalidate existing tokens for this user
+    bump_user_authz_version(&state, user_id, tenant_id, "assign_role_to_user").await;
+
     Ok(Json(AssignUserRoleResp {
         user_id,
         role_name: role_name.clone(),
@@ -577,6 +580,11 @@ pub async fn remove_role_from_user<S: AuthService>(
     }
 
     drop(enforcer);
+
+    // Bump user authz version to invalidate existing tokens for this user
+    if removed {
+        bump_user_authz_version(&state, user_id, tenant_id, "remove_role_from_user").await;
+    }
 
     Ok(Json(RemoveUserRoleResp {
         user_id,
@@ -946,6 +954,9 @@ pub async fn suspend_user<S: AuthService>(
         .admin_suspend_user(admin_user.tenant_id, admin_user.user_id, user_id, payload.reason)
         .await?;
 
+    // Bump user authz version to invalidate existing tokens for suspended user
+    bump_user_authz_version(&state, user_id, admin_user.tenant_id, "suspend_user").await;
+
     Ok(Json(response))
 }
 
@@ -979,6 +990,9 @@ pub async fn unsuspend_user<S: AuthService>(
         .admin_unsuspend_user(admin_user.tenant_id, user_id)
         .await?;
 
+    // Bump user authz version (recommended for clean security boundary)
+    bump_user_authz_version(&state, user_id, admin_user.tenant_id, "unsuspend_user").await;
+
     Ok(Json(response))
 }
 
@@ -1011,6 +1025,9 @@ pub async fn delete_user<S: AuthService>(
         .auth_service
         .admin_delete_user(admin_user.tenant_id, admin_user.user_id, user_id)
         .await?;
+
+    // Bump user authz version to invalidate existing tokens for deleted user
+    bump_user_authz_version(&state, user_id, admin_user.tenant_id, "delete_user").await;
 
     Ok(Json(response))
 }
@@ -1055,6 +1072,9 @@ pub async fn reset_user_password<S: AuthService>(
             payload.force_logout,
         )
         .await?;
+
+    // Bump user authz version to invalidate existing tokens after password reset
+    bump_user_authz_version(&state, user_id, admin_user.tenant_id, "reset_user_password").await;
 
     Ok(Json(response))
 }
