@@ -29,15 +29,13 @@ pub fn get_test_jwt_secret() -> String {
 
 /// Clean up all test data from the database
 pub async fn cleanup_test_data(pool: &PgPool) {
-    // Delete in reverse dependency order to avoid foreign key constraints.
-    //
-    // Keep this idempotent for repeated test runs: ignore "table missing / constraint" errors
-    // by discarding the Result.
-    // Using runtime queries instead of macros for test compatibility without DB connection at compile time
-    let _ = sqlx::query("DELETE FROM sessions").execute(pool).await;
+    // Use TRUNCATE with CASCADE to handle all FK dependencies
+    // This is more reliable than DELETE for test cleanup
+    let _ = sqlx::query("TRUNCATE TABLE tenants CASCADE")
+        .execute(pool)
+        .await;
+    // Also clear casbin rules since they reference tenant UUIDs as strings
     let _ = sqlx::query("DELETE FROM casbin_rule").execute(pool).await;
-    let _ = sqlx::query("DELETE FROM users").execute(pool).await;
-    let _ = sqlx::query("DELETE FROM tenants").execute(pool).await;
 }
 
 /// Setup test database pool
@@ -380,11 +378,16 @@ pub async fn seed_test_data(pool: &PgPool) {
         "INSERT INTO casbin_rule (ptype, v0, v1, v2, v3)
          VALUES
            ('g', $1, 'role:admin', $3, ''),
-           ('g', $2, 'role:manager', $3, '')",
+           ('g', $2, 'role:manager', $3, ''),
+           ('g', $4, 'role:user', $3, ''),
+           ('g', $5, 'role:user', $6, '')",
     )
     .bind(admin_id.to_string())
     .bind(manager_id.to_string())
     .bind(tenant_a_id.to_string())
+    .bind(user_id.to_string())
+    .bind(user_b_id.to_string())
+    .bind(tenant_b_id.to_string())
     .execute(pool)
     .await
     .expect("Failed to assign roles");
