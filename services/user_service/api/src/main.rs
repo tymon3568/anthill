@@ -15,7 +15,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use user_service_api::{
     admin_handlers, handlers, invitation_handlers, permission_handlers, profile_handlers,
-    verification_handlers, AppState, ProfileAppState,
+    rate_limiter::InvitationRateLimiter, verification_handlers, AppState, ProfileAppState,
 };
 use user_service_infra::auth::{
     AuthServiceImpl, EmailVerificationServiceImpl, InvitationServiceImpl,
