@@ -14,15 +14,15 @@ pub use handlers::AppState;
 pub use profile_handlers::ProfileAppState;
 
 use axum::routing::{delete, get, post};
-use axum::{Extension, Router};
-use shared_auth::{create_enforcer, AuthzState};
+use axum::{middleware, Extension, Router};
+use shared_auth::{create_enforcer, AuthzState, AuthzVersionState};
 use shared_config::Config;
 use shared_db::PgPool;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 use user_service_infra::auth::{
     AuthServiceImpl, InvitationServiceImpl, PgInvitationRepository, PgSessionRepository,
-    PgTenantRepository, PgUserRepository,
+    PgTenantRepository, PgUserRepository, RedisAuthzVersionRepository,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -44,6 +44,13 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
     let tenant_repo = PgTenantRepository::new(db_pool.clone());
     let session_repo = PgSessionRepository::new(db_pool.clone());
     let invitation_repo = PgInvitationRepository::new(db_pool.clone());
+
+    // Initialize AuthZ version repository (optional - for immediate-effect permission changes)
+    let authz_version_repo = if let Some(redis_url) = &config.redis_url {
+        Some(Arc::new(RedisAuthzVersionRepository::new(db_pool.clone(), redis_url).await))
+    } else {
+        None
+    };
 
     // Initialize auth service
     let auth_service = AuthServiceImpl::new(
@@ -77,12 +84,13 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         invitation_rate_limiter: Arc::new(crate::rate_limiter::InvitationRateLimiter::default()),
     };
 
-    create_router(&state)
+    create_router(&state, authz_version_repo)
 }
 
 /// Create router from app state (for testing)
 pub fn create_router(
     state: &AppState<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>,
+    authz_version_repo: Option<Arc<RedisAuthzVersionRepository>>,
 ) -> AppRouter {
     let authz_state = AuthzState {
         enforcer: state.enforcer.clone(),
@@ -102,7 +110,8 @@ pub fn create_router(
         .layer(Extension(state.clone()));
 
     // Protected routes (require authentication)
-    let protected_routes = Router::new()
+    // Layer order: AuthZ version check -> Casbin authorization -> handlers
+    let mut protected_routes = Router::new()
         .route("/api/v1/users", get(handlers::list_users::<ConcreteAuthService>))
         .route("/api/v1/users/{user_id}", get(handlers::get_user::<ConcreteAuthService>))
         // Invitation management (admin only)
@@ -116,7 +125,21 @@ pub fn create_router(
             post(handlers::add_policy::<ConcreteAuthService>).delete(handlers::remove_policy::<ConcreteAuthService>),
         )
         .layer(Extension(state.clone()))
-        .layer(shared_auth::CasbinAuthLayer::new(authz_state));
+        .layer(shared_auth::CasbinAuthLayer::new(authz_state.clone()));
+
+    // Add AuthZ version middleware if Redis is configured
+    // This middleware runs BEFORE Casbin to reject stale tokens immediately
+    if let Some(version_repo) = authz_version_repo {
+        let authz_version_state = AuthzVersionState::new(
+            state.jwt_secret.clone(),
+            version_repo as Arc<dyn shared_auth::AuthzVersionProvider>,
+        );
+        protected_routes = protected_routes
+            .layer(Extension(authz_version_state.clone()))
+            .layer(middleware::from_fn(move |ext: Extension<AuthzVersionState>, req, next| {
+                shared_auth::authz_version_middleware(ext, req, next)
+            }));
+    }
 
     // Combine all API routes
     let api_routes = public_routes.merge(protected_routes);

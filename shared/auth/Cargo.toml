@@ -1,5 +1,6 @@
 [dependencies]
 anyhow = {workspace = true}
+async-trait = {workspace = true}
 # Axum
 axum = {workspace = true}
 # Casbin core
