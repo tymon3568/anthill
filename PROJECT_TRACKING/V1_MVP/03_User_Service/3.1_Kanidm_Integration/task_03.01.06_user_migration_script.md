@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service  
 **Module:** 3.1_Kanidm_Integration  
 **Priority:** ~~Medium~~ N/A  
-**Status:** Done
+**Status:** Cancelled
 **Assignee:** ~~Claude~~  
 **Created Date:** 2025-11-03  
 **Last Updated:** 2026-01-04
