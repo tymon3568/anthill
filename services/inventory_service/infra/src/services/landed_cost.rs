@@ -382,6 +382,7 @@ impl LandedCostService for LandedCostServiceImpl {
             .line_repo
             .find_by_document_id(tenant_id, document_id)
             .await?;
+        // Validate we have lines (already checked above but recalculate total)
         let total_cost: i64 = lines.iter().map(|l| l.amount).sum();
 
         if lines.is_empty() {
@@ -427,23 +428,30 @@ impl LandedCostService for LandedCostServiceImpl {
             ));
         }
 
-        let total_cost: i64 = lines.iter().map(|l| l.amount).sum();
+        let _total_cost: i64 = lines.iter().map(|l| l.amount).sum();
 
-        // Create allocations (simplified - in production would fetch receipt items)
-        // For now, create a placeholder allocation for the receipt
+        // TODO(Phase 4.6.2-followup): Implement proper allocation logic
+        // Current implementation is a PLACEHOLDER that:
+        // 1. Does NOT fetch actual receipt items from goods_receipt_items table
+        // 2. Uses receipt_id as placeholder for receipt_item_id (FK will fail with composite key)
+        // 3. Does NOT calculate allocation based on allocation_method (by_value, by_quantity, equal)
+        // 4. Does NOT update inventory_valuations with new unit costs
+        //
+        // Proper implementation should:
+        // 1. Query goods_receipt_items WHERE receipt_id = doc.receipt_id
+        // 2. For each item, calculate allocated_amount based on allocation_method
+        // 3. Calculate new_unit_cost = original_unit_cost + (allocated_amount / quantity)
+        // 4. Create allocations for each receipt item
+        // 5. Update inventory_valuations with new costs
+        // 6. Use a transaction for atomicity
+        //
+        // This placeholder allows the API structure to be validated while the
+        // allocation logic is implemented in a follow-up task.
         let now = Utc::now();
-        let allocation = LandedCostAllocation {
-            allocation_id: Uuid::now_v7(),
-            tenant_id,
-            document_id,
-            receipt_item_id: doc.receipt_id, // Using receipt_id as placeholder
-            allocated_amount: total_cost,
-            original_unit_cost: 0,
-            new_unit_cost: 0,
-            created_at: now,
-        };
 
-        let allocations = self.allocation_repo.create_batch(vec![allocation]).await?;
+        // PLACEHOLDER: Skip allocation creation until proper implementation
+        // This prevents FK violations with the composite key constraint
+        let allocations: Vec<LandedCostAllocation> = vec![];
 
         // Update document status to posted
         let updated_doc = self
@@ -456,7 +464,7 @@ impl LandedCostService for LandedCostServiceImpl {
             status: updated_doc.status,
             posted_at: updated_doc.posted_at.unwrap_or(now),
             allocations,
-            items_affected: 1,
+            items_affected: 0, // Placeholder - no items affected until proper implementation
         })
     }
 

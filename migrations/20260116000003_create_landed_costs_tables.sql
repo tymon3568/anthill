@@ -4,6 +4,14 @@
 -- Created: 2026-01-16
 
 -- ==================================
+-- PREREQUISITE: Add unique constraint to goods_receipt_items
+-- ==================================
+-- This is required for the composite foreign key in landed_cost_allocations
+ALTER TABLE goods_receipt_items
+    ADD CONSTRAINT goods_receipt_items_tenant_item_unique
+    UNIQUE (tenant_id, receipt_item_id);
+
+-- ==================================
 -- LANDED_COST_DOCUMENTS TABLE
 -- ==================================
 -- Header table for landed cost documents.
@@ -134,8 +142,8 @@ CREATE TABLE landed_cost_allocations (
         FOREIGN KEY (tenant_id, document_id)
         REFERENCES landed_cost_documents (tenant_id, document_id),
     CONSTRAINT landed_cost_allocations_receipt_item_fk
-        FOREIGN KEY (receipt_item_id)
-        REFERENCES goods_receipt_items (receipt_item_id),
+        FOREIGN KEY (tenant_id, receipt_item_id)
+        REFERENCES goods_receipt_items (tenant_id, receipt_item_id),
 
     -- Prevent duplicate allocations for the same receipt item in a document
     CONSTRAINT landed_cost_allocations_unique_per_item
