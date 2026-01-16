@@ -1,10 +1,10 @@
 # Task: Create Storage Categories Table (Advanced Warehouse Config)
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/task_04.02.03_create_storage_categories_table.md`  
-**Status:** Todo  
+**Status:** NeedsReview  
 **Priority:** P1  
-**Assignee:**  
-**Last Updated:** 2025-12-28  
+**Assignee:** Claude  
+**Last Updated:** 2026-01-16  
 **Phase:** V1_MVP  
 **Module:** 04_Inventory_Service → 4.2_Warehouse_Management  
 **Dependencies:**
@@ -96,6 +96,19 @@ Provide a tenant-safe configuration table that can be referenced by:
   - CRUD API endpoints for managing categories (separate task, not included here).
 
 ## AI Agent Log
+---
+* 2026-01-16: Task claimed and migration created by Claude
+  - Verified dependency: task_04.02.01 is Done ✓
+  - Created migration: `migrations/20260116000003_create_storage_categories_table.sql`
+  - Schema design decisions:
+    - Composite PK: `(tenant_id, storage_category_id)` for tenant isolation
+    - Soft delete: `deleted_at TIMESTAMPTZ` (consistent with project patterns)
+    - Unique constraints: name and code (where not null) per tenant
+    - Partial indexes: `WHERE deleted_at IS NULL` for active records
+    - Added `attributes JSONB` for flexible category properties
+    - Added `sort_order INT` for UI display ordering
+  - Status: InProgress_By_Claude, pending validation
+  - Files: `migrations/20260116000003_create_storage_categories_table.sql`
 ---
 * 2025-12-28 00:00: Task created (planning) by AI_Agent
   - Converted to folder-tasks Style B format (header normalization + detailed checkbox checklist).
