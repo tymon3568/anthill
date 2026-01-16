@@ -1,0 +1,117 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO landed_cost_documents (\n                document_id, tenant_id, document_number, reference_number,\n                status, receipt_id, total_cost_amount, currency_code,\n                allocation_method, document_date, notes, created_by,\n                created_at, updated_at\n            )\n            VALUES ($1, $2, $3, $4, 'draft', $5, 0, $6, $7, $8, $9, $10, $11, $12)\n            RETURNING\n                document_id, tenant_id, document_number, reference_number,\n                status, receipt_id, total_cost_amount, currency_code,\n                allocation_method, document_date, posted_at, notes,\n                created_by, created_at, updated_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "tenant_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "document_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "reference_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "receipt_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "total_cost_amount",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "currency_code",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "allocation_method",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "document_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "posted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "created_by",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Timestamptz",
+        "Text",
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "124ef30b4d276985c87bbfd2faf4104ba0d33cbf99b478290e34fd61cdbe87f5"
+}

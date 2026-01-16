@@ -676,7 +676,7 @@ impl LandedCostLineRepository for LandedCostLineRepositoryImpl {
     async fn sum_lines_amount(&self, tenant_id: Uuid, document_id: Uuid) -> Result<i64, AppError> {
         let result = sqlx::query!(
             r#"
-            SELECT COALESCE(SUM(amount), 0) as "total!"
+            SELECT COALESCE(SUM(amount)::BIGINT, 0) as "total!"
             FROM landed_cost_lines
             WHERE tenant_id = $1 AND document_id = $2
             "#,

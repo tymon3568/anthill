@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM landed_cost_allocations\n            WHERE tenant_id = $1 AND document_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "10ab0a29e768e6c89ecfc86bb4a08b32699369ca5b119715f3b68148f3abce61"
+}

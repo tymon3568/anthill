@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM landed_cost_lines\n            WHERE tenant_id = $1 AND line_id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f19913e1d8f80f49ece06dea93b30030cd1efd045a401820884775f249d3c20c"
+}
