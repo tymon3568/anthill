@@ -191,3 +191,172 @@ pub struct EmailVerificationToken {
     pub verification_attempts: i32,
     pub last_attempt_at: Option<DateTime<Utc>>,
 }
+
+/// Password Reset Token entity
+///
+/// Represents a secure password reset token for forgot-password flow.
+/// Tokens are hashed (SHA-256) at rest and expire after 1 hour.
+/// Single-use: once used_at is set, the token cannot be reused.
+#[derive(Debug, Clone, FromRow)]
+pub struct PasswordResetToken {
+    pub token_id: Uuid,
+    pub user_id: Uuid,
+    pub tenant_id: Uuid,
+    pub token_hash: String, // SHA-256 hash of the token
+    pub expires_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub used_at: Option<DateTime<Utc>>,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub reset_from_ip: Option<String>,
+    pub reset_from_user_agent: Option<String>,
+}
+
+/// Password Reset Audit entry
+///
+/// Records password reset events for security monitoring and audit trail.
+#[derive(Debug, Clone, FromRow)]
+pub struct PasswordResetAudit {
+    pub audit_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub tenant_id: Option<Uuid>,
+    pub email: String,
+    pub event_type: String, // 'requested', 'completed', 'failed', 'expired', 'rate_limited'
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub failure_reason: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// PasswordResetToken Implementation
+// ============================================================================
+
+impl PasswordResetToken {
+    /// Create a new password reset token
+    pub fn new(
+        user_id: Uuid,
+        tenant_id: Uuid,
+        token_hash: String,
+        expiry_hours: i64,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Self {
+        Self {
+            token_id: Uuid::new_v4(),
+            user_id,
+            tenant_id,
+            token_hash,
+            expires_at: Utc::now() + chrono::Duration::hours(expiry_hours),
+            created_at: Utc::now(),
+            used_at: None,
+            ip_address,
+            user_agent,
+            reset_from_ip: None,
+            reset_from_user_agent: None,
+        }
+    }
+
+    /// Check if the token has expired
+    pub fn is_expired(&self) -> bool {
+        Utc::now() > self.expires_at
+    }
+
+    /// Check if the token has been used
+    pub fn is_used(&self) -> bool {
+        self.used_at.is_some()
+    }
+
+    /// Check if the token is valid (not expired and not used)
+    pub fn is_valid(&self) -> bool {
+        !self.is_expired() && !self.is_used()
+    }
+}
+
+// ============================================================================
+// PasswordResetAudit Implementation
+// ============================================================================
+
+impl PasswordResetAudit {
+    /// Create a new audit entry
+    pub fn new(
+        user_id: Option<Uuid>,
+        tenant_id: Option<Uuid>,
+        email: String,
+        event_type: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+        failure_reason: Option<String>,
+    ) -> Self {
+        Self {
+            audit_id: Uuid::new_v4(),
+            user_id,
+            tenant_id,
+            email,
+            event_type: event_type.to_string(),
+            ip_address,
+            user_agent,
+            failure_reason,
+            created_at: Utc::now(),
+        }
+    }
+
+    /// Create audit entry for password reset requested
+    pub fn requested(
+        user_id: Uuid,
+        tenant_id: Uuid,
+        email: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Self {
+        Self::new(Some(user_id), Some(tenant_id), email, "requested", ip_address, user_agent, None)
+    }
+
+    /// Create audit entry for password reset completed
+    pub fn completed(
+        user_id: Uuid,
+        tenant_id: Uuid,
+        email: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Self {
+        Self::new(Some(user_id), Some(tenant_id), email, "completed", ip_address, user_agent, None)
+    }
+
+    /// Create audit entry for password reset failed
+    pub fn failed(
+        user_id: Option<Uuid>,
+        tenant_id: Option<Uuid>,
+        email: String,
+        failure_reason: &str,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Self {
+        Self::new(
+            user_id,
+            tenant_id,
+            email,
+            "failed",
+            ip_address,
+            user_agent,
+            Some(failure_reason.to_string()),
+        )
+    }
+
+    /// Create audit entry for rate limited request
+    pub fn rate_limited(
+        email: String,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Self {
+        Self::new(
+            None,
+            None,
+            email,
+            "rate_limited",
+            ip_address,
+            user_agent,
+            Some("Too many password reset requests".to_string()),
+        )
+    }
+}

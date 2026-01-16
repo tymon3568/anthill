@@ -2,6 +2,7 @@ use user_service_core::domains::auth::dto::admin_dto::*;
 use user_service_core::domains::auth::dto::auth_dto::*;
 use user_service_core::domains::auth::dto::email_verification_dto::*;
 use user_service_core::domains::auth::dto::invitation_dto::*;
+use user_service_core::domains::auth::dto::password_reset_dto::*;
 use utoipa::OpenApi;
 
 /// OpenAPI documentation for User Service
@@ -47,6 +48,10 @@ use utoipa::OpenApi;
         // Email verification
         crate::verification_handlers::verify_email,
         crate::verification_handlers::resend_verification,
+        // Password reset
+        crate::password_reset_handlers::forgot_password,
+        crate::password_reset_handlers::reset_password,
+        crate::password_reset_handlers::validate_reset_token,
     ),
     components(
         schemas(
@@ -112,6 +117,13 @@ use utoipa::OpenApi;
             VerifyEmailResp,
             ResendVerificationReq,
             ResendVerificationResp,
+            // Password reset DTOs
+            ForgotPasswordReq,
+            ForgotPasswordResp,
+            ResetPasswordReq,
+            ResetPasswordResp,
+            ValidateResetTokenReq,
+            ValidateResetTokenResp,
         )
     ),
     tags(
