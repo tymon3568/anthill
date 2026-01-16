@@ -2,6 +2,9 @@
 //!
 //! Core business entities for inventory valuation system,
 //! supporting FIFO, AVCO, and Standard costing methods.
+//!
+//! Note: LIFO is intentionally not supported as it is prohibited
+//! by IFRS and most accounting standards outside the US.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -20,7 +23,7 @@ pub enum ValuationMethod {
 
 impl From<String> for ValuationMethod {
     fn from(s: String) -> Self {
-        match s.as_str() {
+        match s.to_lowercase().as_str() {
             "fifo" => ValuationMethod::Fifo,
             "avco" => ValuationMethod::Avco,
             "standard" => ValuationMethod::Standard,

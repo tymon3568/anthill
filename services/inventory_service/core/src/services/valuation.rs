@@ -207,13 +207,17 @@ pub trait ValuationService: Send + Sync {
     ///
     /// # Business Rules
     /// - Returns the default valuation method for the tenant
-    /// - Creates a default (FIFO) if none exists
+    /// - Returns NotFound error if no default exists
+    /// - Use set_tenant_valuation_method to create initial settings
     ///
     /// # Arguments
     /// * `request` - Request with tenant ID
     ///
     /// # Returns
     /// Tenant default valuation settings
+    ///
+    /// # Errors
+    /// - `NotFound` if tenant has no default valuation settings
     async fn get_tenant_valuation_settings(
         &self,
         request: GetTenantValuationSettingsRequest,
@@ -289,13 +293,17 @@ pub trait ValuationService: Send + Sync {
     ///
     /// # Business Rules
     /// - Removes the specified override
-    /// - Cannot delete tenant default (use set to change it)
+    /// - Cannot delete tenant default (returns error)
+    /// - Only category and product overrides can be deleted
     ///
     /// # Arguments
     /// * `request` - Request with scope details
     ///
     /// # Returns
     /// Success or error
+    ///
+    /// # Errors
+    /// - `BusinessError` if attempting to delete tenant default
     async fn delete_valuation_settings(
         &self,
         request: DeleteValuationSettingsRequest,
