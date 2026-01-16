@@ -1,3 +1,4 @@
+use crate::rate_limiter::InvitationRateLimiter;
 use axum::{
     extract::{Extension, Query},
     http::StatusCode,
@@ -12,6 +13,7 @@ use shared_error::AppError;
 use std::sync::Arc;
 use user_service_core::domains::auth::{
     domain::{
+        authz_version_repository::AuthzVersionRepository,
         invitation_service::InvitationService,
         repository::{TenantRepository, UserRepository},
         service::AuthService,
@@ -20,7 +22,7 @@ use user_service_core::domains::auth::{
         AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
     },
 };
-use crate::rate_limiter::InvitationRateLimiter;
+use uuid::Uuid;
 
 /// Application state containing service dependencies
 pub struct AppState<S: AuthService> {
@@ -32,6 +34,8 @@ pub struct AppState<S: AuthService> {
     pub tenant_repo: Option<Arc<dyn TenantRepository>>,
     // Invitation service
     pub invitation_service: Option<Arc<dyn InvitationService + Send + Sync>>,
+    // AuthZ version repository for immediate-effect permission invalidation
+    pub authz_version_repo: Option<Arc<dyn AuthzVersionRepository>>,
     // Configuration for invitation settings
     pub config: shared_config::Config,
     // Rate limiter for invitation acceptance
@@ -47,6 +51,7 @@ impl<S: AuthService> Clone for AppState<S> {
             user_repo: self.user_repo.clone(),
             tenant_repo: self.tenant_repo.clone(),
             invitation_service: self.invitation_service.clone(),
+            authz_version_repo: self.authz_version_repo.clone(),
             config: self.config.clone(),
             invitation_rate_limiter: Arc::clone(&self.invitation_rate_limiter),
         }
@@ -56,6 +61,51 @@ impl<S: AuthService> Clone for AppState<S> {
 impl<S: AuthService> JwtSecretProvider for AppState<S> {
     fn get_jwt_secret(&self) -> &str {
         &self.jwt_secret
+    }
+}
+
+// ============================================================================
+// AuthZ Version Helpers
+// ============================================================================
+
+/// Bump the tenant authorization version after a role/policy change.
+///
+/// This helper is called after successful `save_policy()` to ensure tokens
+/// minted before the change are rejected by the AuthZ version middleware.
+///
+/// If Redis is not configured, this is a no-op (logs a debug message).
+/// If the bump fails, logs an error but does not fail the request.
+pub(crate) async fn bump_tenant_authz_version<S: AuthService>(
+    state: &AppState<S>,
+    tenant_id: Uuid,
+    operation: &str,
+) {
+    if let Some(ref version_repo) = state.authz_version_repo {
+        match version_repo.bump_tenant_version(tenant_id).await {
+            Ok(new_version) => {
+                tracing::info!(
+                    tenant_id = %tenant_id,
+                    new_version = new_version,
+                    operation = operation,
+                    "Bumped tenant authz version after policy change"
+                );
+            },
+            Err(e) => {
+                // Log error but don't fail the request - middleware will fallback to DB
+                tracing::error!(
+                    tenant_id = %tenant_id,
+                    operation = operation,
+                    error = %e,
+                    "Failed to bump tenant authz version (middleware will fallback to DB)"
+                );
+            },
+        }
+    } else {
+        tracing::debug!(
+            tenant_id = %tenant_id,
+            operation = operation,
+            "Skipping tenant authz version bump (Redis not configured)"
+        );
     }
 }
 
@@ -423,6 +473,11 @@ pub async fn add_policy<S: AuthService>(
             .save_policy()
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
+        drop(enforcer);
+
+        // Bump tenant authz version to invalidate existing tokens
+        bump_tenant_authz_version(&state, admin_user.tenant_id, "add_policy").await;
+
         Ok(StatusCode::OK)
     } else {
         Err(AppError::ValidationError("Policy already exists".to_string()))
@@ -473,6 +528,11 @@ pub async fn remove_policy<S: AuthService>(
             .save_policy()
             .await
             .map_err(|e| AppError::InternalError(format!("Failed to save policy: {}", e)))?;
+        drop(enforcer);
+
+        // Bump tenant authz version to invalidate existing tokens
+        bump_tenant_authz_version(&state, admin_user.tenant_id, "remove_policy").await;
+
         Ok(StatusCode::OK)
     } else {
         Err(AppError::ValidationError("Policy does not exist".to_string()))

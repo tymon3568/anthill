@@ -12,7 +12,7 @@ use user_service_core::domains::auth::dto::admin_dto::*;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::handlers::AppState;
+use crate::handlers::{bump_tenant_authz_version, AppState};
 
 // ============================================================================
 // Role Management Handlers
@@ -106,6 +106,9 @@ pub async fn create_role<S: AuthService>(
         .map_err(|e| AppError::InternalError(format!("Failed to save policies: {}", e)))?;
 
     drop(enforcer);
+
+    // Bump tenant authz version to invalidate existing tokens
+    bump_tenant_authz_version(&state, tenant_id, "create_role").await;
 
     Ok((
         StatusCode::CREATED,
@@ -322,6 +325,9 @@ pub async fn update_role<S: AuthService>(
 
     drop(enforcer);
 
+    // Bump tenant authz version to invalidate existing tokens
+    bump_tenant_authz_version(&state, tenant_id, "update_role").await;
+
     Ok(Json(UpdateRoleResp {
         role_name: role_name.clone(),
         permissions_count: added_count,
@@ -400,6 +406,9 @@ pub async fn delete_role<S: AuthService>(
         .map_err(|e| AppError::InternalError(format!("Failed to save policies: {}", e)))?;
 
     drop(enforcer);
+
+    // Bump tenant authz version to invalidate existing tokens
+    bump_tenant_authz_version(&state, tenant_id, "delete_role").await;
 
     Ok(Json(DeleteRoleResp {
         role_name: role_name.clone(),
