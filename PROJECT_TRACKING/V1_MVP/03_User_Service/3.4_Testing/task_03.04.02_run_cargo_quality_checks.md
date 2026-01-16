@@ -2,7 +2,7 @@
 
 ## Metadata
 - **ID**: 03.04.02
-- **Status**: Done
+**Status:** Done
 - **Assignee**: Grok_Code_Fast_1
 - **Priority**: P1
 - **Module**: User Service

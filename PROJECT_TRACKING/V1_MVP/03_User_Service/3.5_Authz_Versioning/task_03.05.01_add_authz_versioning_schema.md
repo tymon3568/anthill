@@ -5,7 +5,7 @@
 **Phase:** 03_User_Service  
 **Module:** 3.5_Authz_Versioning  
 **Priority:** High  
-**Status:** Done  
+**Status:** Done
 **Assignee:** GPT-5.2_Backend  
 **Created Date:** 2026-01-02  
 **Last Updated:** 2026-01-07
