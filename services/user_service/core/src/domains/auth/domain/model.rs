@@ -171,3 +171,23 @@ pub struct Invitation {
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>, // Soft delete
 }
+
+/// Email Verification Token entity
+///
+/// Represents a secure email verification token sent to users during registration.
+/// Tokens are hashed (SHA-256) at rest and expire after 24 hours.
+#[derive(Debug, Clone, FromRow)]
+pub struct EmailVerificationToken {
+    pub token_id: Uuid,
+    pub user_id: Uuid,
+    pub tenant_id: Uuid,
+    pub token_hash: String, // SHA-256 hash of the token
+    pub email: String,
+    pub expires_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    pub verified_at: Option<DateTime<Utc>>,
+    pub verified_from_ip: Option<String>,
+    pub verified_from_user_agent: Option<String>,
+    pub verification_attempts: i32,
+    pub last_attempt_at: Option<DateTime<Utc>>,
+}

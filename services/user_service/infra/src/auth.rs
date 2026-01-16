@@ -1,4 +1,6 @@
 // Auth infrastructure implementations
+pub mod email_verification_repository;
+pub mod email_verification_service;
 pub mod invitation_repository;
 pub mod invitation_service;
 pub mod profile_repository;
@@ -8,6 +10,8 @@ pub mod service;
 pub mod session_repository;
 
 // Re-export for convenience
+pub use email_verification_repository::PgEmailVerificationRepository;
+pub use email_verification_service::EmailVerificationServiceImpl;
 pub use invitation_repository::PgInvitationRepository;
 pub use invitation_service::InvitationServiceImpl;
 pub use profile_repository::PgUserProfileRepository;

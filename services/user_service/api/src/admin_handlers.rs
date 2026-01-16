@@ -896,3 +896,156 @@ pub async fn admin_create_user<S: AuthService>(
 
     Ok((StatusCode::CREATED, Json(response)))
 }
+
+// ============================================================================
+// User Lifecycle Management Handlers
+// ============================================================================
+
+/// Suspend a user (admin operation)
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/users/{user_id}/suspend",
+    tag = "admin-users",
+    operation_id = "admin_suspend_user",
+    params(
+        ("user_id" = Uuid, Path, description = "User ID to suspend"),
+    ),
+    request_body = SuspendUserReq,
+    responses(
+        (status = 200, description = "User suspended successfully", body = SuspendUserResp),
+        (status = 400, description = "Bad request - user already suspended", body = String),
+        (status = 401, description = "Unauthorized", body = String),
+        (status = 403, description = "Forbidden - cannot suspend tenant owner", body = String),
+        (status = 404, description = "User not found", body = String),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn suspend_user<S: AuthService>(
+    RequireAdmin(admin_user): RequireAdmin,
+    Extension(state): Extension<AppState<S>>,
+    Path(user_id): Path<Uuid>,
+    Json(payload): Json<SuspendUserReq>,
+) -> Result<Json<SuspendUserResp>, AppError> {
+    payload
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    let response = state
+        .auth_service
+        .admin_suspend_user(admin_user.tenant_id, admin_user.user_id, user_id, payload.reason)
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// Unsuspend a user (admin operation)
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/users/{user_id}/unsuspend",
+    tag = "admin-users",
+    operation_id = "admin_unsuspend_user",
+    params(
+        ("user_id" = Uuid, Path, description = "User ID to unsuspend"),
+    ),
+    responses(
+        (status = 200, description = "User unsuspended successfully", body = UnsuspendUserResp),
+        (status = 400, description = "Bad request - user is not suspended", body = String),
+        (status = 401, description = "Unauthorized", body = String),
+        (status = 403, description = "Forbidden - Admin only", body = String),
+        (status = 404, description = "User not found", body = String),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn unsuspend_user<S: AuthService>(
+    RequireAdmin(admin_user): RequireAdmin,
+    Extension(state): Extension<AppState<S>>,
+    Path(user_id): Path<Uuid>,
+) -> Result<Json<UnsuspendUserResp>, AppError> {
+    let response = state
+        .auth_service
+        .admin_unsuspend_user(admin_user.tenant_id, user_id)
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// Soft delete a user (admin operation)
+#[utoipa::path(
+    delete,
+    path = "/api/v1/admin/users/{user_id}",
+    tag = "admin-users",
+    operation_id = "admin_delete_user",
+    params(
+        ("user_id" = Uuid, Path, description = "User ID to delete"),
+    ),
+    responses(
+        (status = 200, description = "User deleted successfully", body = DeleteUserResp),
+        (status = 400, description = "Bad request - user already deleted", body = String),
+        (status = 401, description = "Unauthorized", body = String),
+        (status = 403, description = "Forbidden - cannot delete tenant owner", body = String),
+        (status = 404, description = "User not found", body = String),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn delete_user<S: AuthService>(
+    RequireAdmin(admin_user): RequireAdmin,
+    Extension(state): Extension<AppState<S>>,
+    Path(user_id): Path<Uuid>,
+) -> Result<Json<DeleteUserResp>, AppError> {
+    let response = state
+        .auth_service
+        .admin_delete_user(admin_user.tenant_id, admin_user.user_id, user_id)
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// Reset user password (admin operation)
+#[utoipa::path(
+    post,
+    path = "/api/v1/admin/users/{user_id}/reset-password",
+    tag = "admin-users",
+    operation_id = "admin_reset_user_password",
+    params(
+        ("user_id" = Uuid, Path, description = "User ID whose password to reset"),
+    ),
+    request_body = AdminResetPasswordReq,
+    responses(
+        (status = 200, description = "Password reset successfully", body = AdminResetPasswordResp),
+        (status = 400, description = "Invalid password", body = String),
+        (status = 401, description = "Unauthorized", body = String),
+        (status = 403, description = "Forbidden - Admin only", body = String),
+        (status = 404, description = "User not found", body = String),
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn reset_user_password<S: AuthService>(
+    RequireAdmin(admin_user): RequireAdmin,
+    Extension(state): Extension<AppState<S>>,
+    Path(user_id): Path<Uuid>,
+    Json(payload): Json<AdminResetPasswordReq>,
+) -> Result<Json<AdminResetPasswordResp>, AppError> {
+    payload
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    let response = state
+        .auth_service
+        .admin_reset_password(
+            admin_user.tenant_id,
+            user_id,
+            payload.new_password,
+            payload.force_logout,
+        )
+        .await?;
+
+    Ok(Json(response))
+}

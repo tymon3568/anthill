@@ -70,6 +70,41 @@ pub struct Config {
     #[serde(default = "default_invitation_max_attempts")]
     pub invitation_max_attempts: i32,
 
+    // ===== Email Verification Configuration =====
+    /// Base URL for email verification links
+    #[serde(default = "default_verification_base_url")]
+    pub verification_base_url: String,
+
+    /// Email verification token expiry in hours (default: 24)
+    #[serde(default = "default_verification_expiry_hours")]
+    pub verification_expiry_hours: i64,
+
+    // ===== SMTP Configuration =====
+    /// SMTP server host (optional - email sending disabled if not configured)
+    pub smtp_host: Option<String>,
+
+    /// SMTP server port (default: 587 for TLS)
+    #[serde(default = "default_smtp_port")]
+    pub smtp_port: u16,
+
+    /// SMTP username for authentication (optional)
+    pub smtp_username: Option<String>,
+
+    /// SMTP password for authentication (optional)
+    pub smtp_password: Option<String>,
+
+    /// SMTP from email address
+    #[serde(default = "default_smtp_from_email")]
+    pub smtp_from_email: String,
+
+    /// SMTP from name
+    #[serde(default = "default_smtp_from_name")]
+    pub smtp_from_name: String,
+
+    /// Enable SMTP TLS (default: true)
+    #[serde(default = "default_smtp_tls")]
+    pub smtp_tls: bool,
+
     // ===== Rate Limiting Configuration =====
     /// Enable rate limiting (default: true)
     #[serde(default = "default_rate_limit_enabled")]
@@ -177,6 +212,30 @@ fn default_invitation_max_attempts() -> i32 {
     5
 }
 
+fn default_verification_base_url() -> String {
+    "https://app.example.com".to_string()
+}
+
+fn default_verification_expiry_hours() -> i64 {
+    24
+}
+
+fn default_smtp_port() -> u16 {
+    587
+}
+
+fn default_smtp_from_email() -> String {
+    "noreply@example.com".to_string()
+}
+
+fn default_smtp_from_name() -> String {
+    "Anthill".to_string()
+}
+
+fn default_smtp_tls() -> bool {
+    true
+}
+
 // Rate limiting defaults
 fn default_rate_limit_enabled() -> bool {
     true
@@ -256,6 +315,14 @@ impl Config {
             .set_default("invitation_base_url", "https://app.example.com")?
             .set_default("invitation_expiry_hours", 48)?
             .set_default("invitation_max_attempts", 5)?
+            // Email verification defaults
+            .set_default("verification_base_url", "https://app.example.com")?
+            .set_default("verification_expiry_hours", 24)?
+            // SMTP defaults
+            .set_default("smtp_port", 587)?
+            .set_default("smtp_from_email", "noreply@example.com")?
+            .set_default("smtp_from_name", "Anthill")?
+            .set_default("smtp_tls", true)?
             // Rate limiting defaults
             .set_default("rate_limit_enabled", true)?
             .set_default("rate_limit_login_max", 5)?
@@ -320,6 +387,15 @@ impl Default for Config {
             invitation_base_url: default_invitation_base_url(),
             invitation_expiry_hours: default_invitation_expiry_hours(),
             invitation_max_attempts: default_invitation_max_attempts(),
+            verification_base_url: default_verification_base_url(),
+            verification_expiry_hours: default_verification_expiry_hours(),
+            smtp_host: None,
+            smtp_port: default_smtp_port(),
+            smtp_username: None,
+            smtp_password: None,
+            smtp_from_email: default_smtp_from_email(),
+            smtp_from_name: default_smtp_from_name(),
+            smtp_tls: default_smtp_tls(),
             rate_limit_enabled: default_rate_limit_enabled(),
             rate_limit_login_max: default_rate_limit_login_max(),
             rate_limit_login_window: default_rate_limit_login_window(),

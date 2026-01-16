@@ -271,3 +271,70 @@ pub struct AdminCreateUserResp {
     #[schema(example = "User created successfully")]
     pub message: String,
 }
+
+// ============================================================================
+// Admin User Lifecycle Management DTOs
+// ============================================================================
+
+/// Request to suspend a user
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct SuspendUserReq {
+    /// Optional reason for suspension (for audit logging)
+    #[validate(length(max = 500))]
+    #[schema(example = "Policy violation - spamming")]
+    pub reason: Option<String>,
+}
+
+/// Response for suspend user operation
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SuspendUserResp {
+    pub user_id: Uuid,
+    pub email: String,
+    pub status: String,
+    pub message: String,
+}
+
+/// Response for unsuspend user operation
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UnsuspendUserResp {
+    pub user_id: Uuid,
+    pub email: String,
+    pub status: String,
+    pub message: String,
+}
+
+/// Response for soft delete user operation
+#[derive(Debug, Serialize, ToSchema)]
+pub struct DeleteUserResp {
+    pub user_id: Uuid,
+    pub email: String,
+    pub deleted_at: chrono::DateTime<chrono::Utc>,
+    pub message: String,
+}
+
+/// Request to reset user password (admin operation)
+#[derive(Debug, Deserialize, Validate, ToSchema)]
+pub struct AdminResetPasswordReq {
+    /// New password for the user
+    #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
+    #[schema(example = "NewSecurePass123!", min_length = 8)]
+    pub new_password: String,
+
+    /// Whether to force logout all existing sessions (default: true)
+    #[serde(default = "default_force_logout")]
+    #[schema(example = true)]
+    pub force_logout: bool,
+}
+
+fn default_force_logout() -> bool {
+    true
+}
+
+/// Response for admin password reset operation
+#[derive(Debug, Serialize, ToSchema)]
+pub struct AdminResetPasswordResp {
+    pub user_id: Uuid,
+    pub email: String,
+    pub sessions_revoked: u64,
+    pub message: String,
+}

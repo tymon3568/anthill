@@ -1,5 +1,6 @@
 use user_service_core::domains::auth::dto::admin_dto::*;
 use user_service_core::domains::auth::dto::auth_dto::*;
+use user_service_core::domains::auth::dto::email_verification_dto::*;
 use user_service_core::domains::auth::dto::invitation_dto::*;
 use utoipa::OpenApi;
 
@@ -43,6 +44,9 @@ use utoipa::OpenApi;
         crate::invitation_handlers::list_invitations,
         crate::invitation_handlers::revoke_invitation,
         crate::invitation_handlers::resend_invitation,
+        // Email verification
+        crate::verification_handlers::verify_email,
+        crate::verification_handlers::resend_verification,
     ),
     components(
         schemas(
@@ -103,6 +107,11 @@ use utoipa::OpenApi;
             InvitedByInfo,
             ListInvitationsQuery,
             ListInvitationsResponse,
+            // Email verification DTOs
+            VerifyEmailReq,
+            VerifyEmailResp,
+            ResendVerificationReq,
+            ResendVerificationResp,
         )
     ),
     tags(

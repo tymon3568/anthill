@@ -705,6 +705,219 @@ where
 
         Ok(deleted)
     }
+
+    async fn admin_suspend_user(
+        &self,
+        admin_tenant_id: Uuid,
+        admin_user_id: Uuid,
+        target_user_id: Uuid,
+        reason: Option<String>,
+    ) -> Result<user_service_core::domains::auth::dto::admin_dto::SuspendUserResp, AppError> {
+        // 1. Fetch target user (tenant isolation enforced)
+        let mut user = self
+            .user_repo
+            .find_by_id(admin_tenant_id, target_user_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
+
+        // 2. Owner protection: check if target is tenant owner
+        let tenant = self
+            .tenant_repo
+            .find_by_id(admin_tenant_id)
+            .await?
+            .ok_or_else(|| AppError::InternalError("Tenant not found".to_string()))?;
+
+        if let Some(owner_id) = tenant.owner_user_id {
+            if user.user_id == owner_id && admin_user_id != owner_id {
+                return Err(AppError::Forbidden("Cannot suspend tenant owner".to_string()));
+            }
+        }
+
+        // 3. Check if already suspended
+        if user.status == "suspended" {
+            return Err(AppError::ValidationError("User is already suspended".to_string()));
+        }
+
+        // 4. Update user status
+        user.status = "suspended".to_string();
+        user.updated_at = Utc::now();
+        let updated_user = self.user_repo.update(&user).await?;
+
+        // 5. Revoke all sessions (force logout)
+        let sessions_revoked = self
+            .session_repo
+            .revoke_all_for_user(target_user_id)
+            .await?;
+
+        tracing::info!(
+            admin_user_id = %admin_user_id,
+            target_user_id = %target_user_id,
+            tenant_id = %admin_tenant_id,
+            sessions_revoked = %sessions_revoked,
+            reason = ?reason,
+            "User suspended by admin"
+        );
+
+        Ok(user_service_core::domains::auth::dto::admin_dto::SuspendUserResp {
+            user_id: updated_user.user_id,
+            email: updated_user.email,
+            status: updated_user.status,
+            message: format!("User suspended successfully. {} sessions revoked.", sessions_revoked),
+        })
+    }
+
+    async fn admin_unsuspend_user(
+        &self,
+        admin_tenant_id: Uuid,
+        target_user_id: Uuid,
+    ) -> Result<user_service_core::domains::auth::dto::admin_dto::UnsuspendUserResp, AppError> {
+        // 1. Fetch target user
+        let mut user = self
+            .user_repo
+            .find_by_id(admin_tenant_id, target_user_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
+
+        // 2. Check if not suspended
+        if user.status != "suspended" {
+            return Err(AppError::ValidationError("User is not suspended".to_string()));
+        }
+
+        // 3. Update status to active
+        user.status = "active".to_string();
+        user.updated_at = Utc::now();
+        let updated_user = self.user_repo.update(&user).await?;
+
+        tracing::info!(
+            target_user_id = %target_user_id,
+            tenant_id = %admin_tenant_id,
+            "User unsuspended by admin"
+        );
+
+        Ok(user_service_core::domains::auth::dto::admin_dto::UnsuspendUserResp {
+            user_id: updated_user.user_id,
+            email: updated_user.email,
+            status: updated_user.status,
+            message: "User unsuspended successfully".to_string(),
+        })
+    }
+
+    async fn admin_delete_user(
+        &self,
+        admin_tenant_id: Uuid,
+        admin_user_id: Uuid,
+        target_user_id: Uuid,
+    ) -> Result<user_service_core::domains::auth::dto::admin_dto::DeleteUserResp, AppError> {
+        // 1. Fetch target user
+        let mut user = self
+            .user_repo
+            .find_by_id(admin_tenant_id, target_user_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
+
+        // 2. Owner protection
+        let tenant = self
+            .tenant_repo
+            .find_by_id(admin_tenant_id)
+            .await?
+            .ok_or_else(|| AppError::InternalError("Tenant not found".to_string()))?;
+
+        if let Some(owner_id) = tenant.owner_user_id {
+            if user.user_id == owner_id && admin_user_id != owner_id {
+                return Err(AppError::Forbidden("Cannot delete tenant owner".to_string()));
+            }
+        }
+
+        // 3. Check if already deleted
+        if user.deleted_at.is_some() {
+            return Err(AppError::ValidationError("User is already deleted".to_string()));
+        }
+
+        // 4. Soft delete user
+        let now = Utc::now();
+        user.deleted_at = Some(now);
+        user.status = "inactive".to_string();
+        user.updated_at = now;
+        let updated_user = self.user_repo.update(&user).await?;
+
+        // 5. Revoke all sessions
+        let sessions_revoked = self
+            .session_repo
+            .revoke_all_for_user(target_user_id)
+            .await?;
+
+        tracing::warn!(
+            admin_user_id = %admin_user_id,
+            target_user_id = %target_user_id,
+            tenant_id = %admin_tenant_id,
+            sessions_revoked = %sessions_revoked,
+            "User soft-deleted by admin"
+        );
+
+        Ok(user_service_core::domains::auth::dto::admin_dto::DeleteUserResp {
+            user_id: updated_user.user_id,
+            email: updated_user.email,
+            deleted_at: now,
+            message: format!("User deleted successfully. {} sessions revoked.", sessions_revoked),
+        })
+    }
+
+    async fn admin_reset_password(
+        &self,
+        admin_tenant_id: Uuid,
+        target_user_id: Uuid,
+        new_password: String,
+        force_logout: bool,
+    ) -> Result<user_service_core::domains::auth::dto::admin_dto::AdminResetPasswordResp, AppError>
+    {
+        // 1. Validate password strength
+        validate_password_quick(&new_password, &[]).map_err(AppError::ValidationError)?;
+
+        // 2. Fetch target user
+        let mut user = self
+            .user_repo
+            .find_by_id(admin_tenant_id, target_user_id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
+
+        // 3. Hash new password
+        let password_hash = bcrypt::hash(&new_password, bcrypt::DEFAULT_COST)
+            .map_err(|e| AppError::InternalError(format!("Failed to hash password: {}", e)))?;
+
+        // 4. Update user password and timestamp
+        user.password_hash = Some(password_hash);
+        user.password_changed_at = Some(Utc::now());
+        user.updated_at = Utc::now();
+        let updated_user = self.user_repo.update(&user).await?;
+
+        // 5. Optionally revoke all sessions (force logout)
+        let sessions_revoked = if force_logout {
+            self.session_repo
+                .revoke_all_for_user(target_user_id)
+                .await?
+        } else {
+            0
+        };
+
+        tracing::warn!(
+            target_user_id = %target_user_id,
+            tenant_id = %admin_tenant_id,
+            force_logout = %force_logout,
+            sessions_revoked = %sessions_revoked,
+            "Admin reset user password"
+        );
+
+        Ok(user_service_core::domains::auth::dto::admin_dto::AdminResetPasswordResp {
+            user_id: updated_user.user_id,
+            email: updated_user.email,
+            sessions_revoked,
+            message: if force_logout {
+                format!("Password reset successfully. {} sessions revoked.", sessions_revoked)
+            } else {
+                "Password reset successfully. User sessions remain active.".to_string()
+            },
+        })
+    }
 }
 
 /// Generate a URL-safe slug from a name

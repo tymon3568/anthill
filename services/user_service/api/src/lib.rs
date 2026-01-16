@@ -6,6 +6,7 @@ pub mod invitation_handlers;
 pub mod openapi;
 pub mod permission_handlers;
 pub mod profile_handlers;
+pub mod verification_handlers;
 
 // Re-export commonly used types for tests
 pub use handlers::AppState;

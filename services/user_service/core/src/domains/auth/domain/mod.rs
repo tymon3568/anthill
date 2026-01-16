@@ -1,3 +1,5 @@
+pub mod email_verification_repository;
+pub mod email_verification_service;
 pub mod invitation_repository;
 pub mod invitation_service;
 pub mod model;

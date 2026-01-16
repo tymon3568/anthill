@@ -14,12 +14,13 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use user_service_api::{
-    admin_handlers, handlers, invitation_handlers, permission_handlers, profile_handlers, AppState,
-    ProfileAppState,
+    admin_handlers, handlers, invitation_handlers, permission_handlers, profile_handlers,
+    verification_handlers, AppState, ProfileAppState,
 };
 use user_service_infra::auth::{
-    AuthServiceImpl, InvitationServiceImpl, PgInvitationRepository, PgSessionRepository,
-    PgTenantRepository, PgUserProfileRepository, PgUserRepository, ProfileServiceImpl,
+    AuthServiceImpl, EmailVerificationServiceImpl, InvitationServiceImpl,
+    PgEmailVerificationRepository, PgInvitationRepository, PgSessionRepository, PgTenantRepository,
+    PgUserProfileRepository, PgUserRepository, ProfileServiceImpl,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -99,6 +100,20 @@ async fn main() {
         config.invitation_expiry_hours,
         config.invitation_max_attempts,
     );
+
+    // Initialize email verification service
+    let verification_repo = PgEmailVerificationRepository::new(db_pool.clone());
+    let smtp_enabled = config.smtp_host.is_some();
+    let email_verification_service = EmailVerificationServiceImpl::new(
+        Arc::new(verification_repo),
+        Arc::new(user_repo.clone()),
+        config.verification_base_url.clone(),
+        config.verification_expiry_hours,
+        config.rate_limit_resend_max,
+        (config.rate_limit_resend_window / 60) as i64, // Convert seconds to minutes
+        smtp_enabled,
+    );
+    let email_verification_service = Arc::new(email_verification_service);
 
     // Create application states
     let state = AppState {
@@ -244,13 +259,42 @@ async fn main() {
         )
         .layer(Extension(combined_state.app.clone()));
 
+    // Email verification routes with rate limiting
+    let verify_email_route = Router::new()
+        .route(
+            "/api/v1/auth/verify-email",
+            post(
+                verification_handlers::verify_email::<
+                    EmailVerificationServiceImpl<PgEmailVerificationRepository, PgUserRepository>,
+                >,
+            ),
+        )
+        .layer(Extension(email_verification_service.clone()));
+
+    let resend_verification_route = Router::new()
+        .route(
+            "/api/v1/auth/resend-verification",
+            post(
+                verification_handlers::resend_verification::<
+                    EmailVerificationServiceImpl<PgEmailVerificationRepository, PgUserRepository>,
+                >,
+            ),
+        )
+        .layer(Extension(email_verification_service.clone()))
+        .layer(RateLimitLayer::new(
+            rate_limit_state.clone(),
+            RateLimitEndpoint::ResendVerification,
+        ));
+
     // Combine public routes
     let public_routes = Router::new()
         .merge(register_route)
         .merge(login_route)
         .merge(refresh_route)
         .merge(accept_invite_route)
-        .merge(logout_route);
+        .merge(logout_route)
+        .merge(verify_email_route)
+        .merge(resend_verification_route);
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()
@@ -275,6 +319,19 @@ async fn main() {
         // Admin user management
         .route("/api/v1/admin/users",
             post(admin_handlers::admin_create_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        // Admin user lifecycle management
+        .route("/api/v1/admin/users/{user_id}/suspend",
+            post(admin_handlers::suspend_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/users/{user_id}/unsuspend",
+            post(admin_handlers::unsuspend_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/users/{user_id}",
+            delete(admin_handlers::delete_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+        )
+        .route("/api/v1/admin/users/{user_id}/reset-password",
+            post(admin_handlers::reset_user_password::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
         // Role management
         .route("/api/v1/admin/roles",
