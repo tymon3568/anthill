@@ -1,10 +1,10 @@
 # Task: Create Cycle Count Schedules Table (Schema)
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/task_04.02.06_create_cycle_count_schedules_table.md`  
-**Status:** Todo  
+**Status:** NeedsReview  
 **Priority:** P1  
-**Assignee:**  
-**Last Updated:** 2025-12-28  
+**Assignee:** Claude  
+**Last Updated:** 2026-01-16  
 **Phase:** V1_MVP  
 **Module:** 04_Inventory_Service → 4.2_Warehouse_Management  
 **Dependencies:**  
@@ -32,67 +32,67 @@ This task is **schema-only** (migrations + indexes + constraints). API endpoints
 - Cycle count execution flows and reconciliation logic
 
 ## Acceptance Criteria
-- [ ] A new migration exists and applies cleanly.
-- [ ] All tables include `tenant_id UUID NOT NULL`.
-- [ ] Composite indexes exist for common access patterns (e.g., `(tenant_id, warehouse_id)`, `(tenant_id, next_run_at)`).
-- [ ] Any foreign keys referencing tenant-scoped tables include `tenant_id` as part of the FK (composite FK).
-- [ ] SQL follows project standards (`TIMESTAMPTZ`, defaults, no floats for money).
-- [ ] Task includes a Style B checklist and is updated as sub-tasks complete.
+- [x] A new migration exists and applies cleanly.
+- [x] All tables include `tenant_id UUID NOT NULL`.
+- [x] Composite indexes exist for common access patterns (e.g., `(tenant_id, warehouse_id)`, `(tenant_id, next_run_at)`).
+- [x] Any foreign keys referencing tenant-scoped tables include `tenant_id` as part of the FK (composite FK).
+- [x] SQL follows project standards (`TIMESTAMPTZ`, defaults, no floats for money).
+- [x] Task includes a Style B checklist and is updated as sub-tasks complete.
 
 ## Specific Sub-tasks (Style B Checklist)
 
 ### A) Task initialization (folder-tasks required)
-- [ ] Verify all **Dependencies** listed in the header are `Done` (open each dependency task file and confirm).
-- [ ] Update this task header:
-  - [ ] `Status: InProgress_By_[AgentName]`
-  - [ ] `Assignee: [AgentName]`
-  - [ ] `Last Updated: YYYY-MM-DD`
-- [ ] Add an entry to **AI Agent Log**: “Starting work + dependency check results”.
+- [x] Verify all **Dependencies** listed in the header are `Done` (open each dependency task file and confirm).
+- [x] Update this task header:
+  - [x] `Status: InProgress_By_[AgentName]`
+  - [x] `Assignee: [AgentName]`
+  - [x] `Last Updated: YYYY-MM-DD`
+- [x] Add an entry to **AI Agent Log**: "Starting work + dependency check results".
 
 ### B) Schema design decisions (document before writing SQL)
-- [ ] Confirm the actual table/PK names used by the warehouse model:
-  - [ ] warehouse table name + PK (e.g., `warehouses(tenant_id, warehouse_id)`), or warehouse-as-root-location (if no warehouses table exists)
-  - [ ] locations table name + PK (e.g., `locations(tenant_id, location_id)` / `warehouse_locations(...)`)
-- [ ] Decide whether to enforce product category FK now:
-  - [ ] If categories are tenant-scoped DB tables with stable PKs → add composite FK
-  - [ ] If categories are not persisted/ready → keep `cycle_count_schedule_categories` table but omit FK until follow-up
+- [x] Confirm the actual table/PK names used by the warehouse model:
+  - [x] warehouse table name + PK (e.g., `warehouses(tenant_id, warehouse_id)`), or warehouse-as-root-location (if no warehouses table exists)
+  - [x] locations table name + PK (e.g., `locations(tenant_id, location_id)` / `warehouse_locations(...)`)
+- [x] Decide whether to enforce product category FK now:
+  - [x] If categories are tenant-scoped DB tables with stable PKs → add composite FK
+  - [x] If categories are not persisted/ready → keep `cycle_count_schedule_categories` table but omit FK until follow-up
 
 ### C) Database migrations (schema-only)
-- [ ] Add SQL migration(s) to create:
-  - [ ] `cycle_count_schedules`
-    - [ ] composite PK: `(tenant_id, schedule_id)`
-    - [ ] required timestamps: `created_at`, `updated_at` (`TIMESTAMPTZ` with default `NOW()`)
-    - [ ] optional soft delete: `deleted_at TIMESTAMPTZ NULL` (only if consistent with project convention)
-    - [ ] scheduling fields: `frequency`, `interval_days`, `timezone`, `start_at`, `next_run_at`, `end_at`
-    - [ ] operational flags: `is_active`, `auto_create_stock_take`
-  - [ ] `cycle_count_schedule_locations`
-    - [ ] composite PK: `(tenant_id, schedule_id, location_id)`
-    - [ ] composite FK to schedules: `(tenant_id, schedule_id)`
-    - [ ] composite FK to locations: `(tenant_id, location_id)`
-  - [ ] `cycle_count_schedule_categories` (optional scope)
-    - [ ] composite PK: `(tenant_id, schedule_id, category_id)`
-    - [ ] composite FK to schedules: `(tenant_id, schedule_id)`
-    - [ ] composite FK to categories only if category table exists and is tenant-scoped
-- [ ] Add check constraints (recommended):
-  - [ ] `frequency != 'custom' OR interval_days IS NOT NULL`
-  - [ ] `interval_days IS NULL OR interval_days > 0`
-- [ ] Add indexes for common queries:
-  - [ ] `(tenant_id, next_run_at)` with partial filter for active schedules if soft-delete is used
-  - [ ] `(tenant_id, warehouse_id)` with partial filter if soft-delete is used
-  - [ ] `(tenant_id, location_id)` on `cycle_count_schedule_locations`
-  - [ ] `(tenant_id, category_id)` on `cycle_count_schedule_categories`
+- [x] Add SQL migration(s) to create:
+  - [x] `cycle_count_schedules`
+    - [x] composite PK: `(tenant_id, schedule_id)`
+    - [x] required timestamps: `created_at`, `updated_at` (`TIMESTAMPTZ` with default `NOW()`)
+    - [x] optional soft delete: `deleted_at TIMESTAMPTZ NULL` (only if consistent with project convention)
+    - [x] scheduling fields: `frequency`, `interval_days`, `timezone`, `start_at`, `next_run_at`, `end_at`
+    - [x] operational flags: `is_active`, `auto_create_stock_take`
+  - [x] `cycle_count_schedule_locations`
+    - [x] composite PK: `(tenant_id, schedule_id, location_id)`
+    - [x] composite FK to schedules: `(tenant_id, schedule_id)`
+    - [x] composite FK to locations: `(tenant_id, location_id)`
+  - [x] `cycle_count_schedule_categories` (optional scope)
+    - [x] composite PK: `(tenant_id, schedule_id, category_id)`
+    - [x] composite FK to schedules: `(tenant_id, schedule_id)`
+    - [x] composite FK to categories only if category table exists and is tenant-scoped
+- [x] Add check constraints (recommended):
+  - [x] `frequency != 'custom' OR interval_days IS NOT NULL`
+  - [x] `interval_days IS NULL OR interval_days > 0`
+- [x] Add indexes for common queries:
+  - [x] `(tenant_id, next_run_at)` with partial filter for active schedules if soft-delete is used
+  - [x] `(tenant_id, warehouse_id)` with partial filter if soft-delete is used
+  - [x] `(tenant_id, location_id)` on `cycle_count_schedule_locations`
+  - [x] `(tenant_id, category_id)` on `cycle_count_schedule_categories`
 
 ### D) Verification (DB-level)
-- [ ] Run migration locally (e.g., `sqlx migrate run`) and verify tables and indexes exist.
-- [ ] Validate that no cross-tenant references are possible via FK design (composite FKs where applicable).
-- [ ] Record the final table names and FK targets you used in the AI Agent Log (so later tasks can rely on them).
+- [x] Run migration locally (e.g., `sqlx migrate run`) and verify tables and indexes exist.
+- [x] Validate that no cross-tenant references are possible via FK design (composite FKs where applicable).
+- [x] Record the final table names and FK targets you used in the AI Agent Log (so later tasks can rely on them).
 
 ### E) Quality gates (before setting `NeedsReview`)
-- [ ] If code changes are required (usually not for schema-only tasks), run:
-  - [ ] `cargo fmt`
-  - [ ] `cargo check --workspace`
-  - [ ] `cargo clippy --workspace -- -D warnings`
-  - [ ] `cargo test --workspace`
+- [x] If code changes are required (usually not for schema-only tasks), run:
+  - [x] `cargo fmt`
+  - [x] `cargo check --workspace`
+  - [x] `cargo clippy --workspace -- -D warnings`
+  - [ ] `cargo test --workspace` (skipped - schema-only task, no Rust code to test)
 
 ## Proposed Schema (SQL Draft)
 > Adjust referenced table/column names to match your actual warehouse/location schema.
@@ -198,3 +198,18 @@ CREATE INDEX IF NOT EXISTS idx_cycle_count_schedule_categories_category
   - Added schema task for cycle counting schedules (multi-tenant tables + indexes).
   - Status: Todo
   - Files modified: `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/task_04.02.06_create_cycle_count_schedules_table.md`
+
+* 2026-01-16 (Claude): Starting work on task
+  - Verified dependencies: task_04.02.01 (Done), task_04.01.05 (Done)
+  - Confirmed schema: `warehouse_locations(tenant_id, location_id)`, `product_categories(tenant_id, category_id)`
+  - Status: InProgress_By_Claude
+
+* 2026-01-16 (Claude): Created migration 20260116000004_create_cycle_count_schedules_tables.sql
+  - Created three tables: cycle_count_schedules, cycle_count_schedule_locations, cycle_count_schedule_categories
+  - All tables use composite PKs with tenant_id
+  - Composite FKs reference: warehouses(tenant_id, warehouse_id), warehouse_locations(tenant_id, location_id), product_categories(tenant_id, category_id)
+  - Added CHECK constraints for frequency/interval_days validation
+  - Added partial indexes for active schedules and soft-delete patterns
+  - Migration applied successfully, all tables verified
+  - Quality gates passed: cargo check, cargo clippy
+  - Status: NeedsReview
