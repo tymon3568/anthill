@@ -20,6 +20,7 @@ use shared_config::Config;
 use shared_db::PgPool;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
+use user_service_core::domains::auth::domain::authz_version_repository::AuthzVersionRepository;
 use user_service_infra::auth::{
     AuthServiceImpl, InvitationServiceImpl, PgInvitationRepository, PgSessionRepository,
     PgTenantRepository, PgUserRepository, RedisAuthzVersionRepository,
@@ -80,6 +81,9 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
+        authz_version_repo: authz_version_repo
+            .clone()
+            .map(|r| r as Arc<dyn AuthzVersionRepository>),
         config: config.clone(),
         invitation_rate_limiter: Arc::new(crate::rate_limiter::InvitationRateLimiter::default()),
     };

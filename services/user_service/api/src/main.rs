@@ -17,10 +17,11 @@ use user_service_api::{
     admin_handlers, handlers, invitation_handlers, permission_handlers, profile_handlers,
     rate_limiter::InvitationRateLimiter, verification_handlers, AppState, ProfileAppState,
 };
+use user_service_core::domains::auth::domain::authz_version_repository::AuthzVersionRepository;
 use user_service_infra::auth::{
     AuthServiceImpl, EmailVerificationServiceImpl, InvitationServiceImpl,
     PgEmailVerificationRepository, PgInvitationRepository, PgSessionRepository, PgTenantRepository,
-    PgUserProfileRepository, PgUserRepository, ProfileServiceImpl,
+    PgUserProfileRepository, PgUserRepository, ProfileServiceImpl, RedisAuthzVersionRepository,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -116,6 +117,16 @@ async fn main() {
     );
     let email_verification_service = Arc::new(email_verification_service);
 
+    // Initialize AuthZ version repository (optional - for immediate-effect permission changes)
+    let authz_version_repo: Option<Arc<dyn AuthzVersionRepository>> =
+        if let Some(redis_url) = &config.redis_url {
+            tracing::info!("✅ Initializing AuthZ version repository with Redis");
+            Some(Arc::new(RedisAuthzVersionRepository::new(db_pool.clone(), redis_url).await))
+        } else {
+            tracing::info!("ℹ️ Redis not configured - AuthZ versioning disabled");
+            None
+        };
+
     // Create application states
     let state = AppState {
         auth_service: Arc::new(auth_service),
@@ -124,6 +135,7 @@ async fn main() {
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
+        authz_version_repo,
         config: config.clone(),
         invitation_rate_limiter: Arc::new(InvitationRateLimiter::default()),
     };
