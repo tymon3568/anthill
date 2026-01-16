@@ -284,8 +284,8 @@ pub const SENSITIVE_ENDPOINTS: &[&str] = &[
 
 ## Dependencies
 
-- `V1_MVP/03_User_Service/3.5_Authz_Versioning/task_03.05.01_add_authz_versioning_schema.md` (Status: NeedsReview) - Provides `policy_version`
-- `V1_MVP/03_User_Service/3.2_Casbin_Authorization/task_03.02.08_create_role_management_apis.md` (Status: InProgress) - Handlers to instrument
+- `V1_MVP/03_User_Service/3.5_Authz_Versioning/task_03.05.01_add_authz_versioning_schema.md` (Status: Done) - Provides `policy_version`
+- `V1_MVP/03_User_Service/3.2_Casbin_Authorization/task_03.02.08_create_role_management_apis.md` (Status: Done) - Handlers to instrument
 
 ## Configuration
 

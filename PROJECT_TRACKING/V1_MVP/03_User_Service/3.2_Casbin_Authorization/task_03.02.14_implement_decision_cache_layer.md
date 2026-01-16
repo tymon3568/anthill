@@ -209,7 +209,7 @@ pub async fn enforce_cached(
 
 ## Dependencies
 
-- `V1_MVP/03_User_Service/3.5_Authz_Versioning/task_03.05.01_add_authz_versioning_schema.md` (Status: NeedsReview) - Provides `policy_version`
+- `V1_MVP/03_User_Service/3.5_Authz_Versioning/task_03.05.01_add_authz_versioning_schema.md` (Status: Done) - Provides `policy_version`
 - `V1_MVP/03_User_Service/3.5_Authz_Versioning/task_03.05.02_implement_authz_version_store_with_redis.md` (Status: Todo) - Provides version lookup
 
 ## Recommended Crates
