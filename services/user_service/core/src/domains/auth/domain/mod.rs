@@ -1,3 +1,4 @@
+pub mod audit_log_repository;
 pub mod authz_version_repository;
 pub mod email_verification_repository;
 pub mod email_verification_service;

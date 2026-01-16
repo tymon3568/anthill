@@ -195,6 +195,23 @@ pub struct Config {
     /// Decision cache max entries for in-memory backend (default: 10000)
     #[serde(default = "default_decision_cache_max_entries")]
     pub decision_cache_max_entries: u64,
+
+    // ===== Audit Logging Configuration =====
+    /// Enable authorization audit logging (default: true)
+    #[serde(default = "default_audit_log_enabled")]
+    pub audit_log_enabled: bool,
+
+    /// Audit log retention in days (default: 90)
+    #[serde(default = "default_audit_log_retention_days")]
+    pub audit_log_retention_days: u32,
+
+    /// Audit log batch size for background writer (default: 100)
+    #[serde(default = "default_audit_log_batch_size")]
+    pub audit_log_batch_size: u32,
+
+    /// Audit log flush interval in milliseconds (default: 1000)
+    #[serde(default = "default_audit_log_flush_interval_ms")]
+    pub audit_log_flush_interval_ms: u64,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -331,6 +348,23 @@ fn default_decision_cache_max_entries() -> u64 {
     10_000
 }
 
+// Audit logging defaults
+fn default_audit_log_enabled() -> bool {
+    true
+}
+
+fn default_audit_log_retention_days() -> u32 {
+    90
+}
+
+fn default_audit_log_batch_size() -> u32 {
+    100
+}
+
+fn default_audit_log_flush_interval_ms() -> u64 {
+    1000
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
@@ -379,7 +413,12 @@ impl Config {
             // Decision cache defaults
             .set_default("decision_cache_enabled", true)?
             .set_default("decision_cache_ttl_seconds", 15)?
-            .set_default("decision_cache_max_entries", 10_000)?;
+            .set_default("decision_cache_max_entries", 10_000)?
+            // Audit logging defaults
+            .set_default("audit_log_enabled", true)?
+            .set_default("audit_log_retention_days", 90)?
+            .set_default("audit_log_batch_size", 100)?
+            .set_default("audit_log_flush_interval_ms", 1000)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());
@@ -457,6 +496,10 @@ impl Default for Config {
             decision_cache_enabled: default_decision_cache_enabled(),
             decision_cache_ttl_seconds: default_decision_cache_ttl_seconds(),
             decision_cache_max_entries: default_decision_cache_max_entries(),
+            audit_log_enabled: default_audit_log_enabled(),
+            audit_log_retention_days: default_audit_log_retention_days(),
+            audit_log_batch_size: default_audit_log_batch_size(),
+            audit_log_flush_interval_ms: default_audit_log_flush_interval_ms(),
         }
     }
 }
