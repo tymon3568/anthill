@@ -5,15 +5,15 @@
 **Phase:** 03_User_Service
 **Module:** 3.2_Casbin_Authorization
 **Priority:** High
-**Status:** InProgress_By_Gemini
+**Status:** Done
 **Assignee:** Gemini
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-16
 
 ## Detailed Description:
 Implement API endpoints for administrators to manage roles and permissions dynamically. These endpoints should only be accessible to users with an `admin` role.
 
 ## Specific Sub-tasks:
-- [ ] 1. Implement `POST /api/v1/admin/roles` to create a custom role.
+- [x] 1. Implement `POST /api/v1/admin/roles` to create a custom role.
 - [x] 2. Implement `POST /api/v1/admin/policies` to add a policy to a role.
 - [x] 3. Implement `DELETE /api/v1/admin/policies` to remove a policy from a role.
 - [x] 4. Implement `POST /api/v1/admin/users/:user_id/roles` to assign a role to a user.
@@ -21,7 +21,7 @@ Implement API endpoints for administrators to manage roles and permissions dynam
 - [x] 6. Ensure all endpoints are protected by an admin-only authorization check.
 
 ## Acceptance Criteria:
-- [ ] All five endpoints are implemented and documented in OpenAPI.
+- [x] All five endpoints are implemented and documented in OpenAPI.
 - [x] Access to these endpoints is strictly limited to users with the `admin` role.
 - [x] The endpoints correctly modify the policies in the `casbin_rule` table.
 
@@ -39,3 +39,8 @@ Implement API endpoints for administrators to manage roles and permissions dynam
 ---
 * 2025-10-25 13:00: Gemini started working on the task. Researched Casbin API for policy and role management. Implemented handlers and routes for policy and user role management. Updated OpenAPI documentation.
 * 2026-01-04: Status corrected from invalid 'InProgress' to 'InProgress_By_Gemini' per folder-tasks workflow rules. Remaining work: implement `POST /api/v1/admin/roles` endpoint for explicit role creation.
+* 2026-01-16: Task completed by Antigravity
+    - Role creation endpoint `POST /api/v1/admin/roles` was implemented in task_03.02.11
+    - All sub-tasks verified as complete
+    - All endpoints documented in OpenAPI
+    - Status updated to Done
