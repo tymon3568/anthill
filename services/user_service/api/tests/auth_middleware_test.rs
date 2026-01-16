@@ -13,14 +13,33 @@ use tower::ServiceExt;
 use user_service_api::get_app;
 
 async fn setup_test_app() -> (Router, PgPool, Config) {
+    // Calculate workspace root from CARGO_MANIFEST_DIR
+    // CARGO_MANIFEST_DIR points to services/user_service/api
+    // We need to go up 3 levels to reach workspace root
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".to_string());
+    let workspace_root = std::path::Path::new(&manifest_dir)
+        .ancestors()
+        .nth(3)
+        .unwrap_or(std::path::Path::new("."));
+    let casbin_model_path = workspace_root
+        .join("shared/auth/model.conf")
+        .to_string_lossy()
+        .to_string();
+
     // Create test config directly
     let config = Config {
         database_url: "postgres://user:password@localhost:5432/inventory_db".to_string(),
         jwt_secret: "test-secret-key-for-integration-tests".to_string(),
+        casbin_model_path,
         ..Default::default()
     };
 
     let db_pool = helpers::setup_test_db().await;
+
+    // Clean up and seed test data
+    helpers::cleanup_test_data(&db_pool).await;
+    helpers::seed_test_data(&db_pool).await;
+
     let app = get_app(db_pool.clone(), &config).await;
     (app, db_pool, config)
 }
@@ -36,7 +55,7 @@ async fn test_admin_can_access_admin_route() {
             .expect("Failed to fetch admin user");
 
     let admin_token =
-        helpers::generate_jwt(admin_user.user_id, admin_user.tenant_id, "role:admin", &config);
+        helpers::generate_jwt(admin_user.user_id, admin_user.tenant_id, "admin", &config);
 
     let request = Request::builder()
         .uri("/api/v1/admin/policies")
@@ -45,11 +64,9 @@ async fn test_admin_can_access_admin_route() {
         .header(http::header::AUTHORIZATION, format!("Bearer {}", admin_token))
         .body(Body::from(
             json!({
-                "ptype": "p",
-                "v0": "role:manager",
-                "v1": admin_user.tenant_id.to_string(),
-                "v2": "/api/v1/users",
-                "v3": "GET"
+                "role": "role:manager",
+                "resource": "/api/v1/users",
+                "action": "GET"
             })
             .to_string(),
         ))
@@ -69,12 +86,8 @@ async fn test_manager_cannot_access_admin_route() {
             .await
             .expect("Failed to fetch manager user");
 
-    let manager_token = helpers::generate_jwt(
-        manager_user.user_id,
-        manager_user.tenant_id,
-        "role:manager",
-        &config,
-    );
+    let manager_token =
+        helpers::generate_jwt(manager_user.user_id, manager_user.tenant_id, "manager", &config);
 
     let request = Request::builder()
         .uri("/api/v1/admin/policies")
@@ -83,11 +96,9 @@ async fn test_manager_cannot_access_admin_route() {
         .header(http::header::AUTHORIZATION, format!("Bearer {}", manager_token))
         .body(Body::from(
             json!({
-                "ptype": "p",
-                "v0": "role:manager",
-                "v1": manager_user.tenant_id.to_string(),
-                "v2": "/api/v1/users",
-                "v3": "GET"
+                "role": "role:manager",
+                "resource": "/api/v1/users",
+                "action": "GET"
             })
             .to_string(),
         ))
@@ -107,7 +118,7 @@ async fn test_user_can_access_read_only_route() {
             .await
             .expect("Failed to fetch user");
 
-    let user_token = helpers::generate_jwt(user.user_id, user.tenant_id, "role:user", &config);
+    let user_token = helpers::generate_jwt(user.user_id, user.tenant_id, "user", &config);
 
     let request = Request::builder()
         .uri("/api/v1/users")
@@ -135,8 +146,7 @@ async fn test_tenant_isolation() {
         .await
         .expect("Failed to fetch user_b");
 
-    let user_a_token =
-        helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
+    let user_a_token = helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "user", &config);
 
     let request = Request::builder()
         .uri(format!("/api/v1/users/{}", user_b.user_id))
@@ -164,8 +174,7 @@ async fn test_tenant_isolation_reverse() {
             .await
             .expect("Failed to fetch user_b");
 
-    let user_b_token =
-        helpers::generate_jwt(user_b.user_id, user_b.tenant_id, "role:user", &config);
+    let user_b_token = helpers::generate_jwt(user_b.user_id, user_b.tenant_id, "user", &config);
 
     let request = Request::builder()
         .uri(format!("/api/v1/users/{}", user_a.user_id))
@@ -188,8 +197,7 @@ async fn test_list_users_tenant_isolation() {
             .await
             .expect("Failed to fetch user_a");
 
-    let user_a_token =
-        helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "role:user", &config);
+    let user_a_token = helpers::generate_jwt(user_a.user_id, user_a.tenant_id, "user", &config);
 
     let request = Request::builder()
         .uri("/api/v1/users")
@@ -202,8 +210,10 @@ async fn test_list_users_tenant_isolation() {
     assert_eq!(response.status(), StatusCode::OK);
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    let users: Vec<serde_json::Value> = serde_json::from_slice(&body).unwrap();
+    let resp: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let users = resp["users"].as_array().expect("users should be an array");
 
+    // Tenant A has 3 users: admin, manager, user
     assert_eq!(users.len(), 3);
     for user in users {
         assert_eq!(user["tenant_id"], user_a.tenant_id.to_string());
