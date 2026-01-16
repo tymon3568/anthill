@@ -2,6 +2,7 @@ pub mod category;
 pub mod cycle_count;
 pub mod delivery;
 pub mod health;
+pub mod landed_cost;
 pub mod lot_serial;
 pub mod picking;
 pub mod products;

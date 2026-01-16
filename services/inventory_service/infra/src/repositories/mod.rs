@@ -5,6 +5,7 @@
 pub mod category;
 pub mod delivery_order;
 pub mod event;
+pub mod landed_cost;
 pub mod lot_serial;
 pub mod picking_method;
 pub mod product;
@@ -27,6 +28,10 @@ pub use delivery_order::{
     PgDeliveryOrderItemRepository, PgDeliveryOrderRepository, PgInventoryRepository,
 };
 pub use event::EventRepositoryImpl;
+pub use landed_cost::{
+    LandedCostAllocationRepositoryImpl, LandedCostDocumentRepositoryImpl,
+    LandedCostLineRepositoryImpl,
+};
 pub use lot_serial::LotSerialRepositoryImpl;
 pub use picking_method::PickingMethodRepositoryImpl;
 pub use product::ProductRepositoryImpl;

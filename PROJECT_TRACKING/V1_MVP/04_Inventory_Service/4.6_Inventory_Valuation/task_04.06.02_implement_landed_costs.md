@@ -1,12 +1,12 @@
 # Task: Implement Landed Costs
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/task_04.06.02_implement_landed_costs.md`  
-**Status:** Todo  
+**Status:** InProgress_By_Claude  
 **Priority:** P1  
 **Phase:** V1_MVP  
 **Module:** 04_Inventory_Service / 4.6_Inventory_Valuation  
-**Assignee:**  
-**Last Updated:** 2025-12-28  
+**Assignee:** Claude  
+**Last Updated:** 2026-01-16  
 **Dependencies:**  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.01_create_goods_receipts_table.md`  
 - `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.4_Stock_Operations/task_04.04.02_create_goods_receipt_items_table.md`  

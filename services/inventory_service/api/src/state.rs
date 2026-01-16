@@ -10,6 +10,7 @@ use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::cycle_count::CycleCountingService;
 use inventory_service_core::services::delivery::DeliveryService;
 use inventory_service_core::services::distributed_lock::DistributedLockService;
+use inventory_service_core::services::landed_cost::LandedCostService;
 use inventory_service_core::services::lot_serial::LotSerialService;
 use inventory_service_core::services::picking_method::PickingMethodService;
 use inventory_service_core::services::product::ProductService;
@@ -47,6 +48,7 @@ pub struct AppState {
     pub quality_service: Arc<dyn QualityControlPointService>,
     pub putaway_service: Arc<dyn PutawayService>,
     pub scrap_service: Arc<dyn ScrapService>,
+    pub landed_cost_service: Arc<dyn LandedCostService>,
     pub distributed_lock_service: Arc<dyn DistributedLockService>,
     pub enforcer: SharedEnforcer,
     pub jwt_secret: String,
@@ -73,6 +75,7 @@ impl Clone for AppState {
             quality_service: self.quality_service.clone(),
             putaway_service: self.putaway_service.clone(),
             scrap_service: self.scrap_service.clone(),
+            landed_cost_service: self.landed_cost_service.clone(),
             distributed_lock_service: self.distributed_lock_service.clone(),
             enforcer: self.enforcer.clone(),
             jwt_secret: self.jwt_secret.clone(),

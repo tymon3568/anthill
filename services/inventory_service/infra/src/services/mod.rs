@@ -10,6 +10,7 @@ pub mod distributed_lock;
 pub mod inventory;
 pub mod lot_serial;
 
+pub mod landed_cost;
 pub mod picking_method;
 pub mod product;
 pub mod putaway;
@@ -45,6 +46,7 @@ pub use category::CategoryServiceImpl;
 pub use self::picking_method::PickingMethodServiceImpl;
 pub use distributed_lock::RedisDistributedLockService;
 pub use inventory::InventoryServiceImpl;
+pub use landed_cost::LandedCostServiceImpl;
 pub use lot_serial::LotSerialServiceImpl;
 pub use product::ProductServiceImpl;
 pub use putaway::PgPutawayService;
