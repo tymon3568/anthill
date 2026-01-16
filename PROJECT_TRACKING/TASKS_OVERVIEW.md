@@ -103,11 +103,12 @@
           → [View folder](./V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/)
           → Progress: 4/4 tasks completed (Updated: 2025-12-30)
 
-    - [⏳] 4.6 Inventory Valuation - `Todo (Post-MVP Enhancement)`
+    - [✅] 4.6 Inventory Valuation - `Done 50%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/)
-          → Progress: 0/2 Todo (Updated: 2025-12-30)
-          → **Todo**: Landed Costs (4.06.02), FIFO/LIFO/WAC Methods (4.06.03)
-          → **Note**: Core valuation done in 4.3; these are advanced enhancements
+          → Progress: 1/2 Done (Updated: 2026-01-16)
+          → **Done**: FIFO/AVCO/Standard Methods (4.06.03) - implemented via task_04.03.03
+          → **Todo**: Landed Costs (4.06.02)
+          → **Note**: Core valuation fully implemented; Landed Costs is post-MVP enhancement
 
     - [✅] 4.7 Stock Replenishment - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.7_Stock_Replenishment/)
@@ -131,8 +132,8 @@
 
     - [✅] 4.11 Technical Implementation - `Done 91%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.11_Technical_Implementation/)
-          → Progress: 10/11 Done, 1 Deferred (Updated: 2025-12-30)
-          → **Done**: Idempotency, Outbox, Performance, Router wiring, State consistency
+          → Progress: 10/11 Done, 1 Deferred (Updated: 2026-01-16)
+          → **Done**: Idempotency, Outbox, Performance, Router wiring, State consistency, PR review fixes
           → **Deferred**: Mobile PWA (out of MVP scope)
 
     - [⏳] 4.12 Multi-Echelon Inventory - `Todo (Low Priority)`
