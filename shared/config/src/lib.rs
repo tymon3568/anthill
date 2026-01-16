@@ -182,6 +182,19 @@ pub struct Config {
 
     /// Trusted IPs that bypass rate limiting (comma-separated, supports CIDR notation, optional)
     pub rate_limit_trusted_ips: Option<String>,
+
+    // ===== Decision Cache Configuration =====
+    /// Enable authorization decision caching (default: true)
+    #[serde(default = "default_decision_cache_enabled")]
+    pub decision_cache_enabled: bool,
+
+    /// Decision cache TTL in seconds (default: 15)
+    #[serde(default = "default_decision_cache_ttl_seconds")]
+    pub decision_cache_ttl_seconds: u64,
+
+    /// Decision cache max entries for in-memory backend (default: 10000)
+    #[serde(default = "default_decision_cache_max_entries")]
+    pub decision_cache_max_entries: u64,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -305,6 +318,19 @@ fn default_rate_limit_resend_window() -> u64 {
     3600 // 1 hour
 }
 
+// Decision cache defaults
+fn default_decision_cache_enabled() -> bool {
+    true
+}
+
+fn default_decision_cache_ttl_seconds() -> u64 {
+    15
+}
+
+fn default_decision_cache_max_entries() -> u64 {
+    10_000
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
@@ -349,7 +375,11 @@ impl Config {
             .set_default("rate_limit_resend_max", 3)?
             .set_default("rate_limit_resend_window", 3600)?
             .set_default("rate_limit_trust_proxy_headers", false)?
-            .set_default("rate_limit_proxy_count", 0)?;
+            .set_default("rate_limit_proxy_count", 0)?
+            // Decision cache defaults
+            .set_default("decision_cache_enabled", true)?
+            .set_default("decision_cache_ttl_seconds", 15)?
+            .set_default("decision_cache_max_entries", 10_000)?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());
@@ -424,6 +454,9 @@ impl Default for Config {
             rate_limit_trust_proxy_headers: false,
             rate_limit_proxy_count: 0,
             rate_limit_trusted_ips: None,
+            decision_cache_enabled: default_decision_cache_enabled(),
+            decision_cache_ttl_seconds: default_decision_cache_ttl_seconds(),
+            decision_cache_max_entries: default_decision_cache_max_entries(),
         }
     }
 }

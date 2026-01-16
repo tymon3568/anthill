@@ -8,9 +8,15 @@ casbin = {version = "2.0", default-features = false, features = ["runtime-tokio"
 futures-util = "0.3"
 # HTTP types
 http = "1.0"
+# Caching
+moka = { version = "0.12", features = ["future"] }
+# Hex encoding for cache keys
+hex = "0.4"
 # Serialization
 serde = {workspace = true}
 serde_json = {workspace = true}
+# Hashing for cache keys
+sha2 = "0.10"
 # Shared crates
 shared_error = {workspace = true}
 shared_jwt = {workspace = true}
