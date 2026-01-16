@@ -9,6 +9,7 @@ pub mod cycle_count;
 pub mod delivery;
 pub mod distributed_lock;
 pub mod inventory;
+pub mod landed_cost;
 pub mod lot_serial;
 
 pub mod picking_method;
@@ -28,6 +29,7 @@ pub mod valuation;
 // Re-export main types for convenience
 pub use category::CategoryService;
 pub use distributed_lock::DistributedLockService;
+pub use landed_cost::LandedCostService;
 pub use picking_method::PickingMethodService;
 pub use quality::QualityControlPointService;
 // pub use delivery::DeliveryService;

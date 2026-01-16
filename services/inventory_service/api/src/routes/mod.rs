@@ -31,7 +31,8 @@ use inventory_service_core::services::delivery::DeliveryService;
 
 // Inventory-service infra - Repository implementations
 use inventory_service_infra::repositories::{
-    CategoryRepositoryImpl, LotSerialRepositoryImpl, PgInventoryLevelRepository,
+    CategoryRepositoryImpl, LandedCostAllocationRepositoryImpl, LandedCostDocumentRepositoryImpl,
+    LandedCostLineRepositoryImpl, LotSerialRepositoryImpl, PgInventoryLevelRepository,
     PgPutawayRepository, PgQualityControlPointRepository, PgReorderRuleRepository,
     PgRmaItemRepository, PgRmaRepository, PgStockMoveRepository,
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
@@ -42,10 +43,10 @@ use inventory_service_infra::repositories::{
 
 // Inventory-service infra - Service implementations
 use inventory_service_infra::services::{
-    CategoryServiceImpl, LotSerialServiceImpl, PgPutawayService, PgQualityControlPointService,
-    PgReplenishmentService, PgRmaService, PgScrapService, PgStockReconciliationService,
-    PgStockTakeService, PgTransferService, PickingMethodServiceImpl, ProductServiceImpl,
-    ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
+    CategoryServiceImpl, LandedCostServiceImpl, LotSerialServiceImpl, PgPutawayService,
+    PgQualityControlPointService, PgReplenishmentService, PgRmaService, PgScrapService,
+    PgStockReconciliationService, PgStockTakeService, PgTransferService, PickingMethodServiceImpl,
+    ProductServiceImpl, ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
 };
 
 // Local handlers
@@ -53,6 +54,7 @@ use crate::handlers::category::create_category_routes;
 use crate::handlers::cycle_count::create_cycle_count_routes;
 use crate::handlers::delivery::create_delivery_routes;
 use crate::handlers::health::health_check;
+use crate::handlers::landed_cost::create_landed_cost_routes;
 use crate::handlers::lot_serial::create_lot_serial_routes;
 use crate::handlers::picking::create_picking_routes;
 use crate::handlers::products::create_product_routes;
@@ -258,6 +260,12 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Valuation
     let valuation_repo = Arc::new(ValuationRepositoryImpl::new(pool.clone()));
 
+    // Landed Cost
+    let landed_cost_document_repo = Arc::new(LandedCostDocumentRepositoryImpl::new(pool.clone()));
+    let landed_cost_line_repo = Arc::new(LandedCostLineRepositoryImpl::new(pool.clone()));
+    let landed_cost_allocation_repo =
+        Arc::new(LandedCostAllocationRepositoryImpl::new(pool.clone()));
+
     // =========================================================================
     // Phase 2: Initialize Distributed Lock Service (Redis)
     // =========================================================================
@@ -359,6 +367,13 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         valuation_repo,         // history_repo
     ));
 
+    // Landed Cost Service
+    let landed_cost_service = Arc::new(LandedCostServiceImpl::new(
+        landed_cost_document_repo,
+        landed_cost_line_repo,
+        landed_cost_allocation_repo,
+    ));
+
     // Delivery Service (stub - implementation disabled in infra)
     let delivery_service = Arc::new(StubDeliveryService);
 
@@ -386,6 +401,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         quality_service,
         putaway_service,
         scrap_service,
+        landed_cost_service,
         distributed_lock_service,
         enforcer: enforcer.clone(),
         jwt_secret: config.jwt_secret.clone(),
@@ -466,6 +482,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/putaway", create_putaway_routes())
         // Valuation
         .nest("/api/v1/inventory/valuation", create_valuation_routes())
+        // Landed Costs
+        .nest("/api/v1/inventory/landed-costs", create_landed_cost_routes())
         // Quality control
         .nest("/api/v1/inventory/quality", create_quality_routes())
         // Replenishment

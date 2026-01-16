@@ -70,7 +70,7 @@ impl InvitationRateLimiter {
                 // Log and recover from poisoned lock
                 warn!("Rate limiter lock was poisoned, recovering");
                 poisoned.into_inner()
-            }
+            },
         };
 
         // Get or create entry for this IP
@@ -131,7 +131,7 @@ impl InvitationRateLimiter {
                 // Log and recover from poisoned lock
                 warn!("Rate limiter lock was poisoned, recovering");
                 poisoned.into_inner()
-            }
+            },
         };
         attempts.get(ip).map(|v| v.len()).unwrap_or(0)
     }

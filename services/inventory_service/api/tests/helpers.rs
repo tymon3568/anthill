@@ -8,7 +8,8 @@ use sqlx::{migrate::Migrator, PgPool};
 use inventory_service_api::routes::StubDeliveryService;
 
 use inventory_service_infra::repositories::{
-    CategoryRepositoryImpl, LotSerialRepositoryImpl, PgDeliveryOrderItemRepository,
+    CategoryRepositoryImpl, LandedCostAllocationRepositoryImpl, LandedCostDocumentRepositoryImpl,
+    LandedCostLineRepositoryImpl, LotSerialRepositoryImpl, PgDeliveryOrderItemRepository,
     PgDeliveryOrderRepository, PgInventoryLevelRepository, PgPutawayRepository,
     PgQualityControlPointRepository, PgReorderRuleRepository, PgRmaItemRepository, PgRmaRepository,
     PgStockMoveRepository, PgStockReconciliationItemRepository, PgStockReconciliationRepository,
@@ -17,10 +18,11 @@ use inventory_service_infra::repositories::{
     ReceiptRepositoryImpl, ValuationRepositoryImpl, WarehouseRepositoryImpl,
 };
 use inventory_service_infra::services::{
-    CategoryServiceImpl, LotSerialServiceImpl, PgCycleCountingService, PgPutawayService,
-    PgQualityControlPointService, PgReplenishmentService, PgRmaService, PgScrapService,
-    PgStockReconciliationService, PgStockTakeService, PgTransferService, PickingMethodServiceImpl,
-    ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
+    CategoryServiceImpl, LandedCostServiceImpl, LotSerialServiceImpl, PgCycleCountingService,
+    PgPutawayService, PgQualityControlPointService, PgReplenishmentService, PgRmaService,
+    PgScrapService, PgStockReconciliationService, PgStockTakeService, PgTransferService,
+    PickingMethodServiceImpl, ReceiptServiceImpl, RedisDistributedLockService,
+    ValuationServiceImpl,
 };
 use uuid::Uuid;
 
@@ -202,6 +204,11 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         )),
         reconciliation_service,
         rma_service: Arc::new(PgRmaService::new(rma_repo, rma_item_repo, stock_move_repo_trait)),
+        landed_cost_service: Arc::new(LandedCostServiceImpl::new(
+            Arc::new(LandedCostDocumentRepositoryImpl::new(pool_ref.clone())),
+            Arc::new(LandedCostLineRepositoryImpl::new(pool_ref.clone())),
+            Arc::new(LandedCostAllocationRepositoryImpl::new(pool_ref.clone())),
+        )),
         replenishment_service: Arc::new(PgReplenishmentService::new(
             reorder_repo,
             inventory_repo.clone(),

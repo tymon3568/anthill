@@ -23,6 +23,7 @@ pub mod transaction {
     }
 }
 pub mod delivery_order;
+pub mod landed_cost;
 pub mod lot_serial;
 pub mod product;
 pub mod receipt;
@@ -40,6 +41,9 @@ pub use delivery_order::{
     DeliveryOrderItemRepository, DeliveryOrderRepository, InventoryRepository,
 };
 pub use event::EventRepository;
+pub use landed_cost::{
+    LandedCostAllocationRepository, LandedCostDocumentRepository, LandedCostLineRepository,
+};
 pub use lot_serial::LotSerialRepository;
 pub use picking_method::PickingMethodRepository;
 pub use product::ProductRepository;
