@@ -185,7 +185,7 @@ impl PgAuditLogRepository {
             .bind(&event.ip_address)
             .bind(&event.user_agent)
             .bind(event.request_id)
-            .bind(&event.metadata.clone().unwrap_or(serde_json::json!({})))
+            .bind(event.metadata.clone().unwrap_or(serde_json::json!({})))
             .execute(pool)
             .await?;
         }
@@ -221,7 +221,7 @@ impl PgAuditLogRepository {
         .bind(&event.ip_address)
         .bind(&event.user_agent)
         .bind(event.request_id)
-        .bind(&event.metadata.clone().unwrap_or(serde_json::json!({})))
+        .bind(event.metadata.clone().unwrap_or(serde_json::json!({})))
         .execute(&self.pool)
         .await?;
 
