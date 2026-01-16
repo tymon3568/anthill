@@ -5,10 +5,10 @@
 **Phase:** 03_User_Service  
 **Module:** 3.3_User_Management  
 **Priority:** High  
-**Status:** Todo  
-**Assignee:**  
+**Status:** Done  
+**Assignee:** Antigravity  
 **Created Date:** 2026-01-02  
-**Last Updated:** 2026-01-02  
+**Last Updated:** 2026-01-15  
 
 ## Detailed Description
 Implement tenant-admin endpoints to manage user lifecycle actions within a tenant:
@@ -143,3 +143,16 @@ This task depends on the Hybrid AuthZ versioning implementation:
 ## AI Agent Log
 ---
 * 2026-01-02: Task created to implement admin lifecycle endpoints (suspend/delete/reset-password) with owner protection and immediate authorization invalidation via hybrid authz versioning.
+* 2026-01-15: Task implemented by Antigravity
+    - Added DTOs: `SuspendUserReq`, `SuspendUserResp`, `UnsuspendUserResp`, `DeleteUserResp`, `AdminResetPasswordReq`, `AdminResetPasswordResp`
+    - Added service methods: `admin_suspend_user`, `admin_unsuspend_user`, `admin_delete_user`, `admin_reset_password`
+    - Implemented owner protection (prevents non-owner admins from suspending/deleting tenant owner)
+    - Implemented session revocation (force logout on suspend/delete/reset-password)
+    - Added API handlers: `suspend_user`, `unsuspend_user`, `delete_user`, `reset_user_password`
+    - Added routes: `POST /api/v1/admin/users/{user_id}/suspend`, `POST /api/v1/admin/users/{user_id}/unsuspend`, `DELETE /api/v1/admin/users/{user_id}`, `POST /api/v1/admin/users/{user_id}/reset-password`
+    - Updated OpenAPI schema with new endpoints and DTOs
+    - All endpoints enforce tenant isolation and admin-only access
+    - Password reset validates password strength and hashes with bcrypt
+    - Soft delete sets `deleted_at` timestamp and status to "inactive"
+    - Status changed to Done
+    - Note: AuthZ versioning integration (immediate effect) is deferred to task_03.05.05 (will add version bumps when that infrastructure is ready)

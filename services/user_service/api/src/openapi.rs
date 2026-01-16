@@ -1,5 +1,6 @@
 use user_service_core::domains::auth::dto::admin_dto::*;
 use user_service_core::domains::auth::dto::auth_dto::*;
+use user_service_core::domains::auth::dto::invitation_dto::*;
 use utoipa::OpenApi;
 
 /// OpenAPI documentation for User Service
@@ -31,6 +32,17 @@ use utoipa::OpenApi;
         crate::admin_handlers::list_permissions,
         // Admin user management
         crate::admin_handlers::admin_create_user,
+        // Admin user lifecycle management
+        crate::admin_handlers::suspend_user,
+        crate::admin_handlers::unsuspend_user,
+        crate::admin_handlers::delete_user,
+        crate::admin_handlers::reset_user_password,
+        // Invitation management
+        crate::invitation_handlers::create_invitation,
+        crate::invitation_handlers::accept_invitation,
+        crate::invitation_handlers::list_invitations,
+        crate::invitation_handlers::revoke_invitation,
+        crate::invitation_handlers::resend_invitation,
     ),
     components(
         schemas(
@@ -75,6 +87,22 @@ use utoipa::OpenApi;
             // Admin user management DTOs
             AdminCreateUserReq,
             AdminCreateUserResp,
+            // Admin user lifecycle management DTOs
+            SuspendUserReq,
+            SuspendUserResp,
+            UnsuspendUserResp,
+            DeleteUserResp,
+            AdminResetPasswordReq,
+            AdminResetPasswordResp,
+            // Invitation DTOs
+            CreateInvitationRequest,
+            CreateInvitationResponse,
+            AcceptInvitationRequest,
+            AcceptInvitationResponse,
+            InvitationListItem,
+            InvitedByInfo,
+            ListInvitationsQuery,
+            ListInvitationsResponse,
         )
     ),
     tags(
@@ -86,6 +114,7 @@ use utoipa::OpenApi;
         (name = "admin-roles", description = "Role management endpoints (admin only)"),
         (name = "admin-users", description = "User role assignment endpoints (admin only)"),
         (name = "admin-permissions", description = "Permission management endpoints (admin only)"),
+        (name = "invitations", description = "User invitation management endpoints"),
     ),
     info(
         title = "User Service API",
