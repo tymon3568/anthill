@@ -1,3 +1,5 @@
+mod helpers;
+
 use axum::{
     body::Body,
     extract::Extension,
@@ -491,6 +493,9 @@ async fn test_tenant_isolation_with_multiple_users_per_tenant() {
             jwt_secret: get_test_jwt_secret(),
             ..Default::default()
         },
+        invitation_rate_limiter: Arc::new(
+            user_service_api::rate_limiter::InvitationRateLimiter::default(),
+        ),
     };
 
     let app = Router::new()

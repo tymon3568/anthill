@@ -70,6 +70,10 @@ pub struct Config {
     #[serde(default = "default_invitation_max_attempts")]
     pub invitation_max_attempts: i32,
 
+    /// Maximum invitations per admin per day
+    #[serde(default = "default_invitation_max_per_admin_per_day")]
+    pub invitation_max_per_admin_per_day: i32,
+
     // ===== Email Verification Configuration =====
     /// Base URL for email verification links
     #[serde(default = "default_verification_base_url")]
@@ -212,6 +216,10 @@ fn default_invitation_max_attempts() -> i32 {
     5
 }
 
+fn default_invitation_max_per_admin_per_day() -> i32 {
+    10
+}
+
 fn default_verification_base_url() -> String {
     "https://app.example.com".to_string()
 }
@@ -315,6 +323,7 @@ impl Config {
             .set_default("invitation_base_url", "https://app.example.com")?
             .set_default("invitation_expiry_hours", 48)?
             .set_default("invitation_max_attempts", 5)?
+            .set_default("invitation_max_per_admin_per_day", 10)?
             // Email verification defaults
             .set_default("verification_base_url", "https://app.example.com")?
             .set_default("verification_expiry_hours", 24)?
@@ -387,6 +396,7 @@ impl Default for Config {
             invitation_base_url: default_invitation_base_url(),
             invitation_expiry_hours: default_invitation_expiry_hours(),
             invitation_max_attempts: default_invitation_max_attempts(),
+            invitation_max_per_admin_per_day: default_invitation_max_per_admin_per_day(),
             verification_base_url: default_verification_base_url(),
             verification_expiry_hours: default_verification_expiry_hours(),
             smtp_host: None,
