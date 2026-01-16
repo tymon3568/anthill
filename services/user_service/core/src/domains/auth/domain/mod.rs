@@ -5,6 +5,8 @@ pub mod email_verification_service;
 pub mod invitation_repository;
 pub mod invitation_service;
 pub mod model;
+pub mod password_reset_repository;
+pub mod password_reset_service;
 pub mod profile_repository;
 pub mod profile_service;
 pub mod repository;

@@ -14,14 +14,16 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use user_service_api::{
-    admin_handlers, handlers, invitation_handlers, permission_handlers, profile_handlers,
-    rate_limiter::InvitationRateLimiter, verification_handlers, AppState, ProfileAppState,
+    admin_handlers, handlers, invitation_handlers, password_reset_handlers, permission_handlers,
+    profile_handlers, rate_limiter::InvitationRateLimiter, verification_handlers, AppState,
+    ProfileAppState,
 };
 use user_service_core::domains::auth::domain::authz_version_repository::AuthzVersionRepository;
 use user_service_infra::auth::{
-    AuthServiceImpl, EmailVerificationServiceImpl, InvitationServiceImpl,
-    PgEmailVerificationRepository, PgInvitationRepository, PgSessionRepository, PgTenantRepository,
-    PgUserProfileRepository, PgUserRepository, ProfileServiceImpl, RedisAuthzVersionRepository,
+    AuthServiceImpl, EmailVerificationServiceImpl, InvitationServiceImpl, PasswordResetServiceImpl,
+    PgEmailVerificationRepository, PgInvitationRepository, PgPasswordResetRepository,
+    PgSessionRepository, PgTenantRepository, PgUserProfileRepository, PgUserRepository,
+    ProfileServiceImpl, RedisAuthzVersionRepository,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -126,6 +128,22 @@ async fn main() {
             tracing::info!("ℹ️ Redis not configured - AuthZ versioning disabled");
             None
         };
+
+    // Initialize password reset service
+    let password_reset_repo = PgPasswordResetRepository::new(db_pool.clone());
+    let password_reset_session_repo = PgSessionRepository::new(db_pool.clone());
+    let password_reset_service = PasswordResetServiceImpl::new(
+        Arc::new(password_reset_repo),
+        Arc::new(user_repo.clone()),
+        Arc::new(password_reset_session_repo),
+        config.verification_base_url.clone(), // Reuse verification base URL for reset links
+        1,                                    // 1 hour expiry for reset tokens
+        config.rate_limit_forgot_max,
+        (config.rate_limit_forgot_window / 60) as i64, // Convert seconds to minutes
+        smtp_enabled,
+        8, // Minimum password length
+    );
+    let password_reset_service = Arc::new(password_reset_service);
 
     // Create application states
     let state = AppState {
@@ -300,6 +318,53 @@ async fn main() {
             RateLimitEndpoint::ResendVerification,
         ));
 
+    // Password reset routes with rate limiting
+    let forgot_password_route = Router::new()
+        .route(
+            "/api/v1/auth/forgot-password",
+            post(
+                password_reset_handlers::forgot_password::<
+                    PasswordResetServiceImpl<
+                        PgPasswordResetRepository,
+                        PgUserRepository,
+                        PgSessionRepository,
+                    >,
+                >,
+            ),
+        )
+        .layer(Extension(password_reset_service.clone()))
+        .layer(RateLimitLayer::new(rate_limit_state.clone(), RateLimitEndpoint::ForgotPassword));
+
+    let reset_password_route = Router::new()
+        .route(
+            "/api/v1/auth/reset-password",
+            post(
+                password_reset_handlers::reset_password::<
+                    PasswordResetServiceImpl<
+                        PgPasswordResetRepository,
+                        PgUserRepository,
+                        PgSessionRepository,
+                    >,
+                >,
+            ),
+        )
+        .layer(Extension(password_reset_service.clone()));
+
+    let validate_reset_token_route = Router::new()
+        .route(
+            "/api/v1/auth/validate-reset-token",
+            post(
+                password_reset_handlers::validate_reset_token::<
+                    PasswordResetServiceImpl<
+                        PgPasswordResetRepository,
+                        PgUserRepository,
+                        PgSessionRepository,
+                    >,
+                >,
+            ),
+        )
+        .layer(Extension(password_reset_service.clone()));
+
     // Combine public routes
     let public_routes = Router::new()
         .merge(register_route)
@@ -308,7 +373,10 @@ async fn main() {
         .merge(accept_invite_route)
         .merge(logout_route)
         .merge(verify_email_route)
-        .merge(resend_verification_route);
+        .merge(resend_verification_route)
+        .merge(forgot_password_route)
+        .merge(reset_password_route)
+        .merge(validate_reset_token_route);
 
     // Protected routes (require authentication)
     let protected_routes = Router::new()

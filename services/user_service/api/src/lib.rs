@@ -4,6 +4,7 @@ pub mod extractors;
 pub mod handlers;
 pub mod invitation_handlers;
 pub mod openapi;
+pub mod password_reset_handlers;
 pub mod permission_handlers;
 pub mod profile_handlers;
 pub mod rate_limiter;
