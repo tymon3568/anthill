@@ -34,7 +34,7 @@
 	let fieldErrors = $state<Record<string, string>>({});
 	let successMessage = $state('');
 
-	// Initialize tenant context on mount and check for success message
+	// Initialize tenant context on mount
 	onMount(() => {
 		tenantContext = getTenantContext();
 		if (tenantContext.hasContext && tenantContext.slug) {
@@ -45,11 +45,15 @@
 			// No subdomain detected, show tenant input
 			showTenantInput = true;
 		}
+	});
 
-		// Check for password reset success
+	// Reactively update success message based on URL params
+	$effect(() => {
 		if ($page.url.searchParams.get('reset') === 'success') {
 			successMessage =
 				'Your password has been reset successfully. Please sign in with your new password.';
+		} else {
+			successMessage = '';
 		}
 	});
 
