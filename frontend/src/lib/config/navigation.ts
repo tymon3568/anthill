@@ -3,6 +3,7 @@ import PackageIcon from '@lucide/svelte/icons/package';
 import ShoppingCartIcon from '@lucide/svelte/icons/shopping-cart';
 import PlugIcon from '@lucide/svelte/icons/plug';
 import SettingsIcon from '@lucide/svelte/icons/settings';
+import ShieldIcon from '@lucide/svelte/icons/shield';
 import type { Component } from 'svelte';
 
 export interface NavItem {
@@ -12,6 +13,8 @@ export interface NavItem {
 	isActive?: boolean;
 	badge?: string | number;
 	items?: NavSubItem[];
+	/** If true, only show this item for admin/owner roles */
+	adminOnly?: boolean;
 }
 
 export interface NavSubItem {
@@ -68,6 +71,17 @@ export const mainNavigation: NavItem[] = [
 
 // Settings navigation - shown at bottom of sidebar
 export const settingsNavigation: NavItem[] = [
+	{
+		title: 'Admin',
+		url: '/admin',
+		icon: ShieldIcon,
+		adminOnly: true,
+		items: [
+			{ title: 'Users', url: '/admin/users' },
+			{ title: 'Roles', url: '/admin/roles' },
+			{ title: 'Invitations', url: '/admin/invitations' }
+		]
+	},
 	{
 		title: 'Settings',
 		url: '/settings',

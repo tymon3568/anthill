@@ -106,14 +106,36 @@ export const mockOrders: Order[] = [
 		customerEmail: 'john@example.com',
 		status: 'processing',
 		items: [
-			{ id: '1', productId: 'p1', productName: 'Wireless Headphones', sku: 'PROD-001', quantity: 1, unitPrice: 149.99, total: 149.99 }
+			{
+				id: '1',
+				productId: 'p1',
+				productName: 'Wireless Headphones',
+				sku: 'PROD-001',
+				quantity: 1,
+				unitPrice: 149.99,
+				total: 149.99
+			}
 		],
 		subtotal: 149.99,
-		tax: 15.00,
-		shipping: 10.00,
+		tax: 15.0,
+		shipping: 10.0,
 		total: 174.99,
-		shippingAddress: { name: 'John Doe', line1: '123 Main St', city: 'New York', state: 'NY', postalCode: '10001', country: 'US' },
-		billingAddress: { name: 'John Doe', line1: '123 Main St', city: 'New York', state: 'NY', postalCode: '10001', country: 'US' },
+		shippingAddress: {
+			name: 'John Doe',
+			line1: '123 Main St',
+			city: 'New York',
+			state: 'NY',
+			postalCode: '10001',
+			country: 'US'
+		},
+		billingAddress: {
+			name: 'John Doe',
+			line1: '123 Main St',
+			city: 'New York',
+			state: 'NY',
+			postalCode: '10001',
+			country: 'US'
+		},
 		paymentMethod: 'Credit Card',
 		paymentStatus: 'paid',
 		createdAt: '2026-01-17T10:30:00Z',
@@ -127,14 +149,36 @@ export const mockOrders: Order[] = [
 		customerEmail: 'jane@example.com',
 		status: 'shipped',
 		items: [
-			{ id: '2', productId: 'p2', productName: 'USB-C Cable', sku: 'PROD-002', quantity: 2, unitPrice: 19.99, total: 39.98 }
+			{
+				id: '2',
+				productId: 'p2',
+				productName: 'USB-C Cable',
+				sku: 'PROD-002',
+				quantity: 2,
+				unitPrice: 19.99,
+				total: 39.98
+			}
 		],
 		subtotal: 39.98,
-		tax: 4.00,
-		shipping: 5.00,
+		tax: 4.0,
+		shipping: 5.0,
 		total: 48.98,
-		shippingAddress: { name: 'Jane Smith', line1: '456 Oak Ave', city: 'Los Angeles', state: 'CA', postalCode: '90001', country: 'US' },
-		billingAddress: { name: 'Jane Smith', line1: '456 Oak Ave', city: 'Los Angeles', state: 'CA', postalCode: '90001', country: 'US' },
+		shippingAddress: {
+			name: 'Jane Smith',
+			line1: '456 Oak Ave',
+			city: 'Los Angeles',
+			state: 'CA',
+			postalCode: '90001',
+			country: 'US'
+		},
+		billingAddress: {
+			name: 'Jane Smith',
+			line1: '456 Oak Ave',
+			city: 'Los Angeles',
+			state: 'CA',
+			postalCode: '90001',
+			country: 'US'
+		},
 		paymentMethod: 'PayPal',
 		paymentStatus: 'paid',
 		createdAt: '2026-01-16T14:20:00Z',

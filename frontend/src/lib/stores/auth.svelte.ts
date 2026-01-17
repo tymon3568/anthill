@@ -39,7 +39,7 @@ export const authStore = {
 					id: response.data.user.id,
 					email: response.data.user.email,
 					name: response.data.user.full_name || response.data.user.email,
-					role: (response.data.user.role as 'admin' | 'manager' | 'user') || 'user',
+					role: (response.data.user.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
 					tenantId: response.data.user.tenant_id,
 					createdAt: response.data.user.created_at,
 					updatedAt: response.data.user.created_at
@@ -82,7 +82,7 @@ export const authStore = {
 					id: response.data.user.id,
 					email: response.data.user.email,
 					name: response.data.user.full_name || response.data.user.email,
-					role: (response.data.user.role as 'admin' | 'manager' | 'user') || 'user',
+					role: (response.data.user.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
 					tenantId: response.data.user.tenant_id,
 					createdAt: response.data.user.created_at,
 					updatedAt: response.data.user.created_at
@@ -149,7 +149,7 @@ export const authStore = {
 					id: user.id,
 					email: user.email,
 					name: user.full_name || user.email,
-					role: (user.role as 'admin' | 'manager' | 'user') || 'user',
+					role: (user.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
 					tenantId: user.tenant_id,
 					createdAt: user.created_at,
 					updatedAt: user.created_at

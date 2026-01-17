@@ -122,11 +122,7 @@ export const productsApi = {
 	},
 
 	// Update stock quantity
-	async updateStock(
-		id: string,
-		quantity: number,
-		reason?: string
-	): Promise<ApiResponse<Product>> {
+	async updateStock(id: string, quantity: number, reason?: string): Promise<ApiResponse<Product>> {
 		return apiClient.post<Product>(`/products/${id}/stock`, { quantity, reason });
 	}
 };

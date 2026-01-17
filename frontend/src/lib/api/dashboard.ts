@@ -47,7 +47,9 @@ export const dashboardApi = {
 	},
 
 	// Get sales trend data
-	async getSalesTrend(period: 'week' | 'month' | 'year' = 'month'): Promise<ApiResponse<SalesTrendItem[]>> {
+	async getSalesTrend(
+		period: 'week' | 'month' | 'year' = 'month'
+	): Promise<ApiResponse<SalesTrendItem[]>> {
 		return apiClient.get<SalesTrendItem[]>(`/dashboard/sales-trend?period=${period}`);
 	},
 
@@ -105,7 +107,7 @@ export const mockDashboardData: DashboardData = {
 			id: '2',
 			orderNumber: 'ORD-12344',
 			customerName: 'Jane Smith',
-			total: 149.50,
+			total: 149.5,
 			status: 'shipped',
 			createdAt: '2026-01-17T09:15:00Z'
 		},
@@ -113,7 +115,7 @@ export const mockDashboardData: DashboardData = {
 			id: '3',
 			orderNumber: 'ORD-12343',
 			customerName: 'Bob Wilson',
-			total: 89.00,
+			total: 89.0,
 			status: 'delivered',
 			createdAt: '2026-01-16T16:45:00Z'
 		}

@@ -23,7 +23,7 @@ export async function loginAction(email: string, password: string) {
 				id: result.data.user.id,
 				email: result.data.user.email,
 				name: result.data.user.full_name || result.data.user.email,
-				role: (result.data.user.role as 'admin' | 'manager' | 'user') || 'user',
+				role: (result.data.user.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
 				tenantId: result.data.user.tenant_id,
 				createdAt: result.data.user.created_at,
 				updatedAt: result.data.user.created_at
