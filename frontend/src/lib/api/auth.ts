@@ -181,6 +181,25 @@ export const authApi = {
 		return apiClient.post<void>('/auth/logout', { refresh_token: refreshToken });
 	},
 
+	// Tenant Discovery Methods
+
+	/**
+	 * Check if a tenant slug is available
+	 * @param slug - The tenant slug to check (will be normalized by backend)
+	 * @returns Availability status and existing tenant name if not available
+	 */
+	async checkTenantSlug(
+		slug: string
+	): Promise<
+		ApiResponse<{ slug: string; available: boolean; existing_tenant_name: string | null }>
+	> {
+		return apiClient.get<{
+			slug: string;
+			available: boolean;
+			existing_tenant_name: string | null;
+		}>(`/auth/check-tenant-slug?slug=${encodeURIComponent(slug)}`);
+	},
+
 	// OAuth2 Flow Methods - DEPRECATED: OAuth2/Kanidm integration removed in PR #133
 	// These methods will throw errors as the backend endpoints no longer exist
 	// Kept for backward compatibility - will be removed in future cleanup

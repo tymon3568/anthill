@@ -19,7 +19,8 @@ use user_service_core::domains::auth::{
         service::AuthService,
     },
     dto::auth_dto::{
-        AuthResp, ErrorResp, HealthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
+        AuthResp, CheckTenantSlugQuery, CheckTenantSlugResp, ErrorResp, HealthResp, LoginReq,
+        RefreshReq, RegisterReq, UserInfo, UserListResp,
     },
 };
 use uuid::Uuid;
@@ -249,6 +250,67 @@ pub async fn register<S: AuthService>(
     }
 
     Ok((StatusCode::CREATED, Json(resp)))
+}
+
+/// Check tenant slug availability
+///
+/// This is a public endpoint that allows checking if a tenant slug is available
+/// before registration. This helps users understand if they will be creating a
+/// new tenant (as owner) or joining an existing one.
+#[utoipa::path(
+    get,
+    path = "/api/v1/auth/check-tenant-slug",
+    tag = "auth",
+    operation_id = "check_tenant_slug",
+    params(
+        ("slug" = String, Query, description = "The tenant slug to check availability for"),
+    ),
+    responses(
+        (status = 200, description = "Slug availability status", body = CheckTenantSlugResp),
+        (status = 400, description = "Invalid slug format", body = ErrorResp),
+    )
+)]
+pub async fn check_tenant_slug<S: AuthService>(
+    Extension(state): Extension<AppState<S>>,
+    Query(query): Query<CheckTenantSlugQuery>,
+) -> Result<Json<CheckTenantSlugResp>, AppError> {
+    // Normalize the slug (lowercase, replace spaces with hyphens)
+    let slug = query
+        .slug
+        .trim()
+        .to_lowercase()
+        .replace(' ', "-")
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-')
+        .collect::<String>();
+
+    if slug.is_empty() {
+        return Err(AppError::ValidationError("Slug cannot be empty".to_string()));
+    }
+
+    // Check if tenant repository is available
+    let tenant_repo = state
+        .tenant_repo
+        .as_ref()
+        .ok_or_else(|| AppError::InternalError("Tenant repository not configured".to_string()))?;
+
+    // Check if tenant with this slug exists
+    let existing_tenant = tenant_repo.find_by_slug(&slug).await?;
+
+    let resp = match existing_tenant {
+        Some(tenant) => CheckTenantSlugResp {
+            slug,
+            available: false,
+            existing_tenant_name: Some(tenant.name),
+        },
+        None => CheckTenantSlugResp {
+            slug,
+            available: true,
+            existing_tenant_name: None,
+        },
+    };
+
+    Ok(Json(resp))
 }
 
 /// Login user

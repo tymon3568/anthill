@@ -154,3 +154,27 @@ pub struct UserListResp {
     #[schema(example = 20)]
     pub page_size: i32,
 }
+
+/// Query parameters for tenant slug check
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CheckTenantSlugQuery {
+    /// The tenant slug to check (URL-friendly version of tenant name)
+    #[schema(example = "acme-corp")]
+    pub slug: String,
+}
+
+/// Response for tenant slug availability check
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct CheckTenantSlugResp {
+    /// The normalized slug that was checked
+    #[schema(example = "acme-corp")]
+    pub slug: String,
+
+    /// Whether the slug is available (no existing tenant with this slug)
+    #[schema(example = true)]
+    pub available: bool,
+
+    /// If not available, the name of the existing tenant
+    #[schema(example = "Acme Corp")]
+    pub existing_tenant_name: Option<String>,
+}
