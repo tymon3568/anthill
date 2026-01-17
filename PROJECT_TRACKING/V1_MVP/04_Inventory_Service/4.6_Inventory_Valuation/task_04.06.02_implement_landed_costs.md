@@ -1,7 +1,7 @@
 # Task: Implement Landed Costs
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/task_04.06.02_implement_landed_costs.md`  
-**Status:** NeedsReview  
+**Status:** Done  
 **Priority:** P1  
 **Phase:** V1_MVP  
 **Module:** 04_Inventory_Service / 4.6_Inventory_Valuation  
@@ -255,6 +255,11 @@ Edge cases:
       - cancel_document restore costs
     - PR #155: https://github.com/tymon3568/anthill/pull/155
 
+* 2026-01-17 00:00: Status updated to Done by Claude
+  - PR #155 merged successfully on 2026-01-16
+  - Implementation verified: DB schema, core models, infra repositories, API handlers
+  - Status: Done
+---
 * 2025-12-28 00:00: Task file created by AI
     - Added MVP scope and acceptance criteria for landed costs feature
     - Status: Todo

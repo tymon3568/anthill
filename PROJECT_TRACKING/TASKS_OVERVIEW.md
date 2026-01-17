@@ -79,16 +79,15 @@
           → Email verification, password reset, rate limiting
           → Progress: 3/3 Done (Updated: 2026-01-16)
 
-### [✅] Phase 4: Inventory Service - `Done 91%` *(Production Ready for MVP)*
+### [✅] Phase 4: Inventory Service - `Done 95%` *(Production Ready for MVP)*
     - [✅] 4.1 Product Master - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.1_Product_Master/)
           → Progress: 6/6 tasks completed (Updated: 2025-12-30)
 
-    - [🔄] 4.2 Warehouse Management - `Done 67%`
+    - [✅] 4.2 Warehouse Management - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.2_Warehouse_Management/)
-          → Progress: 4/6 Done, 2 Todo (schema-only tasks) (Updated: 2025-12-30)
-          → **Done**: Warehouse hierarchy, Putaway rules, Picking methods, Removal strategies
-          → **Todo**: Storage categories (4.02.03), Cycle count schedules (4.02.06)
+          → Progress: 6/6 Done (Updated: 2026-01-17)
+          → **Done**: Warehouse hierarchy, Putaway rules, Picking methods, Removal strategies, Storage categories, Cycle count schedules
 
     - [✅] 4.3 Stock Foundation - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.3_Stock_Foundation/)
@@ -103,11 +102,10 @@
           → [View folder](./V1_MVP/04_Inventory_Service/4.5_Lot_Serial_Tracking/)
           → Progress: 4/4 tasks completed (Updated: 2025-12-30)
 
-    - [⏳] 4.6 Inventory Valuation - `Todo (Post-MVP Enhancement)`
+    - [✅] 4.6 Inventory Valuation - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/)
-          → Progress: 0/2 Todo (Updated: 2025-12-30)
-          → **Todo**: Landed Costs (4.06.02), FIFO/LIFO/WAC Methods (4.06.03)
-          → **Note**: Core valuation done in 4.3; these are advanced enhancements
+          → Progress: 3/3 Done (Updated: 2026-01-17)
+          → **Done**: Core valuation (4.3), Landed Costs (PR #155), FIFO/AVCO/Standard Methods (PR #156)
 
     - [✅] 4.7 Stock Replenishment - `Done 100%`
           → [View folder](./V1_MVP/04_Inventory_Service/4.7_Stock_Replenishment/)
@@ -302,7 +300,7 @@
 
 ## 📊 Project Metrics
 
-### Overall Progress: ~48% Complete (Updated: 2026-01-16)
+### Overall Progress: ~51% Complete (Updated: 2026-01-17)
 
 **Methodology**:
 - **Total Tasks**: Count of `task_*.md` files under `PROJECT_TRACKING/V1_MVP/<phase>/...`
@@ -313,7 +311,7 @@
 | Phase 1 (Infrastructure) | 12 | 5 | 0 | 1 | 5 | 42% |
 | Phase 2 (Database) | 10 | 0 | 0 | 0 | 10 | 0%* |
 | Phase 3 (User Service) | 51 | 44 | 7 | 0 | 0 | **100%** |
-| Phase 4 (Inventory) | 77 | 66 | 0 | 0 | 7 | 86% |
+| Phase 4 (Inventory) | 77 | 73 | 0 | 0 | 4 | 95% |
 | Phase 5 (Order) | 1 | 0 | 0 | 0 | 1 | 0% |
 | Phase 6 (Integration) | 3 | 0 | 0 | 0 | 3 | 0% |
 | Phase 7 (Payment) | 2 | 0 | 0 | 0 | 2 | 0% |
@@ -322,7 +320,7 @@
 | Phase 10 (Deployment) | 14 | 0 | 0 | 0 | 14 | 0% |
 | Phase 11 (Monitoring) | 8 | 0 | 0 | 0 | 8 | 0% |
 | Phase 12 (Testing) | 43 | 0 | 0 | 1 | 42 | 2% |
-| **TOTAL** | **252** | **117** | **7** | **2** | **116** | **48%** |
+| **TOTAL** | **252** | **124** | **7** | **2** | **109** | **51%** |
 
 *Note: Phase 2 core foundations are complete; `PROJECT_TRACKING/V1_MVP/02_Database_Foundations/2.3_Database_Optimization` tracks a separate optimization backlog (10 Todo tasks).
 
@@ -330,7 +328,7 @@
 - **Phase 1** (Infrastructure): 🔄 42% - Auth library done, dev tools in progress
 - **Phase 2** (Database): ⏳ 0% in optimization tracking - Foundations complete; optimization backlog pending
 - **Phase 3** (User Service): ✅ **100%** - All modules complete! 44 Done + 7 Cancelled (Updated: 2026-01-16)
-- **Phase 4** (Inventory): ✅ **86%** - Production Ready! 66/77 Done, 7 Todo (enhancements) (Updated: 2026-01-16)
+- **Phase 4** (Inventory): ✅ **95%** - Production Ready! 73/77 Done, 4 Todo (enhancements) (Updated: 2026-01-17)
 - **Phase 5** (Order Service): ⏳ 0% - Not started
 - **Phase 6** (Integration): ⏳ 0% - Not started
 - **Phase 7** (Payment): ⏳ 0% - Not started
@@ -441,8 +439,21 @@ open http://localhost:8000/docs  # Swagger UI
 
 ---
 
-**Last Updated**: 2026-01-16
-**Project Status**: In Progress (Phase 3 User Service ✅ 100%, Phase 4 Inventory Service 86% - Production Ready)
+**Last Updated**: 2026-01-17
+**Project Status**: In Progress (Phase 3 User Service ✅ 100%, Phase 4 Inventory Service 95% - Production Ready)
+
+**Recent Changes (2026-01-17)**:
+- ✅ **Phase 4 Inventory Service - Updated to 95% Complete!**
+      - 4.2.3 Storage Categories Table: NeedsReview → Done (migration completed)
+      - 4.2.6 Cycle Count Schedules Table: NeedsReview → Done (migration completed)
+      - 4.6.2 Landed Costs: NeedsReview → Done (PR #155 merged)
+      - 4.6.3 Valuation Methods: NeedsReview → Done (full stack implementation)
+      - Total: 73/77 tasks Done (95% complete)
+      - Remaining 4 Todo tasks: Multi-echelon inventory, Demand forecasting (post-MVP)
+- ✅ **PR #156 Merged**: Fixed review issues from PRs #152-154
+      - ValuationMethod From<String> panic on invalid values
+      - Dedupe migration ctid tie-breaker fix
+- ✅ **Project Metrics Updated**: Overall progress now 51% (124 Done + 7 Cancelled out of 252 tasks)
 
 **Recent Changes (2026-01-16)**:
 - ✅ **Phase 3 User Service - 100% Complete!**
