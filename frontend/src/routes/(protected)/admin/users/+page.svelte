@@ -436,7 +436,12 @@
 </div>
 
 <!-- Add User Dialog -->
-<Dialog.Root bind:open={showAddUserDialog}>
+<Dialog.Root
+	bind:open={showAddUserDialog}
+	onOpenChange={(open) => {
+		if (!open) newUserForm = { email: '', password: '', fullName: '', role: 'user' };
+	}}
+>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>Add New User</Dialog.Title>
