@@ -21,16 +21,21 @@ pub enum ValuationMethod {
     Standard,
 }
 
+// Required by sqlx::query_as! macro for TEXT column mapping.
+// This implementation will panic on invalid values, which is acceptable because:
+// 1. Database has CHECK constraint ensuring only valid values exist
+// 2. API input is validated by Serde before reaching this code
+// 3. Repository uses explicit string_to_method() with proper error handling
 impl From<String> for ValuationMethod {
     fn from(s: String) -> Self {
-        if s.eq_ignore_ascii_case("fifo") {
-            ValuationMethod::Fifo
-        } else if s.eq_ignore_ascii_case("avco") {
-            ValuationMethod::Avco
-        } else if s.eq_ignore_ascii_case("standard") {
-            ValuationMethod::Standard
-        } else {
-            ValuationMethod::Fifo // Default to Fifo
+        match s.to_lowercase().as_str() {
+            "fifo" => ValuationMethod::Fifo,
+            "avco" => ValuationMethod::Avco,
+            "standard" => ValuationMethod::Standard,
+            _ => panic!(
+                "Invalid valuation method from database: '{}'. This indicates data corruption.",
+                s
+            ),
         }
     }
 }
@@ -53,16 +58,21 @@ pub enum ValuationScopeType {
     Product,
 }
 
+// Required by sqlx::query_as! macro for TEXT column mapping.
+// This implementation will panic on invalid values, which is acceptable because:
+// 1. Database has CHECK constraint ensuring only valid values exist
+// 2. API input is validated by Serde before reaching this code
+// 3. Repository uses explicit string_to_scope_type() with proper error handling
 impl From<String> for ValuationScopeType {
     fn from(s: String) -> Self {
-        if s.eq_ignore_ascii_case("tenant") {
-            ValuationScopeType::Tenant
-        } else if s.eq_ignore_ascii_case("category") {
-            ValuationScopeType::Category
-        } else if s.eq_ignore_ascii_case("product") {
-            ValuationScopeType::Product
-        } else {
-            ValuationScopeType::Tenant
+        match s.to_lowercase().as_str() {
+            "tenant" => ValuationScopeType::Tenant,
+            "category" => ValuationScopeType::Category,
+            "product" => ValuationScopeType::Product,
+            _ => panic!(
+                "Invalid valuation scope type from database: '{}'. This indicates data corruption.",
+                s
+            ),
         }
     }
 }
