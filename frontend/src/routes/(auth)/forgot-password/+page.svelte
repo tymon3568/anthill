@@ -98,10 +98,12 @@
 							</p>
 						</div>
 
-						<Button variant="outline" class="w-full" href="/login">
-							<ArrowLeft class="mr-2 h-4 w-4" />
-							Back to Login
-						</Button>
+						<a href="/login">
+							<Button variant="outline" class="w-full">
+								<ArrowLeft class="mr-2 h-4 w-4" />
+								Back to Login
+							</Button>
+						</a>
 					</div>
 				{:else}
 					<form onsubmit={handleSubmit} class="space-y-4">
@@ -138,10 +140,12 @@
 							{/if}
 						</Button>
 
-						<Button variant="ghost" class="w-full" href="/login">
-							<ArrowLeft class="mr-2 h-4 w-4" />
-							Back to Login
-						</Button>
+						<a href="/login">
+							<Button variant="ghost" class="w-full">
+								<ArrowLeft class="mr-2 h-4 w-4" />
+								Back to Login
+							</Button>
+						</a>
 					</form>
 				{/if}
 			</CardContent>
