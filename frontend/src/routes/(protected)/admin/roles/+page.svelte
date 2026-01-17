@@ -159,10 +159,22 @@
 			return;
 		}
 
+		// Normalize: lowercase, replace spaces with underscores, remove invalid chars
+		const normalizedName = formName
+			.trim()
+			.toLowerCase()
+			.replace(/\s+/g, '_')
+			.replace(/[^a-z0-9_]/g, '');
+
+		if (!normalizedName) {
+			toast.error('Role name must contain at least one alphanumeric character');
+			return;
+		}
+
 		isSubmitting = true;
 		try {
 			const data: CreateRoleRequest = {
-				name: formName.trim().toLowerCase().replace(/\s+/g, '_'),
+				name: normalizedName,
 				description: formDescription.trim() || undefined,
 				permissions: getSelectedPermissions()
 			};
@@ -197,7 +209,6 @@
 			if (response.success) {
 				toast.success(`Role "${selectedRole.name}" updated successfully`);
 				showEditDialog = false;
-				selectedRole = null;
 				await loadRoles();
 			} else {
 				toast.error(response.error || 'Failed to update role');
@@ -219,7 +230,6 @@
 			if (response.success) {
 				toast.success(`Role "${selectedRole.name}" deleted successfully`);
 				showDeleteDialog = false;
-				selectedRole = null;
 				await loadRoles();
 			} else {
 				toast.error(response.error || 'Failed to delete role');
@@ -561,7 +571,12 @@
 </Dialog.Root>
 
 <!-- Delete Role Dialog -->
-<Dialog.Root bind:open={showDeleteDialog}>
+<Dialog.Root
+	bind:open={showDeleteDialog}
+	onOpenChange={(open) => {
+		if (!open) selectedRole = null;
+	}}
+>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>Delete Role</Dialog.Title>
