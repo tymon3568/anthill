@@ -627,10 +627,21 @@ impl ValuationService for ValuationServiceImpl {
     }
 
     /// Delete valuation settings
+    ///
+    /// # Business Rules
+    /// - Cannot delete tenant default settings (use set_tenant_valuation_method to change it)
+    /// - Only category and product overrides can be deleted
     async fn delete_valuation_settings(
         &self,
         request: DeleteValuationSettingsRequest,
     ) -> Result<()> {
+        // Prevent deletion of tenant defaults
+        if matches!(request.scope_type, ValuationScopeType::Tenant) {
+            return Err(shared_error::AppError::BusinessError(
+                "Cannot delete tenant default valuation settings. Use set_tenant_valuation_method to change it.".to_string(),
+            ));
+        }
+
         self.settings_repo
             .delete(request.tenant_id, request.scope_type, request.scope_id)
             .await

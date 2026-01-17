@@ -2,6 +2,9 @@
 //!
 //! Core business entities for inventory valuation system,
 //! supporting FIFO, AVCO, and Standard costing methods.
+//!
+//! Note: LIFO is intentionally not supported as it is prohibited
+//! by IFRS and most accounting standards outside the US.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -18,13 +21,21 @@ pub enum ValuationMethod {
     Standard,
 }
 
+// Required by sqlx::query_as! macro for TEXT column mapping.
+// This implementation will panic on invalid values, which is acceptable because:
+// 1. Database has CHECK constraint ensuring only valid values exist
+// 2. API input is validated by Serde before reaching this code
+// 3. Repository uses explicit string_to_method() with proper error handling
 impl From<String> for ValuationMethod {
     fn from(s: String) -> Self {
-        match s.as_str() {
+        match s.to_lowercase().as_str() {
             "fifo" => ValuationMethod::Fifo,
             "avco" => ValuationMethod::Avco,
             "standard" => ValuationMethod::Standard,
-            _ => ValuationMethod::Fifo, // Default to Fifo
+            _ => panic!(
+                "Invalid valuation method from database: '{}'. This indicates data corruption.",
+                s
+            ),
         }
     }
 }
@@ -47,13 +58,21 @@ pub enum ValuationScopeType {
     Product,
 }
 
+// Required by sqlx::query_as! macro for TEXT column mapping.
+// This implementation will panic on invalid values, which is acceptable because:
+// 1. Database has CHECK constraint ensuring only valid values exist
+// 2. API input is validated by Serde before reaching this code
+// 3. Repository uses explicit string_to_scope_type() with proper error handling
 impl From<String> for ValuationScopeType {
     fn from(s: String) -> Self {
         match s.to_lowercase().as_str() {
             "tenant" => ValuationScopeType::Tenant,
             "category" => ValuationScopeType::Category,
             "product" => ValuationScopeType::Product,
-            _ => ValuationScopeType::Tenant,
+            _ => panic!(
+                "Invalid valuation scope type from database: '{}'. This indicates data corruption.",
+                s
+            ),
         }
     }
 }
