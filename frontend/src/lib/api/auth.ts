@@ -322,6 +322,19 @@ export const authApi = {
 		return apiClient.post<void>('/auth/resend-verification', { email });
 	},
 
+	// Password Reset Methods
+	async forgotPassword(email: string): Promise<ApiResponse<void>> {
+		return apiClient.post<void>('/auth/forgot-password', { email });
+	},
+
+	async validateResetToken(token: string): Promise<ApiResponse<void>> {
+		return apiClient.post<void>('/auth/validate-reset-token', { token });
+	},
+
+	async resetPassword(token: string, newPassword: string): Promise<ApiResponse<void>> {
+		return apiClient.post<void>('/auth/reset-password', { token, new_password: newPassword });
+	},
+
 	// Legacy methods (for backward compatibility)
 	async login(credentials: LoginForm): Promise<ApiResponse<AuthResponse>> {
 		return apiClient.post<AuthResponse>(

@@ -12,6 +12,7 @@
 	import { loginSchema, type LoginForm } from '$lib/validation/auth';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { safeParse } from 'valibot';
 	import { onMount } from 'svelte';
 	import { setPersistedTenantSlug, getTenantContext, type TenantContext } from '$lib/tenant';
@@ -31,6 +32,7 @@
 	let isLoading = $state(false);
 	let error = $state('');
 	let fieldErrors = $state<Record<string, string>>({});
+	let successMessage = $state('');
 
 	// Initialize tenant context on mount
 	onMount(() => {
@@ -42,6 +44,16 @@
 		} else {
 			// No subdomain detected, show tenant input
 			showTenantInput = true;
+		}
+	});
+
+	// Reactively update success message based on URL params
+	$effect(() => {
+		if ($page.url.searchParams.get('reset') === 'success') {
+			successMessage =
+				'Your password has been reset successfully. Please sign in with your new password.';
+		} else {
+			successMessage = '';
 		}
 	});
 
@@ -207,7 +219,15 @@
 					</div>
 
 					<div class="space-y-2">
-						<Label for="password">Password</Label>
+						<div class="flex items-center justify-between">
+							<Label for="password">Password</Label>
+							<a
+								href="/forgot-password"
+								class="text-sm font-medium text-blue-600 hover:text-blue-500"
+							>
+								Forgot password?
+							</a>
+						</div>
 						<Input
 							id="password"
 							type="password"
@@ -222,6 +242,15 @@
 							<p class="text-sm text-red-600">{fieldErrors.password}</p>
 						{/if}
 					</div>
+
+					{#if successMessage}
+						<div
+							class="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+							role="status"
+						>
+							{successMessage}
+						</div>
+					{/if}
 
 					{#if error && !Object.keys(fieldErrors).length}
 						<div
