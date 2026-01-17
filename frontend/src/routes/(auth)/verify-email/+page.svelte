@@ -51,7 +51,10 @@
 				handleErrorResponse(response.error);
 			}
 		} catch (error) {
+<<<<<<< HEAD
 			console.error('Email verification failed:', error);
+=======
+>>>>>>> aa67ac9 (feat(frontend): Add Email Verification UI [TaskID: 08.02.06])
 			status = 'error';
 			errorType = 'unknown';
 			errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -167,8 +170,13 @@
 		<div class="mt-4 text-center">
 			<p class="text-sm text-gray-600">
 				Need help?
+<<<<<<< HEAD
 				<a href="/login" class="font-medium text-blue-600 underline hover:text-blue-500">
 					Back to Login
+=======
+				<a href="/support" class="font-medium text-blue-600 underline hover:text-blue-500">
+					Contact Support
+>>>>>>> aa67ac9 (feat(frontend): Add Email Verification UI [TaskID: 08.02.06])
 				</a>
 			</p>
 		</div>
