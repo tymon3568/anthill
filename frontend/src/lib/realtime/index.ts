@@ -32,8 +32,9 @@ export class RealtimeManager<T = unknown> {
 	private attachEventListeners(): void {
 		if (!this.eventSource) return;
 
-		// Attach listeners for all registered event types
+		// Attach listeners for all registered event types (skip 'message' - handled by onmessage)
 		for (const eventType of this.handlers.keys()) {
+			if (eventType === 'message') continue;
 			this.eventSource.addEventListener(eventType, (event: MessageEvent) => {
 				try {
 					const data = JSON.parse(event.data) as T;
@@ -50,7 +51,8 @@ export class RealtimeManager<T = unknown> {
 	 */
 	connect(): void {
 		if (!browser) return;
-		if (this.eventSource?.readyState === EventSource.OPEN) return;
+		// Guard against creating new EventSource while one is OPEN or CONNECTING
+		if (this.eventSource && this.eventSource.readyState !== EventSource.CLOSED) return;
 
 		try {
 			this.eventSource = new EventSource(this.config.url, { withCredentials: true });
@@ -89,8 +91,8 @@ export class RealtimeManager<T = unknown> {
 		if (!this.handlers.has(eventType)) {
 			this.handlers.set(eventType, new Set());
 
-			// Add event listener for this type if already connected
-			if (this.eventSource) {
+			// Add event listener for this type if already connected (skip 'message' - handled by onmessage)
+			if (this.eventSource && eventType !== 'message') {
 				this.eventSource.addEventListener(eventType, (event: MessageEvent) => {
 					try {
 						const data = JSON.parse(event.data) as T;
