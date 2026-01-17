@@ -46,13 +46,14 @@ BEGIN
         RAISE WARNING 'Found % duplicate (tenant_id, location_id) pairs in warehouse_locations. Keeping most recent records.', dup_count;
 
         -- Delete older duplicates, keeping the one with the most recent updated_at
+        -- Use ctid as tie-breaker since location_id is the same for duplicates
         DELETE FROM warehouse_locations w1
         WHERE EXISTS (
             SELECT 1 FROM warehouse_locations w2
             WHERE w1.tenant_id = w2.tenant_id
               AND w1.location_id = w2.location_id
               AND (w1.updated_at < w2.updated_at
-                   OR (w1.updated_at = w2.updated_at AND w1.location_id < w2.location_id))
+                   OR (w1.updated_at = w2.updated_at AND w1.ctid < w2.ctid))
         );
     END IF;
 END;
@@ -75,13 +76,14 @@ BEGIN
         RAISE WARNING 'Found % duplicate (tenant_id, category_id) pairs in product_categories. Keeping most recent records.', dup_count;
 
         -- Delete older duplicates, keeping the one with the most recent updated_at
+        -- Use ctid as tie-breaker since category_id is the same for duplicates
         DELETE FROM product_categories p1
         WHERE EXISTS (
             SELECT 1 FROM product_categories p2
             WHERE p1.tenant_id = p2.tenant_id
               AND p1.category_id = p2.category_id
               AND (p1.updated_at < p2.updated_at
-                   OR (p1.updated_at = p2.updated_at AND p1.category_id < p2.category_id))
+                   OR (p1.updated_at = p2.updated_at AND p1.ctid < p2.ctid))
         );
     END IF;
 END;
