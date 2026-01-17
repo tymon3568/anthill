@@ -36,7 +36,24 @@ import type {
 	ProfileSearchResult,
 	AvatarUploadResponse,
 	PermissionCheckResponse,
-	TenantValidation
+	TenantValidation,
+	TenantSettings,
+	TenantBilling,
+	TenantAnalytics,
+	TenantBranding,
+	TenantLocalization,
+	TenantSecurityPolicy,
+	TenantDataRetention,
+	TenantIntegrationSettings,
+	PaginatedAuditLogs,
+	UpdateTenantRequest,
+	UpdateBrandingRequest,
+	UpdateLocalizationRequest,
+	UpdateSecurityPolicyRequest,
+	UpdateDataRetentionRequest,
+	ListAuditLogsParams,
+	TenantExportRequest,
+	DeleteTenantRequest
 } from './types/user-service.types';
 import { tokenManager } from '$lib/auth/token-manager';
 import { getCurrentTenantSlug } from '$lib/tenant';
@@ -418,6 +435,180 @@ export const userServiceApi = {
 	 */
 	async validateTenantAccess(): Promise<ApiResponse<TenantValidation>> {
 		return apiClient.get<TenantValidation>('/users/tenant/validate');
+	},
+
+	// ============ Tenant Settings API (Owner Only) ============
+
+	/**
+	 * Get tenant settings (owner only)
+	 * @returns Full tenant settings
+	 */
+	async getTenantSettings(): Promise<ApiResponse<TenantSettings>> {
+		return apiClient.get<TenantSettings>('/tenant/settings');
+	},
+
+	/**
+	 * Update tenant basic info (owner only)
+	 * @param data - Tenant info to update
+	 * @returns Updated tenant settings
+	 */
+	async updateTenant(data: UpdateTenantRequest): Promise<ApiResponse<TenantSettings>> {
+		return apiClient.put<TenantSettings>('/tenant', data as Record<string, unknown>);
+	},
+
+	/**
+	 * Update tenant branding (owner only)
+	 * @param data - Branding settings to update
+	 */
+	async updateBranding(data: UpdateBrandingRequest): Promise<ApiResponse<TenantBranding>> {
+		return apiClient.put<TenantBranding>('/tenant/branding', data as Record<string, unknown>);
+	},
+
+	/**
+	 * Upload tenant logo (owner only)
+	 * @param file - Logo image file
+	 * @returns Logo URL
+	 */
+	async uploadLogo(file: File): Promise<ApiResponse<{ logoUrl: string }>> {
+		const formData = new FormData();
+		formData.append('logo', file);
+
+		const token = tokenManager.getAccessToken();
+		const tenantSlug = getCurrentTenantSlug();
+		const headers: HeadersInit = {};
+		if (token) {
+			headers['Authorization'] = `Bearer ${token}`;
+		}
+		if (tenantSlug) {
+			headers['X-Tenant-ID'] = tenantSlug;
+		}
+
+		try {
+			const response = await fetch(`${PUBLIC_API_BASE_URL}/tenant/branding/logo`, {
+				method: 'POST',
+				headers,
+				body: formData
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({
+					message: 'Upload failed',
+					error: 'Upload failed'
+				}));
+				return {
+					success: false,
+					error: errorData.error || errorData.message || `HTTP ${response.status}`
+				};
+			}
+
+			const data = await response.json();
+			return { success: true, data };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			};
+		}
+	},
+
+	/**
+	 * Update tenant localization settings (owner only)
+	 * @param data - Localization settings
+	 */
+	async updateLocalization(
+		data: UpdateLocalizationRequest
+	): Promise<ApiResponse<TenantLocalization>> {
+		return apiClient.put<TenantLocalization>(
+			'/tenant/localization',
+			data as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Update tenant security policy (owner only)
+	 * @param data - Security policy settings
+	 */
+	async updateSecurityPolicy(
+		data: UpdateSecurityPolicyRequest
+	): Promise<ApiResponse<TenantSecurityPolicy>> {
+		return apiClient.put<TenantSecurityPolicy>(
+			'/tenant/security-policy',
+			data as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Update tenant data retention settings (owner only)
+	 * @param data - Data retention settings
+	 */
+	async updateDataRetention(
+		data: UpdateDataRetentionRequest
+	): Promise<ApiResponse<TenantDataRetention>> {
+		return apiClient.put<TenantDataRetention>(
+			'/tenant/data-retention',
+			data as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Get tenant billing information (owner only)
+	 * @returns Billing information
+	 */
+	async getTenantBilling(): Promise<ApiResponse<TenantBilling>> {
+		return apiClient.get<TenantBilling>('/tenant/billing');
+	},
+
+	/**
+	 * Get tenant integration settings (owner only)
+	 * @returns Integration settings (webhooks, API keys)
+	 */
+	async getTenantIntegrations(): Promise<ApiResponse<TenantIntegrationSettings>> {
+		return apiClient.get<TenantIntegrationSettings>('/tenant/integrations');
+	},
+
+	/**
+	 * List audit logs (owner only)
+	 * @param params - Filter parameters
+	 * @returns Paginated audit logs
+	 */
+	async listAuditLogs(params: ListAuditLogsParams = {}): Promise<ApiResponse<PaginatedAuditLogs>> {
+		const searchParams = createPaginationParams(params.page, params.perPage);
+		if (params.userId) searchParams.set('user_id', params.userId);
+		if (params.action) searchParams.set('action', params.action);
+		if (params.startDate) searchParams.set('start_date', params.startDate);
+		if (params.endDate) searchParams.set('end_date', params.endDate);
+
+		return apiClient.get<PaginatedAuditLogs>(`/tenant/audit-logs?${searchParams}`);
+	},
+
+	/**
+	 * Get tenant analytics (owner only)
+	 * @returns Tenant usage analytics
+	 */
+	async getTenantAnalytics(): Promise<ApiResponse<TenantAnalytics>> {
+		return apiClient.get<TenantAnalytics>('/tenant/analytics');
+	},
+
+	/**
+	 * Export tenant data (owner only)
+	 * @param request - Export configuration
+	 * @returns Download URL or blob
+	 */
+	async exportTenantData(
+		request: TenantExportRequest
+	): Promise<ApiResponse<{ downloadUrl: string }>> {
+		return apiClient.post<{ downloadUrl: string }>(
+			'/tenant/export',
+			request as unknown as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Delete tenant (owner only) - DANGER ZONE
+	 * @param request - Deletion confirmation with tenant name
+	 */
+	async deleteTenant(request: DeleteTenantRequest): Promise<ApiResponse<void>> {
+		return apiClient.post<void>('/tenant/delete', request as unknown as Record<string, unknown>);
 	}
 };
 

@@ -222,3 +222,222 @@ export interface TenantValidation {
 	tenantName: string;
 	userRole: string;
 }
+
+// ============ Tenant Settings Types ============
+
+/** Tenant subscription plan */
+export type TenantPlan = 'free' | 'starter' | 'professional' | 'enterprise';
+
+/** Tenant status */
+export type TenantStatus = 'active' | 'suspended' | 'pending_deletion';
+
+/** Tenant information */
+export interface Tenant {
+	tenantId: string;
+	name: string;
+	slug: string;
+	ownerUserId: string;
+	plan: TenantPlan;
+	status: TenantStatus;
+	createdAt: string;
+	updatedAt?: string;
+}
+
+/** Tenant branding settings */
+export interface TenantBranding {
+	logoUrl?: string;
+	faviconUrl?: string;
+	primaryColor?: string;
+	secondaryColor?: string;
+	accentColor?: string;
+}
+
+/** Tenant localization settings */
+export interface TenantLocalization {
+	defaultTimezone: string;
+	defaultCurrency: string;
+	defaultLanguage: string;
+	dateFormat: string;
+	timeFormat: '12h' | '24h';
+}
+
+/** Tenant security policy */
+export interface TenantSecurityPolicy {
+	passwordMinLength: number;
+	passwordRequireUppercase: boolean;
+	passwordRequireLowercase: boolean;
+	passwordRequireNumbers: boolean;
+	passwordRequireSpecialChars: boolean;
+	sessionTimeoutMinutes: number;
+	maxLoginAttempts: number;
+	lockoutDurationMinutes: number;
+	mfaRequired: boolean;
+}
+
+/** Tenant data retention settings */
+export interface TenantDataRetention {
+	auditLogRetentionDays: number;
+	deletedUserRetentionDays: number;
+	sessionHistoryRetentionDays: number;
+	backupEnabled: boolean;
+	backupFrequency: 'daily' | 'weekly' | 'monthly';
+}
+
+/** Tenant billing information */
+export interface TenantBilling {
+	plan: TenantPlan;
+	billingEmail?: string;
+	billingAddress?: string;
+	paymentMethod?: string;
+	nextBillingDate?: string;
+	currentPeriodEnd?: string;
+	usageStats?: {
+		usersCount: number;
+		usersLimit: number;
+		storageUsedMb: number;
+		storageLimitMb: number;
+		apiCallsCount: number;
+		apiCallsLimit: number;
+	};
+}
+
+/** Tenant integration settings (webhooks, API keys) */
+export interface TenantIntegrationSettings {
+	webhookEndpoints: WebhookEndpoint[];
+	apiKeys: ApiKey[];
+}
+
+/** Webhook endpoint */
+export interface WebhookEndpoint {
+	id: string;
+	url: string;
+	events: string[];
+	active: boolean;
+	secret?: string;
+	createdAt: string;
+}
+
+/** API key */
+export interface ApiKey {
+	id: string;
+	name: string;
+	keyPrefix: string;
+	scopes: string[];
+	lastUsedAt?: string;
+	expiresAt?: string;
+	createdAt: string;
+}
+
+/** Audit log entry */
+export interface AuditLogEntry {
+	id: string;
+	userId: string;
+	userEmail: string;
+	action: string;
+	resource: string;
+	resourceId?: string;
+	details?: Record<string, unknown>;
+	ipAddress?: string;
+	userAgent?: string;
+	createdAt: string;
+}
+
+/** Paginated audit logs */
+export type PaginatedAuditLogs = PaginatedResponse<AuditLogEntry>;
+
+/** Tenant usage analytics */
+export interface TenantAnalytics {
+	activeUsersLast30Days: number;
+	totalUsers: number;
+	totalOrders: number;
+	totalProducts: number;
+	storageUsedMb: number;
+	apiCallsLast30Days: number;
+	loginCountLast30Days: number;
+	topActiveUsers: Array<{
+		userId: string;
+		email: string;
+		actionsCount: number;
+	}>;
+}
+
+/** Full tenant settings */
+export interface TenantSettings {
+	tenant: Tenant;
+	branding: TenantBranding;
+	localization: TenantLocalization;
+	securityPolicy: TenantSecurityPolicy;
+	dataRetention: TenantDataRetention;
+}
+
+/** Request to update tenant info */
+export interface UpdateTenantRequest {
+	name?: string;
+	contactEmail?: string;
+	contactPhone?: string;
+	address?: string;
+}
+
+/** Request to update tenant branding */
+export interface UpdateBrandingRequest {
+	logoUrl?: string;
+	faviconUrl?: string;
+	primaryColor?: string;
+	secondaryColor?: string;
+	accentColor?: string;
+}
+
+/** Request to update localization */
+export interface UpdateLocalizationRequest {
+	defaultTimezone?: string;
+	defaultCurrency?: string;
+	defaultLanguage?: string;
+	dateFormat?: string;
+	timeFormat?: '12h' | '24h';
+}
+
+/** Request to update security policy */
+export interface UpdateSecurityPolicyRequest {
+	passwordMinLength?: number;
+	passwordRequireUppercase?: boolean;
+	passwordRequireLowercase?: boolean;
+	passwordRequireNumbers?: boolean;
+	passwordRequireSpecialChars?: boolean;
+	sessionTimeoutMinutes?: number;
+	maxLoginAttempts?: number;
+	lockoutDurationMinutes?: number;
+	mfaRequired?: boolean;
+}
+
+/** Request to update data retention */
+export interface UpdateDataRetentionRequest {
+	auditLogRetentionDays?: number;
+	deletedUserRetentionDays?: number;
+	sessionHistoryRetentionDays?: number;
+	backupEnabled?: boolean;
+	backupFrequency?: 'daily' | 'weekly' | 'monthly';
+}
+
+/** Audit log filter params */
+export interface ListAuditLogsParams {
+	page?: number;
+	perPage?: number;
+	userId?: string;
+	action?: string;
+	startDate?: string;
+	endDate?: string;
+}
+
+/** Tenant export request */
+export interface TenantExportRequest {
+	format: 'json' | 'csv';
+	includeUsers?: boolean;
+	includeAuditLogs?: boolean;
+	includeSettings?: boolean;
+}
+
+/** Delete tenant confirmation */
+export interface DeleteTenantRequest {
+	confirmTenantName: string;
+	reason?: string;
+}
