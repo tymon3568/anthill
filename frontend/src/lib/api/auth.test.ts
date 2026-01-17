@@ -17,28 +17,59 @@ describe('Auth API Client', () => {
 		vi.clearAllMocks();
 	});
 
-	describe('OAuth2 Flow', () => {
-		it('should initiate OAuth2 login', () => {
-			// This method redirects, so we can't easily test it
-			// The actual redirect is handled by the browser
-			expect(typeof authApi.initiateOAuth2Login).toBe('function');
-		});
-
-		it('should handle OAuth2 callback', async () => {
+	describe('Email/Password Authentication', () => {
+		it('should login with email credentials', async () => {
 			const mockResponse = {
 				success: true,
-				data: { access_token: 'token', refresh_token: 'refresh' }
+				data: {
+					access_token: 'token',
+					refresh_token: 'refresh',
+					token_type: 'Bearer',
+					expires_in: 3600,
+					user: { id: 'user-1', email: 'user@example.com', tenant_id: 'tenant-1', role: 'user' }
+				}
 			};
 
-			vi.mocked(apiClient.get).mockResolvedValue(mockResponse);
+			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
 
-			const result = await authApi.handleOAuth2CallbackLegacy('code', 'state');
+			const result = await authApi.emailLogin({ email: 'user@example.com', password: 'password' });
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/oauth/callback?code=code&state=state');
+			expect(apiClient.post).toHaveBeenCalledWith('/auth/login', {
+				email: 'user@example.com',
+				password: 'password'
+			});
 			expect(result).toEqual(mockResponse);
 		});
 
-		it('should refresh token', async () => {
+		it('should register with email', async () => {
+			const mockResponse = {
+				success: true,
+				data: {
+					access_token: 'token',
+					refresh_token: 'refresh',
+					token_type: 'Bearer',
+					expires_in: 3600,
+					user: { id: 'user-1', email: 'new@example.com', tenant_id: 'tenant-1', role: 'user' }
+				}
+			};
+
+			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+
+			const result = await authApi.emailRegister({
+				email: 'new@example.com',
+				password: 'password',
+				full_name: 'New User'
+			});
+
+			expect(apiClient.post).toHaveBeenCalledWith('/auth/register', {
+				email: 'new@example.com',
+				password: 'password',
+				full_name: 'New User'
+			});
+			expect(result).toEqual(mockResponse);
+		});
+
+		it('should refresh email token', async () => {
 			const mockResponse = {
 				success: true,
 				data: { access_token: 'new_token', refresh_token: 'new_refresh' }
@@ -46,9 +77,11 @@ describe('Auth API Client', () => {
 
 			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
 
-			const result = await authApi.refreshToken();
+			const result = await authApi.refreshEmailToken('old_refresh_token');
 
-			expect(apiClient.post).toHaveBeenCalledWith('/auth/oauth/refresh');
+			expect(apiClient.post).toHaveBeenCalledWith('/auth/refresh', {
+				refresh_token: 'old_refresh_token'
+			});
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -61,6 +94,22 @@ describe('Auth API Client', () => {
 
 			expect(apiClient.post).toHaveBeenCalledWith('/auth/logout?redirect=%2Fdashboard');
 			expect(result).toEqual(mockResponse);
+		});
+	});
+
+	describe('OAuth2 Deprecated Methods', () => {
+		it('should return error for deprecated OAuth2 callback', async () => {
+			const result = await authApi.handleOAuth2CallbackLegacy('code', 'state');
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('OAuth2 integration has been removed');
+		});
+
+		it('should return error for deprecated OAuth2 refresh', async () => {
+			const result = await authApi.refreshToken();
+
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('OAuth2 integration has been removed');
 		});
 	});
 

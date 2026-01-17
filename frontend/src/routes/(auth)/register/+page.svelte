@@ -34,17 +34,13 @@
 				if (issue.path) {
 					const field = issue.path[0]?.key as string;
 					if (field) {
-						fieldErrors[field] = issue.message;
+						// Only set first error for each field
+						if (!fieldErrors[field]) {
+							fieldErrors[field] = issue.message;
+						}
 					}
 				}
 			});
-			error = 'Please correct the errors below';
-			return;
-		}
-
-		// Additional password confirmation check
-		if (formData.password !== formData.confirmPassword) {
-			fieldErrors = { confirmPassword: 'Passwords do not match' };
 			error = 'Please correct the errors below';
 			return;
 		}
@@ -171,7 +167,9 @@
 						{#if fieldErrors.password}
 							<p class="text-sm text-red-600">{fieldErrors.password}</p>
 						{:else}
-							<p class="text-xs text-gray-500">Password must be at least 8 characters long</p>
+							<p class="text-xs text-gray-500">
+								Min 8 characters with uppercase, lowercase, and number
+							</p>
 						{/if}
 					</div>
 

@@ -5,8 +5,8 @@
 **Phase:** 08_Frontend
 **Module:** 8.7_Settings
 **Priority:** Medium
-**Status:** Todo
-**Assignee:**
+**Status:** NeedsReview
+**Assignee:** User
 **Created Date:** 2025-01-21
 **Last Updated:** 2025-01-21
 

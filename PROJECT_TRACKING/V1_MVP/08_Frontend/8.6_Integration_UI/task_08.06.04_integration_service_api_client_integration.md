@@ -5,8 +5,8 @@
 **Phase:** 08_Frontend
 **Module:** 8.6_Integration_UI
 **Priority:** High
-**Status:** Todo
-**Assignee:**
+**Status:** NeedsReview
+**Assignee:** User
 **Created Date:** 2025-11-06
 **Last Updated:** 2025-11-06
 

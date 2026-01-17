@@ -15,6 +15,10 @@ vi.mock('$app/stores', () => ({
 	page: vi.fn()
 }));
 
+vi.mock('$env/static/public', () => ({
+	PUBLIC_API_URL: 'http://localhost:3000/api/v1'
+}));
+
 // Mock browser APIs for token encryption testing
 global.window = global.window || {};
 
