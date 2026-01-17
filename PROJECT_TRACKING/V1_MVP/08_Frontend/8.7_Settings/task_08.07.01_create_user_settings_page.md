@@ -8,42 +8,45 @@
 **Status:** NeedsReview
 **Assignee:** User
 **Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21
+**Last Updated:** 2025-01-26
 
 ## Detailed Description:
-Create comprehensive user settings page with profile management, preferences, notification settings, and account configuration options.
+Create comprehensive user settings page with profile management, preferences, notification settings, and account configuration options. This task covers the "My Profile" section, ensuring users can manage their own data as per `PROFILE_API.md`.
 
 ## Specific Sub-tasks:
-- [ ] 1. Create user profile settings form component
-- [ ] 2. Implement account information management
-- [ ] 3. Create notification preferences interface
-- [ ] 4. Build security settings (password change, 2FA)
-- [ ] 5. Implement theme and display preferences
-- [ ] 6. Create privacy and data sharing settings
-- [ ] 7. Build integration with external services settings
-- [ ] 8. Implement data export and deletion options
-- [ ] 9. Create settings validation and confirmation
-- [ ] 10. Add responsive design for mobile settings
+- [ ] 1. Create User Profile Settings Form
+    - [ ] Basic Info: Name, Phone, Title, Department, Location, Bio.
+    - [ ] Social Links: Dynamic list or specific fields (LinkedIn, GitHub, etc.).
+    - [ ] Avatar: Upload/View (placeholder until S3 is ready).
+    - [ ] API: `GET/PUT /api/v1/users/profile`
+- [ ] 2. Implement Profile Visibility & Privacy Settings
+    - [ ] Visibility Toggle: Public / Team Only / Private.
+    - [ ] Field Visibility: Show Email, Show Phone.
+    - [ ] API: `PUT /api/v1/users/profile/visibility`
+- [ ] 3. Implement Profile Completeness Widget
+    - [ ] Fetch score and missing fields from `GET /api/v1/users/profile/completeness`.
+    - [ ] Display progress bar and suggestions.
+- [ ] 4. Create Notification Preferences Interface
+    - [ ] Toggles for Email, Push, SMS.
+    - [ ] Granular types: Order Updates, Inventory Alerts, etc.
+- [ ] 5. Implement Account Security (Password/2FA) - *Optional/Later if not in MVP scope*
+- [ ] 6. Implement Theme/Display Preferences (Language, Timezone, Date Format).
 
 ## Acceptance Criteria:
-- [ ] User profile settings form component functional
-- [ ] Account information management working
-- [ ] Notification preferences interface operational
-- [ ] Security settings (password, 2FA) implemented
-- [ ] Theme and display preferences functional
-- [ ] Privacy and data sharing settings operational
-- [ ] External service integration settings working
-- [ ] Data export and deletion options available
-- [ ] Settings validation and confirmation working
-- [ ] Mobile-responsive settings design implemented
+- [ ] User can view and update their extended profile information.
+- [ ] Profile completeness score is visible and encourages data entry.
+- [ ] Visibility settings are adjustable and persist.
+- [ ] Notification preferences are saved correctly.
+- [ ] UI provides feedback on save success/failure.
+- [ ] Mobile-responsive layout.
 
 ## Dependencies:
-- V1_MVP/08_Frontend/8.1_Project_Setup/task_08.01.01_setup_sveltekit_project.md
+- V1_MVP/08_Frontend/8.1_Project_Setup/task_08.01.01_setup_sveltekit_project.md (Status: Done)
+- V1_MVP/08_Frontend/8.7_Settings/task_08.07.05_user_service_api_client.md (Status: Todo)
 
 ## Related Documents:
-- `frontend/src/routes/settings/+page.svelte` (file to be created)
-- `frontend/src/components/settings/ProfileSettings.svelte` (file to be created)
-- `frontend/src/components/settings/SecuritySettings.svelte` (file to be created)
+- `services/user_service/PROFILE_API.md`
+- `frontend/src/routes/settings/profile/+page.svelte` (suggested path)
 
 ## Notes / Discussion:
 ---
