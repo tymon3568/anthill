@@ -10,10 +10,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Check if user has owner role by examining groups
 	// Strict matching: exact 'owner' or suffix pattern '_owners'
-	const isOwner = user.groups?.some((group) => group === 'owner' || group.endsWith('_owners'));
+	const isOwner =
+		user.groups?.some((group) => group === 'owner' || group.endsWith('_owners')) ?? false;
+
+	// Redirect non-owners - payment settings are owner-only
+	if (!isOwner) {
+		throw redirect(302, '/settings');
+	}
 
 	return {
 		user,
-		isOwner: isOwner ?? false
+		isOwner
 	};
 };

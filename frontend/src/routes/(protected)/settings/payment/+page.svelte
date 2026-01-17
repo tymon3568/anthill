@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import {
 		Card,
 		CardContent,
@@ -164,7 +165,8 @@
 		}
 	});
 
-	$effect(() => {
+	// Load settings on mount only
+	onMount(() => {
 		loadSettings();
 	});
 
