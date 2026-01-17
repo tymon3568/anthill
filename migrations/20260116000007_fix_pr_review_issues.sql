@@ -45,13 +45,14 @@ BEGIN
     IF dup_count > 0 THEN
         RAISE WARNING 'Found % duplicate (tenant_id, location_id) pairs in warehouse_locations. Keeping most recent records.', dup_count;
 
-        -- Delete older duplicates, keeping the one with max id (or created_at if available)
+        -- Delete older duplicates, keeping the one with the most recent updated_at
         DELETE FROM warehouse_locations w1
         WHERE EXISTS (
             SELECT 1 FROM warehouse_locations w2
             WHERE w1.tenant_id = w2.tenant_id
               AND w1.location_id = w2.location_id
-              AND w1.ctid < w2.ctid
+              AND (w1.updated_at < w2.updated_at
+                   OR (w1.updated_at = w2.updated_at AND w1.location_id < w2.location_id))
         );
     END IF;
 END;
@@ -73,12 +74,14 @@ BEGIN
     IF dup_count > 0 THEN
         RAISE WARNING 'Found % duplicate (tenant_id, category_id) pairs in product_categories. Keeping most recent records.', dup_count;
 
+        -- Delete older duplicates, keeping the one with the most recent updated_at
         DELETE FROM product_categories p1
         WHERE EXISTS (
             SELECT 1 FROM product_categories p2
             WHERE p1.tenant_id = p2.tenant_id
               AND p1.category_id = p2.category_id
-              AND p1.ctid < p2.ctid
+              AND (p1.updated_at < p2.updated_at
+                   OR (p1.updated_at = p2.updated_at AND p1.category_id < p2.category_id))
         );
     END IF;
 END;
@@ -172,13 +175,23 @@ ALTER TABLE cycle_count_schedules
 -- ==================================
 
 -- Fix 1: Remove 'lifo' from CHECK constraint (not supported in Rust enum)
+-- First, update any existing 'lifo' values to 'fifo' (the default)
+UPDATE inventory_valuation_settings
+SET method = 'fifo'
+WHERE method = 'lifo';
+
 -- Drop and recreate the constraint with only supported methods
 ALTER TABLE inventory_valuation_settings
     DROP CONSTRAINT IF EXISTS inventory_valuation_settings_method_check;
 
 ALTER TABLE inventory_valuation_settings
     ADD CONSTRAINT inventory_valuation_settings_method_check
-    CHECK (method IN ('fifo', 'avco', 'standard'));
+    CHECK (method IN ('fifo', 'avco', 'standard'))
+    NOT VALID;
+
+-- Validate the constraint (safe since we fixed lifo values above)
+ALTER TABLE inventory_valuation_settings
+    VALIDATE CONSTRAINT inventory_valuation_settings_method_check;
 
 -- Fix 2: Add deleted_at column for soft-delete support
 ALTER TABLE inventory_valuation_settings

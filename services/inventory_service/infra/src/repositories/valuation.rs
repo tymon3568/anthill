@@ -1357,7 +1357,7 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
             r#"
             UPDATE inventory_valuation_settings
             SET method = $1, updated_at = NOW()
-            WHERE id = $2 AND tenant_id = $3
+            WHERE id = $2 AND tenant_id = $3 AND deleted_at IS NULL
             RETURNING id, tenant_id, scope_type, scope_id, method, created_at, updated_at
             "#,
             method_str,
