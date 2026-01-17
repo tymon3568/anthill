@@ -5,8 +5,8 @@
 **Phase:** 08_Frontend
 **Module:** 8.7_Settings
 **Priority:** High
-**Status:** Todo
-**Assignee:** 
+**Status:** InProgress_By_Opus
+**Assignee:** Opus
 **Created Date:** 2026-01-17
 **Last Updated:** 2026-01-17
 
@@ -574,3 +574,8 @@ GET    /api/v1/users/roles
     - Consolidates all User Service API interactions beyond basic auth
     - Serves as dependency for Settings and Admin Console modules
     - Follows existing patterns from Inventory/Order/Integration service clients
+
+*   2026-01-17 12:45: Task claimed by Opus
+    - Verified dependencies: task_08.02.03 (Done), task_08.02.04 (Done)
+    - Created feature branch: feat/user-service-frontend-tasks
+    - Starting implementation of sub-task 1: Base API Client Structure
