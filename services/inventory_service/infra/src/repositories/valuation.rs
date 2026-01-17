@@ -1246,7 +1246,7 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
             r#"
             SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
             FROM inventory_valuation_settings
-            WHERE tenant_id = $1 AND scope_type = 'tenant'
+            WHERE tenant_id = $1 AND scope_type = 'tenant' AND deleted_at IS NULL
             "#,
             tenant_id
         )
@@ -1281,7 +1281,7 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
                 r#"
                 SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
                 FROM inventory_valuation_settings
-                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id = $3
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id = $3 AND deleted_at IS NULL
                 "#,
             )
             .bind(tenant_id)
@@ -1294,7 +1294,7 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
                 r#"
                 SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
                 FROM inventory_valuation_settings
-                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id IS NULL
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id IS NULL AND deleted_at IS NULL
                 "#,
             )
             .bind(tenant_id)
@@ -1445,11 +1445,13 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
     ) -> Result<()> {
         let scope_type_str = Self::scope_type_to_string(&scope_type);
 
+        // Use soft-delete: set deleted_at instead of DELETE
         let rows_affected = if scope_id.is_some() {
             sqlx::query!(
                 r#"
-                DELETE FROM inventory_valuation_settings
-                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id = $3
+                UPDATE inventory_valuation_settings
+                SET deleted_at = NOW()
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id = $3 AND deleted_at IS NULL
                 "#,
                 tenant_id,
                 scope_type_str,
@@ -1461,8 +1463,9 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
         } else {
             sqlx::query!(
                 r#"
-                DELETE FROM inventory_valuation_settings
-                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id IS NULL
+                UPDATE inventory_valuation_settings
+                SET deleted_at = NOW()
+                WHERE tenant_id = $1 AND scope_type = $2 AND scope_id IS NULL AND deleted_at IS NULL
                 "#,
                 tenant_id,
                 scope_type_str
@@ -1493,7 +1496,7 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
                 r#"
                 SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
                 FROM inventory_valuation_settings
-                WHERE tenant_id = $1 AND scope_type = $2
+                WHERE tenant_id = $1 AND scope_type = $2 AND deleted_at IS NULL
                 ORDER BY scope_type, scope_id
                 "#,
             )
@@ -1506,7 +1509,7 @@ impl ValuationSettingsRepository for ValuationSettingsRepositoryImpl {
                 r#"
                 SELECT id, tenant_id, scope_type, scope_id, method, created_at, updated_at
                 FROM inventory_valuation_settings
-                WHERE tenant_id = $1
+                WHERE tenant_id = $1 AND deleted_at IS NULL
                 ORDER BY scope_type, scope_id
                 "#,
             )

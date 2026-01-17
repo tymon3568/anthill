@@ -23,11 +23,14 @@ pub enum ValuationMethod {
 
 impl From<String> for ValuationMethod {
     fn from(s: String) -> Self {
-        match s.to_lowercase().as_str() {
-            "fifo" => ValuationMethod::Fifo,
-            "avco" => ValuationMethod::Avco,
-            "standard" => ValuationMethod::Standard,
-            _ => ValuationMethod::Fifo, // Default to Fifo
+        if s.eq_ignore_ascii_case("fifo") {
+            ValuationMethod::Fifo
+        } else if s.eq_ignore_ascii_case("avco") {
+            ValuationMethod::Avco
+        } else if s.eq_ignore_ascii_case("standard") {
+            ValuationMethod::Standard
+        } else {
+            ValuationMethod::Fifo // Default to Fifo
         }
     }
 }
@@ -52,11 +55,14 @@ pub enum ValuationScopeType {
 
 impl From<String> for ValuationScopeType {
     fn from(s: String) -> Self {
-        match s.to_lowercase().as_str() {
-            "tenant" => ValuationScopeType::Tenant,
-            "category" => ValuationScopeType::Category,
-            "product" => ValuationScopeType::Product,
-            _ => ValuationScopeType::Tenant,
+        if s.eq_ignore_ascii_case("tenant") {
+            ValuationScopeType::Tenant
+        } else if s.eq_ignore_ascii_case("category") {
+            ValuationScopeType::Category
+        } else if s.eq_ignore_ascii_case("product") {
+            ValuationScopeType::Product
+        } else {
+            ValuationScopeType::Tenant
         }
     }
 }
