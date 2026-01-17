@@ -20,7 +20,8 @@
 		UserProfile,
 		VisibilitySettings,
 		CompletenessScore,
-		UpdateProfileRequest
+		UpdateProfileRequest,
+		ProfileVisibility
 	} from '$lib/api/types/user-service.types';
 	import { toast } from 'svelte-sonner';
 	import { onMount } from 'svelte';
@@ -165,6 +166,7 @@
 			}
 		} catch (error) {
 			console.error('Failed to load completeness:', error);
+			// Silent fail - completeness widget is optional
 		} finally {
 			isLoadingCompleteness = false;
 		}
@@ -269,8 +271,8 @@
 	}
 
 	async function saveNotifications() {
-		// TODO: API call to save notifications when backend supports it
-		toast.success('Notification preferences saved');
+		// TODO: Implement API endpoint for notification preferences when backend supports it
+		toast.info('Notification preferences saved locally (backend integration pending)');
 	}
 </script>
 
@@ -523,7 +525,8 @@
 							<Select.Root
 								type="single"
 								name="profileVisibility"
-								bind:value={visibility.profileVisibility}
+								value={visibility.profileVisibility}
+								onValueChange={(v) => (visibility.profileVisibility = v as ProfileVisibility)}
 							>
 								<Select.Trigger class="w-full">
 									{visibilityOptions.find((o) => o.value === visibility.profileVisibility)?.label ||
@@ -637,7 +640,12 @@
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
 								<Label for="timezone">Timezone</Label>
-								<Select.Root type="single" name="timezone" bind:value={profileForm.timezone}>
+								<Select.Root
+									type="single"
+									name="timezone"
+									value={profileForm.timezone}
+									onValueChange={(v) => (profileForm.timezone = v)}
+								>
 									<Select.Trigger class="w-full">
 										{timezones.find((t) => t.value === profileForm.timezone)?.label ||
 											'Select timezone'}
@@ -651,7 +659,12 @@
 							</div>
 							<div class="space-y-2">
 								<Label for="language">Language</Label>
-								<Select.Root type="single" name="language" bind:value={profileForm.language}>
+								<Select.Root
+									type="single"
+									name="language"
+									value={profileForm.language}
+									onValueChange={(v) => (profileForm.language = v)}
+								>
 									<Select.Trigger class="w-full">
 										{languages.find((l) => l.value === profileForm.language)?.label ||
 											'Select language'}
@@ -680,25 +693,31 @@
 					</CardHeader>
 					<CardContent class="space-y-4">
 						<div class="space-y-2">
-							<Label>Change Password</Label>
+							<div class="flex items-center gap-2">
+								<Label>Change Password</Label>
+								<span class="rounded bg-muted px-2 py-0.5 text-xs">Coming Soon</span>
+							</div>
 							<div class="grid gap-2">
-								<Input type="password" placeholder="Current password" />
-								<Input type="password" placeholder="New password" />
-								<Input type="password" placeholder="Confirm new password" />
+								<Input type="password" placeholder="Current password" disabled />
+								<Input type="password" placeholder="New password" disabled />
+								<Input type="password" placeholder="Confirm new password" disabled />
 							</div>
 						</div>
 						<div class="flex justify-end">
-							<Button>Update Password</Button>
+							<Button disabled>Update Password</Button>
 						</div>
 
 						<Separator />
 
 						<div class="space-y-2">
-							<h4 class="font-medium">Two-Factor Authentication</h4>
+							<div class="flex items-center gap-2">
+								<h4 class="font-medium">Two-Factor Authentication</h4>
+								<span class="rounded bg-muted px-2 py-0.5 text-xs">Coming Soon</span>
+							</div>
 							<p class="text-sm text-muted-foreground">
 								Add an extra layer of security to your account
 							</p>
-							<Button variant="outline">Enable 2FA</Button>
+							<Button variant="outline" disabled>Enable 2FA</Button>
 						</div>
 					</CardContent>
 				</Card>
