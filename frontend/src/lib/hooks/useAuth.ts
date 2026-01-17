@@ -21,7 +21,7 @@ function mapUserProfileToUser(profile: UserProfile): User {
 		id: profile.id,
 		email: profile.email,
 		name: profile.display_name || profile.username || profile.email,
-		role: (profile.role as 'admin' | 'manager' | 'user') || 'user',
+		role: (profile.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
 		tenantId: profile.tenant_id,
 		createdAt: profile.created_at,
 		updatedAt: profile.updated_at

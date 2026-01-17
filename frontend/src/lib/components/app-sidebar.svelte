@@ -4,6 +4,7 @@
 	import NavMain from './nav-main.svelte';
 	import NavUser from './nav-user.svelte';
 	import { mainNavigation, settingsNavigation } from '$lib/config/navigation';
+	import { authState } from '$lib/stores/auth.svelte';
 	import BoxesIcon from '@lucide/svelte/icons/boxes';
 
 	interface Props {
@@ -15,6 +16,14 @@
 
 	// Get sidebar context for mobile handling
 	const sidebar = Sidebar.useSidebar();
+
+	// Check if user is admin or owner
+	const isAdmin = $derived(authState.user?.role === 'admin' || authState.user?.role === 'owner');
+
+	// Filter settings navigation based on user role
+	const filteredSettingsNavigation = $derived(
+		settingsNavigation.filter((item) => !item.adminOnly || isAdmin)
+	);
 
 	// Auto-close mobile sidebar on navigation
 	afterNavigate(() => {
@@ -68,7 +77,7 @@
 		<Sidebar.Group class="mt-auto">
 			<Sidebar.GroupLabel id="settings-nav-label">Settings</Sidebar.GroupLabel>
 			<Sidebar.Menu aria-labelledby="settings-nav-label" role="navigation">
-				{#each settingsNavigation as item (item.title)}
+				{#each filteredSettingsNavigation as item (item.title)}
 					<Sidebar.MenuItem>
 						<Sidebar.MenuButton
 							tooltipContent={item.title}

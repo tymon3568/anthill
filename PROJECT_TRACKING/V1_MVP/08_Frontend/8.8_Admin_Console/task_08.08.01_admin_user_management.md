@@ -42,7 +42,7 @@ Create a comprehensive user management interface for Tenant Administrators. This
 
 ## Dependencies:
 - V1_MVP/08_Frontend/8.2_Authentication_UI/task_08.02.03_auth_api_client.md (Status: Done)
-- V1_MVP/08_Frontend/8.7_Settings/task_08.07.05_user_service_api_client.md (Status: Todo)
+- V1_MVP/08_Frontend/8.7_Settings/task_08.07.05_user_service_api_client.md (Status: NeedsReview)
 - V1_MVP/08_Frontend/8.8_Admin_Console/task_08.08.03_admin_layout_and_nav.md (Status: Todo)
 
 ## Related Documents:

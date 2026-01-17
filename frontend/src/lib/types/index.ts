@@ -4,7 +4,7 @@ export interface User {
 	id: string;
 	email?: string;
 	name?: string;
-	role: 'admin' | 'manager' | 'user';
+	role: 'owner' | 'admin' | 'manager' | 'user';
 	tenantId: string;
 	createdAt: string;
 	updatedAt: string;

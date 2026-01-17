@@ -80,7 +80,7 @@ Backend endpoints available:
     - [ ] 7.4. Success toast for create/resend/revoke actions
 
 ## Dependencies:
-*   Task: `task_08.07.05_user_service_api_client.md` (Status: Todo)
+*   Task: `task_08.07.05_user_service_api_client.md` (Status: NeedsReview)
 *   Task: `task_08.08.03_admin_layout_and_nav.md` (Status: Todo)
 
 ## Files to Create/Modify:
