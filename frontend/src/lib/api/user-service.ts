@@ -39,6 +39,7 @@ import type {
 	TenantValidation
 } from './types/user-service.types';
 import { tokenManager } from '$lib/auth/token-manager';
+import { getCurrentTenantSlug } from '$lib/tenant';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 /**
@@ -91,9 +92,13 @@ export const userServiceApi = {
 		formData.append('avatar', file);
 
 		const token = tokenManager.getAccessToken();
+		const tenantSlug = getCurrentTenantSlug();
 		const headers: HeadersInit = {};
 		if (token) {
 			headers['Authorization'] = `Bearer ${token}`;
+		}
+		if (tenantSlug) {
+			headers['X-Tenant-ID'] = tenantSlug;
 		}
 
 		try {
@@ -180,7 +185,7 @@ export const userServiceApi = {
 		if (params.status) searchParams.set('status', params.status);
 		if (params.search) searchParams.set('search', params.search);
 
-		return apiClient.get<PaginatedUsers>(`/users?${searchParams}`);
+		return apiClient.get<PaginatedUsers>(`/admin/users?${searchParams}`);
 	},
 
 	/**

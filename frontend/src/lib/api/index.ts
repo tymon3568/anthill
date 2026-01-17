@@ -20,7 +20,34 @@ export type {
 
 // User Service API
 export { userServiceApi, UserServiceApiError } from './user-service';
-export type * from './types/user-service.types';
+export type {
+	UserStatus,
+	ProfileVisibility,
+	InvitationStatus,
+	User as UserServiceUser,
+	UserProfile as UserServiceProfile,
+	PublicProfile,
+	Permission,
+	Role,
+	Invitation,
+	ListUsersParams,
+	ListInvitationsParams,
+	CreateUserRequest,
+	UpdateProfileRequest,
+	VisibilitySettings,
+	CreateInvitationRequest,
+	CreateRoleRequest,
+	UpdateRoleRequest,
+	ProfileSearchRequest,
+	PaginatedResponse,
+	PaginatedUsers,
+	PaginatedInvitations,
+	ProfileSearchResult,
+	CompletenessScore,
+	AvatarUploadResponse,
+	PermissionCheckResponse,
+	TenantValidation
+} from './types/user-service.types';
 
 // Inventory API
 export { inventoryApi } from './inventory';

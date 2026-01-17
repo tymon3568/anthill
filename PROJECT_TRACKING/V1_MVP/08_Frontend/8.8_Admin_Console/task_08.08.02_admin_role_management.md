@@ -41,7 +41,7 @@ Create an interface for managing custom roles and permissions. This is a critica
 ## Dependencies:
 - V1_MVP/08_Frontend/8.7_Settings/task_08.07.05_user_service_api_client.md (Status: NeedsReview)
 - V1_MVP/08_Frontend/8.8_Admin_Console/task_08.08.01_admin_user_management.md (Status: Todo)
-- V1_MVP/08_Frontend/8.8_Admin_Console/task_08.08.03_admin_layout_and_nav.md (Status: Todo)
+- V1_MVP/08_Frontend/8.8_Admin_Console/task_08.08.03_admin_layout_and_nav.md (Status: NeedsReview)
 
 ## Related Documents:
 - `services/user_service/ADMIN_ROLE_API.md`
