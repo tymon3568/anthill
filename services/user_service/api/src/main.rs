@@ -291,6 +291,16 @@ async fn main() {
         )
         .layer(Extension(combined_state.app.clone()));
 
+    // Check tenant slug availability (public endpoint, no auth required)
+    let check_tenant_slug_route = Router::new()
+        .route(
+            "/api/v1/auth/check-tenant-slug",
+            get(handlers::check_tenant_slug::<
+                AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>,
+            >),
+        )
+        .layer(Extension(combined_state.app.clone()));
+
     // Email verification routes with rate limiting
     let verify_email_route = Router::new()
         .route(
@@ -372,6 +382,7 @@ async fn main() {
         .merge(refresh_route)
         .merge(accept_invite_route)
         .merge(logout_route)
+        .merge(check_tenant_slug_route)
         .merge(verify_email_route)
         .merge(resend_verification_route)
         .merge(forgot_password_route)

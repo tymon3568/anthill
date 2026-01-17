@@ -17,6 +17,10 @@
 	import { toast } from 'svelte-sonner';
 	import Mail from '@lucide/svelte/icons/mail';
 	import CheckCircle from '@lucide/svelte/icons/check-circle';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import Loader2 from '@lucide/svelte/icons/loader-2';
+	import Building2 from '@lucide/svelte/icons/building-2';
+	import UserPlus from '@lucide/svelte/icons/user-plus';
 
 	// Form state using Svelte 5 runes
 	let formData = $state<RegisterForm>({
@@ -32,6 +36,89 @@
 	let registrationSuccess = $state(false);
 	let registeredEmail = $state('');
 	let isResending = $state(false);
+
+	// Tenant availability check state
+	let tenantCheckStatus = $state<'idle' | 'checking' | 'available' | 'exists' | 'error'>('idle');
+	let tenantCheckSlug = $state('');
+	let existingTenantName = $state<string | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// Convert tenant name to slug for display
+	function toSlug(name: string): string {
+		return name
+			.trim()
+			.toLowerCase()
+			.replace(/\s+/g, '-')
+			.replace(/[^a-z0-9-]/g, '');
+	}
+
+	// Derived slug from tenant name
+	let tenantSlug = $derived(toSlug(formData.tenantName));
+
+	// Check tenant availability with debounce
+	async function checkTenantAvailability(tenantName: string) {
+		const slug = toSlug(tenantName);
+
+		// Reset if empty
+		if (!slug) {
+			tenantCheckStatus = 'idle';
+			tenantCheckSlug = '';
+			existingTenantName = null;
+			return;
+		}
+
+		// Don't check if slug hasn't changed
+		if (slug === tenantCheckSlug && tenantCheckStatus !== 'idle') {
+			return;
+		}
+
+		tenantCheckStatus = 'checking';
+		tenantCheckSlug = slug;
+
+		try {
+			const response = await authApi.checkTenantSlug(slug);
+			if (response.success && response.data) {
+				// Make sure we're still checking the same slug (in case user typed more)
+				if (toSlug(formData.tenantName) === slug) {
+					if (response.data.available) {
+						tenantCheckStatus = 'available';
+						existingTenantName = null;
+					} else {
+						tenantCheckStatus = 'exists';
+						existingTenantName = response.data.existing_tenant_name;
+					}
+				}
+			} else {
+				tenantCheckStatus = 'error';
+			}
+		} catch {
+			tenantCheckStatus = 'error';
+		}
+	}
+
+	// Handle tenant name input with debounce
+	function handleTenantNameInput() {
+		clearFieldError('tenantName');
+
+		// Clear previous timer
+		if (debounceTimer) {
+			clearTimeout(debounceTimer);
+		}
+
+		// Set status to checking immediately for responsiveness
+		if (formData.tenantName.trim()) {
+			tenantCheckStatus = 'checking';
+		} else {
+			tenantCheckStatus = 'idle';
+			tenantCheckSlug = '';
+			existingTenantName = null;
+		}
+
+		// Debounce the actual API call
+		debounceTimer = setTimeout(() => {
+			checkTenantAvailability(formData.tenantName);
+		}, 400);
+	}
 
 	// Form submission handler
 	async function handleSubmit(event: Event) {
@@ -244,13 +331,55 @@
 								bind:value={formData.tenantName}
 								required
 								disabled={isLoading}
-								class={fieldErrors.tenantName ? 'border-red-500' : ''}
-								oninput={() => clearFieldError('tenantName')}
+								class={fieldErrors.tenantName
+									? 'border-red-500'
+									: tenantCheckStatus === 'available'
+										? 'border-green-500 focus:ring-green-500'
+										: tenantCheckStatus === 'exists'
+											? 'border-amber-500 focus:ring-amber-500'
+											: ''}
+								oninput={handleTenantNameInput}
 							/>
+
+							<!-- Tenant availability feedback -->
 							{#if fieldErrors.tenantName}
 								<p class="text-sm text-red-600">{fieldErrors.tenantName}</p>
+							{:else if tenantCheckStatus === 'checking'}
+								<div class="flex items-center gap-2 text-sm text-gray-500">
+									<Loader2 class="h-4 w-4 animate-spin" />
+									<span>Checking availability...</span>
+								</div>
+							{:else if tenantCheckStatus === 'available'}
+								<div
+									class="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 p-2 text-sm"
+								>
+									<Building2 class="h-4 w-4 flex-shrink-0 text-green-600" />
+									<div class="text-green-700">
+										<span class="font-medium">{formData.tenantName}</span>
+										<span class="text-green-600">({tenantSlug})</span> is available.
+										<span class="font-medium">You will be the Owner.</span>
+									</div>
+								</div>
+							{:else if tenantCheckStatus === 'exists'}
+								<div
+									class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm"
+								>
+									<UserPlus class="h-4 w-4 flex-shrink-0 text-amber-600" />
+									<div class="text-amber-700">
+										<span class="font-medium">{existingTenantName || tenantSlug}</span> already
+										exists.
+										<span class="font-medium">You will request to join.</span>
+									</div>
+								</div>
+							{:else if tenantCheckStatus === 'error'}
+								<div class="flex items-center gap-2 text-sm text-gray-500">
+									<CircleAlert class="h-4 w-4 text-gray-400" />
+									<span>Could not check availability</span>
+								</div>
 							{:else}
-								<p class="text-xs text-gray-500">This will create a new organization for you</p>
+								<p class="text-xs text-gray-500">
+									Enter an organization name to create or join a workspace
+								</p>
 							{/if}
 						</div>
 
