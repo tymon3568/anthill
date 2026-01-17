@@ -5,7 +5,7 @@
 **Phase:** 08_Frontend
 **Module:** 8.2_Authentication_UI
 **Priority:** High
-**Status:** InProgress
+**Status:** Done
 **Assignee:** Opus
 **Created Date:** 2026-01-17
 **Last Updated:** 2026-01-17
@@ -16,16 +16,16 @@ Implement the frontend UI for email verification flow. This includes the verific
 - `POST /api/v1/auth/resend-verification` - Resend verification email (rate limited)
 
 ## Acceptance Criteria:
-- [ ] Verification page accessible at `/verify-email?token=...`
-- [ ] Page automatically submits token on load and shows verification status
-- [ ] Success state: Shows confirmation message with link to login
-- [ ] Error states: Invalid token, expired token, already verified
-- [ ] Resend verification button available on login/register pages for unverified users
-- [ ] Rate limiting feedback displayed when resend limit reached
-- [ ] Responsive design following Frappe UI guidelines
-- [ ] Svelte 5 runes used throughout ($state, $derived, $effect)
-- [ ] Code compiles without errors: `bun run check`
-- [ ] Accessibility requirements met (ARIA attributes, keyboard navigation)
+- [x] Verification page accessible at `/verify-email?token=...`
+- [x] Page automatically submits token on load and shows verification status
+- [x] Success state: Shows confirmation message with link to login
+- [x] Error states: Invalid token, expired token, already verified
+- [x] Resend verification button available on login/register pages for unverified users
+- [x] Rate limiting feedback displayed when resend limit reached
+- [x] Responsive design following Frappe UI guidelines
+- [x] Svelte 5 runes used throughout ($state, $derived, $effect)
+- [x] Code compiles without errors: `bun run check`
+- [x] Accessibility requirements met (ARIA attributes, keyboard navigation)
 
 ## Specific Sub-tasks:
 - [ ] 1. Create Email Verification Page (`src/routes/(auth)/verify-email/+page.svelte`)
@@ -197,3 +197,12 @@ Response: 200 OK | 429 Too Many Requests
     - Created to address gap in frontend coverage for email verification flow
     - Backend endpoints already implemented in User Service
     - Follows existing auth UI patterns from task_08.02.01
+*   2026-01-17 19:00: Task completed by Opus
+    - Added verifyEmail and resendVerification methods to auth API client
+    - Created email verification page at /verify-email with:
+      - Automatic token verification on page load
+      - Loading, success, and error states
+      - Error handling for invalid/expired/already verified tokens
+    - Updated registration page with 'Check your email' success state
+    - Added resend verification functionality with rate limiting feedback
+    - PR #165 merged successfully
