@@ -64,6 +64,18 @@ export interface OAuth2CallbackResp {
 	refresh_token?: string;
 	token_type: string;
 	expires_in?: number;
+	user?: {
+		kanidm_user_id?: string;
+		email?: string;
+		preferred_username?: string;
+		groups?: string[];
+	};
+	tenant?: {
+		tenant_id: string;
+		name: string;
+		slug: string;
+		role: string;
+	};
 }
 
 /** @deprecated OAuth2 integration removed - use email/password auth instead */
