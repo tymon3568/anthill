@@ -5,7 +5,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Check if user is owner - tenant settings are owner-only
 	const user = locals.user;
 	if (!user) {
-		redirect(302, '/auth/login');
+		throw redirect(302, '/auth/login');
 	}
 
 	// Check if user has owner role by examining groups

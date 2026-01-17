@@ -408,7 +408,7 @@
 				includeSettings: true
 			});
 			if (response.success && response.data) {
-				window.open(response.data.downloadUrl, '_blank');
+				window.open(response.data.downloadUrl, '_blank', 'noopener,noreferrer');
 				toast.success('Export started - download will begin shortly');
 			} else {
 				toast.error(response.error || 'Failed to export data');
