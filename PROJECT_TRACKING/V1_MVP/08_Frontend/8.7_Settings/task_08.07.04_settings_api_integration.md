@@ -5,8 +5,8 @@
 **Phase:** 08_Frontend
 **Module:** 8.7_Settings
 **Priority:** Medium
-**Status:** Todo
-**Assignee:** 
+**Status:** Done
+**Assignee:** Opus
 **Created Date:** 2025-01-21
 **Last Updated:** 2026-01-17
 
