@@ -110,7 +110,8 @@
 					toast.error(response.error || 'Failed to resend verification email');
 				}
 			}
-		} catch {
+		} catch (error) {
+			console.error('Failed to resend verification email:', error);
 			toast.error('Failed to resend verification email. Please try again later.');
 		} finally {
 			isResending = false;

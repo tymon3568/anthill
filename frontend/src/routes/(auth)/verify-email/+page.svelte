@@ -51,6 +51,7 @@
 				handleErrorResponse(response.error);
 			}
 		} catch (error) {
+			console.error('Email verification failed:', error);
 			status = 'error';
 			errorType = 'unknown';
 			errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -166,8 +167,8 @@
 		<div class="mt-4 text-center">
 			<p class="text-sm text-gray-600">
 				Need help?
-				<a href="/support" class="font-medium text-blue-600 underline hover:text-blue-500">
-					Contact Support
+				<a href="/login" class="font-medium text-blue-600 underline hover:text-blue-500">
+					Back to Login
 				</a>
 			</p>
 		</div>
