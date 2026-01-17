@@ -33,6 +33,7 @@
 	import ShieldIcon from '@lucide/svelte/icons/shield';
 	import BanIcon from '@lucide/svelte/icons/ban';
 	import TrashIcon from '@lucide/svelte/icons/trash';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 
 	// State
 	let users = $state<User[]>([]);
@@ -104,6 +105,7 @@
 			}
 		} catch (error) {
 			console.error('Failed to load roles:', error);
+			toast.error('Failed to load roles');
 		} finally {
 			isLoadingRoles = false;
 		}
@@ -481,7 +483,7 @@
 					</Select.Trigger>
 					<Select.Content>
 						{#if isLoadingRoles}
-							<Select.Item value="user">User</Select.Item>
+							<Select.Item value="user" disabled>Loading...</Select.Item>
 						{:else}
 							{#each roles as role (role.name)}
 								<Select.Item value={role.name}>
