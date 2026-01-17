@@ -16,16 +16,22 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	if (!user) {
 		// Not authenticated - redirect to login
-		redirect(302, `/login?redirect=${encodeURIComponent(url.pathname)}`);
+		throw redirect(302, `/login?redirect=${encodeURIComponent(url.pathname)}`);
 	}
 
 	// Check for admin role by examining user's groups
-	// Groups like 'tenant_xxx_admins' or 'admin' indicate admin access
-	const isAdmin = user.groups?.some((group) => group.includes('admin') || group.includes('owner'));
+	// Strict matching: exact 'admin'/'owner' or suffix pattern '_admins'/'_owners'
+	const isAdmin = user.groups?.some(
+		(group) =>
+			group === 'admin' ||
+			group === 'owner' ||
+			group.endsWith('_admins') ||
+			group.endsWith('_owners')
+	);
 
 	if (!isAdmin) {
 		// Not an admin - redirect to dashboard with error message
-		redirect(302, '/dashboard?error=unauthorized');
+		throw redirect(302, '/dashboard?error=unauthorized');
 	}
 
 	return {
