@@ -88,7 +88,8 @@ export const settingsNavigation: NavItem[] = [
 		icon: SettingsIcon,
 		items: [
 			{ title: 'Profile', url: '/settings' },
-			{ title: 'Organization', url: '/settings/tenant' }
+			{ title: 'Organization', url: '/settings/tenant' },
+			{ title: 'Payments', url: '/settings/payment' }
 		]
 	}
 ];
