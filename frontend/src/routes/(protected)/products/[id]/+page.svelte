@@ -5,7 +5,12 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Badge } from '$lib/components/ui/badge';
-	import { mockProducts, mockCategories, type Product, type UpdateProductRequest } from '$lib/api/products';
+	import {
+		mockProducts,
+		mockCategories,
+		type Product,
+		type UpdateProductRequest
+	} from '$lib/api/products';
 	import { goto } from '$app/navigation';
 
 	// Get product ID from URL
@@ -184,12 +189,17 @@
 							<select
 								id="category"
 								bind:value={formData.categoryId}
-								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm {errors.categoryId
+									? 'border-destructive'
+									: ''}"
 							>
 								{#each mockCategories as category}
 									<option value={category.id}>{category.name}</option>
 								{/each}
 							</select>
+							{#if errors.categoryId}
+								<p class="text-sm text-destructive">{errors.categoryId}</p>
+							{/if}
 						</div>
 						<div class="space-y-2">
 							<Label for="unit">Unit</Label>
@@ -236,7 +246,13 @@
 						</div>
 						<div class="space-y-2">
 							<Label for="costPrice">Cost Price</Label>
-							<Input id="costPrice" type="number" step="0.01" min="0" bind:value={formData.costPrice} />
+							<Input
+								id="costPrice"
+								type="number"
+								step="0.01"
+								min="0"
+								bind:value={formData.costPrice}
+							/>
 						</div>
 					</div>
 

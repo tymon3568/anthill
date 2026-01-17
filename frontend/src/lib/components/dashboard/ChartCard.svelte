@@ -11,6 +11,9 @@
 
 	// Calculate max value for scaling
 	const maxValue = $derived(Math.max(...data.map((d) => d.value), 1));
+
+	// Calculate safe denominator for x-coordinate (avoid division by zero)
+	const xDenom = $derived(Math.max(data.length - 1, 1));
 </script>
 
 <Card class="h-full">
@@ -37,14 +40,24 @@
 		{:else if type === 'line'}
 			<div class="relative h-48">
 				<svg class="h-full w-full" viewBox="0 0 100 50" preserveAspectRatio="none">
-					<polyline
-						fill="none"
-						stroke="hsl(var(--primary))"
-						stroke-width="1"
-						points={data
-							.map((d, i) => `${(i / (data.length - 1)) * 100},${50 - (d.value / maxValue) * 45}`)
-							.join(' ')}
-					/>
+					{#if data.length === 1}
+						<!-- Single data point: render a circle instead of a line -->
+						<circle
+							cx="50"
+							cy={50 - (data[0].value / maxValue) * 45}
+							r="2"
+							fill="hsl(var(--primary))"
+						/>
+					{:else}
+						<polyline
+							fill="none"
+							stroke="hsl(var(--primary))"
+							stroke-width="1"
+							points={data
+								.map((d, i) => `${(i / xDenom) * 100},${50 - (d.value / maxValue) * 45}`)
+								.join(' ')}
+						/>
+					{/if}
 				</svg>
 				<div class="mt-2 flex justify-between text-xs text-muted-foreground">
 					{#each data as item, i}

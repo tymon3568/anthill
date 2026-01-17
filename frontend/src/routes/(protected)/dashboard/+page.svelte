@@ -168,7 +168,7 @@
 						<span>📋</span>
 						<span class="text-sm">View Orders</span>
 					</a>
-					<a href="/inventory" class="flex items-center gap-2 rounded-lg p-3 hover:bg-muted/50">
+					<a href="/products" class="flex items-center gap-2 rounded-lg p-3 hover:bg-muted/50">
 						<span>📊</span>
 						<span class="text-sm">Stock Report</span>
 					</a>

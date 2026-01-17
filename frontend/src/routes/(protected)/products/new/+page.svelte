@@ -3,7 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { mockCategories, type CreateProductRequest } from '$lib/api/products';
+	import { mockCategories, productsApi, type CreateProductRequest } from '$lib/api/products';
 	import { goto } from '$app/navigation';
 
 	// Form state
@@ -22,6 +22,7 @@
 
 	let isSubmitting = $state(false);
 	let errors = $state<Record<string, string>>({});
+	let submitError = $state('');
 
 	function validateForm(): boolean {
 		errors = {};
@@ -51,17 +52,19 @@
 		if (!validateForm()) return;
 
 		isSubmitting = true;
+		submitError = '';
 
 		try {
-			// TODO: Call API to create product
-			console.log('Creating product:', formData);
+			const response = await productsApi.create(formData);
 
-			// Simulate API call
-			await new Promise((resolve) => setTimeout(resolve, 500));
+			if (response.error) {
+				submitError = response.error || 'Failed to create product';
+				return;
+			}
 
 			goto('/products');
 		} catch (error) {
-			console.error('Failed to create product:', error);
+			submitError = error instanceof Error ? error.message : 'Failed to create product';
 		} finally {
 			isSubmitting = false;
 		}
@@ -177,7 +180,13 @@
 					</div>
 					<div class="space-y-2">
 						<Label for="costPrice">Cost Price</Label>
-						<Input id="costPrice" type="number" step="0.01" min="0" bind:value={formData.costPrice} />
+						<Input
+							id="costPrice"
+							type="number"
+							step="0.01"
+							min="0"
+							bind:value={formData.costPrice}
+						/>
 					</div>
 				</div>
 
@@ -203,15 +212,22 @@
 			</CardContent>
 		</Card>
 
-		<div class="mt-6 flex justify-end gap-4">
-			<Button type="button" variant="outline" href="/products">Cancel</Button>
-			<Button type="submit" disabled={isSubmitting}>
-				{#if isSubmitting}
-					Creating...
-				{:else}
-					Create Product
-				{/if}
-			</Button>
+		<div class="mt-6 flex flex-col gap-4">
+			{#if submitError}
+				<div class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+					{submitError}
+				</div>
+			{/if}
+			<div class="flex justify-end gap-4">
+				<Button type="button" variant="outline" href="/products">Cancel</Button>
+				<Button type="submit" disabled={isSubmitting}>
+					{#if isSubmitting}
+						Creating...
+					{:else}
+						Create Product
+					{/if}
+				</Button>
+			</div>
 		</div>
 	</form>
 </div>

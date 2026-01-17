@@ -94,6 +94,7 @@
 					<option value="shipped">Shipped</option>
 					<option value="delivered">Delivered</option>
 					<option value="cancelled">Cancelled</option>
+					<option value="refunded">Refunded</option>
 				</select>
 			</div>
 		</CardContent>

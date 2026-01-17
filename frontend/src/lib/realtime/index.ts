@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 type EventHandler<T> = (data: T) => void;
 type ErrorHandler = (error: Event) => void;
@@ -23,6 +24,25 @@ export class RealtimeManager<T = unknown> {
 	constructor(private config: RealtimeConfig) {
 		this.config.reconnectInterval = config.reconnectInterval ?? 5000;
 		this.config.maxReconnectAttempts = config.maxReconnectAttempts ?? 10;
+	}
+
+	/**
+	 * Attach event listeners for all registered event types
+	 */
+	private attachEventListeners(): void {
+		if (!this.eventSource) return;
+
+		// Attach listeners for all registered event types
+		for (const eventType of this.handlers.keys()) {
+			this.eventSource.addEventListener(eventType, (event: MessageEvent) => {
+				try {
+					const data = JSON.parse(event.data) as T;
+					this.notifyHandlers(eventType, data);
+				} catch (e) {
+					console.error(`Failed to parse ${eventType} event:`, e);
+				}
+			});
+		}
 	}
 
 	/**
@@ -54,6 +74,9 @@ export class RealtimeManager<T = unknown> {
 					console.error('Failed to parse SSE message:', e);
 				}
 			};
+
+			// Attach listeners for all pre-registered event types
+			this.attachEventListeners();
 		} catch (error) {
 			console.error('Failed to create EventSource:', error);
 		}
@@ -66,7 +89,7 @@ export class RealtimeManager<T = unknown> {
 		if (!this.handlers.has(eventType)) {
 			this.handlers.set(eventType, new Set());
 
-			// Add event listener for this type if connected
+			// Add event listener for this type if already connected
 			if (this.eventSource) {
 				this.eventSource.addEventListener(eventType, (event: MessageEvent) => {
 					try {
@@ -110,8 +133,7 @@ export class RealtimeManager<T = unknown> {
 			this.eventSource.close();
 			this.eventSource = null;
 		}
-
-		this.reconnectAttempts = 0;
+		// Note: Don't reset reconnectAttempts here to allow proper max attempt tracking
 	}
 
 	/**
@@ -132,6 +154,9 @@ export class RealtimeManager<T = unknown> {
 	}
 
 	private handleReconnect(): void {
+		// Guard against scheduling duplicate timers
+		if (this.reconnectTimeout != null) return;
+
 		if (this.reconnectAttempts >= (this.config.maxReconnectAttempts ?? 10)) {
 			console.error('Max reconnection attempts reached');
 			return;
@@ -143,7 +168,11 @@ export class RealtimeManager<T = unknown> {
 		console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimeout = setTimeout(() => {
-			this.disconnect();
+			this.reconnectTimeout = null;
+			if (this.eventSource) {
+				this.eventSource.close();
+				this.eventSource = null;
+			}
 			this.connect();
 		}, delay);
 	}
@@ -158,8 +187,11 @@ export interface DashboardUpdate {
 
 // Create dashboard realtime instance
 export function createDashboardRealtime(tenantId: string): RealtimeManager<DashboardUpdate> {
+	// Use PUBLIC_API_BASE_URL for SSE endpoint, with proper tenantId encoding
+	const baseUrl = PUBLIC_API_BASE_URL || '/api/v1';
+	const encodedTenantId = encodeURIComponent(tenantId);
 	return new RealtimeManager<DashboardUpdate>({
-		url: `/api/v1/dashboard/events?tenant=${tenantId}`,
+		url: `${baseUrl}/dashboard/events?tenant=${encodedTenantId}`,
 		reconnectInterval: 5000,
 		maxReconnectAttempts: 10
 	});

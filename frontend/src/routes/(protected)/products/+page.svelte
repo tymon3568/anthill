@@ -24,7 +24,7 @@
 				(p) =>
 					p.name.toLowerCase().includes(query) ||
 					p.sku.toLowerCase().includes(query) ||
-					p.description?.toLowerCase().includes(query)
+					(p.description?.toLowerCase().includes(query) ?? false)
 			);
 		}
 
@@ -184,7 +184,10 @@
 									class="rounded"
 								/>
 							</th>
-							<th class="cursor-pointer p-3 hover:text-foreground" onclick={() => handleSort('sku')}>
+							<th
+								class="cursor-pointer p-3 hover:text-foreground"
+								onclick={() => handleSort('sku')}
+							>
 								SKU {sortBy === 'sku' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
 							</th>
 							<th
@@ -234,7 +237,7 @@
 								<td class="p-3">{formatCurrency(product.price)}</td>
 								<td class="p-3">
 									<div class="flex items-center gap-2">
-										<span class={isLowStock(product) ? 'text-destructive font-medium' : ''}>
+										<span class={isLowStock(product) ? 'font-medium text-destructive' : ''}>
 											{product.quantity}
 										</span>
 										{#if isLowStock(product)}

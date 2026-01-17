@@ -26,13 +26,11 @@
 	});
 
 	async function saveProfile() {
-		console.log('Saving profile:', profileForm);
-		// TODO: API call
+		// TODO: API call to save profile
 	}
 
 	async function saveNotifications() {
-		console.log('Saving notifications:', notifications);
-		// TODO: API call
+		// TODO: API call to save notifications
 	}
 </script>
 
