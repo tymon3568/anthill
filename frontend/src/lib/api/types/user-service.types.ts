@@ -441,3 +441,229 @@ export interface DeleteTenantRequest {
 	confirmTenantName: string;
 	reason?: string;
 }
+
+// =====================================
+// Payment Gateway Types
+// =====================================
+
+/** Payment gateway provider */
+export type PaymentProvider =
+	| 'stripe'
+	| 'paypal'
+	| 'square'
+	| 'braintree'
+	| 'adyen'
+	| 'momo'
+	| 'vnpay'
+	| 'zalopay';
+
+/** Payment gateway status */
+export type PaymentGatewayStatus = 'active' | 'inactive' | 'error' | 'pending_setup';
+
+/** Payment method type */
+export type PaymentMethodType =
+	| 'credit_card'
+	| 'debit_card'
+	| 'bank_transfer'
+	| 'digital_wallet'
+	| 'buy_now_pay_later'
+	| 'crypto';
+
+/** Payment gateway configuration */
+export interface PaymentGateway {
+	id: string;
+	provider: PaymentProvider;
+	name: string;
+	status: PaymentGatewayStatus;
+	isDefault: boolean;
+	isSandbox: boolean;
+	supportedMethods: PaymentMethodType[];
+	supportedCurrencies: string[];
+	supportedRegions: string[];
+	createdAt: string;
+	updatedAt?: string;
+}
+
+/** Payment gateway credentials (masked) */
+export interface PaymentGatewayCredentials {
+	gatewayId: string;
+	provider: PaymentProvider;
+	publicKey?: string;
+	secretKeyMasked?: string;
+	merchantId?: string;
+	webhookSecret?: string;
+	additionalConfig?: Record<string, unknown>;
+	lastVerifiedAt?: string;
+}
+
+/** Webhook endpoint configuration */
+export interface PaymentWebhookConfig {
+	id: string;
+	gatewayId: string;
+	url: string;
+	events: string[];
+	isActive: boolean;
+	signingSecret?: string;
+	lastReceivedAt?: string;
+	failureCount: number;
+	createdAt: string;
+}
+
+/** Payment method settings */
+export interface PaymentMethodSettings {
+	type: PaymentMethodType;
+	enabled: boolean;
+	displayName: string;
+	minAmount?: number;
+	maxAmount?: number;
+	currencies?: string[];
+	regions?: string[];
+}
+
+/** Currency configuration */
+export interface CurrencyConfig {
+	code: string;
+	name: string;
+	symbol: string;
+	enabled: boolean;
+	isDefault: boolean;
+	exchangeRate?: number;
+	decimalPlaces: number;
+}
+
+/** Region configuration for payments */
+export interface PaymentRegionConfig {
+	code: string;
+	name: string;
+	enabled: boolean;
+	currencies: string[];
+	taxRate?: number;
+	requiresAddressVerification: boolean;
+}
+
+/** Transaction fee configuration */
+export interface TransactionFeeConfig {
+	gatewayId: string;
+	provider: PaymentProvider;
+	fixedFee: number;
+	percentageFee: number;
+	currency: string;
+	appliesTo: PaymentMethodType[];
+}
+
+/** Settlement configuration */
+export interface SettlementConfig {
+	gatewayId: string;
+	frequency: 'daily' | 'weekly' | 'monthly';
+	minimumAmount: number;
+	currency: string;
+	bankAccountMasked?: string;
+	autoSettlement: boolean;
+}
+
+/** Payment gateway health status */
+export interface PaymentGatewayHealth {
+	gatewayId: string;
+	provider: PaymentProvider;
+	status: 'healthy' | 'degraded' | 'down';
+	latencyMs?: number;
+	successRate?: number;
+	lastCheckedAt: string;
+	recentErrors?: Array<{
+		timestamp: string;
+		errorCode: string;
+		message: string;
+	}>;
+}
+
+/** Payment analytics data */
+export interface PaymentAnalytics {
+	gatewayId: string;
+	period: 'day' | 'week' | 'month';
+	totalTransactions: number;
+	successfulTransactions: number;
+	failedTransactions: number;
+	totalVolume: number;
+	averageTransactionValue: number;
+	currency: string;
+	topPaymentMethods: Array<{
+		method: PaymentMethodType;
+		count: number;
+		volume: number;
+	}>;
+	dailyVolume: Array<{
+		date: string;
+		volume: number;
+		count: number;
+	}>;
+}
+
+/** Payment security settings */
+export interface PaymentSecuritySettings {
+	require3DSecure: boolean;
+	fraudDetectionEnabled: boolean;
+	fraudRiskThreshold: 'low' | 'medium' | 'high';
+	velocityChecksEnabled: boolean;
+	maxTransactionsPerHour?: number;
+	maxAmountPerDay?: number;
+	blockedCountries: string[];
+	blockedBinRanges: string[];
+}
+
+/** Full payment settings */
+export interface PaymentSettings {
+	gateways: PaymentGateway[];
+	paymentMethods: PaymentMethodSettings[];
+	currencies: CurrencyConfig[];
+	regions: PaymentRegionConfig[];
+	security: PaymentSecuritySettings;
+}
+
+/** Request to add/update payment gateway */
+export interface UpsertPaymentGatewayRequest {
+	provider: PaymentProvider;
+	name: string;
+	isSandbox: boolean;
+	isDefault?: boolean;
+	publicKey?: string;
+	secretKey?: string;
+	merchantId?: string;
+	webhookSecret?: string;
+	additionalConfig?: Record<string, unknown>;
+}
+
+/** Request to update payment methods */
+export interface UpdatePaymentMethodsRequest {
+	methods: PaymentMethodSettings[];
+}
+
+/** Request to update currencies */
+export interface UpdateCurrenciesRequest {
+	currencies: CurrencyConfig[];
+}
+
+/** Request to update regions */
+export interface UpdateRegionsRequest {
+	regions: PaymentRegionConfig[];
+}
+
+/** Request to update payment security */
+export interface UpdatePaymentSecurityRequest {
+	require3DSecure?: boolean;
+	fraudDetectionEnabled?: boolean;
+	fraudRiskThreshold?: 'low' | 'medium' | 'high';
+	velocityChecksEnabled?: boolean;
+	maxTransactionsPerHour?: number;
+	maxAmountPerDay?: number;
+	blockedCountries?: string[];
+	blockedBinRanges?: string[];
+}
+
+/** Test payment result */
+export interface TestPaymentResult {
+	success: boolean;
+	transactionId?: string;
+	errorCode?: string;
+	errorMessage?: string;
+	latencyMs: number;
+}

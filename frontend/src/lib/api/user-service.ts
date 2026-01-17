@@ -53,7 +53,26 @@ import type {
 	UpdateDataRetentionRequest,
 	ListAuditLogsParams,
 	TenantExportRequest,
-	DeleteTenantRequest
+	DeleteTenantRequest,
+	// Payment Gateway Types
+	PaymentSettings,
+	PaymentGateway,
+	PaymentGatewayCredentials,
+	PaymentWebhookConfig,
+	PaymentMethodSettings,
+	CurrencyConfig,
+	PaymentRegionConfig,
+	TransactionFeeConfig,
+	SettlementConfig,
+	PaymentGatewayHealth,
+	PaymentAnalytics,
+	PaymentSecuritySettings,
+	UpsertPaymentGatewayRequest,
+	UpdatePaymentMethodsRequest,
+	UpdateCurrenciesRequest,
+	UpdateRegionsRequest,
+	UpdatePaymentSecurityRequest,
+	TestPaymentResult
 } from './types/user-service.types';
 import { tokenManager } from '$lib/auth/token-manager';
 import { getCurrentTenantSlug } from '$lib/tenant';
@@ -609,6 +628,182 @@ export const userServiceApi = {
 	 */
 	async deleteTenant(request: DeleteTenantRequest): Promise<ApiResponse<void>> {
 		return apiClient.post<void>('/tenant/delete', request as unknown as Record<string, unknown>);
+	},
+
+	// =====================================
+	// Payment Gateway Settings API (Owner Only)
+	// =====================================
+
+	/**
+	 * Get all payment settings (owner only)
+	 * @returns Full payment configuration
+	 */
+	async getPaymentSettings(): Promise<ApiResponse<PaymentSettings>> {
+		return apiClient.get<PaymentSettings>('/tenant/payments');
+	},
+
+	/**
+	 * Get payment gateway credentials (owner only)
+	 * @param gatewayId - Gateway ID
+	 * @returns Masked credentials
+	 */
+	async getGatewayCredentials(gatewayId: string): Promise<ApiResponse<PaymentGatewayCredentials>> {
+		return apiClient.get<PaymentGatewayCredentials>(
+			`/tenant/payments/gateways/${gatewayId}/credentials`
+		);
+	},
+
+	/**
+	 * Add or update a payment gateway (owner only)
+	 * @param gatewayId - Gateway ID (undefined for new)
+	 * @param data - Gateway configuration
+	 */
+	async upsertPaymentGateway(
+		gatewayId: string | undefined,
+		data: UpsertPaymentGatewayRequest
+	): Promise<ApiResponse<PaymentGateway>> {
+		if (gatewayId) {
+			return apiClient.put<PaymentGateway>(
+				`/tenant/payments/gateways/${gatewayId}`,
+				data as unknown as Record<string, unknown>
+			);
+		}
+		return apiClient.post<PaymentGateway>(
+			'/tenant/payments/gateways',
+			data as unknown as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Delete a payment gateway (owner only)
+	 * @param gatewayId - Gateway ID
+	 */
+	async deletePaymentGateway(gatewayId: string): Promise<ApiResponse<void>> {
+		return apiClient.delete<void>(`/tenant/payments/gateways/${gatewayId}`);
+	},
+
+	/**
+	 * Set a gateway as default (owner only)
+	 * @param gatewayId - Gateway ID
+	 */
+	async setDefaultGateway(gatewayId: string): Promise<ApiResponse<void>> {
+		return apiClient.post<void>(`/tenant/payments/gateways/${gatewayId}/set-default`, {});
+	},
+
+	/**
+	 * Test payment gateway connection (owner only)
+	 * @param gatewayId - Gateway ID
+	 */
+	async testPaymentGateway(gatewayId: string): Promise<ApiResponse<TestPaymentResult>> {
+		return apiClient.post<TestPaymentResult>(`/tenant/payments/gateways/${gatewayId}/test`, {});
+	},
+
+	/**
+	 * Get webhook configuration for a gateway (owner only)
+	 * @param gatewayId - Gateway ID
+	 */
+	async getGatewayWebhooks(gatewayId: string): Promise<ApiResponse<PaymentWebhookConfig[]>> {
+		return apiClient.get<PaymentWebhookConfig[]>(`/tenant/payments/gateways/${gatewayId}/webhooks`);
+	},
+
+	/**
+	 * Update payment methods settings (owner only)
+	 * @param data - Payment methods configuration
+	 */
+	async updatePaymentMethods(
+		data: UpdatePaymentMethodsRequest
+	): Promise<ApiResponse<PaymentMethodSettings[]>> {
+		return apiClient.put<PaymentMethodSettings[]>(
+			'/tenant/payments/methods',
+			data as unknown as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Update currency configuration (owner only)
+	 * @param data - Currency settings
+	 */
+	async updateCurrencies(data: UpdateCurrenciesRequest): Promise<ApiResponse<CurrencyConfig[]>> {
+		return apiClient.put<CurrencyConfig[]>(
+			'/tenant/payments/currencies',
+			data as unknown as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Update region configuration (owner only)
+	 * @param data - Region settings
+	 */
+	async updateRegions(data: UpdateRegionsRequest): Promise<ApiResponse<PaymentRegionConfig[]>> {
+		return apiClient.put<PaymentRegionConfig[]>(
+			'/tenant/payments/regions',
+			data as unknown as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Update payment security settings (owner only)
+	 * @param data - Security configuration
+	 */
+	async updatePaymentSecurity(
+		data: UpdatePaymentSecurityRequest
+	): Promise<ApiResponse<PaymentSecuritySettings>> {
+		return apiClient.put<PaymentSecuritySettings>(
+			'/tenant/payments/security',
+			data as unknown as Record<string, unknown>
+		);
+	},
+
+	/**
+	 * Get payment gateway health status (owner only)
+	 */
+	async getPaymentGatewayHealth(): Promise<ApiResponse<PaymentGatewayHealth[]>> {
+		return apiClient.get<PaymentGatewayHealth[]>('/tenant/payments/health');
+	},
+
+	/**
+	 * Get payment analytics (owner only)
+	 * @param gatewayId - Optional gateway ID to filter
+	 * @param period - Time period
+	 */
+	async getPaymentAnalytics(
+		gatewayId?: string,
+		period: 'day' | 'week' | 'month' = 'month'
+	): Promise<ApiResponse<PaymentAnalytics>> {
+		const params = new URLSearchParams({ period });
+		if (gatewayId) params.set('gateway_id', gatewayId);
+		return apiClient.get<PaymentAnalytics>(`/tenant/payments/analytics?${params}`);
+	},
+
+	/**
+	 * Get transaction fees for a gateway (owner only)
+	 * @param gatewayId - Gateway ID
+	 */
+	async getTransactionFees(gatewayId: string): Promise<ApiResponse<TransactionFeeConfig>> {
+		return apiClient.get<TransactionFeeConfig>(`/tenant/payments/gateways/${gatewayId}/fees`);
+	},
+
+	/**
+	 * Get settlement configuration for a gateway (owner only)
+	 * @param gatewayId - Gateway ID
+	 */
+	async getSettlementConfig(gatewayId: string): Promise<ApiResponse<SettlementConfig>> {
+		return apiClient.get<SettlementConfig>(`/tenant/payments/gateways/${gatewayId}/settlement`);
+	},
+
+	/**
+	 * Update settlement configuration (owner only)
+	 * @param gatewayId - Gateway ID
+	 * @param data - Settlement settings
+	 */
+	async updateSettlementConfig(
+		gatewayId: string,
+		data: Partial<SettlementConfig>
+	): Promise<ApiResponse<SettlementConfig>> {
+		return apiClient.put<SettlementConfig>(
+			`/tenant/payments/gateways/${gatewayId}/settlement`,
+			data as unknown as Record<string, unknown>
+		);
 	}
 };
 
