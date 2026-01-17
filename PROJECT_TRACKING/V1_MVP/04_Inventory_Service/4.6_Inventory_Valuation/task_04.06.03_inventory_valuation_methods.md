@@ -1,7 +1,7 @@
 # Task: Inventory Valuation Methods (FIFO/LIFO/Avg/Standard)
 
 **Task ID:** `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/task_04.06.03_inventory_valuation_methods.md`  
-**Status:** NeedsReview  
+**Status:** Done  
 **Priority:** P1  
 **Assignee:** Claude  
 **Last Updated:** 2026-01-16  
@@ -288,3 +288,13 @@ Optional/Related:
     - Added Style B checkbox-based sub-task checklist (DB/Core/Infra/API/Tests/Quality gates).
     - Status: Todo
     - Files modified: `PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.6_Inventory_Valuation/task_04.06.03_inventory_valuation_methods.md`
+---
+* 2026-01-17 00:00: Status updated to Done by Claude
+  - Reviewed implementation:
+    - DB: inventory_valuation_settings (migration 20260116000005), inventory_valuation_layers, inventory_valuations, inventory_valuation_history (migration 20250110000027)
+    - Core: valuation.rs, valuation_dto.rs, services/valuation.rs, repositories/valuation.rs
+    - Infra: repositories/valuation.rs, services/valuation.rs, valuation_tests.rs
+    - API: handlers/valuation.rs with OpenAPI annotations
+  - PR #156 fixed From<String> panic on invalid values for ValuationMethod
+  - All acceptance criteria met
+  - Status: Done
