@@ -313,6 +313,15 @@ export const authApi = {
 		return apiClient.delete<void>('/auth/sessions');
 	},
 
+	// Email Verification Methods
+	async verifyEmail(token: string): Promise<ApiResponse<void>> {
+		return apiClient.post<void>('/auth/verify-email', { token });
+	},
+
+	async resendVerification(email: string): Promise<ApiResponse<void>> {
+		return apiClient.post<void>('/auth/resend-verification', { email });
+	},
+
 	// Legacy methods (for backward compatibility)
 	async login(credentials: LoginForm): Promise<ApiResponse<AuthResponse>> {
 		return apiClient.post<AuthResponse>(
