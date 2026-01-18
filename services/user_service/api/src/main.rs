@@ -173,6 +173,7 @@ async fn main() {
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
+        email_verification_service: Some(email_verification_service.clone()),
         authz_version_repo,
         config: config.clone(),
         invitation_rate_limiter: Arc::new(InvitationRateLimiter::default()),

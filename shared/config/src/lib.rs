@@ -212,6 +212,22 @@ pub struct Config {
     /// Audit log flush interval in milliseconds (default: 1000)
     #[serde(default = "default_audit_log_flush_interval_ms")]
     pub audit_log_flush_interval_ms: u64,
+
+    // ===== Cookie Configuration =====
+    /// Cookie domain (optional - if not set, cookies are set for the request host)
+    pub cookie_domain: Option<String>,
+
+    /// Enable secure flag on cookies (default: true for production, should be false for local dev)
+    #[serde(default = "default_cookie_secure")]
+    pub cookie_secure: bool,
+
+    /// Cookie SameSite attribute (default: "Strict")
+    #[serde(default = "default_cookie_same_site")]
+    pub cookie_same_site: String,
+
+    /// Cookie path (default: "/")
+    #[serde(default = "default_cookie_path")]
+    pub cookie_path: String,
 }
 
 fn default_jwt_expiration() -> i64 {
@@ -365,6 +381,20 @@ fn default_audit_log_flush_interval_ms() -> u64 {
     1000
 }
 
+// Cookie configuration defaults
+fn default_cookie_secure() -> bool {
+    // Default to true for security, should be overridden to false for local dev
+    true
+}
+
+fn default_cookie_same_site() -> String {
+    "Strict".to_string()
+}
+
+fn default_cookie_path() -> String {
+    "/".to_string()
+}
+
 impl Config {
     /// Load configuration from environment variables
     pub fn from_env() -> Result<Self, config::ConfigError> {
@@ -418,7 +448,11 @@ impl Config {
             .set_default("audit_log_enabled", true)?
             .set_default("audit_log_retention_days", 90)?
             .set_default("audit_log_batch_size", 100)?
-            .set_default("audit_log_flush_interval_ms", 1000)?;
+            .set_default("audit_log_flush_interval_ms", 1000)?
+            // Cookie configuration defaults
+            .set_default("cookie_secure", true)?
+            .set_default("cookie_same_site", "Strict")?
+            .set_default("cookie_path", "/")?;
 
         // Add environment variables
         builder = builder.add_source(config::Environment::default());
@@ -500,6 +534,10 @@ impl Default for Config {
             audit_log_retention_days: default_audit_log_retention_days(),
             audit_log_batch_size: default_audit_log_batch_size(),
             audit_log_flush_interval_ms: default_audit_log_flush_interval_ms(),
+            cookie_domain: None,
+            cookie_secure: default_cookie_secure(),
+            cookie_same_site: default_cookie_same_site(),
+            cookie_path: default_cookie_path(),
         }
     }
 }

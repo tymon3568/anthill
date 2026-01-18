@@ -48,7 +48,6 @@
 	let tenantCheckStatus = $state<'idle' | 'checking' | 'available' | 'exists' | 'error'>('idle');
 	let tenantCheckSlug = $state('');
 	let existingTenantName = $state<string | null>(null);
-	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Convert tenant name to slug for display
 	function toSlug(name: string): string {
@@ -103,28 +102,22 @@
 		}
 	}
 
-	// Handle tenant name input with debounce
+	// Handle tenant name input - just clear errors
 	function handleTenantNameInput() {
 		clearFieldError('tenantName');
-
-		// Clear previous timer
-		if (debounceTimer) {
-			clearTimeout(debounceTimer);
-		}
-
-		// Set status to checking immediately for responsiveness
-		if (formData.tenantName.trim()) {
-			tenantCheckStatus = 'checking';
-		} else {
+		// Reset status when user is typing
+		if (tenantCheckStatus !== 'idle') {
 			tenantCheckStatus = 'idle';
 			tenantCheckSlug = '';
 			existingTenantName = null;
 		}
+	}
 
-		// Debounce the actual API call
-		debounceTimer = setTimeout(() => {
+	// Handle tenant name blur - check availability when user leaves input
+	function handleTenantNameBlur() {
+		if (formData.tenantName.trim()) {
 			checkTenantAvailability(formData.tenantName);
-		}, 400);
+		}
 	}
 
 	// Form submission handler
@@ -371,6 +364,7 @@
 											? 'border-amber-500 focus:ring-amber-500'
 											: ''}
 								oninput={handleTenantNameInput}
+								onblur={handleTenantNameBlur}
 							/>
 
 							<!-- Tenant availability feedback -->

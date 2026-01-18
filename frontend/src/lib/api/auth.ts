@@ -1,5 +1,93 @@
 import { apiClient } from './client';
 import type { ApiResponse, LoginForm } from '$lib/types';
+import { getCurrentTenantSlug } from '$lib/tenant';
+
+/**
+ * Auth API client that uses local SvelteKit proxy endpoints
+ * This ensures cookies are set on the same domain as the frontend
+ */
+class AuthApiClient {
+	private tenantSlug: string | null = null;
+
+	setTenantSlug(slug: string | null): void {
+		this.tenantSlug = slug;
+	}
+
+	getTenantSlug(): string | null {
+		return this.tenantSlug;
+	}
+
+	private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+		// Use relative URL to hit SvelteKit proxy endpoints
+		const url = `/api/v1${endpoint}`;
+
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json',
+			...(options.headers as Record<string, string>)
+		};
+
+		// Add X-Tenant-ID header if tenant context is available
+		const tenantSlug = this.tenantSlug ?? getCurrentTenantSlug();
+		if (tenantSlug) {
+			headers['X-Tenant-ID'] = tenantSlug;
+		}
+
+		const { headers: _optHeaders, ...restOptions } = options;
+		const config: RequestInit = {
+			...restOptions,
+			headers,
+			credentials: 'include'
+		};
+
+		try {
+			const response = await fetch(url, config);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({
+					message: 'Network error',
+					error: 'Network error'
+				}));
+
+				return {
+					success: false,
+					error: errorData.error || errorData.message || `HTTP ${response.status}`
+				};
+			}
+
+			if (response.status === 204 || response.headers.get('content-length') === '0') {
+				return { success: true };
+			}
+
+			const contentType = response.headers.get('content-type') ?? '';
+			let data: T;
+			if (contentType.includes('application/json')) {
+				data = await response.json();
+			} else {
+				data = (await response.text()) as unknown as T;
+			}
+
+			return {
+				success: true,
+				data
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			};
+		}
+	}
+
+	async post<T>(endpoint: string, data?: Record<string, unknown>): Promise<ApiResponse<T>> {
+		return this.request<T>(endpoint, {
+			method: 'POST',
+			body: data ? JSON.stringify(data) : undefined
+		});
+	}
+}
+
+// Singleton instance for auth API calls via proxy
+const authApiClient = new AuthApiClient();
 
 // Email/Password authentication DTOs
 export interface EmailLoginRequest {
@@ -158,27 +246,39 @@ export interface UserProfile {
 }
 
 export const authApi = {
-	// Email/Password Authentication Methods
+	// Email/Password Authentication Methods - use proxy for cookie handling
 	async emailLogin(credentials: EmailLoginRequest): Promise<ApiResponse<EmailAuthResponse>> {
-		return apiClient.post<EmailAuthResponse>(
+		// Use authApiClient which routes through SvelteKit proxy
+		return authApiClient.post<EmailAuthResponse>(
 			'/auth/login',
 			credentials as unknown as Record<string, unknown>
 		);
 	},
 
 	async emailRegister(userData: EmailRegisterRequest): Promise<ApiResponse<EmailAuthResponse>> {
-		return apiClient.post<EmailAuthResponse>(
+		// Use authApiClient which routes through SvelteKit proxy
+		return authApiClient.post<EmailAuthResponse>(
 			'/auth/register',
 			userData as unknown as Record<string, unknown>
 		);
 	},
 
-	async refreshEmailToken(refreshToken: string): Promise<ApiResponse<EmailAuthResponse>> {
-		return apiClient.post<EmailAuthResponse>('/auth/refresh', { refresh_token: refreshToken });
+	async refreshEmailToken(_refreshToken?: string): Promise<ApiResponse<EmailAuthResponse>> {
+		// Use authApiClient - refresh token is read from httpOnly cookie by proxy
+		return authApiClient.post<EmailAuthResponse>('/auth/refresh', {});
 	},
 
-	async emailLogout(refreshToken: string): Promise<ApiResponse<void>> {
-		return apiClient.post<void>('/auth/logout', { refresh_token: refreshToken });
+	async emailLogout(_refreshToken?: string): Promise<ApiResponse<void>> {
+		// Use authApiClient - logout clears cookies via proxy
+		return authApiClient.post<void>('/auth/logout', {});
+	},
+
+	/**
+	 * Set tenant slug for auth API client
+	 * This is used to set X-Tenant-ID header for login requests
+	 */
+	setTenantSlug(slug: string | null): void {
+		authApiClient.setTenantSlug(slug);
 	},
 
 	// Tenant Discovery Methods

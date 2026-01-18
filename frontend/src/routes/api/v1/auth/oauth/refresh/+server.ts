@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/public';
+import { dev } from '$app/environment';
 import type { RequestHandler } from './$types';
-import type { Cookies } from '@sveltejs/kit';
 import type { OAuth2RefreshReq, OAuth2RefreshResp } from '$lib/api/auth';
 
 // Get backend user-service URL from environment
@@ -89,8 +89,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			cookies.set('access_token', data.access_token, {
 				path: '/',
 				httpOnly: true,
-				secure: true,
-				sameSite: 'strict',
+				secure: !dev, // Only secure in production (HTTPS)
+				sameSite: 'lax',
 				maxAge: maxAge
 			});
 		}
@@ -99,8 +99,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			cookies.set('refresh_token', data.refresh_token, {
 				path: '/',
 				httpOnly: true,
-				secure: true,
-				sameSite: 'strict',
+				secure: !dev, // Only secure in production (HTTPS)
+				sameSite: 'lax',
 				maxAge: 30 * 24 * 60 * 60 // 30 days
 			});
 		}

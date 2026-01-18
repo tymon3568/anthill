@@ -1,7 +1,7 @@
 import { onMount } from 'svelte';
 import { authState, authStore } from '$lib/stores/auth.svelte';
 import { authApi } from '$lib/api/auth';
-import { tokenManager } from '$lib/auth/token-manager';
+import { AuthSession } from '$lib/auth/session';
 import type { User } from '$lib/types';
 import type { UserProfile } from '$lib/api/auth';
 
@@ -102,11 +102,11 @@ export function useAuth() {
 			}
 		},
 		logout: async () => {
-			// Clear all tokens and user data
-			tokenManager.clearAll();
+			// Call server logout endpoint to clear httpOnly cookies
+			await AuthSession.logout();
 			authStore.logout();
 
-			// Clear user data cookie
+			// Clear user data cookie (non-sensitive display data)
 			document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 
 			// Optional: Redirect to Kanidm logout endpoint

@@ -13,12 +13,25 @@ export interface KanidmJWT {
 	aud?: string; // Audience
 }
 
+// Backend JWT format (from user_service)
+export interface BackendJWT {
+	sub: string; // User UUID
+	tenant_id: string; // Tenant UUID
+	role: string; // User role (owner, admin, manager, user)
+	exp: number; // Expiry timestamp
+	iat: number; // Issued at timestamp
+	token_type: string; // "access" or "refresh"
+	tenant_v?: number; // Tenant authz version
+	user_v?: number; // User authz version
+}
+
 export interface UserInfo {
 	userId: string;
 	email: string;
 	name?: string;
 	groups: string[];
 	tenantId?: string;
+	role?: string;
 }
 
 /**
@@ -153,6 +166,23 @@ export async function validateAndParseToken(
 		// Check if token is expired (note: exp claim itself can be forged!)
 		if (isTokenExpired(token)) return null;
 
+		// Detect token type: Backend JWT has tenant_id, Kanidm JWT has groups
+		const isBackendToken = 'tenant_id' in payload && 'role' in payload;
+
+		if (isBackendToken) {
+			// Backend JWT format (from user_service)
+			const backendPayload = payload as unknown as BackendJWT;
+			return {
+				userId: backendPayload.sub,
+				email: '', // Backend JWT doesn't include email, will be fetched from user info
+				name: undefined,
+				groups: [],
+				tenantId: backendPayload.tenant_id,
+				role: backendPayload.role
+			};
+		}
+
+		// Kanidm JWT format (legacy)
 		// Extract tenant from groups (note: groups can be forged!)
 		const tenantId = extractTenantFromGroups(payload.groups);
 
