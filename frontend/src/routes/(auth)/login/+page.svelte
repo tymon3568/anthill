@@ -41,8 +41,17 @@
 			tenantSlug = tenantContext.slug;
 			// Set tenant in API client
 			apiClient.setTenantSlug(tenantContext.slug);
+
+			// Only hide input if detected from subdomain (trusted source)
+			// If from storage, show input with pre-filled value so user can change if needed
+			if (tenantContext.source === 'subdomain') {
+				showTenantInput = false;
+			} else {
+				// From storage - show input with pre-filled value
+				showTenantInput = true;
+			}
 		} else {
-			// No subdomain detected, show tenant input
+			// No context detected, show tenant input
 			showTenantInput = true;
 		}
 	});
