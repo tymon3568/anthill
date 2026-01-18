@@ -84,15 +84,22 @@ impl SmtpEmailSender {
     fn build_transport(
         config: &SmtpConfig,
     ) -> Result<AsyncSmtpTransport<Tokio1Executor>, AppError> {
-        let mut builder = if config.use_tls {
-            AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.host).map_err(|e| {
-                AppError::InternalError(format!("Failed to create SMTP transport: {}", e))
-            })?
+        let builder = if config.use_tls {
+            // Port 465 uses implicit TLS (relay), Port 587 uses STARTTLS
+            if config.port == 465 {
+                AsyncSmtpTransport::<Tokio1Executor>::relay(&config.host).map_err(|e| {
+                    AppError::InternalError(format!("Failed to create SMTP transport: {}", e))
+                })?
+            } else {
+                AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.host).map_err(|e| {
+                    AppError::InternalError(format!("Failed to create SMTP transport: {}", e))
+                })?
+            }
         } else {
             AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&config.host)
         };
 
-        builder = builder.port(config.port);
+        let mut builder = builder.port(config.port);
 
         // Add credentials if provided
         if let (Some(username), Some(password)) = (&config.username, &config.password) {
