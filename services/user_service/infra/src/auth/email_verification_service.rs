@@ -13,7 +13,7 @@ use user_service_core::domains::auth::{
 };
 use uuid::Uuid;
 
-use super::smtp_sender::{templates, EmailContent, SharedEmailSender};
+use super::smtp_sender::{templates, EmailContent, EmailSender, SharedEmailSender};
 
 /// Email Verification Service implementation
 ///
@@ -92,6 +92,15 @@ where
 
     /// Send verification email using configured email sender
     async fn send_email(&self, email: &str, verification_url: &str) -> Result<(), AppError> {
+        // Log verification URL for development/testing when SMTP not configured
+        if !self.email_sender.is_available() {
+            tracing::info!(
+                email = %email,
+                url = %verification_url,
+                "📧 [DEV] Verification link (copy to browser to verify)"
+            );
+        }
+
         let content = EmailContent {
             to: email.to_string(),
             subject: "Verify Your Email Address - Anthill".to_string(),

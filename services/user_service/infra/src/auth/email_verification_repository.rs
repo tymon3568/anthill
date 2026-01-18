@@ -99,7 +99,7 @@ impl EmailVerificationRepository for PgEmailVerificationRepository {
             r#"
             UPDATE email_verification_tokens
             SET verified_at = NOW(),
-                verified_from_ip = $2,
+                verified_from_ip = $2::inet,
                 verified_from_user_agent = $3
             WHERE token_id = $1
             "#,

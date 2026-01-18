@@ -15,7 +15,7 @@ use user_service_core::domains::auth::{
 };
 use uuid::Uuid;
 
-use super::smtp_sender::{templates, EmailContent, SharedEmailSender};
+use super::smtp_sender::{templates, EmailContent, EmailSender, SharedEmailSender};
 
 /// Password Reset Service implementation
 ///
@@ -105,6 +105,15 @@ where
 
     /// Send password reset email using configured email sender
     async fn send_reset_email(&self, email: &str, reset_url: &str) -> Result<(), AppError> {
+        // Log reset URL for development/testing when SMTP not configured
+        if !self.email_sender.is_available() {
+            tracing::info!(
+                email = %email,
+                url = %reset_url,
+                "🔐 [DEV] Password reset link (copy to browser to reset)"
+            );
+        }
+
         // Convert hours to minutes for template
         let expiry_minutes = self.reset_expiry_hours * 60;
 
