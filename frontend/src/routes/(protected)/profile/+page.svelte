@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { userServiceApi } from '$lib/api/user-service';
 	import type { PageProps } from './$types';
 
 	// Get user from server-side load function (SSR-safe)
@@ -43,11 +44,19 @@
 		successMessage = '';
 
 		try {
-			// TODO: Implement profile update API call
-			// For now, just simulate success
-			await new Promise((resolve) => setTimeout(resolve, 500));
-			successMessage = 'Profile updated successfully';
-			isEditing = false;
+			// Call profile update API
+			const result = await userServiceApi.updateProfile({
+				fullName: formData.name
+			});
+
+			if (result.success) {
+				successMessage = 'Profile updated successfully';
+				isEditing = false;
+				// Reload page data to reflect changes
+				await invalidateAll();
+			} else {
+				errorMessage = result.error ?? 'Failed to update profile';
+			}
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
 		} finally {

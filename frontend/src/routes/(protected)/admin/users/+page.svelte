@@ -33,7 +33,6 @@
 	import ShieldIcon from '@lucide/svelte/icons/shield';
 	import BanIcon from '@lucide/svelte/icons/ban';
 	import TrashIcon from '@lucide/svelte/icons/trash';
-	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
 
 	// State
 	let users = $state<User[]>([]);
