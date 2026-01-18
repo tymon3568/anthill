@@ -18,7 +18,9 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	if (!user) {
 		// Not authenticated - redirect to login
-		throw redirect(302, `/login?redirect=${encodeURIComponent(url.pathname)}`);
+		// Preserve both pathname and query params so deep links survive login
+		const redirectTarget = `${url.pathname}${url.search}`;
+		throw redirect(302, `/login?redirect=${encodeURIComponent(redirectTarget)}`);
 	}
 
 	// Return user data to all child routes

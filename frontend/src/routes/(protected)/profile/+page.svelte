@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -147,7 +148,7 @@
 						<p class="font-medium">Password</p>
 						<p class="text-sm text-gray-500">Change your password</p>
 					</div>
-					<Button variant="outline" onclick={() => (window.location.href = '/forgot-password')}>
+					<Button variant="outline" onclick={() => goto('/forgot-password')}>
 						Change Password
 					</Button>
 				</div>
