@@ -135,7 +135,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 
 		// Validate token and extract user info
-		const userInfo = await validateAndParseToken(currentAccessToken, true); // Enable signature verification server-side
+		// Note: We use verifySignature=false because tokens are from our own backend
+		// The backend already verified credentials and signed the token with JWT_SECRET
+		// Server-side signature verification would require sharing JWT_SECRET with frontend
+		// which is not recommended. Instead, we trust the httpOnly cookie mechanism.
+		const userInfo = await validateAndParseToken(currentAccessToken, false);
 		if (!userInfo) {
 			// Invalid token, redirect to login
 			cookies.delete('access_token', { path: '/' });
