@@ -4,9 +4,10 @@ import { handleAuthError, createAuthError, AuthErrorCode } from '$lib/auth/error
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { parseTenantFromHostname } from '$lib/tenant';
+import { env } from '$env/dynamic/public';
 
-// Protected routes that require authentication
-const protectedRoutes = ['/dashboard', '/inventory', '/orders', '/settings', '/profile'];
+// Get backend URL
+const USER_SERVICE_URL = env.PUBLIC_USER_SERVICE_URL || 'http://localhost:8000';
 
 // Public routes that don't require authentication
 const publicRoutes = ['/login', '/register'];
@@ -15,14 +16,11 @@ const publicRoutes = ['/login', '/register'];
 const publicApiRoutes = new Set([
 	'/api/v1/auth/login',
 	'/api/v1/auth/register',
+	'/api/v1/auth/refresh',
 	'/api/v1/auth/oauth/authorize',
 	'/api/v1/auth/oauth/callback',
 	'/api/v1/auth/oauth/refresh'
 ]);
-
-function isProtectedRoute(pathname: string): boolean {
-	return protectedRoutes.some((route) => pathname.startsWith(route));
-}
 
 function isPublicRoute(pathname: string): boolean {
 	// Exact match for root
@@ -40,6 +38,13 @@ function isPublicRoute(pathname: string): boolean {
 export const handle: Handle = async ({ event, resolve }) => {
 	const { url, cookies, locals, request } = event;
 	const pathname = url.pathname;
+
+	// Debug logging in development
+	if (dev && !pathname.startsWith('/_app/') && !pathname.startsWith('/favicon')) {
+		console.log(
+			`[hooks] ${pathname} - cookies: access_token=${cookies.get('access_token') ? 'present' : 'missing'}, refresh_token=${cookies.get('refresh_token') ? 'present' : 'missing'}`
+		);
+	}
 
 	// Detect tenant from subdomain or X-Tenant-ID header
 	const host = request.headers.get('host') || url.host;
@@ -66,71 +71,112 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 
 		// Get access token from httpOnly cookie
-		const accessToken = cookies.get('access_token');
+		let accessToken = cookies.get('access_token');
+		const refreshToken = cookies.get('refresh_token');
 
-		if (!accessToken) {
-			// No token, redirect to login
-			throw redirect(302, `/login?redirect=${encodeURIComponent(pathname)}`);
-		}
-
-		// Check if token needs refresh
-		let currentAccessToken = accessToken;
-		if (shouldRefreshToken(accessToken)) {
+		// If no access token but refresh token exists, try to refresh first
+		if (!accessToken && refreshToken) {
 			try {
-				// Attempt to refresh token
-				const refreshToken = cookies.get('refresh_token');
-				if (refreshToken) {
-					const refreshResponse = await fetch(`${url.origin}/api/v1/auth/oauth/refresh`, {
-						method: 'POST',
-						headers: {
-							Cookie: `refresh_token=${refreshToken}`
-						}
-					});
+				// Call backend directly (not through frontend API) to avoid cookie issues
+				const refreshResponse = await fetch(`${USER_SERVICE_URL}/api/v1/auth/refresh`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ refresh_token: refreshToken })
+				});
 
-					if (refreshResponse.ok) {
+				if (refreshResponse.ok) {
+					const contentType = refreshResponse.headers.get('content-type');
+					if (contentType?.includes('application/json')) {
 						const refreshData = await refreshResponse.json();
 						// Update cookies with new tokens
-						cookies.set('access_token', refreshData.access_token, {
-							path: '/',
-							httpOnly: true,
-							secure: true,
-							sameSite: 'strict',
-							maxAge: refreshData.expires_in || 3600
-						});
+						if (refreshData.access_token) {
+							cookies.set('access_token', refreshData.access_token, {
+								path: '/',
+								httpOnly: true,
+								secure: !dev,
+								sameSite: 'lax',
+								maxAge: refreshData.expires_in || 3600
+							});
+							accessToken = refreshData.access_token;
+						}
 
-						// Update refresh_token cookie if rotated by backend
 						if (refreshData.refresh_token) {
 							cookies.set('refresh_token', refreshData.refresh_token, {
 								path: '/',
 								httpOnly: true,
-								secure: true,
-								sameSite: 'strict',
-								maxAge: 30 * 24 * 60 * 60 // 30 days default
+								secure: !dev,
+								sameSite: 'lax',
+								maxAge: 30 * 24 * 60 * 60
 							});
 						}
-
-						// Use the new access token for validation
-						currentAccessToken = refreshData.access_token;
-					} else {
-						// Refresh failed, redirect to login
-						handleAuthError(
-							createAuthError(AuthErrorCode.SESSION_EXPIRED),
-							`/login?redirect=${encodeURIComponent(pathname)}`
-						);
 					}
 				} else {
-					// No refresh token, redirect to login
-					handleAuthError(
-						createAuthError(AuthErrorCode.NO_SESSION),
-						`/login?redirect=${encodeURIComponent(pathname)}`
-					);
+					// Refresh failed - log error
+					if (dev) {
+						const errorText = await refreshResponse.text().catch(() => 'Unknown error');
+						console.log(
+							`[hooks] Refresh failed with status ${refreshResponse.status}: ${errorText}`
+						);
+					}
 				}
 			} catch (error) {
-				// Refresh failed, redirect to login
-				handleAuthError(
-					createAuthError(AuthErrorCode.REFRESH_FAILED),
-					`/login?redirect=${encodeURIComponent(pathname)}`
-				);
+				console.error('[hooks] Token refresh failed:', error);
+			}
+		}
+
+		if (!accessToken) {
+			// No token and refresh failed, redirect to login
+			throw redirect(302, `/login?redirect=${encodeURIComponent(pathname)}`);
+		}
+
+		// Check if token needs refresh (about to expire)
+		let currentAccessToken = accessToken;
+		if (shouldRefreshToken(accessToken) && refreshToken) {
+			try {
+				// Call backend directly
+				const refreshResponse = await fetch(`${USER_SERVICE_URL}/api/v1/auth/refresh`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ refresh_token: refreshToken })
+				});
+
+				if (refreshResponse.ok) {
+					const contentType = refreshResponse.headers.get('content-type');
+					if (contentType?.includes('application/json')) {
+						const refreshData = await refreshResponse.json();
+						// Update cookies with new tokens
+						if (refreshData.access_token) {
+							cookies.set('access_token', refreshData.access_token, {
+								path: '/',
+								httpOnly: true,
+								secure: !dev,
+								sameSite: 'lax',
+								maxAge: refreshData.expires_in || 3600
+							});
+							currentAccessToken = refreshData.access_token;
+						}
+
+						if (refreshData.refresh_token) {
+							cookies.set('refresh_token', refreshData.refresh_token, {
+								path: '/',
+								httpOnly: true,
+								secure: !dev,
+								sameSite: 'lax',
+								maxAge: 30 * 24 * 60 * 60
+							});
+						}
+					}
+				}
+				// If refresh fails, continue with existing token (it might still be valid)
+			} catch (error) {
+				// Log error but continue with existing token
+				if (dev) {
+					console.error('[hooks] Token refresh error:', error);
+				}
 			}
 		}
 
