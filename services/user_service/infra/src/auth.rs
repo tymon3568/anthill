@@ -12,6 +12,7 @@ pub mod profile_service;
 pub mod repository;
 pub mod service;
 pub mod session_repository;
+pub mod smtp_sender;
 
 // Re-export for convenience
 pub use audit_log_repository::PgAuditLogRepository;
@@ -27,3 +28,4 @@ pub use profile_service::ProfileServiceImpl;
 pub use repository::{PgTenantRepository, PgUserRepository};
 pub use service::AuthServiceImpl;
 pub use session_repository::PgSessionRepository;
+pub use smtp_sender::{EmailContent, EmailSender, SharedEmailSender, SmtpConfig, SmtpEmailSender};

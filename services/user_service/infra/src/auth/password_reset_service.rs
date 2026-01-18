@@ -15,6 +15,8 @@ use user_service_core::domains::auth::{
 };
 use uuid::Uuid;
 
+use super::smtp_sender::{templates, EmailContent, SharedEmailSender};
+
 /// Password Reset Service implementation
 ///
 /// Implements the complete forgot-password flow with security best practices:
@@ -36,7 +38,7 @@ where
     reset_expiry_hours: i64,
     rate_limit_max: u32,
     rate_limit_window_minutes: i64,
-    smtp_enabled: bool,
+    email_sender: SharedEmailSender,
     min_password_length: usize,
 }
 
@@ -55,7 +57,7 @@ where
         reset_expiry_hours: i64,
         rate_limit_max: u32,
         rate_limit_window_minutes: i64,
-        smtp_enabled: bool,
+        email_sender: SharedEmailSender,
         min_password_length: usize,
     ) -> Self {
         Self {
@@ -66,7 +68,7 @@ where
             reset_expiry_hours,
             rate_limit_max,
             rate_limit_window_minutes,
-            smtp_enabled,
+            email_sender,
             min_password_length,
         }
     }
@@ -101,26 +103,19 @@ where
         format!("{}/reset-password?token={}", self.reset_base_url, token)
     }
 
-    /// Send password reset email (logs if SMTP not configured)
+    /// Send password reset email using configured email sender
     async fn send_reset_email(&self, email: &str, reset_url: &str) -> Result<(), AppError> {
-        if !self.smtp_enabled {
-            // Log for development/testing
-            tracing::info!(
-                email = %email,
-                url = %reset_url,
-                "🔐 [DEV] Password reset link (SMTP not configured)"
-            );
-            return Ok(());
-        }
+        // Convert hours to minutes for template
+        let expiry_minutes = self.reset_expiry_hours * 60;
 
-        // TODO: Implement actual SMTP sending with lettre crate
-        // For now, just log
-        tracing::info!(
-            email = %email,
-            "🔐 Password reset email sent"
-        );
+        let content = EmailContent {
+            to: email.to_string(),
+            subject: "Reset Your Password - Anthill".to_string(),
+            html_body: templates::password_reset_email_html(reset_url, expiry_minutes),
+            text_body: templates::password_reset_email_text(reset_url, expiry_minutes),
+        };
 
-        Ok(())
+        self.email_sender.send(content).await
     }
 
     /// Validate password strength

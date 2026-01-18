@@ -13,6 +13,8 @@ use user_service_core::domains::auth::{
 };
 use uuid::Uuid;
 
+use super::smtp_sender::{templates, EmailContent, SharedEmailSender};
+
 /// Email Verification Service implementation
 ///
 /// Handles email verification token generation, validation, and email sending.
@@ -28,8 +30,7 @@ where
     verification_expiry_hours: i64,
     resend_rate_limit_max: u32,
     resend_rate_limit_window_minutes: i64,
-    // SMTP config (optional - if None, email sending is logged but not sent)
-    smtp_enabled: bool,
+    email_sender: SharedEmailSender,
 }
 
 impl<EVR, UR> EmailVerificationServiceImpl<EVR, UR>
@@ -44,7 +45,7 @@ where
         verification_expiry_hours: i64,
         resend_rate_limit_max: u32,
         resend_rate_limit_window_minutes: i64,
-        smtp_enabled: bool,
+        email_sender: SharedEmailSender,
     ) -> Self {
         Self {
             verification_repo,
@@ -53,7 +54,7 @@ where
             verification_expiry_hours,
             resend_rate_limit_max,
             resend_rate_limit_window_minutes,
-            smtp_enabled,
+            email_sender,
         }
     }
 
@@ -89,26 +90,22 @@ where
         format!("{}/verify-email?token={}", self.verification_base_url, token)
     }
 
-    /// Send verification email (logs if SMTP not configured)
+    /// Send verification email using configured email sender
     async fn send_email(&self, email: &str, verification_url: &str) -> Result<(), AppError> {
-        if !self.smtp_enabled {
-            // Log for development/testing
-            tracing::info!(
-                email = %email,
-                url = %verification_url,
-                "📧 [DEV] Email verification link (SMTP not configured)"
-            );
-            return Ok(());
-        }
+        let content = EmailContent {
+            to: email.to_string(),
+            subject: "Verify Your Email Address - Anthill".to_string(),
+            html_body: templates::verification_email_html(
+                verification_url,
+                self.verification_expiry_hours,
+            ),
+            text_body: templates::verification_email_text(
+                verification_url,
+                self.verification_expiry_hours,
+            ),
+        };
 
-        // TODO: Implement actual SMTP sending with lettre crate
-        // For now, just log
-        tracing::info!(
-            email = %email,
-            "📧 Verification email sent"
-        );
-
-        Ok(())
+        self.email_sender.send(content).await
     }
 }
 

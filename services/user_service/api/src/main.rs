@@ -20,10 +20,10 @@ use user_service_api::{
 };
 use user_service_core::domains::auth::domain::authz_version_repository::AuthzVersionRepository;
 use user_service_infra::auth::{
-    AuthServiceImpl, EmailVerificationServiceImpl, InvitationServiceImpl, PasswordResetServiceImpl,
-    PgEmailVerificationRepository, PgInvitationRepository, PgPasswordResetRepository,
-    PgSessionRepository, PgTenantRepository, PgUserProfileRepository, PgUserRepository,
-    ProfileServiceImpl, RedisAuthzVersionRepository,
+    AuthServiceImpl, EmailSender, EmailVerificationServiceImpl, InvitationServiceImpl,
+    PasswordResetServiceImpl, PgEmailVerificationRepository, PgInvitationRepository,
+    PgPasswordResetRepository, PgSessionRepository, PgTenantRepository, PgUserProfileRepository,
+    PgUserRepository, ProfileServiceImpl, RedisAuthzVersionRepository, SmtpConfig, SmtpEmailSender,
 };
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -107,7 +107,27 @@ async fn main() {
 
     // Initialize email verification service
     let verification_repo = PgEmailVerificationRepository::new(db_pool.clone());
-    let smtp_enabled = config.smtp_host.is_some();
+
+    // Initialize SMTP email sender
+    let smtp_config = SmtpConfig {
+        host: config.smtp_host.clone().unwrap_or_default(),
+        port: config.smtp_port,
+        username: config.smtp_username.clone(),
+        password: config.smtp_password.clone(),
+        from_email: config.smtp_from_email.clone(),
+        from_name: config.smtp_from_name.clone(),
+        use_tls: config.smtp_tls,
+    };
+    let email_sender = Arc::new(
+        SmtpEmailSender::new(smtp_config.clone()).expect("Failed to initialize SMTP email sender"),
+    );
+
+    if email_sender.is_available() {
+        tracing::info!("✅ SMTP email sender initialized");
+    } else {
+        tracing::warn!("⚠️ SMTP not configured - emails will be logged but not sent");
+    }
+
     let email_verification_service = EmailVerificationServiceImpl::new(
         Arc::new(verification_repo),
         Arc::new(user_repo.clone()),
@@ -115,7 +135,7 @@ async fn main() {
         config.verification_expiry_hours,
         config.rate_limit_resend_max,
         (config.rate_limit_resend_window / 60) as i64, // Convert seconds to minutes
-        smtp_enabled,
+        email_sender.clone(),
     );
     let email_verification_service = Arc::new(email_verification_service);
 
@@ -140,7 +160,7 @@ async fn main() {
         1,                                    // 1 hour expiry for reset tokens
         config.rate_limit_forgot_max,
         (config.rate_limit_forgot_window / 60) as i64, // Convert seconds to minutes
-        smtp_enabled,
+        email_sender.clone(),
         8, // Minimum password length
     );
     let password_reset_service = Arc::new(password_reset_service);
