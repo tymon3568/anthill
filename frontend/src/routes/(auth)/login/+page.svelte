@@ -16,7 +16,7 @@
 	import { safeParse } from 'valibot';
 	import { onMount } from 'svelte';
 	import { setPersistedTenantSlug, getTenantContext, type TenantContext } from '$lib/tenant';
-	import { apiClient } from '$lib/api/client';
+	import { authApi } from '$lib/api/auth';
 
 	// Form state using Svelte 5 runes
 	let formData = $state<LoginForm>({
@@ -40,7 +40,7 @@
 		if (tenantContext.hasContext && tenantContext.slug) {
 			tenantSlug = tenantContext.slug;
 			// Set tenant in API client
-			apiClient.setTenantSlug(tenantContext.slug);
+			authApi.setTenantSlug(tenantContext.slug);
 
 			// Only hide input if detected from subdomain (trusted source)
 			// If from storage, show input with pre-filled value so user can change if needed
@@ -79,7 +79,7 @@
 	// Update tenant context when slug changes - always sync with API client
 	function handleTenantChange() {
 		// Always sync API client with current input value (even if empty)
-		apiClient.setTenantSlug(tenantSlug.trim() || null);
+		authApi.setTenantSlug(tenantSlug.trim() || null);
 	}
 
 	// Form submission handler
@@ -105,7 +105,7 @@
 		}
 
 		// Set tenant in API client before login
-		apiClient.setTenantSlug(effectiveTenantSlug);
+		authApi.setTenantSlug(effectiveTenantSlug);
 
 		// Validate form data
 		const result = safeParse(loginSchema, formData);
@@ -312,7 +312,7 @@
 								// Clear the tenant slug when switching to manual mode
 								// so user must explicitly enter a new value
 								tenantSlug = '';
-								apiClient.setTenantSlug(null);
+								authApi.setTenantSlug(null);
 							}}
 						>
 							Switch organization
