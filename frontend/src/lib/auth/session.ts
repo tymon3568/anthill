@@ -1,33 +1,20 @@
 import { type EmailAuthResponse, type EmailUserInfo } from '$lib/api/auth';
-import { tokenManager } from './token-manager';
 
 /**
  * Session management utilities
  *
- * SECURITY NOTE: Tokens are stored in httpOnly cookies by the server for security.
+ * SECURITY NOTE: Tokens are stored in httpOnly cookies by the backend.
  * This class only manages user info in localStorage for UI purposes.
- * Never store tokens in localStorage as they are vulnerable to XSS attacks.
+ * Tokens are NEVER accessible to JavaScript - they are automatically
+ * sent by the browser via cookies when credentials: 'include' is used.
  */
 export class AuthSession {
 	private static readonly USER_KEY = 'user_data';
 
-	// Tokens are managed by httpOnly cookies on the server
-	// These methods exist for backwards compatibility but should not be used
-	static getAccessToken(): string | null {
-		console.warn(
-			'getAccessToken: Tokens should be accessed from httpOnly cookies, not localStorage'
-		);
-		return null;
-	}
-
-	static getRefreshToken(): string | null {
-		console.warn(
-			'getRefreshToken: Tokens should be accessed from httpOnly cookies, not localStorage'
-		);
-		return null;
-	}
-
-	// Get stored user info (safe to store in localStorage)
+	/**
+	 * Get stored user info (safe to store in localStorage for UI)
+	 * This does NOT contain tokens - only user display information
+	 */
 	static getUser(): EmailUserInfo | null {
 		if (typeof window === 'undefined') return null;
 		const userJson = localStorage.getItem(this.USER_KEY);
@@ -40,46 +27,54 @@ export class AuthSession {
 		}
 	}
 
-	// Store session data - only stores user info, tokens are in httpOnly cookies
+	/**
+	 * Store session data after login/register
+	 * Only stores user info for UI display - tokens are handled by httpOnly cookies
+	 */
 	static setSession(data: EmailAuthResponse): void {
 		if (typeof window === 'undefined') return;
 
-		// Only store non-sensitive user data
+		// Only store non-sensitive user data in localStorage for UI display
+		// SECURITY: Tokens are NOT stored here - they are in httpOnly cookies
+		// set by the backend and automatically sent by the browser
 		localStorage.setItem(this.USER_KEY, JSON.stringify(data.user));
-
-		// Update tokenManager with tokens for API client (uses memory/sessionStorage)
-		tokenManager.setAccessToken(data.access_token, data.expires_in);
-		tokenManager.setRefreshToken(data.refresh_token);
 	}
 
-	// Clear session data
+	/**
+	 * Clear session data on logout
+	 * Note: The backend clears httpOnly cookies via the logout endpoint
+	 */
 	static clearSession(): void {
 		if (typeof window === 'undefined') return;
 
+		// Clear user info from localStorage
 		localStorage.removeItem(this.USER_KEY);
-
-		// Also clear tokenManager
-		tokenManager.clearAll();
 	}
 
-	// Check if user is authenticated (checks for user data presence)
-	// Actual token validation is done server-side via httpOnly cookies
+	/**
+	 * Check if user has local session data
+	 * Note: This only checks localStorage - actual auth is validated server-side via cookies
+	 */
 	static isAuthenticated(): boolean {
 		return this.getUser() !== null;
 	}
 
-	// Refresh the access token - delegates to server endpoint
+	/**
+	 * Refresh the access token
+	 * The backend reads refresh_token from httpOnly cookie and sets new cookies
+	 */
 	static async refreshToken(): Promise<boolean> {
 		try {
 			// Server will use refresh_token from httpOnly cookie
-			const response = await fetch('/api/v1/auth/oauth/refresh', {
+			// and set new access_token/refresh_token cookies in response
+			const response = await fetch('/api/v1/auth/refresh', {
 				method: 'POST',
 				credentials: 'include' // Include httpOnly cookies
 			});
 
 			if (response.ok) {
 				const data = await response.json();
-				// Update user info if provided
+				// Update user info if provided in response
 				if (data.user) {
 					localStorage.setItem(this.USER_KEY, JSON.stringify(data.user));
 				}
@@ -89,18 +84,24 @@ export class AuthSession {
 			console.error('Token refresh failed:', error);
 		}
 
-		// If refresh fails, clear session
+		// If refresh fails, clear local session data
 		this.clearSession();
 		return false;
 	}
 
-	// Logout user - calls server endpoint which clears httpOnly cookies
+	/**
+	 * Logout user
+	 * Calls server endpoint which clears httpOnly cookies
+	 */
 	static async logout(): Promise<void> {
 		try {
-			// Server endpoint will clear httpOnly cookies
+			// Server endpoint will:
+			// 1. Read refresh_token from httpOnly cookie
+			// 2. Revoke the session in database
+			// 3. Clear httpOnly cookies in response
 			await fetch('/api/v1/auth/logout', {
 				method: 'POST',
-				credentials: 'include'
+				credentials: 'include' // Include httpOnly cookies
 			});
 		} catch (error) {
 			console.error('Server logout failed:', error);
@@ -110,25 +111,19 @@ export class AuthSession {
 		this.clearSession();
 	}
 
-	// Validate current session - checks for user data
+	/**
+	 * Check if user appears authenticated (has local user data)
+	 * Actual token validation happens server-side via httpOnly cookies
+	 */
 	static async validateSession(): Promise<boolean> {
 		return this.isAuthenticated();
 	}
 }
 
-// Helper functions for components
-export function getAuthHeaders(): Record<string, string> {
-	// Tokens are in httpOnly cookies, no need to manually add Authorization header
-	// The browser automatically includes cookies with requests
-	console.warn(
-		'getAuthHeaders: Use credentials: "include" instead of manual Authorization headers'
-	);
-	return {};
-}
-
+/**
+ * Check if user is authenticated (has local session data)
+ * Actual authentication is validated server-side via httpOnly cookies
+ */
 export function requireAuth(): boolean {
-	if (!AuthSession.isAuthenticated()) {
-		return false;
-	}
-	return true;
+	return AuthSession.isAuthenticated();
 }

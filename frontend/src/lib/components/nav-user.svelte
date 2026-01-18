@@ -31,18 +31,18 @@
 		goto('/login');
 	}
 
+	function handleProfile() {
+		if (sidebar.isMobile) {
+			sidebar.setOpenMobile(false);
+		}
+		goto('/settings');
+	}
+
 	function handleSettings() {
 		if (sidebar.isMobile) {
 			sidebar.setOpenMobile(false);
 		}
-		goto('/settings/profile');
-	}
-
-	function handleNavigate(path: string) {
-		if (sidebar.isMobile) {
-			sidebar.setOpenMobile(false);
-		}
-		goto(path);
+		goto('/settings');
 	}
 </script>
 
@@ -109,14 +109,11 @@
 						<DropdownMenu.Separator />
 					{/if}
 					<DropdownMenu.Group>
-						<DropdownMenu.Item onclick={handleSettings} class="min-h-[44px] md:min-h-0">
+						<DropdownMenu.Item onclick={handleProfile} class="min-h-[44px] md:min-h-0">
 							<UserIcon class="mr-2 size-5 md:size-4" />
 							Profile
 						</DropdownMenu.Item>
-						<DropdownMenu.Item
-							onclick={() => handleNavigate('/settings')}
-							class="min-h-[44px] md:min-h-0"
-						>
+						<DropdownMenu.Item onclick={handleSettings} class="min-h-[44px] md:min-h-0">
 							<SettingsIcon class="mr-2 size-5 md:size-4" />
 							Settings
 						</DropdownMenu.Item>

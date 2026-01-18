@@ -137,6 +137,14 @@ pub struct RefreshReq {
     pub refresh_token: String,
 }
 
+/// Optional refresh token request body (for httpOnly cookie auth)
+/// When using httpOnly cookies, the body can be empty as the token is read from cookies
+#[derive(Serialize, Deserialize, ToSchema, Default)]
+pub struct OptionalRefreshReq {
+    /// Refresh token (optional when using httpOnly cookies)
+    pub refresh_token: Option<String>,
+}
+
 /// List of users (paginated)
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct UserListResp {

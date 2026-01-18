@@ -1,6 +1,6 @@
 import type { AuthStore, User, Tenant } from '$lib/types';
 import { authLogic } from '$lib/auth/auth-logic';
-import { authApi } from '$lib/api/auth';
+import { authApi, type EmailAuthResponse } from '$lib/api/auth';
 import { AuthSession } from '$lib/auth/session';
 
 // Browser detection - fallback for testing environments
@@ -63,7 +63,7 @@ export const authStore = {
 		password: string,
 		fullName: string,
 		tenantName?: string
-	): Promise<{ success: boolean; error?: string }> {
+	): Promise<{ success: boolean; data?: EmailAuthResponse; error?: string }> {
 		authStore.setLoading(true);
 		try {
 			const response = await authApi.emailRegister({
@@ -89,7 +89,7 @@ export const authStore = {
 				};
 
 				authStore.setUser(user);
-				return { success: true };
+				return { success: true, data: response.data };
 			} else {
 				return { success: false, error: response.error || 'Registration failed' };
 			}

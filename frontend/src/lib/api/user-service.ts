@@ -74,7 +74,6 @@ import type {
 	UpdatePaymentSecurityRequest,
 	TestPaymentResult
 } from './types/user-service.types';
-import { tokenManager } from '$lib/auth/token-manager';
 import { getCurrentTenantSlug } from '$lib/tenant';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
@@ -127,12 +126,9 @@ export const userServiceApi = {
 		const formData = new FormData();
 		formData.append('avatar', file);
 
-		const token = tokenManager.getAccessToken();
 		const tenantSlug = getCurrentTenantSlug();
 		const headers: HeadersInit = {};
-		if (token) {
-			headers['Authorization'] = `Bearer ${token}`;
-		}
+		// NOTE: Do NOT set Content-Type for FormData - browser sets it with boundary
 		if (tenantSlug) {
 			headers['X-Tenant-ID'] = tenantSlug;
 		}
@@ -141,7 +137,8 @@ export const userServiceApi = {
 			const response = await fetch(`${PUBLIC_API_BASE_URL}/users/profile/avatar`, {
 				method: 'POST',
 				headers,
-				body: formData
+				body: formData,
+				credentials: 'include' // Use httpOnly cookies for auth
 			});
 
 			if (!response.ok) {
@@ -492,12 +489,9 @@ export const userServiceApi = {
 		const formData = new FormData();
 		formData.append('logo', file);
 
-		const token = tokenManager.getAccessToken();
 		const tenantSlug = getCurrentTenantSlug();
 		const headers: HeadersInit = {};
-		if (token) {
-			headers['Authorization'] = `Bearer ${token}`;
-		}
+		// NOTE: Do NOT set Content-Type for FormData - browser sets it with boundary
 		if (tenantSlug) {
 			headers['X-Tenant-ID'] = tenantSlug;
 		}
@@ -506,7 +500,8 @@ export const userServiceApi = {
 			const response = await fetch(`${PUBLIC_API_BASE_URL}/tenant/branding/logo`, {
 				method: 'POST',
 				headers,
-				body: formData
+				body: formData,
+				credentials: 'include' // Use httpOnly cookies for auth
 			});
 
 			if (!response.ok) {

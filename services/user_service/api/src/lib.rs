@@ -1,5 +1,6 @@
 // Library exports for integration tests
 pub mod admin_handlers;
+pub mod cookie_helper;
 pub mod extractors;
 pub mod handlers;
 pub mod invitation_handlers;
@@ -82,6 +83,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
         user_repo: Some(Arc::new(user_repo)),
         tenant_repo: Some(Arc::new(tenant_repo)),
         invitation_service: Some(Arc::new(invitation_service)),
+        email_verification_service: None, // Not used in tests
         authz_version_repo: authz_version_repo
             .clone()
             .map(|r| r as Arc<dyn AuthzVersionRepository>),

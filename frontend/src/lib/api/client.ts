@@ -1,6 +1,5 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { ApiResponse } from '$lib/types';
-import { tokenManager } from '$lib/auth/token-manager';
 import { getCurrentTenantSlug } from '$lib/tenant';
 
 // Base API configuration
@@ -46,12 +45,17 @@ class ApiClient {
 			headers['X-Tenant-ID'] = tenantSlug;
 		}
 
+		// Build config without headers from options (we already merged them above)
+		const { headers: _optHeaders, ...restOptions } = options;
 		const config: RequestInit = {
+			...restOptions,
 			headers,
-			...options
+			// SECURITY: Use credentials: 'include' to send httpOnly cookies
+			// This allows the browser to automatically send auth cookies set by the backend
+			credentials: 'include'
 		};
 
-		// Add auth token if available, but NOT for auth endpoints that don't require authentication
+		// Check if this is an auth endpoint (for error handling purposes only)
 		const isAuthEndpoint =
 			endpoint.startsWith('/auth/login') ||
 			endpoint.startsWith('/auth/register') ||
@@ -60,12 +64,9 @@ class ApiClient {
 			endpoint.startsWith('/auth/refresh') ||
 			endpoint.startsWith('/auth/oauth/refresh');
 
-		if (!isAuthEndpoint) {
-			const token = tokenManager.getAccessToken();
-			if (token) {
-				(config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-			}
-		}
+		// NOTE: We no longer manually add Authorization headers
+		// Authentication is handled via httpOnly cookies set by the backend
+		// The browser automatically includes cookies with requests when credentials: 'include' is set
 
 		try {
 			const response = await fetch(url, config);
@@ -81,7 +82,9 @@ class ApiClient {
 					// Only treat as session expired if NOT an auth endpoint
 					// For auth endpoints, this is just invalid credentials
 					if (!isAuthEndpoint) {
-						tokenManager.clearAll();
+						// Session expired - redirect to login
+						// The backend will have already cleared the cookies via logout
+						// or the cookies expired naturally
 						if (typeof window !== 'undefined') {
 							window.location.href = '/login?error=session_expired';
 						}

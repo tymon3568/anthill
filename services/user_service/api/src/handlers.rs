@@ -1,7 +1,9 @@
+use crate::cookie_helper::{clear_auth_cookies, get_cookie_value, set_auth_cookies, CookieConfig};
 use crate::rate_limiter::InvitationRateLimiter;
 use axum::{
     extract::{Extension, Query},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
     Json,
 };
 use chrono::Utc;
@@ -14,13 +16,14 @@ use std::sync::Arc;
 use user_service_core::domains::auth::{
     domain::{
         authz_version_repository::AuthzVersionRepository,
+        email_verification_service::EmailVerificationService,
         invitation_service::InvitationService,
         repository::{TenantRepository, UserRepository},
         service::AuthService,
     },
     dto::auth_dto::{
         AuthResp, CheckTenantSlugQuery, CheckTenantSlugResp, ErrorResp, HealthResp, LoginReq,
-        RefreshReq, RegisterReq, UserInfo, UserListResp,
+        OptionalRefreshReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
     },
 };
 use uuid::Uuid;
@@ -35,6 +38,8 @@ pub struct AppState<S: AuthService> {
     pub tenant_repo: Option<Arc<dyn TenantRepository>>,
     // Invitation service
     pub invitation_service: Option<Arc<dyn InvitationService + Send + Sync>>,
+    // Email verification service
+    pub email_verification_service: Option<Arc<dyn EmailVerificationService + Send + Sync>>,
     // AuthZ version repository for immediate-effect permission invalidation
     pub authz_version_repo: Option<Arc<dyn AuthzVersionRepository>>,
     // Configuration for invitation settings
@@ -52,6 +57,7 @@ impl<S: AuthService> Clone for AppState<S> {
             user_repo: self.user_repo.clone(),
             tenant_repo: self.tenant_repo.clone(),
             invitation_service: self.invitation_service.clone(),
+            email_verification_service: self.email_verification_service.clone(),
             authz_version_repo: self.authz_version_repo.clone(),
             config: self.config.clone(),
             invitation_rate_limiter: Arc::clone(&self.invitation_rate_limiter),
@@ -214,7 +220,7 @@ pub async fn register<S: AuthService>(
     Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
     Json(payload): Json<RegisterReq>,
-) -> Result<(StatusCode, Json<AuthResp>), AppError> {
+) -> Result<impl IntoResponse, AppError> {
     // Validate request
     use validator::Validate;
     payload
@@ -249,7 +255,34 @@ pub async fn register<S: AuthService>(
         );
     }
 
-    Ok((StatusCode::CREATED, Json(resp)))
+    // Send verification email
+    // Log error but don't fail registration - user can request resend later
+    if let Some(ref verification_service) = state.email_verification_service {
+        if let Err(e) = verification_service
+            .send_verification_email(resp.user.id, resp.user.tenant_id, &resp.user.email)
+            .await
+        {
+            tracing::error!(
+                user_id = %user_id_str,
+                email = %resp.user.email,
+                error = %e,
+                "Failed to send verification email; user can request resend"
+            );
+        }
+    } else {
+        tracing::warn!(
+            user_id = %user_id_str,
+            "Email verification service not configured; skipping verification email"
+        );
+    }
+
+    // Set httpOnly cookies for authentication tokens
+    let cookie_config = CookieConfig::new(&state.config);
+    let mut headers = HeaderMap::new();
+    set_auth_cookies(&mut headers, &resp.access_token, &resp.refresh_token, &cookie_config)
+        .map_err(|e| AppError::InternalError(format!("Failed to set auth cookies: {}", e)))?;
+
+    Ok((StatusCode::CREATED, headers, Json(resp)))
 }
 
 /// Check tenant slug availability
@@ -329,9 +362,9 @@ pub async fn check_tenant_slug<S: AuthService>(
 pub async fn login<S: AuthService>(
     Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
-    headers: axum::http::HeaderMap,
+    req_headers: axum::http::HeaderMap,
     Json(payload): Json<LoginReq>,
-) -> Result<Json<AuthResp>, AppError> {
+) -> Result<impl IntoResponse, AppError> {
     // Validate request
     use validator::Validate;
     payload
@@ -342,9 +375,9 @@ pub async fn login<S: AuthService>(
     // Priority:
     // 1. X-Tenant-ID header (for API clients/testing)
     // 2. Host header (for browser clients)
-    let tenant_identifier = if let Some(tenant_id) = headers.get("X-Tenant-ID") {
+    let tenant_identifier = if let Some(tenant_id) = req_headers.get("X-Tenant-ID") {
         tenant_id.to_str().ok().map(|s| s.to_string())
-    } else if let Some(host) = headers.get("Host") {
+    } else if let Some(host) = req_headers.get("Host") {
         // Use .ok() to handle invalid headers instead of unwrap_or("") which masks errors
         host.to_str().ok().and_then(|host_str| {
             // Simple subdomain extraction (naive)
@@ -365,7 +398,14 @@ pub async fn login<S: AuthService>(
         .auth_service
         .login(payload, tenant_identifier, client_info.ip_address, client_info.user_agent)
         .await?;
-    Ok(Json(resp))
+
+    // Set httpOnly cookies for authentication tokens
+    let cookie_config = CookieConfig::new(&state.config);
+    let mut headers = HeaderMap::new();
+    set_auth_cookies(&mut headers, &resp.access_token, &resp.refresh_token, &cookie_config)
+        .map_err(|e| AppError::InternalError(format!("Failed to set auth cookies: {}", e)))?;
+
+    Ok((StatusCode::OK, headers, Json(resp)))
 }
 
 /// Refresh access token
@@ -383,19 +423,45 @@ pub async fn login<S: AuthService>(
 pub async fn refresh_token<S: AuthService>(
     Extension(state): Extension<AppState<S>>,
     client_info: crate::extractors::ClientInfo,
-    Json(payload): Json<RefreshReq>,
-) -> Result<Json<AuthResp>, AppError> {
-    // Validate request
-    use validator::Validate;
-    payload
-        .validate()
-        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+    req_headers: axum::http::HeaderMap,
+    payload: Option<Json<OptionalRefreshReq>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Get refresh token from cookie or request body
+    // Priority: 1. httpOnly cookie (secure), 2. Request body (backwards compatibility)
+    let refresh_token_value = if let Some(cookie_token) =
+        get_cookie_value(&req_headers, "refresh_token")
+    {
+        cookie_token
+    } else if let Some(Json(body)) = payload {
+        // Check if body has a refresh token
+        if let Some(token) = body.refresh_token {
+            if token.is_empty() {
+                return Err(AppError::ValidationError("refresh_token cannot be empty".to_string()));
+            }
+            token
+        } else {
+            return Err(AppError::Unauthorized("No refresh token provided".to_string()));
+        }
+    } else {
+        return Err(AppError::Unauthorized("No refresh token provided".to_string()));
+    };
+
+    let refresh_req = RefreshReq {
+        refresh_token: refresh_token_value,
+    };
 
     let resp = state
         .auth_service
-        .refresh_token(payload, client_info.ip_address, client_info.user_agent)
+        .refresh_token(refresh_req, client_info.ip_address, client_info.user_agent)
         .await?;
-    Ok(Json(resp))
+
+    // Set httpOnly cookies for new authentication tokens
+    let cookie_config = CookieConfig::new(&state.config);
+    let mut headers = HeaderMap::new();
+    set_auth_cookies(&mut headers, &resp.access_token, &resp.refresh_token, &cookie_config)
+        .map_err(|e| AppError::InternalError(format!("Failed to set auth cookies: {}", e)))?;
+
+    Ok((StatusCode::OK, headers, Json(resp)))
 }
 
 /// Logout user by revoking refresh token session
@@ -404,7 +470,7 @@ pub async fn refresh_token<S: AuthService>(
     path = "/api/v1/auth/logout",
     tag = "auth",
     operation_id = "user_logout",
-    request_body = RefreshReq,
+    request_body = OptionalRefreshReq,
     responses(
         (status = 200, description = "Logout successful"),
         (status = 401, description = "Invalid refresh token", body = ErrorResp),
@@ -412,16 +478,32 @@ pub async fn refresh_token<S: AuthService>(
 )]
 pub async fn logout<S: AuthService>(
     Extension(state): Extension<AppState<S>>,
-    Json(payload): Json<RefreshReq>,
-) -> Result<StatusCode, AppError> {
-    // Validate request
-    use validator::Validate;
-    payload
-        .validate()
-        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+    req_headers: axum::http::HeaderMap,
+    payload: Option<Json<OptionalRefreshReq>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Get refresh token from cookie or request body
+    // Priority: 1. httpOnly cookie (secure), 2. Request body (backwards compatibility)
+    let refresh_token_value =
+        if let Some(cookie_token) = get_cookie_value(&req_headers, "refresh_token") {
+            Some(cookie_token)
+        } else if let Some(Json(body)) = payload {
+            // Check if body has a refresh token
+            body.refresh_token.filter(|t| !t.is_empty())
+        } else {
+            None
+        };
 
-    state.auth_service.logout(&payload.refresh_token).await?;
-    Ok(StatusCode::OK)
+    // If we have a refresh token, revoke it
+    if let Some(token) = refresh_token_value {
+        state.auth_service.logout(&token).await?;
+    }
+
+    // Always clear httpOnly cookies
+    let mut headers = HeaderMap::new();
+    clear_auth_cookies(&mut headers, &state.config)
+        .map_err(|e| AppError::InternalError(format!("Failed to clear auth cookies: {}", e)))?;
+
+    Ok((StatusCode::OK, headers, ()))
 }
 
 #[derive(Debug, Deserialize)]
