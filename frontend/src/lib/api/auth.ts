@@ -337,8 +337,12 @@ export const authApi = {
 		return apiClient.post<void>('/auth/verify-email', { token });
 	},
 
-	async resendVerification(email: string): Promise<ApiResponse<void>> {
-		return apiClient.post<void>('/auth/resend-verification', { email });
+	async resendVerification(email: string, tenantId?: string): Promise<ApiResponse<void>> {
+		const headers: Record<string, string> = {};
+		if (tenantId) {
+			headers['X-Tenant-ID'] = tenantId;
+		}
+		return apiClient.post<void>('/auth/resend-verification', { email }, { headers });
 	},
 
 	// Password Reset Methods

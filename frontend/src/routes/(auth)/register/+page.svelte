@@ -35,7 +35,14 @@
 	let fieldErrors = $state<Record<string, string>>({});
 	let registrationSuccess = $state(false);
 	let registeredEmail = $state('');
+	let registeredTenantId = $state('');
 	let isResending = $state(false);
+
+	// Cooldown timer for resend button
+	let resendCooldown = $state(0);
+	let cooldownInterval: ReturnType<typeof setInterval> | null = null;
+
+	const RESEND_COOLDOWN_SECONDS = 60;
 
 	// Tenant availability check state
 	let tenantCheckStatus = $state<'idle' | 'checking' | 'available' | 'exists' | 'error'>('idle');
@@ -162,6 +169,10 @@
 			if (result.success) {
 				// Show verification email message instead of redirecting
 				registeredEmail = formData.email;
+				// Get tenant_id from the response for resend functionality
+				if (result.data?.user?.tenant_id) {
+					registeredTenantId = result.data.user.tenant_id;
+				}
 				registrationSuccess = true;
 			} else {
 				error = result.error || 'Registration failed';
@@ -181,18 +192,37 @@
 		}
 	}
 
+	// Start cooldown timer
+	function startCooldown() {
+		resendCooldown = RESEND_COOLDOWN_SECONDS;
+		if (cooldownInterval) {
+			clearInterval(cooldownInterval);
+		}
+		cooldownInterval = setInterval(() => {
+			resendCooldown--;
+			if (resendCooldown <= 0) {
+				if (cooldownInterval) {
+					clearInterval(cooldownInterval);
+					cooldownInterval = null;
+				}
+			}
+		}, 1000);
+	}
+
 	// Resend verification email
 	async function handleResendVerification() {
-		if (!registeredEmail || isResending) return;
+		if (!registeredEmail || isResending || resendCooldown > 0) return;
 
 		isResending = true;
 		try {
-			const response = await authApi.resendVerification(registeredEmail);
+			const response = await authApi.resendVerification(registeredEmail, registeredTenantId);
 			if (response.success) {
 				toast.success('Verification email sent! Please check your inbox.');
+				startCooldown();
 			} else {
 				if (response.error?.includes('rate') || response.error?.includes('limit')) {
 					toast.error('Please wait a few minutes before requesting another email.');
+					startCooldown();
 				} else {
 					toast.error(response.error || 'Failed to resend verification email');
 				}
@@ -254,11 +284,13 @@
 						<Button
 							variant="link"
 							onclick={handleResendVerification}
-							disabled={isResending}
+							disabled={isResending || resendCooldown > 0}
 							class="text-blue-600"
 						>
 							{#if isResending}
 								Sending...
+							{:else if resendCooldown > 0}
+								Resend in {resendCooldown}s
 							{:else}
 								Resend verification email
 							{/if}
