@@ -403,4 +403,114 @@ This is an automated message, please do not reply."#,
             expiry_minutes = expiry_minutes
         )
     }
+
+    /// Generate HTML email template for invitation
+    pub fn invitation_email_html(
+        invite_url: &str,
+        inviter_name: &str,
+        role: &str,
+        expiry_hours: i64,
+        custom_message: Option<&str>,
+    ) -> String {
+        let custom_message_html = custom_message
+            .map(|msg| format!(r#"<p style="margin: 0 0 20px; color: #6b7280; font-size: 14px; font-style: italic;">Message from {}: "{}"</p>"#, inviter_name, msg))
+            .unwrap_or_default();
+
+        format!(
+            r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You're Invited to Join Anthill</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #111827;">You're Invited!</h1>
+                            <p style="margin: 0 0 16px; color: #374151; font-size: 16px; line-height: 1.5;">
+                                <strong>{inviter_name}</strong> has invited you to join their organization on Anthill as a <strong>{role}</strong>.
+                            </p>
+                            {custom_message_html}
+                            <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.5;">
+                                Click the button below to accept the invitation and create your account:
+                            </p>
+                            <table role="presentation" style="margin: 0 0 24px;">
+                                <tr>
+                                    <td style="border-radius: 6px; background-color: #4f46e5;">
+                                        <a href="{invite_url}" style="display: inline-block; padding: 12px 24px; color: #ffffff; text-decoration: none; font-weight: 500; font-size: 16px;">Accept Invitation</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="margin: 0 0 16px; color: #6b7280; font-size: 14px;">
+                                Or copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 0 0 24px; color: #4f46e5; font-size: 14px; word-break: break-all;">
+                                {invite_url}
+                            </p>
+                            <p style="margin: 0 0 16px; color: #6b7280; font-size: 14px;">
+                                This invitation will expire in <strong>{expiry_hours} hours</strong>.
+                            </p>
+                            <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                                If you weren't expecting this invitation, you can safely ignore this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                <p style="margin: 24px 0 0; text-align: center; color: #9ca3af; font-size: 12px;">
+                    Anthill - Inventory Management
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"#,
+            invite_url = invite_url,
+            inviter_name = inviter_name,
+            role = role,
+            custom_message_html = custom_message_html,
+            expiry_hours = expiry_hours
+        )
+    }
+
+    /// Generate plain text email template for invitation
+    pub fn invitation_email_text(
+        invite_url: &str,
+        inviter_name: &str,
+        role: &str,
+        expiry_hours: i64,
+        custom_message: Option<&str>,
+    ) -> String {
+        let custom_message_text = custom_message
+            .map(|msg| format!("\nMessage from {}: \"{}\"\n", inviter_name, msg))
+            .unwrap_or_default();
+
+        format!(
+            r#"You're Invited to Join Anthill!
+
+{inviter_name} has invited you to join their organization on Anthill as a {role}.
+{custom_message_text}
+Click the link below to accept the invitation and create your account:
+
+{invite_url}
+
+This invitation will expire in {expiry_hours} hours.
+
+---
+If you weren't expecting this invitation, you can safely ignore this email.
+
+Anthill - Inventory Management
+This is an automated message, please do not reply."#,
+            invite_url = invite_url,
+            inviter_name = inviter_name,
+            role = role,
+            custom_message_text = custom_message_text,
+            expiry_hours = expiry_hours
+        )
+    }
 }

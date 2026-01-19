@@ -177,6 +177,7 @@ async fn main() {
         authz_version_repo,
         config: config.clone(),
         invitation_rate_limiter: Arc::new(InvitationRateLimiter::default()),
+        email_sender: Some(email_sender.clone()),
     };
 
     let profile_state = ProfileAppState {

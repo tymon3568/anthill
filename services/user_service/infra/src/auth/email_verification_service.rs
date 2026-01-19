@@ -13,7 +13,7 @@ use user_service_core::domains::auth::{
 };
 use uuid::Uuid;
 
-use super::smtp_sender::{templates, EmailContent, EmailSender, SharedEmailSender};
+use super::smtp_sender::{templates, EmailContent, SharedEmailSender};
 
 /// Email Verification Service implementation
 ///

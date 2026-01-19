@@ -89,6 +89,7 @@ pub async fn get_app(db_pool: PgPool, config: &Config) -> AppRouter {
             .map(|r| r as Arc<dyn AuthzVersionRepository>),
         config: config.clone(),
         invitation_rate_limiter: Arc::new(crate::rate_limiter::InvitationRateLimiter::default()),
+        email_sender: None, // Not used in tests
     };
 
     create_router(&state, authz_version_repo)

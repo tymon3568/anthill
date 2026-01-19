@@ -15,7 +15,7 @@ use user_service_core::domains::auth::{
 };
 use uuid::Uuid;
 
-use super::smtp_sender::{templates, EmailContent, EmailSender, SharedEmailSender};
+use super::smtp_sender::{templates, EmailContent, SharedEmailSender};
 
 /// Password Reset Service implementation
 ///
@@ -204,25 +204,38 @@ where
             return Ok(success_response);
         }
 
-        // For security, we need tenant context
-        // If not provided, we can't proceed but still return success
-        let tenant_id = match tenant_id {
-            Some(id) => id,
+        // Try to find user by email
+        // If tenant_id is provided, use tenant-scoped lookup
+        // Otherwise, use global lookup (for when user forgets which tenant they belong to)
+        let user = match tenant_id {
+            Some(tid) => {
+                match self.user_repo.find_by_email(tid, email).await? {
+                    Some(u) => u,
+                    None => {
+                        // User doesn't exist in this tenant - still return success (timing-safe)
+                        tracing::debug!(email = %email, tenant_id = %tid, "Password reset for non-existent user in tenant");
+                        return Ok(success_response);
+                    },
+                }
+            },
             None => {
-                tracing::debug!(email = %email, "Password reset without tenant context");
-                return Ok(success_response);
+                // No tenant context - use global lookup
+                match self.user_repo.find_by_email_global(email).await? {
+                    Some(u) => {
+                        tracing::debug!(email = %email, tenant_id = %u.tenant_id, "Password reset using global email lookup");
+                        u
+                    },
+                    None => {
+                        // User doesn't exist - still return success (timing-safe)
+                        tracing::debug!(email = %email, "Password reset for non-existent user (global lookup)");
+                        return Ok(success_response);
+                    },
+                }
             },
         };
 
-        // Try to find user by email
-        let user = match self.user_repo.find_by_email(tenant_id, email).await? {
-            Some(u) => u,
-            None => {
-                // User doesn't exist - still return success (timing-safe)
-                tracing::debug!(email = %email, tenant_id = %tenant_id, "Password reset for non-existent user");
-                return Ok(success_response);
-            },
-        };
+        // Use the user's tenant_id for subsequent operations
+        let effective_tenant_id = user.tenant_id;
 
         // Check if user has password auth (can't reset if they only have Kanidm auth)
         if user.password_hash.is_none() && user.auth_method == "kanidm" {
@@ -235,7 +248,7 @@ where
 
         // Invalidate any existing pending tokens for this user
         self.reset_repo
-            .invalidate_all_for_user(user.user_id, tenant_id)
+            .invalidate_all_for_user(user.user_id, effective_tenant_id)
             .await?;
 
         // Generate new token
@@ -244,7 +257,7 @@ where
         // Create reset token record
         let token = PasswordResetToken::new(
             user.user_id,
-            tenant_id,
+            effective_tenant_id,
             token_hash,
             self.reset_expiry_hours,
             ip_address.clone(),
@@ -257,7 +270,7 @@ where
         // Log audit event
         let audit = PasswordResetAudit::requested(
             user.user_id,
-            tenant_id,
+            effective_tenant_id,
             email.to_string(),
             ip_address,
             user_agent,
@@ -270,7 +283,7 @@ where
 
         tracing::info!(
             user_id = %user.user_id,
-            tenant_id = %tenant_id,
+            tenant_id = %effective_tenant_id,
             "Password reset email sent"
         );
 
