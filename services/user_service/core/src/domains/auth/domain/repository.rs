@@ -46,6 +46,11 @@ pub trait UserRepository: Send + Sync {
     /// Check if email exists within a tenant
     async fn email_exists(&self, tenant_id: Uuid, email: &str) -> Result<bool, AppError>;
 
+    /// Find user by email across all tenants (for password reset)
+    /// Returns the first active user found with this email
+    /// Note: This is only used for password reset flow where tenant context is unknown
+    async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, AppError>;
+
     /// Find user by Kanidm user ID within a tenant
     async fn find_by_kanidm_id(
         &self,

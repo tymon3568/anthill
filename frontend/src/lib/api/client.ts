@@ -62,13 +62,20 @@ class ApiClient {
 		};
 
 		// Check if this is an auth endpoint (for error handling purposes only)
+		// These endpoints don't require authentication, so 401 responses are
+		// invalid credentials, not session expiry
 		const isAuthEndpoint =
 			endpoint.startsWith('/auth/login') ||
 			endpoint.startsWith('/auth/register') ||
 			endpoint.startsWith('/auth/oauth/authorize') ||
 			endpoint.startsWith('/auth/oauth/callback') ||
 			endpoint.startsWith('/auth/refresh') ||
-			endpoint.startsWith('/auth/oauth/refresh');
+			endpoint.startsWith('/auth/oauth/refresh') ||
+			endpoint.startsWith('/auth/forgot-password') ||
+			endpoint.startsWith('/auth/validate-reset-token') ||
+			endpoint.startsWith('/auth/reset-password') ||
+			endpoint.startsWith('/auth/resend-verification') ||
+			endpoint.startsWith('/auth/verify-email');
 
 		// NOTE: We no longer manually add Authorization headers
 		// Authentication is handled via httpOnly cookies set by the backend

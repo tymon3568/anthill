@@ -37,6 +37,8 @@ export interface User {
 	email: string;
 	fullName: string;
 	role: string;
+	/** All roles assigned to this user from Casbin RBAC system */
+	roles: string[];
 	status: UserStatus;
 	emailVerified: boolean;
 	createdAt: string;

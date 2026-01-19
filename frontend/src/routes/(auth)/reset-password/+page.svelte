@@ -122,7 +122,7 @@
 		fieldErrors = {};
 
 		try {
-			const response = await authApi.resetPassword(data.token!, newPassword);
+			const response = await authApi.resetPassword(data.token!, newPassword, confirmPassword);
 
 			if (response.success) {
 				isSuccess = true;

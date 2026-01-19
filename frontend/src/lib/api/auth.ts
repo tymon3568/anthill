@@ -455,8 +455,16 @@ export const authApi = {
 		return apiClient.post<void>('/auth/validate-reset-token', { token });
 	},
 
-	async resetPassword(token: string, newPassword: string): Promise<ApiResponse<void>> {
-		return apiClient.post<void>('/auth/reset-password', { token, new_password: newPassword });
+	async resetPassword(
+		token: string,
+		newPassword: string,
+		confirmPassword: string
+	): Promise<ApiResponse<void>> {
+		return apiClient.post<void>('/auth/reset-password', {
+			token,
+			new_password: newPassword,
+			confirm_password: confirmPassword
+		});
 	},
 
 	// Legacy methods (for backward compatibility) - use proxy for cookie handling

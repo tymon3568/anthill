@@ -409,7 +409,13 @@
 								<Table.Cell class="font-medium">{user.fullName}</Table.Cell>
 								<Table.Cell>{user.email}</Table.Cell>
 								<Table.Cell>
-									<Badge variant="outline">{user.role}</Badge>
+									<div class="flex flex-wrap gap-1">
+										{#each user.roles as roleName (roleName)}
+											<Badge variant="outline">{roleName}</Badge>
+										{:else}
+											<Badge variant="outline">{user.role}</Badge>
+										{/each}
+									</div>
 								</Table.Cell>
 								<Table.Cell>
 									<Badge variant={getStatusBadgeVariant(user.status)}>{user.status}</Badge>
