@@ -46,6 +46,22 @@ impl UserRepository for PgUserRepository {
         Ok(user)
     }
 
+    async fn find_by_id_any_status(
+        &self,
+        tenant_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<User>, AppError> {
+        let user = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE tenant_id = $1 AND user_id = $2 AND deleted_at IS NULL",
+        )
+        .bind(tenant_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(user)
+    }
+
     async fn find_by_ids(&self, tenant_id: Uuid, user_ids: &[Uuid]) -> Result<Vec<User>, AppError> {
         if user_ids.is_empty() {
             return Ok(vec![]);
@@ -131,6 +147,7 @@ impl UserRepository for PgUserRepository {
                 auth_method = $17,
                 migration_invited_at = $18,
                 migration_completed_at = $19,
+                deleted_at = $21,
                 updated_at = NOW()
             WHERE user_id = $1 AND tenant_id = $20 AND deleted_at IS NULL
             RETURNING *
@@ -156,6 +173,7 @@ impl UserRepository for PgUserRepository {
         .bind(user.migration_invited_at)
         .bind(user.migration_completed_at)
         .bind(user.tenant_id)
+        .bind(user.deleted_at)
         .fetch_one(&self.pool)
         .await?;
 
@@ -201,13 +219,9 @@ impl UserRepository for PgUserRepository {
             query_builder.push_bind(status_filter);
             count_builder.push(" AND status = ");
             count_builder.push_bind(status_filter);
-        } else {
-            // Default to active status
-            query_builder.push(" AND status = ");
-            query_builder.push_bind("active");
-            count_builder.push(" AND status = ");
-            count_builder.push_bind("active");
         }
+        // When status is None, show all statuses (active and suspended)
+        // Do NOT default to active - allow admin to see all users
 
         // Add ordering and pagination with proper parameter binding
         query_builder.push(" ORDER BY created_at DESC LIMIT ");
@@ -230,9 +244,12 @@ impl UserRepository for PgUserRepository {
         Ok((users, total.0))
     }
 
+    /// Check if email exists for active (non-deleted) users only.
+    /// Soft-deleted users (deleted_at IS NOT NULL) are excluded, allowing
+    /// email re-registration after account deletion.
     async fn email_exists(&self, tenant_id: Uuid, email: &str) -> Result<bool, AppError> {
         let exists: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE tenant_id = $1 AND email = $2)",
+            "SELECT EXISTS(SELECT 1 FROM users WHERE tenant_id = $1 AND email = $2 AND deleted_at IS NULL)",
         )
         .bind(tenant_id)
         .bind(email)
