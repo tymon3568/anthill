@@ -1,11 +1,21 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { page } from '$app/stores';
+	import { beforeNavigate } from '$app/navigation';
+	import { tick } from 'svelte';
 	import UsersIcon from '@lucide/svelte/icons/users';
 	import ShieldIcon from '@lucide/svelte/icons/shield';
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 
 	let { children } = $props();
+
+	// Force component key based on current path
+	let componentKey = $state($page.url.pathname);
+
+	// Update componentKey when page changes
+	$effect(() => {
+		componentKey = $page.url.pathname;
+	});
 
 	// Admin navigation items
 	const adminNavItems = [
@@ -31,7 +41,7 @@
 
 	// Check if a nav item is active
 	function isActive(href: string): boolean {
-		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
+		return $page.url.pathname === href || $page.url.pathname.startsWith(href + '/');
 	}
 </script>
 
@@ -52,6 +62,7 @@
 		{#each adminNavItems as item (item.href)}
 			<a
 				href={item.href}
+				data-sveltekit-reload
 				class="flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors hover:text-foreground {isActive(
 					item.href
 				)
@@ -66,7 +77,10 @@
 	</nav>
 
 	<!-- Admin Content -->
-	<div>
-		{@render children()}
-	</div>
+	<!-- Use {#key} with componentKey to force re-render when navigating between admin sub-pages -->
+	{#key componentKey}
+		<div>
+			{@render children()}
+		</div>
+	{/key}
 </div>

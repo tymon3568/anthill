@@ -19,8 +19,11 @@ import type {
 	UserProfile,
 	PublicProfile,
 	Role,
+	RoleListResponse,
 	Permission,
+	PermissionListResponse,
 	Invitation,
+	InvitationStatus,
 	PaginatedUsers,
 	PaginatedInvitations,
 	ListUsersParams,
@@ -36,6 +39,7 @@ import type {
 	ProfileSearchResult,
 	AvatarUploadResponse,
 	PermissionCheckResponse,
+	UserRolesResponse,
 	TenantValidation,
 	TenantSettings,
 	TenantBilling,
@@ -75,7 +79,9 @@ import type {
 	TestPaymentResult
 } from './types/user-service.types';
 import { getCurrentTenantSlug } from '$lib/tenant';
-import { PUBLIC_API_BASE_URL } from '$env/static/public';
+
+// Use relative URL to route through SvelteKit proxy for proper cookie handling
+const API_BASE_URL = '/api/v1';
 
 /**
  * Custom API error with status code and error code
@@ -134,7 +140,7 @@ export const userServiceApi = {
 		}
 
 		try {
-			const response = await fetch(`${PUBLIC_API_BASE_URL}/users/profile/avatar`, {
+			const response = await fetch(`${API_BASE_URL}/users/profile/avatar`, {
 				method: 'POST',
 				headers,
 				body: formData,
@@ -218,7 +224,54 @@ export const userServiceApi = {
 		if (params.status) searchParams.set('status', params.status);
 		if (params.search) searchParams.set('search', params.search);
 
-		return apiClient.get<PaginatedUsers>(`/admin/users?${searchParams}`);
+		// Backend returns snake_case, frontend expects camelCase
+		interface BackendUser {
+			id: string;
+			email: string;
+			full_name: string;
+			tenant_id: string;
+			role: string;
+			status?: string;
+			email_verified?: boolean;
+			created_at: string;
+			last_login_at?: string;
+		}
+		interface BackendResponse {
+			users: BackendUser[];
+			total: number;
+			page: number;
+			page_size: number;
+		}
+
+		const result = await apiClient.get<BackendResponse>(`/admin/users?${searchParams}`);
+
+		if (result.success && result.data) {
+			// Transform snake_case to camelCase
+			const transformedUsers: User[] = result.data.users.map((user) => ({
+				id: user.id,
+				email: user.email,
+				fullName: user.full_name,
+				role: user.role,
+				status: (user.status as User['status']) || 'active',
+				emailVerified: user.email_verified ?? false,
+				createdAt: user.created_at,
+				lastLoginAt: user.last_login_at
+			}));
+
+			const perPage = params.perPage || 10;
+			return {
+				success: true,
+				data: {
+					data: transformedUsers,
+					total: result.data.total,
+					page: result.data.page,
+					perPage: perPage,
+					totalPages: Math.ceil(result.data.total / perPage)
+				}
+			};
+		}
+
+		return { success: false, error: result.error };
 	},
 
 	/**
@@ -236,15 +289,23 @@ export const userServiceApi = {
 	 * @returns Created user
 	 */
 	async createUser(data: CreateUserRequest): Promise<ApiResponse<User>> {
-		return apiClient.post<User>('/admin/users', data as unknown as Record<string, unknown>);
+		// Transform camelCase to snake_case for backend
+		const backendData = {
+			email: data.email,
+			password: data.password,
+			full_name: data.fullName,
+			role: data.role
+		};
+		return apiClient.post<User>('/admin/users', backendData as unknown as Record<string, unknown>);
 	},
 
 	/**
 	 * Suspend a user (admin only)
 	 * @param userId - User ID to suspend
+	 * @param reason - Optional reason for suspension
 	 */
-	async suspendUser(userId: string): Promise<ApiResponse<void>> {
-		return apiClient.post<void>(`/admin/users/${userId}/suspend`);
+	async suspendUser(userId: string, reason?: string): Promise<ApiResponse<void>> {
+		return apiClient.post<void>(`/admin/users/${userId}/suspend`, { reason: reason || null });
 	},
 
 	/**
@@ -281,7 +342,11 @@ export const userServiceApi = {
 	 * @returns List of roles
 	 */
 	async listRoles(): Promise<ApiResponse<Role[]>> {
-		return apiClient.get<Role[]>('/admin/roles');
+		const result = await apiClient.get<RoleListResponse>('/admin/roles');
+		if (result.success && result.data) {
+			return { success: true, data: result.data.roles };
+		}
+		return { success: false, error: result.error };
 	},
 
 	/**
@@ -328,8 +393,8 @@ export const userServiceApi = {
 	 * @param userId - User ID
 	 * @returns List of role names
 	 */
-	async getUserRoles(userId: string): Promise<ApiResponse<string[]>> {
-		return apiClient.get<string[]>(`/admin/users/${userId}/roles`);
+	async getUserRoles(userId: string): Promise<ApiResponse<UserRolesResponse>> {
+		return apiClient.get<UserRolesResponse>(`/admin/users/${userId}/roles`);
 	},
 
 	/**
@@ -338,7 +403,7 @@ export const userServiceApi = {
 	 * @param roleName - Role name to assign
 	 */
 	async assignRole(userId: string, roleName: string): Promise<ApiResponse<void>> {
-		return apiClient.post<void>(`/admin/users/${userId}/roles/assign`, { role: roleName });
+		return apiClient.post<void>(`/admin/users/${userId}/roles/assign`, { role_name: roleName });
 	},
 
 	/**
@@ -355,7 +420,18 @@ export const userServiceApi = {
 	 * @returns List of permissions
 	 */
 	async listPermissions(): Promise<ApiResponse<Permission[]>> {
-		return apiClient.get<Permission[]>('/admin/permissions');
+		const result = await apiClient.get<PermissionListResponse>('/admin/permissions');
+		if (result.success && result.data) {
+			// Flatten available permissions into Permission[] format
+			const permissions: Permission[] = [];
+			for (const perm of result.data.permissions) {
+				for (const action of perm.actions) {
+					permissions.push({ resource: perm.resource, action });
+				}
+			}
+			return { success: true, data: permissions };
+		}
+		return { success: false, error: result.error };
 	},
 
 	// ============ Admin Invitation API ============
@@ -383,7 +459,59 @@ export const userServiceApi = {
 		const searchParams = createPaginationParams(params.page, params.perPage);
 		if (params.status) searchParams.set('status', params.status);
 
-		return apiClient.get<PaginatedInvitations>(`/admin/users/invitations?${searchParams}`);
+		// Backend returns snake_case with nested objects
+		interface BackendInvitedBy {
+			user_id: string;
+			email: string;
+			full_name?: string;
+		}
+		interface BackendInvitation {
+			invitation_id: string;
+			email: string;
+			role: string;
+			status: InvitationStatus;
+			invited_by: BackendInvitedBy;
+			expires_at: string;
+			created_at: string;
+			accepted_at?: string;
+		}
+		interface BackendResponse {
+			invitations: BackendInvitation[];
+			total: number;
+			page: number;
+			page_size: number;
+		}
+
+		const result = await apiClient.get<BackendResponse>(`/admin/users/invitations?${searchParams}`);
+
+		if (result.success && result.data) {
+			// Transform snake_case to camelCase
+			const transformedInvitations: Invitation[] = result.data.invitations.map((inv) => ({
+				id: inv.invitation_id,
+				email: inv.email,
+				role: inv.role,
+				status: inv.status,
+				invitedBy: inv.invited_by.user_id,
+				invitedByName: inv.invited_by.full_name || inv.invited_by.email,
+				expiresAt: inv.expires_at,
+				createdAt: inv.created_at,
+				acceptedAt: inv.accepted_at
+			}));
+
+			const perPage = params.perPage || 10;
+			return {
+				success: true,
+				data: {
+					data: transformedInvitations,
+					total: result.data.total,
+					page: result.data.page,
+					perPage: perPage,
+					totalPages: Math.ceil(result.data.total / perPage)
+				}
+			};
+		}
+
+		return { success: false, error: result.error };
 	},
 
 	/**
@@ -497,7 +625,7 @@ export const userServiceApi = {
 		}
 
 		try {
-			const response = await fetch(`${PUBLIC_API_BASE_URL}/tenant/branding/logo`, {
+			const response = await fetch(`${API_BASE_URL}/tenant/branding/logo`, {
 				method: 'POST',
 				headers,
 				body: formData,

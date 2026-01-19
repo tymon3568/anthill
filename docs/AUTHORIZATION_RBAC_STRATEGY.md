@@ -267,6 +267,73 @@ Maintain an audit trail for:
 
 ---
 
+## User Status Lifecycle
+
+Users have a `status` field that controls their access to the system. This is separate from RBAC permissions.
+
+### Status Values
+
+| Status | Description | Can Login | Visible in Admin List | Reversible |
+|--------|-------------|-----------|----------------------|------------|
+| `active` | Normal operating state | ✅ Yes | ✅ Yes | N/A |
+| `suspended` | Temporarily blocked by admin | ❌ No | ✅ Yes | ✅ Yes (unsuspend) |
+| `inactive` | Soft-deleted user | ❌ No | ❌ No | ❌ No (requires DB intervention) |
+
+### State Transitions
+
+```
+                    ┌─────────────┐
+                    │   active    │
+                    └─────────────┘
+                      ↑         ↓
+            unsuspend │         │ suspend
+                      │         ↓
+                    ┌─────────────┐
+                    │  suspended  │
+                    └─────────────┘
+                          ↓
+                          │ delete (soft)
+                          ↓
+                    ┌─────────────┐
+                    │  inactive   │ (+ deleted_at = NOW())
+                    └─────────────┘
+```
+
+### Implementation Details
+
+1. **Active → Suspended** (Admin Suspend)
+   - Sets `status = 'suspended'`
+   - Revokes all active sessions
+   - User cannot login until unsuspended
+   - Triggers `policy_version` increment for immediate effect
+
+2. **Suspended → Active** (Admin Unsuspend)
+   - Sets `status = 'active'`
+   - User can login again
+   - Previous roles/permissions are preserved
+
+3. **Any → Inactive** (Admin Delete / Soft Delete)
+   - Sets `status = 'inactive'` AND `deleted_at = NOW()`
+   - Revokes all active sessions
+   - User is filtered out from list queries (`WHERE deleted_at IS NULL`)
+   - **Email can be re-used for new registration** (soft-deleted users don't block email)
+   - **Cannot be reversed via API** - requires direct DB intervention
+
+### Query Patterns
+
+- **List active users**: `WHERE deleted_at IS NULL` (includes both `active` and `suspended`)
+- **Find for login**: `WHERE status = 'active' AND deleted_at IS NULL`
+- **Check email exists**: `WHERE email = $1 AND deleted_at IS NULL` (allows soft-deleted emails to be re-used)
+
+### Security Considerations
+
+- Suspended users retain their role assignments but cannot authenticate
+- Soft-deleted users' data is preserved for audit purposes
+- Admin cannot suspend/delete the tenant owner (protected role)
+- All status changes are logged in audit trail
+
+---
+
 ## Open Questions / Future Enhancements
 
 - Do we need sub-tenant scopes (e.g., warehouse/company) beyond tenant?  

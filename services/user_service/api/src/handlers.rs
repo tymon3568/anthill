@@ -9,7 +9,7 @@ use axum::{
 use chrono::Utc;
 use serde::Deserialize;
 use shared_auth::casbin::{CoreApi, MgmtApi};
-use shared_auth::enforcer::{add_role_for_user, SharedEnforcer};
+use shared_auth::enforcer::{add_role_for_user, copy_policies_for_tenant, SharedEnforcer};
 use shared_auth::extractors::{AuthUser, JwtSecretProvider, RequireAdmin};
 use shared_error::AppError;
 use std::sync::Arc;
@@ -239,6 +239,23 @@ pub async fn register<S: AuthService>(
     let user_id_str = resp.user.id.to_string();
     let tenant_id_str = resp.user.tenant_id.to_string();
     let role = &resp.user.role;
+
+    // If this is a new tenant (user is owner), copy default policies to the new tenant
+    // This ensures the new tenant has the same permission structure as default_tenant
+    if role == "owner" {
+        if let Err(e) =
+            copy_policies_for_tenant(&state.enforcer, "default_tenant", &tenant_id_str).await
+        {
+            // Policies not copied - user won't have proper permissions.
+            // Log loudly so this can be detected and remediated.
+            tracing::error!(
+                user_id = %user_id_str,
+                tenant_id = %tenant_id_str,
+                error = %e,
+                "Failed to copy Casbin policies for new tenant; tenant has no policies"
+            );
+        }
+    }
 
     // Add grouping: (user_id, role, tenant_id)
     // This ensures Casbin policies for the role apply to this user.
@@ -616,6 +633,10 @@ pub struct DeletePolicyReq {
     pub action: String,
 }
 
+/// Protected role that cannot be assigned or modified via admin APIs.
+/// Owner role is assigned only during tenant bootstrap (registration).
+const OWNER_ROLE: &str = "owner";
+
 // Note: AssignRoleReq and RevokeRoleReq DTOs have been moved to admin_dto.rs
 // as AssignUserRoleReq for better consistency and enhanced validation.
 
@@ -648,6 +669,16 @@ pub async fn add_policy<S: AuthService>(
     payload
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    // Prevent privilege escalation: cannot add policies for owner role
+    // Owner policies are seeded during tenant bootstrap only
+    if payload.role.to_lowercase() == OWNER_ROLE {
+        return Err(AppError::Forbidden(
+            "Cannot add policies for 'owner' role. Owner policies are managed by the system only."
+                .to_string(),
+        ));
+    }
+
     let mut enforcer = state.enforcer.write().await;
     let added = enforcer
         .add_policy(vec![
@@ -701,6 +732,15 @@ pub async fn remove_policy<S: AuthService>(
     payload
         .validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    // Prevent privilege escalation: cannot remove policies from owner role
+    // Owner policies are managed by the system only
+    if payload.role.to_lowercase() == OWNER_ROLE {
+        return Err(AppError::Forbidden(
+            "Cannot remove policies from 'owner' role. Owner policies are managed by the system only."
+                .to_string(),
+        ));
+    }
 
     let mut enforcer = state.enforcer.write().await;
     let removed = enforcer

@@ -12,48 +12,61 @@ vi.mock('$lib/api/client', () => ({
 	}
 }));
 
+// Mock global fetch for authApiClient (uses fetch directly via proxy)
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
 describe('Auth API Client', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockFetch.mockReset();
 	});
 
-	describe('Email/Password Authentication', () => {
-		it('should login with email credentials', async () => {
+	describe('Email/Password Authentication (via proxy)', () => {
+		it('should login with email credentials via proxy', async () => {
 			const mockResponse = {
-				success: true,
-				data: {
-					access_token: 'token',
-					refresh_token: 'refresh',
-					token_type: 'Bearer',
-					expires_in: 3600,
-					user: { id: 'user-1', email: 'user@example.com', tenant_id: 'tenant-1', role: 'user' }
-				}
+				access_token: 'token',
+				refresh_token: 'refresh',
+				token_type: 'Bearer',
+				expires_in: 3600,
+				user: { id: 'user-1', email: 'user@example.com', tenant_id: 'tenant-1', role: 'user' }
 			};
 
-			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+			mockFetch.mockResolvedValue({
+				ok: true,
+				status: 200,
+				headers: new Headers({ 'content-type': 'application/json' }),
+				json: async () => mockResponse
+			});
 
 			const result = await authApi.emailLogin({ email: 'user@example.com', password: 'password' });
 
-			expect(apiClient.post).toHaveBeenCalledWith('/auth/login', {
-				email: 'user@example.com',
-				password: 'password'
-			});
-			expect(result).toEqual(mockResponse);
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/v1/auth/login',
+				expect.objectContaining({
+					method: 'POST',
+					credentials: 'include'
+				})
+			);
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual(mockResponse);
 		});
 
-		it('should register with email', async () => {
+		it('should register with email via proxy', async () => {
 			const mockResponse = {
-				success: true,
-				data: {
-					access_token: 'token',
-					refresh_token: 'refresh',
-					token_type: 'Bearer',
-					expires_in: 3600,
-					user: { id: 'user-1', email: 'new@example.com', tenant_id: 'tenant-1', role: 'user' }
-				}
+				access_token: 'token',
+				refresh_token: 'refresh',
+				token_type: 'Bearer',
+				expires_in: 3600,
+				user: { id: 'user-1', email: 'new@example.com', tenant_id: 'tenant-1', role: 'user' }
 			};
 
-			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+			mockFetch.mockResolvedValue({
+				ok: true,
+				status: 200,
+				headers: new Headers({ 'content-type': 'application/json' }),
+				json: async () => mockResponse
+			});
 
 			const result = await authApi.emailRegister({
 				email: 'new@example.com',
@@ -61,39 +74,56 @@ describe('Auth API Client', () => {
 				full_name: 'New User'
 			});
 
-			expect(apiClient.post).toHaveBeenCalledWith('/auth/register', {
-				email: 'new@example.com',
-				password: 'password',
-				full_name: 'New User'
-			});
-			expect(result).toEqual(mockResponse);
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/v1/auth/register',
+				expect.objectContaining({
+					method: 'POST',
+					credentials: 'include'
+				})
+			);
+			expect(result.success).toBe(true);
+			expect(result.data).toEqual(mockResponse);
 		});
 
-		it('should refresh email token', async () => {
-			const mockResponse = {
-				success: true,
-				data: { access_token: 'new_token', refresh_token: 'new_refresh' }
-			};
+		it('should refresh email token via proxy', async () => {
+			const mockResponse = { access_token: 'new_token', refresh_token: 'new_refresh' };
 
-			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
-
-			const result = await authApi.refreshEmailToken('old_refresh_token');
-
-			expect(apiClient.post).toHaveBeenCalledWith('/auth/refresh', {
-				refresh_token: 'old_refresh_token'
+			mockFetch.mockResolvedValue({
+				ok: true,
+				status: 200,
+				headers: new Headers({ 'content-type': 'application/json' }),
+				json: async () => mockResponse
 			});
-			expect(result).toEqual(mockResponse);
+
+			const result = await authApi.refreshEmailToken();
+
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/v1/auth/refresh',
+				expect.objectContaining({
+					method: 'POST',
+					credentials: 'include'
+				})
+			);
+			expect(result.success).toBe(true);
 		});
 
-		it('should logout', async () => {
-			const mockResponse = { success: true, data: undefined };
-
-			vi.mocked(apiClient.post).mockResolvedValue(mockResponse);
+		it('should logout via proxy', async () => {
+			mockFetch.mockResolvedValue({
+				ok: true,
+				status: 204,
+				headers: new Headers({ 'content-length': '0' })
+			});
 
 			const result = await authApi.logout('/dashboard');
 
-			expect(apiClient.post).toHaveBeenCalledWith('/auth/logout?redirect=%2Fdashboard');
-			expect(result).toEqual(mockResponse);
+			expect(mockFetch).toHaveBeenCalledWith(
+				'/api/v1/auth/logout?redirect=%2Fdashboard',
+				expect.objectContaining({
+					method: 'POST',
+					credentials: 'include'
+				})
+			);
+			expect(result.success).toBe(true);
 		});
 	});
 
@@ -113,7 +143,7 @@ describe('Auth API Client', () => {
 		});
 	});
 
-	describe('User Profile', () => {
+	describe('User Profile (direct backend call)', () => {
 		it('should get user profile', async () => {
 			const mockProfile = {
 				id: 'user-1',
@@ -127,7 +157,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getProfile();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/profile');
+			expect(apiClient.get).toHaveBeenCalledWith('/users/profile');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -142,12 +172,12 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.updateProfile(updateData);
 
-			expect(apiClient.put).toHaveBeenCalledWith('/auth/profile', updateData);
+			expect(apiClient.put).toHaveBeenCalledWith('/users/profile', updateData);
 			expect(result).toEqual(mockResponse);
 		});
 	});
 
-	describe('User Preferences', () => {
+	describe('User Preferences (direct backend call)', () => {
 		it('should get user preferences', async () => {
 			const mockPreferences = {
 				language: 'en',
@@ -161,7 +191,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getPreferences();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/preferences');
+			expect(apiClient.get).toHaveBeenCalledWith('/users/preferences');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -176,12 +206,12 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.updatePreferences(updateData);
 
-			expect(apiClient.put).toHaveBeenCalledWith('/auth/preferences', updateData);
+			expect(apiClient.put).toHaveBeenCalledWith('/users/preferences', updateData);
 			expect(result).toEqual(mockResponse);
 		});
 	});
 
-	describe('Permissions', () => {
+	describe('Permissions (direct backend call)', () => {
 		it('should check user permission', async () => {
 			const mockResponse = { success: true, data: { allowed: true } };
 
@@ -190,7 +220,7 @@ describe('Auth API Client', () => {
 			const result = await authApi.checkPermission('products', 'read');
 
 			expect(apiClient.get).toHaveBeenCalledWith(
-				'/auth/permissions/check?resource=products&action=read'
+				'/users/permissions/check?resource=products&action=read'
 			);
 			expect(result).toEqual(mockResponse);
 		});
@@ -205,7 +235,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getUserPermissions();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/permissions');
+			expect(apiClient.get).toHaveBeenCalledWith('/users/permissions');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -219,12 +249,12 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getUserRoles();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/roles');
+			expect(apiClient.get).toHaveBeenCalledWith('/users/roles');
 			expect(result).toEqual(mockResponse);
 		});
 	});
 
-	describe('Session Management', () => {
+	describe('Session Management (direct backend call)', () => {
 		it('should validate session', async () => {
 			const mockResponse = { success: true, data: { valid: true } };
 
@@ -232,7 +262,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.validateSession();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/session/validate');
+			expect(apiClient.get).toHaveBeenCalledWith('/users/session/validate');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -246,7 +276,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getSessionInfo();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/session');
+			expect(apiClient.get).toHaveBeenCalledWith('/users/session');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -260,7 +290,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.getActiveSessions();
 
-			expect(apiClient.get).toHaveBeenCalledWith('/auth/sessions');
+			expect(apiClient.get).toHaveBeenCalledWith('/users/sessions');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -271,7 +301,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.terminateSession('session-1');
 
-			expect(apiClient.delete).toHaveBeenCalledWith('/auth/sessions/session-1');
+			expect(apiClient.delete).toHaveBeenCalledWith('/users/sessions/session-1');
 			expect(result).toEqual(mockResponse);
 		});
 
@@ -282,7 +312,7 @@ describe('Auth API Client', () => {
 
 			const result = await authApi.endAllSessions();
 
-			expect(apiClient.delete).toHaveBeenCalledWith('/auth/sessions');
+			expect(apiClient.delete).toHaveBeenCalledWith('/users/sessions');
 			expect(result).toEqual(mockResponse);
 		});
 	});

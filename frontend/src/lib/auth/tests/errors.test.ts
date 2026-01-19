@@ -63,7 +63,7 @@ describe('handleAuthError', () => {
 		}).toThrow();
 		expect(mockRedirect).toHaveBeenCalledWith(
 			302,
-			'/login?error=invalid_token&message=Invalid%2520authentication%2520token'
+			'/login?error=invalid_token&message=Invalid+authentication+token'
 		);
 	});
 
@@ -75,7 +75,7 @@ describe('handleAuthError', () => {
 		}).toThrow();
 		expect(mockRedirect).toHaveBeenCalledWith(
 			302,
-			'/login?error=network_error&message=Network%2520fetch%2520failed'
+			'/login?error=network_error&message=Network+fetch+failed'
 		);
 	});
 
@@ -85,7 +85,7 @@ describe('handleAuthError', () => {
 		}).toThrow();
 		expect(mockRedirect).toHaveBeenCalledWith(
 			302,
-			'/login?error=network_error&message=string%2520error'
+			'/login?error=network_error&message=string+error'
 		);
 	});
 

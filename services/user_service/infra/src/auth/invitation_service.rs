@@ -65,6 +65,7 @@ where
             full_name: user.full_name.clone(),
             tenant_id: user.tenant_id,
             role: user.role.clone(),
+            status: user.status.clone(),
             created_at: user.created_at,
         }
     }

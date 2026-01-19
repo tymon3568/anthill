@@ -62,6 +62,7 @@ where
             full_name: user.full_name.clone(),
             tenant_id: user.tenant_id,
             role: user.role.clone(),
+            status: user.status.clone(),
             created_at: user.created_at,
         }
     }
@@ -433,6 +434,7 @@ where
                 email: user.email,
                 full_name: user.full_name,
                 role: user.role,
+                status: user.status,
                 created_at: user.created_at,
             },
         })
@@ -554,6 +556,20 @@ where
         let user = self
             .user_repo
             .find_by_id(tenant_id, user_id)
+            .await?
+            .ok_or(AppError::UserNotFound)?;
+
+        Ok(self.user_to_user_info(&user))
+    }
+
+    async fn get_user_any_status(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+    ) -> Result<UserInfo, AppError> {
+        let user = self
+            .user_repo
+            .find_by_id_any_status(tenant_id, user_id)
             .await?
             .ok_or(AppError::UserNotFound)?;
 
@@ -714,9 +730,10 @@ where
         reason: Option<String>,
     ) -> Result<user_service_core::domains::auth::dto::admin_dto::SuspendUserResp, AppError> {
         // 1. Fetch target user (tenant isolation enforced)
+        // Use find_by_id_any_status to allow suspending users with any status
         let mut user = self
             .user_repo
-            .find_by_id(admin_tenant_id, target_user_id)
+            .find_by_id_any_status(admin_tenant_id, target_user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
 
@@ -772,9 +789,10 @@ where
         target_user_id: Uuid,
     ) -> Result<user_service_core::domains::auth::dto::admin_dto::UnsuspendUserResp, AppError> {
         // 1. Fetch target user
+        // Use find_by_id_any_status to allow unsuspending users with any status
         let mut user = self
             .user_repo
-            .find_by_id(admin_tenant_id, target_user_id)
+            .find_by_id_any_status(admin_tenant_id, target_user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
 
@@ -809,9 +827,10 @@ where
         target_user_id: Uuid,
     ) -> Result<user_service_core::domains::auth::dto::admin_dto::DeleteUserResp, AppError> {
         // 1. Fetch target user
+        // Use find_by_id_any_status to allow deleting users with any status
         let mut user = self
             .user_repo
-            .find_by_id(admin_tenant_id, target_user_id)
+            .find_by_id_any_status(admin_tenant_id, target_user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
 
@@ -874,9 +893,10 @@ where
         validate_password_quick(&new_password, &[]).map_err(AppError::ValidationError)?;
 
         // 2. Fetch target user
+        // Use find_by_id_any_status to allow resetting password for suspended users
         let mut user = self
             .user_repo
-            .find_by_id(admin_tenant_id, target_user_id)
+            .find_by_id_any_status(admin_tenant_id, target_user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found in tenant".to_string()))?;
 

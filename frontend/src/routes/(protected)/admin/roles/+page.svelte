@@ -110,9 +110,11 @@
 
 	function openEditDialog(role: Role) {
 		selectedRole = role;
-		formName = role.name;
+		formName = role.role_name;
 		formDescription = role.description || '';
-		formPermissions = new SvelteSet(role.permissions.map((p) => `${p.resource}:${p.action}`));
+		formPermissions = new SvelteSet(
+			(role.permissions ?? []).map((p) => `${p.resource}:${p.action}`)
+		);
 		showEditDialog = true;
 	}
 
@@ -174,14 +176,14 @@
 		isSubmitting = true;
 		try {
 			const data: CreateRoleRequest = {
-				name: normalizedName,
+				role_name: normalizedName,
 				description: formDescription.trim() || undefined,
 				permissions: getSelectedPermissions()
 			};
 
 			const response = await userServiceApi.createRole(data);
 			if (response.success) {
-				toast.success(`Role "${data.name}" created successfully`);
+				toast.success(`Role "${data.role_name}" created successfully`);
 				showCreateDialog = false;
 				await loadRoles();
 			} else {
@@ -205,9 +207,9 @@
 				permissions: getSelectedPermissions()
 			};
 
-			const response = await userServiceApi.updateRole(selectedRole.name, data);
+			const response = await userServiceApi.updateRole(selectedRole.role_name, data);
 			if (response.success) {
-				toast.success(`Role "${selectedRole.name}" updated successfully`);
+				toast.success(`Role "${selectedRole.role_name}" updated successfully`);
 				showEditDialog = false;
 				await loadRoles();
 			} else {
@@ -226,9 +228,9 @@
 
 		isSubmitting = true;
 		try {
-			const response = await userServiceApi.deleteRole(selectedRole.name);
+			const response = await userServiceApi.deleteRole(selectedRole.role_name);
 			if (response.success) {
-				toast.success(`Role "${selectedRole.name}" deleted successfully`);
+				toast.success(`Role "${selectedRole.role_name}" deleted successfully`);
 				showDeleteDialog = false;
 				await loadRoles();
 			} else {
@@ -242,16 +244,15 @@
 		}
 	}
 
-	function formatDate(dateString: string): string {
-		return new Date(dateString).toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
-
 	function capitalizeFirst(str: string): string {
 		return str.charAt(0).toUpperCase() + str.slice(1);
+	}
+
+	// System roles that cannot be edited or deleted
+	const SYSTEM_ROLES = ['admin', 'user', 'owner'];
+
+	function isSystemRole(roleName: string): boolean {
+		return SYSTEM_ROLES.includes(roleName);
 	}
 </script>
 
@@ -306,19 +307,19 @@
 							<Table.Head>Description</Table.Head>
 							<Table.Head>Permissions</Table.Head>
 							<Table.Head>Type</Table.Head>
-							<Table.Head>Created</Table.Head>
+							<Table.Head>Users</Table.Head>
 							<Table.Head class="text-right">Actions</Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each roles as role (role.name)}
+						{#each roles as role (role.role_name)}
 							<Table.Row>
 								<Table.Cell class="font-medium">
 									<div class="flex items-center gap-2">
-										{#if role.isSystem}
+										{#if isSystemRole(role.role_name)}
 											<LockIcon class="h-4 w-4 text-muted-foreground" />
 										{/if}
-										{capitalizeFirst(role.name)}
+										{capitalizeFirst(role.role_name)}
 									</div>
 								</Table.Cell>
 								<Table.Cell class="max-w-xs truncate text-muted-foreground">
@@ -326,23 +327,27 @@
 								</Table.Cell>
 								<Table.Cell>
 									<Badge variant="secondary">
-										{role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+										{role.permissions?.length ?? 0} permission{(role.permissions?.length ?? 0) !== 1
+											? 's'
+											: ''}
 									</Badge>
 								</Table.Cell>
 								<Table.Cell>
-									<Badge variant={role.isSystem ? 'default' : 'outline'}>
-										{role.isSystem ? 'System' : 'Custom'}
+									<Badge variant={isSystemRole(role.role_name) ? 'default' : 'outline'}>
+										{isSystemRole(role.role_name) ? 'System' : 'Custom'}
 									</Badge>
 								</Table.Cell>
-								<Table.Cell>{formatDate(role.createdAt)}</Table.Cell>
+								<Table.Cell>{role.user_count} user{role.user_count !== 1 ? 's' : ''}</Table.Cell>
 								<Table.Cell class="text-right">
 									<div class="flex justify-end gap-2">
 										<Button
 											variant="ghost"
 											size="sm"
 											onclick={() => openEditDialog(role)}
-											disabled={role.isSystem}
-											title={role.isSystem ? 'System roles cannot be edited' : 'Edit Role'}
+											disabled={isSystemRole(role.role_name)}
+											title={isSystemRole(role.role_name)
+												? 'System roles cannot be edited'
+												: 'Edit Role'}
 										>
 											<PencilIcon class="h-4 w-4" />
 										</Button>
@@ -350,8 +355,10 @@
 											variant="ghost"
 											size="sm"
 											onclick={() => openDeleteDialog(role)}
-											disabled={role.isSystem}
-											title={role.isSystem ? 'System roles cannot be deleted' : 'Delete Role'}
+											disabled={isSystemRole(role.role_name)}
+											title={isSystemRole(role.role_name)
+												? 'System roles cannot be deleted'
+												: 'Delete Role'}
 										>
 											<TrashIcon class="h-4 w-4 text-destructive" />
 										</Button>
@@ -487,7 +494,7 @@
 >
 	<Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
 		<Dialog.Header>
-			<Dialog.Title>Edit Role: {selectedRole?.name}</Dialog.Title>
+			<Dialog.Title>Edit Role: {selectedRole?.role_name}</Dialog.Title>
 			<Dialog.Description>
 				Update the permissions for this role. Changes will affect all users with this role.
 			</Dialog.Description>
@@ -582,8 +589,8 @@
 			<Dialog.Title>Delete Role</Dialog.Title>
 			<Dialog.Description>
 				{#if selectedRole}
-					Are you sure you want to delete the role <strong>{selectedRole.name}</strong>? This action
-					cannot be undone. Users with this role will lose their associated permissions.
+					Are you sure you want to delete the role <strong>{selectedRole.role_name}</strong>? This
+					action cannot be undone. Users with this role will lose their associated permissions.
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>

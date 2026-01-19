@@ -1,9 +1,10 @@
-import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { ApiResponse } from '$lib/types';
 import { getCurrentTenantSlug } from '$lib/tenant';
 
 // Base API configuration
-const API_BASE_URL = PUBLIC_API_BASE_URL;
+// Use relative URL to route through SvelteKit proxy for proper cookie handling
+// The proxy at /api/v1/[...path] forwards requests to the backend with auth headers
+const API_BASE_URL = '/api/v1';
 
 // Generic API client
 class ApiClient {
@@ -34,9 +35,14 @@ class ApiClient {
 
 		// Build headers with tenant context
 		const headers: Record<string, string> = {
-			'Content-Type': 'application/json',
 			...(options.headers as Record<string, string>)
 		};
+
+		// Only set Content-Type for requests with a body
+		// This prevents sending Content-Type: application/json for empty POST requests
+		if (options.body !== undefined) {
+			headers['Content-Type'] = 'application/json';
+		}
 
 		// Add X-Tenant-ID header if tenant context is available
 		// Priority: 1. Explicitly set tenant, 2. Auto-detected from subdomain/storage

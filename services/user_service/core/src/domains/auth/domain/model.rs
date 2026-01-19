@@ -124,7 +124,7 @@ pub struct UserProfile {
 }
 
 #[derive(Debug, Clone, PartialEq, sqlx::Type)]
-#[sqlx(type_name = "varchar")]
+#[sqlx(type_name = "varchar", rename_all = "lowercase")]
 pub enum InvitationStatus {
     Pending,
     Accepted,

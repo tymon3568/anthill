@@ -7,8 +7,8 @@ pub mod middleware;
 
 // Re-export commonly used types
 pub use enforcer::{
-    add_policy, add_role_for_user, create_enforcer, enforce, get_roles_for_user, remove_policy,
-    remove_role_for_user, SharedEnforcer,
+    add_policy, add_role_for_user, copy_policies_for_tenant, create_enforcer, enforce,
+    get_roles_for_user, remove_policy, remove_role_for_user, SharedEnforcer,
 };
 
 // Re-export decision cache

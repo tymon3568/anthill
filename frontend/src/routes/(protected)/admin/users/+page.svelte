@@ -33,6 +33,8 @@
 	import ShieldIcon from '@lucide/svelte/icons/shield';
 	import BanIcon from '@lucide/svelte/icons/ban';
 	import TrashIcon from '@lucide/svelte/icons/trash';
+	import XIcon from '@lucide/svelte/icons/x';
+	import LoaderIcon from '@lucide/svelte/icons/loader';
 
 	// State
 	let users = $state<User[]>([]);
@@ -53,6 +55,8 @@
 	let showConfirmDialog = $state(false);
 	let confirmAction = $state<{ type: 'suspend' | 'unsuspend' | 'delete'; user: User } | null>(null);
 	let selectedUser = $state<User | null>(null);
+	let userRoles = $state<string[]>([]);
+	let isLoadingUserRoles = $state(false);
 	let isSubmitting = $state(false);
 
 	// Add user form
@@ -135,6 +139,7 @@
 				newUserForm = { email: '', password: '', fullName: '', role: 'user' };
 				await loadUsers();
 			} else {
+				// Show specific backend validation errors
 				toast.error(response.error || 'Failed to create user');
 			}
 		} catch (error) {
@@ -199,6 +204,23 @@
 	function openAssignRoleDialog(user: User) {
 		selectedUser = user;
 		showAssignRoleDialog = true;
+		isLoadingUserRoles = true;
+		userRoles = [];
+		// Fetch user roles after dialog opens
+		userServiceApi
+			.getUserRoles(user.id)
+			.then((response) => {
+				if (response.success && response.data) {
+					userRoles = response.data.roles;
+				}
+			})
+			.catch((error) => {
+				console.error('Failed to load user roles:', error);
+				toast.error('Failed to load user roles');
+			})
+			.finally(() => {
+				isLoadingUserRoles = false;
+			});
 	}
 
 	async function handleAssignRole(roleName: string) {
@@ -209,15 +231,54 @@
 			const response = await userServiceApi.assignRole(selectedUser.id, roleName);
 			if (response.success) {
 				toast.success(`Role "${roleName}" assigned successfully`);
-				showAssignRoleDialog = false;
-				selectedUser = null;
+				// Update local userRoles state to reflect the change
+				userRoles = [...userRoles, roleName];
 				await loadUsers();
 			} else {
-				toast.error(response.error || 'Failed to assign role');
+				// Handle specific error cases
+				if (response.error && response.error.includes('already has role')) {
+					toast.error(`User already has the "${roleName}" role`);
+				} else {
+					toast.error(response.error || 'Failed to assign role');
+				}
 			}
 		} catch (error) {
 			console.error('Failed to assign role:', error);
 			toast.error('Failed to assign role');
+		} finally {
+			isSubmitting = false;
+		}
+	}
+
+	async function handleRemoveRole(roleName: string) {
+		if (!selectedUser) return;
+
+		// Prevent removing the last role
+		if (userRoles.length <= 1) {
+			toast.error("Cannot remove user's only role");
+			return;
+		}
+
+		// Prevent removing protected 'owner' role via UI
+		if (roleName === 'owner') {
+			toast.error('Cannot remove the owner role');
+			return;
+		}
+
+		isSubmitting = true;
+		try {
+			const response = await userServiceApi.removeRole(selectedUser.id, roleName);
+			if (response.success) {
+				toast.success(`Role "${roleName}" removed successfully`);
+				// Update local userRoles state to reflect the change
+				userRoles = userRoles.filter((r) => r !== roleName);
+				await loadUsers();
+			} else {
+				toast.error(response.error || 'Failed to remove role');
+			}
+		} catch (error) {
+			console.error('Failed to remove role:', error);
+			toast.error('Failed to remove role');
 		} finally {
 			isSubmitting = false;
 		}
@@ -231,7 +292,7 @@
 				return 'default';
 			case 'suspended':
 				return 'destructive';
-			case 'deleted':
+			case 'inactive':
 				return 'secondary';
 			default:
 				return 'outline';
@@ -278,6 +339,8 @@
 						class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
 					/>
 					<Input
+						id="search"
+						name="search"
 						type="search"
 						placeholder="Search by name or email..."
 						class="pl-10"
@@ -446,15 +509,22 @@
 			<Dialog.Title>Add New User</Dialog.Title>
 			<Dialog.Description>Create a new user account in your organization.</Dialog.Description>
 		</Dialog.Header>
-		<div class="space-y-4 py-4">
+		<form class="space-y-4 py-4">
 			<div class="space-y-2">
 				<Label for="fullName">Full Name *</Label>
-				<Input id="fullName" bind:value={newUserForm.fullName} placeholder="John Doe" required />
+				<Input
+					id="fullName"
+					name="fullName"
+					bind:value={newUserForm.fullName}
+					placeholder="John Doe"
+					required
+				/>
 			</div>
 			<div class="space-y-2">
 				<Label for="email">Email *</Label>
 				<Input
 					id="email"
+					name="email"
 					type="email"
 					bind:value={newUserForm.email}
 					placeholder="john@example.com"
@@ -465,9 +535,11 @@
 				<Label for="password">Password *</Label>
 				<Input
 					id="password"
+					name="password"
 					type="password"
 					bind:value={newUserForm.password}
 					placeholder="••••••••"
+					autocomplete="new-password"
 					required
 				/>
 				<p class="text-xs text-muted-foreground">
@@ -482,23 +554,23 @@
 					value={newUserForm.role}
 					onValueChange={(v) => (newUserForm.role = v)}
 				>
-					<Select.Trigger class="w-full">
+					<Select.Trigger id="role" class="w-full">
 						{newUserForm.role.charAt(0).toUpperCase() + newUserForm.role.slice(1)}
 					</Select.Trigger>
 					<Select.Content>
 						{#if isLoadingRoles}
 							<Select.Item value="user" disabled>Loading...</Select.Item>
 						{:else}
-							{#each roles as role (role.name)}
-								<Select.Item value={role.name}>
-									{role.name.charAt(0).toUpperCase() + role.name.slice(1)}
+							{#each roles as role (role.role_name)}
+								<Select.Item value={role.role_name}>
+									{role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)}
 								</Select.Item>
 							{/each}
 						{/if}
 					</Select.Content>
 				</Select.Root>
 			</div>
-		</div>
+		</form>
 		<Dialog.Footer>
 			<Button variant="outline" onclick={() => (showAddUserDialog = false)}>Cancel</Button>
 			<Button onclick={handleCreateUser} disabled={isSubmitting}>
@@ -509,44 +581,91 @@
 </Dialog.Root>
 
 <!-- Assign Role Dialog -->
-<Dialog.Root bind:open={showAssignRoleDialog}>
+<Dialog.Root
+	bind:open={showAssignRoleDialog}
+	onOpenChange={(open) => {
+		if (!open) {
+			selectedUser = null;
+			userRoles = [];
+		}
+	}}
+>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
-			<Dialog.Title>Assign Role</Dialog.Title>
+			<Dialog.Title>Manage Roles</Dialog.Title>
 			<Dialog.Description>
 				{#if selectedUser}
-					Assign a role to {selectedUser.fullName}
+					Assign or remove roles for {selectedUser.fullName}
 				{/if}
 			</Dialog.Description>
 		</Dialog.Header>
 		<div class="space-y-4 py-4">
-			{#if isLoadingRoles}
-				<div class="space-y-2">
-					{#each [0, 1, 2] as i (i)}
-						<div class="h-10 animate-pulse rounded bg-muted"></div>
-					{/each}
+			{#if isLoadingRoles || isLoadingUserRoles}
+				<div class="flex items-center justify-center py-4">
+					<LoaderIcon class="h-6 w-6 animate-spin text-muted-foreground" />
 				</div>
 			{:else}
+				<!-- Current Assigned Roles -->
+				{#if userRoles.length > 0}
+					<div class="space-y-2">
+						<Label class="text-sm font-medium">Current Roles</Label>
+						<div class="flex flex-wrap gap-2">
+							{#each userRoles as roleName (roleName)}
+								{@const isProtectedFromRemoval = roleName === 'owner' || userRoles.length <= 1}
+								<Badge variant="default" class="flex items-center gap-1 py-1">
+									{roleName.charAt(0).toUpperCase() + roleName.slice(1)}
+									<button
+										type="button"
+										class="ml-1 rounded-full p-0.5 hover:bg-primary-foreground/20 disabled:cursor-not-allowed disabled:opacity-50"
+										onclick={() => handleRemoveRole(roleName)}
+										disabled={isSubmitting || isProtectedFromRemoval}
+										title={isProtectedFromRemoval
+											? roleName === 'owner'
+												? 'Cannot remove owner role'
+												: "Cannot remove user's only role"
+											: `Remove ${roleName} role`}
+									>
+										<XIcon class="h-3 w-3" />
+									</button>
+								</Badge>
+							{/each}
+						</div>
+					</div>
+					<Separator />
+				{/if}
+
+				<!-- Available Roles to Assign -->
 				<div class="space-y-2">
-					{#each roles as role (role.name)}
-						<Button
-							variant={selectedUser?.role === role.name ? 'default' : 'outline'}
-							class="w-full justify-start"
-							onclick={() => handleAssignRole(role.name)}
-							disabled={isSubmitting}
-						>
-							<ShieldIcon class="mr-2 h-4 w-4" />
-							{role.name.charAt(0).toUpperCase() + role.name.slice(1)}
-							{#if role.description}
-								<span class="ml-2 text-xs text-muted-foreground">- {role.description}</span>
+					<Label class="text-sm font-medium">Assign New Role</Label>
+					<div class="space-y-2">
+						{#each roles as role (role.role_name)}
+							{@const isAlreadyAssigned = userRoles.includes(role.role_name)}
+							{#if !isAlreadyAssigned}
+								<Button
+									variant="outline"
+									class="w-full justify-start"
+									onclick={() => handleAssignRole(role.role_name)}
+									disabled={isSubmitting}
+								>
+									<ShieldIcon class="mr-2 h-4 w-4" />
+									{role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)}
+									{#if role.description}
+										<span class="ml-2 text-xs text-muted-foreground">- {role.description}</span>
+									{/if}
+								</Button>
 							{/if}
-						</Button>
-					{/each}
+						{/each}
+						{#if roles.every((role) => userRoles.includes(role.role_name))}
+							<p class="py-2 text-center text-sm text-muted-foreground">
+								User has all available roles assigned
+							</p>
+						{/if}
+					</div>
 				</div>
 			{/if}
 		</div>
 		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (showAssignRoleDialog = false)}>Cancel</Button>
+			<Button variant="outline" onclick={() => (showAssignRoleDialog = false)}>Close</Button>
 		</Dialog.Footer>
 	</Dialog.Content>
 </Dialog.Root>
@@ -554,41 +673,41 @@
 <!-- Confirm Action Dialog -->
 <Dialog.Root bind:open={showConfirmDialog}>
 	<Dialog.Content class="sm:max-w-md">
-		<Dialog.Header>
-			<Dialog.Title>
-				{#if confirmAction?.type === 'delete'}
-					Delete User
-				{:else if confirmAction?.type === 'suspend'}
-					Suspend User
-				{:else}
-					Unsuspend User
-				{/if}
-			</Dialog.Title>
-			<Dialog.Description>
-				{#if confirmAction}
+		{#if confirmAction}
+			<Dialog.Header>
+				<Dialog.Title>
+					{#if confirmAction.type === 'delete'}
+						Delete User
+					{:else if confirmAction.type === 'suspend'}
+						Suspend User
+					{:else}
+						Unsuspend User
+					{/if}
+				</Dialog.Title>
+				<Dialog.Description>
 					Are you sure you want to {confirmAction.type}
 					<strong>{confirmAction.user.fullName}</strong>?
 					{#if confirmAction.type === 'delete'}
 						This action cannot be undone.
 					{/if}
-				{/if}
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (showConfirmDialog = false)}>Cancel</Button>
-			<Button
-				variant={confirmAction?.type === 'delete' ? 'destructive' : 'default'}
-				onclick={executeConfirmAction}
-				disabled={isSubmitting}
-			>
-				{isSubmitting
-					? 'Processing...'
-					: confirmAction?.type === 'delete'
-						? 'Delete'
-						: confirmAction?.type === 'suspend'
-							? 'Suspend'
-							: 'Unsuspend'}
-			</Button>
-		</Dialog.Footer>
+				</Dialog.Description>
+			</Dialog.Header>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (showConfirmDialog = false)}>Cancel</Button>
+				<Button
+					variant={confirmAction.type === 'delete' ? 'destructive' : 'default'}
+					onclick={executeConfirmAction}
+					disabled={isSubmitting}
+				>
+					{isSubmitting
+						? 'Processing...'
+						: confirmAction.type === 'delete'
+							? 'Delete'
+							: confirmAction.type === 'suspend'
+								? 'Suspend'
+								: 'Unsuspend'}
+				</Button>
+			</Dialog.Footer>
+		{/if}
 	</Dialog.Content>
 </Dialog.Root>

@@ -467,3 +467,258 @@ async fn test_rbac_complex_policy_evaluation() {
     assert!(can_post, "Developer should be able to POST /api/v1/code");
     assert!(!can_delete, "Developer should NOT be able to DELETE /api/v1/code");
 }
+
+// ============================================================================
+// Owner Role Protection Tests
+// Per AUTHORIZATION_RBAC_STRATEGY.md - Owner is a protected role
+// ============================================================================
+
+/// Test: Owner has admin privileges (RequireAdmin should pass for owner)
+#[tokio::test]
+#[ignore]
+async fn test_rbac_owner_has_admin_privileges() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "Owner Privilege Test").await;
+    let owner = create_test_user(&pool, tenant.tenant_id, "owner@test.com", "Owner", "owner").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(owner.user_id, tenant.tenant_id, &owner.role);
+
+    // Owner should be able to access admin endpoints
+    let response =
+        make_authenticated_request(&app, "GET", "/api/v1/admin/roles", &token, None).await;
+
+    assert!(
+        response.status() == StatusCode::OK || response.status() == StatusCode::METHOD_NOT_ALLOWED,
+        "Owner should have admin privileges and access admin endpoints, got: {}",
+        response.status()
+    );
+}
+
+/// Test: Cannot create owner role via admin API
+#[tokio::test]
+#[ignore]
+async fn test_rbac_cannot_create_owner_role() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "Protected Role Test").await;
+    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
+
+    // Attempt to create owner role should be forbidden
+    let response = make_authenticated_request(
+        &app,
+        "POST",
+        "/api/v1/admin/roles",
+        &token,
+        Some(json!({
+            "role_name": "owner",
+            "permissions": [
+                {"resource": "/api/v1/test", "action": "GET"}
+            ]
+        })),
+    )
+    .await;
+
+    assert_eq!(
+        response.status(),
+        StatusCode::FORBIDDEN,
+        "Creating 'owner' role should be forbidden"
+    );
+}
+
+/// Test: Cannot modify owner role via admin API
+#[tokio::test]
+#[ignore]
+async fn test_rbac_cannot_modify_owner_role() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "Protected Role Modify Test").await;
+    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
+
+    // Attempt to modify owner role should be forbidden
+    let response = make_authenticated_request(
+        &app,
+        "PUT",
+        "/api/v1/admin/roles/owner",
+        &token,
+        Some(json!({
+            "permissions": [
+                {"resource": "/api/v1/test", "action": "GET"}
+            ]
+        })),
+    )
+    .await;
+
+    assert_eq!(
+        response.status(),
+        StatusCode::FORBIDDEN,
+        "Modifying 'owner' role should be forbidden"
+    );
+}
+
+/// Test: Cannot delete owner role via admin API
+#[tokio::test]
+#[ignore]
+async fn test_rbac_cannot_delete_owner_role() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "Protected Role Delete Test").await;
+    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
+
+    // Attempt to delete owner role should be forbidden
+    let response =
+        make_authenticated_request(&app, "DELETE", "/api/v1/admin/roles/owner", &token, None).await;
+
+    assert_eq!(
+        response.status(),
+        StatusCode::FORBIDDEN,
+        "Deleting 'owner' role should be forbidden"
+    );
+}
+
+/// Test: Cannot assign owner role to user via admin API
+#[tokio::test]
+#[ignore]
+async fn test_rbac_cannot_assign_owner_role() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "Owner Assign Test").await;
+    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+    let user = create_test_user(&pool, tenant.tenant_id, "user@test.com", "User", "user").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
+
+    // Attempt to assign owner role should be forbidden
+    let response = make_authenticated_request(
+        &app,
+        "POST",
+        &format!("/api/v1/admin/users/{}/roles", user.user_id),
+        &token,
+        Some(json!({
+            "role_name": "owner"
+        })),
+    )
+    .await;
+
+    assert_eq!(
+        response.status(),
+        StatusCode::FORBIDDEN,
+        "Assigning 'owner' role should be forbidden"
+    );
+}
+
+/// Test: Cannot add policy for owner role via admin API
+#[tokio::test]
+#[ignore]
+async fn test_rbac_cannot_add_owner_policy() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "Owner Policy Test").await;
+    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
+
+    // Attempt to add policy for owner role should be forbidden
+    let response = make_authenticated_request(
+        &app,
+        "POST",
+        "/api/v1/admin/policies",
+        &token,
+        Some(json!({
+            "role": "owner",
+            "resource": "/api/v1/escalate",
+            "action": "POST"
+        })),
+    )
+    .await;
+
+    assert_eq!(
+        response.status(),
+        StatusCode::FORBIDDEN,
+        "Adding policy for 'owner' role should be forbidden"
+    );
+}
+
+/// Test: Cannot remove policy from owner role via admin API
+#[tokio::test]
+#[ignore]
+async fn test_rbac_cannot_remove_owner_policy() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "Owner Policy Remove Test").await;
+    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
+
+    // Attempt to remove policy from owner role should be forbidden
+    let response = make_authenticated_request(
+        &app,
+        "DELETE",
+        "/api/v1/admin/policies",
+        &token,
+        Some(json!({
+            "role": "owner",
+            "resource": "/api/v1/admin/*",
+            "action": "GET"
+        })),
+    )
+    .await;
+
+    assert_eq!(
+        response.status(),
+        StatusCode::FORBIDDEN,
+        "Removing policy from 'owner' role should be forbidden"
+    );
+}
+
+/// Test: Protected roles list includes owner, admin, user
+#[tokio::test]
+#[ignore]
+async fn test_rbac_all_protected_roles() {
+    let pool = setup_test_db().await;
+
+    let tenant = create_test_tenant(&pool, "All Protected Roles Test").await;
+    let admin = create_test_user(&pool, tenant.tenant_id, "admin@test.com", "Admin", "admin").await;
+
+    let app = create_test_app(&pool).await;
+    let token = create_test_jwt(admin.user_id, tenant.tenant_id, &admin.role);
+
+    let protected_roles = vec!["owner", "admin", "user"];
+
+    for role in protected_roles {
+        // Attempt to create protected role should be forbidden
+        let response = make_authenticated_request(
+            &app,
+            "POST",
+            "/api/v1/admin/roles",
+            &token,
+            Some(json!({
+                "role_name": role,
+                "permissions": [
+                    {"resource": "/api/v1/test", "action": "GET"}
+                ]
+            })),
+        )
+        .await;
+
+        assert_eq!(
+            response.status(),
+            StatusCode::FORBIDDEN,
+            "Creating protected role '{}' should be forbidden",
+            role
+        );
+    }
+}
