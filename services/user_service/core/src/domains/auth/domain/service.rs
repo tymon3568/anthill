@@ -49,8 +49,17 @@ pub trait AuthService: Send + Sync {
         status: Option<String>,
     ) -> Result<UserListResp, AppError>;
 
-    /// Get user info by ID
+    /// Get user info by ID (only active users)
     async fn get_user(&self, user_id: Uuid, tenant_id: Uuid) -> Result<UserInfo, AppError>;
+
+    /// Get user info by ID (any status, for admin operations)
+    /// This method should be used by admin handlers that need to operate on
+    /// suspended or inactive users (e.g., unsuspend, role assignment)
+    async fn get_user_any_status(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+    ) -> Result<UserInfo, AppError>;
 
     /// Cleanup stale sessions (admin operation)
     /// Revokes sessions with expired refresh tokens

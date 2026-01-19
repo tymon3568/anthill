@@ -369,67 +369,68 @@ export const authApi = {
 
 	async logout(redirectTo?: string): Promise<ApiResponse<void>> {
 		const params = redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : '';
-		return apiClient.post<void>(`/auth/logout${params}`);
+		// Use authApiClient to clear cookies via proxy
+		return authApiClient.post<void>(`/auth/logout${params}`);
 	},
 
 	// User Profile Methods
 	async getProfile(): Promise<ApiResponse<UserProfile>> {
-		return apiClient.get<UserProfile>('/auth/profile');
+		return apiClient.get<UserProfile>('/users/profile');
 	},
 
 	async updateProfile(profileData: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
 		return apiClient.put<UserProfile>(
-			'/auth/profile',
+			'/users/profile',
 			profileData as unknown as Record<string, unknown>
 		);
 	},
 
 	// User Preferences Methods
 	async getPreferences(): Promise<ApiResponse<Record<string, unknown>>> {
-		return apiClient.get<Record<string, unknown>>('/auth/preferences');
+		return apiClient.get<Record<string, unknown>>('/users/preferences');
 	},
 
 	async updatePreferences(
 		preferences: Record<string, unknown>
 	): Promise<ApiResponse<Record<string, unknown>>> {
-		return apiClient.put<Record<string, unknown>>('/auth/preferences', preferences);
+		return apiClient.put<Record<string, unknown>>('/users/preferences', preferences);
 	},
 
 	// Permission Methods
 	async checkPermission(resource: string, action: string): Promise<ApiResponse<boolean>> {
 		return apiClient.get<boolean>(
-			`/auth/permissions/check?resource=${encodeURIComponent(resource)}&action=${encodeURIComponent(action)}`
+			`/users/permissions/check?resource=${encodeURIComponent(resource)}&action=${encodeURIComponent(action)}`
 		);
 	},
 
 	async getUserPermissions(): Promise<ApiResponse<string[]>> {
-		return apiClient.get<string[]>('/auth/permissions');
+		return apiClient.get<string[]>('/users/permissions');
 	},
 
 	// Role Methods
 	async getUserRoles(): Promise<ApiResponse<string[]>> {
-		return apiClient.get<string[]>('/auth/roles');
+		return apiClient.get<string[]>('/users/roles');
 	},
 
 	// Session Methods
 	async validateSession(): Promise<ApiResponse<boolean>> {
-		return apiClient.get<boolean>('/auth/session/validate');
+		return apiClient.get<boolean>('/users/session/validate');
 	},
 
 	async getSessionInfo(): Promise<ApiResponse<SessionInfo>> {
-		return apiClient.get<SessionInfo>('/auth/session');
+		return apiClient.get<SessionInfo>('/users/session');
 	},
 
 	async getActiveSessions(): Promise<ApiResponse<SessionInfo[]>> {
-		return apiClient.get<SessionInfo[]>('/auth/sessions');
+		return apiClient.get<SessionInfo[]>('/users/sessions');
 	},
 
 	async terminateSession(sessionId: string): Promise<ApiResponse<void>> {
-		return apiClient.delete<void>(`/auth/sessions/${sessionId}`);
+		return apiClient.delete<void>(`/users/sessions/${sessionId}`);
 	},
 
 	async endAllSessions(): Promise<ApiResponse<void>> {
-		return apiClient.delete<void>('/auth/sessions');
+		return apiClient.delete<void>('/users/sessions');
 	},
 
 	// Email Verification Methods
@@ -458,27 +459,29 @@ export const authApi = {
 		return apiClient.post<void>('/auth/reset-password', { token, new_password: newPassword });
 	},
 
-	// Legacy methods (for backward compatibility)
+	// Legacy methods (for backward compatibility) - use proxy for cookie handling
 	async login(credentials: LoginForm): Promise<ApiResponse<AuthResponse>> {
-		return apiClient.post<AuthResponse>(
+		return authApiClient.post<AuthResponse>(
 			'/auth/login',
 			credentials as unknown as Record<string, unknown>
 		);
 	},
 
 	async register(userData: RegisterUserData): Promise<ApiResponse<AuthResponse>> {
-		return apiClient.post<AuthResponse>(
+		return authApiClient.post<AuthResponse>(
 			'/auth/register',
 			userData as unknown as Record<string, unknown>
 		);
 	},
 
-	async refreshTokenLegacy(refreshToken: string): Promise<ApiResponse<AuthResponse>> {
-		return apiClient.post<AuthResponse>('/auth/refresh', { refresh_token: refreshToken });
+	async refreshTokenLegacy(_refreshToken?: string): Promise<ApiResponse<AuthResponse>> {
+		// Use proxy - refresh token is read from httpOnly cookie
+		return authApiClient.post<AuthResponse>('/auth/refresh', {});
 	},
 
 	async logoutLegacy(refreshToken?: { refresh_token: string }): Promise<ApiResponse<void>> {
 		const data = refreshToken ? refreshToken : {};
-		return apiClient.post('/auth/logout', data);
+		// Use authApiClient to clear cookies via proxy
+		return authApiClient.post('/auth/logout', data);
 	}
 };

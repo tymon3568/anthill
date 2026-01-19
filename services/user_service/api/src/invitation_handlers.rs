@@ -173,6 +173,7 @@ where
             full_name: payload.full_name,
             tenant_id: invitation.tenant_id,
             role: invitation.invited_role,
+            status: "active".to_string(),
             created_at: invitation.accepted_at.unwrap(),
         },
     };

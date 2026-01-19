@@ -433,6 +433,7 @@ async fn main() {
         // Admin user management
         .route("/api/v1/admin/users",
             post(admin_handlers::admin_create_user::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
+            .get(handlers::list_users::<AuthServiceImpl<PgUserRepository, PgTenantRepository, PgSessionRepository>>)
         )
         // Admin user lifecycle management
         .route("/api/v1/admin/users/{user_id}/suspend",

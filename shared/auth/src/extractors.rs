@@ -57,9 +57,20 @@ impl AuthUser {
         self.role == role
     }
 
-    /// Check if user is admin
+    /// Check if user is admin (includes owner and super_admin)
+    ///
+    /// Per AUTHORIZATION_RBAC_STRATEGY.md, owner has all admin privileges plus
+    /// tenant-level management capabilities. Therefore owner should pass admin checks.
     pub fn is_admin(&self) -> bool {
-        self.role == "admin" || self.role == "super_admin"
+        self.role == "admin" || self.role == "super_admin" || self.role == "owner"
+    }
+
+    /// Check if user is the tenant owner
+    ///
+    /// Owner is a special protected role assigned only during tenant bootstrap.
+    /// Owners have full control over their tenant including billing and settings.
+    pub fn is_owner(&self) -> bool {
+        self.role == "owner"
     }
 }
 
@@ -349,6 +360,13 @@ mod tests {
             email: None,
         };
 
+        let owner = AuthUser {
+            user_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            role: "owner".to_string(),
+            email: None,
+        };
+
         let user = AuthUser {
             user_id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
@@ -358,6 +376,27 @@ mod tests {
 
         assert!(admin.is_admin());
         assert!(super_admin.is_admin());
+        assert!(owner.is_admin()); // Owner should have admin privileges
         assert!(!user.is_admin());
+    }
+
+    #[test]
+    fn test_auth_user_is_owner() {
+        let owner = AuthUser {
+            user_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            role: "owner".to_string(),
+            email: None,
+        };
+
+        let admin = AuthUser {
+            user_id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            role: "admin".to_string(),
+            email: None,
+        };
+
+        assert!(owner.is_owner());
+        assert!(!admin.is_owner());
     }
 }

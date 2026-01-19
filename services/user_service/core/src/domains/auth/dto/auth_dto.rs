@@ -125,6 +125,10 @@ pub struct UserInfo {
     #[schema(example = "owner")]
     pub role: String,
 
+    /// User status (active/suspended)
+    #[schema(example = "active")]
+    pub status: String,
+
     /// Account creation timestamp
     pub created_at: DateTime<Utc>,
 }

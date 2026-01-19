@@ -11,8 +11,19 @@
 
 // ============ User Types ============
 
-/** User status in the system */
-export type UserStatus = 'active' | 'suspended' | 'deleted';
+/**
+ * User status in the system
+ *
+ * Lifecycle:
+ * - 'active': User can login and use the system normally
+ * - 'suspended': User is temporarily blocked by admin (can be unsuspended)
+ * - 'inactive': User has been soft-deleted (deleted_at is set, should not appear in normal lists)
+ *
+ * Note: Users with 'inactive' status also have deleted_at set, so they are filtered out
+ * by the backend list API (WHERE deleted_at IS NULL). If you see 'inactive' users,
+ * it may indicate legacy data.
+ */
+export type UserStatus = 'active' | 'suspended' | 'inactive';
 
 /** Profile visibility options */
 export type ProfileVisibility = 'public' | 'private' | 'team_only';
@@ -75,13 +86,31 @@ export interface Permission {
 	action: string;
 }
 
-/** Role definition */
+/** Role definition - matches backend RoleInfo struct */
 export interface Role {
-	name: string;
+	role_name: string;
 	description?: string;
-	permissions: Permission[];
-	isSystem: boolean;
-	createdAt: string;
+	permissions?: Permission[]; // May be undefined for system roles without explicit policies
+	user_count: number;
+}
+
+/** Response from list roles endpoint */
+export interface RoleListResponse {
+	roles: Role[];
+	total: number;
+}
+
+/** Available permission from backend */
+export interface AvailablePermission {
+	resource: string;
+	actions: string[];
+	description: string;
+}
+
+/** Response from list permissions endpoint */
+export interface PermissionListResponse {
+	permissions: AvailablePermission[];
+	total: number;
 }
 
 // ============ Invitation Types ============
@@ -154,7 +183,7 @@ export interface CreateInvitationRequest {
 
 /** Request to create a new role */
 export interface CreateRoleRequest {
-	name: string;
+	role_name: string;
 	description?: string;
 	permissions: Permission[];
 }
@@ -213,6 +242,11 @@ export interface AvatarUploadResponse {
 /** Permission check response */
 export interface PermissionCheckResponse {
 	allowed: boolean;
+}
+
+/** User roles response from getUserRoles endpoint */
+export interface UserRolesResponse {
+	roles: string[];
 }
 
 /** Tenant validation response */

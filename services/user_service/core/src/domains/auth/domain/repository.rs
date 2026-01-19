@@ -12,8 +12,17 @@ pub trait UserRepository: Send + Sync {
     /// Find user by email within a tenant
     async fn find_by_email(&self, tenant_id: Uuid, email: &str) -> Result<Option<User>, AppError>;
 
-    /// Find user by ID within a tenant
+    /// Find user by ID within a tenant (only active users)
     async fn find_by_id(&self, tenant_id: Uuid, id: Uuid) -> Result<Option<User>, AppError>;
+
+    /// Find user by ID within a tenant (any status, for admin operations)
+    /// This method should be used by admin handlers that need to operate on
+    /// suspended or inactive users (e.g., unsuspend, role assignment)
+    async fn find_by_id_any_status(
+        &self,
+        tenant_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<User>, AppError>;
 
     /// Find multiple users by IDs within a tenant
     async fn find_by_ids(&self, tenant_id: Uuid, user_ids: &[Uuid]) -> Result<Vec<User>, AppError>;

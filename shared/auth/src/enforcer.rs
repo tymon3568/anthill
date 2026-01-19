@@ -244,6 +244,73 @@ pub async fn get_roles_for_user(
     Ok(roles)
 }
 
+/// Copy all policies from a source tenant (default_tenant) to a new tenant
+///
+/// When a new tenant is created, this function copies all role policies (p rules)
+/// from the source tenant so that the new tenant has the same permission structure.
+/// The user's role assignment (g rule) is handled separately by `add_role_for_user`.
+///
+/// # Arguments
+/// * `enforcer` - Shared Casbin enforcer
+/// * `source_domain` - Source tenant ID to copy policies from (typically "default_tenant")
+/// * `target_domain` - Target tenant ID to copy policies to
+///
+/// # Returns
+/// * `usize` - Number of policies copied
+///
+/// # Example
+/// ```no_run
+/// // Copy all policies from default_tenant to new tenant
+/// let count = copy_policies_for_tenant(&enforcer, "default_tenant", "new-tenant-123").await?;
+/// println!("Copied {} policies", count);
+/// ```
+pub async fn copy_policies_for_tenant(
+    enforcer: &SharedEnforcer,
+    source_domain: &str,
+    target_domain: &str,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    let mut e = enforcer.write().await;
+
+    // Get all policies from the source domain
+    // Policy format: [subject, domain, resource, action]
+    let all_policies = e.get_policy();
+
+    let mut copied_count = 0;
+
+    for policy in all_policies {
+        // Policy is Vec<String> with format: [subject, domain, resource, action]
+        if policy.len() >= 4 && policy[1] == source_domain {
+            // Create new policy with target domain
+            let new_policy = vec![
+                policy[0].clone(),         // subject (role name like "owner", "admin", "user")
+                target_domain.to_string(), // domain (new tenant ID)
+                policy[2].clone(),         // resource (e.g., "/api/v1/admin/*")
+                policy[3].clone(),         // action (e.g., "GET", "POST")
+            ];
+
+            // Add the new policy (ignore if already exists)
+            match e.add_policy(new_policy).await {
+                Ok(added) => {
+                    if added {
+                        copied_count += 1;
+                    }
+                },
+                Err(err) => {
+                    // Log but don't fail - some policies might fail due to constraints
+                    warn!(
+                        "Failed to copy policy {:?} to tenant {}: {}",
+                        policy, target_domain, err
+                    );
+                },
+            }
+        }
+    }
+
+    info!("Copied {} policies from {} to {}", copied_count, source_domain, target_domain);
+
+    Ok(copied_count)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

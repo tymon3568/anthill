@@ -15,6 +15,22 @@ use validator::Validate;
 use crate::handlers::{bump_tenant_authz_version, bump_user_authz_version, AppState};
 
 // ============================================================================
+// Protected Roles Configuration
+// ============================================================================
+
+/// Roles that cannot be created, modified, or deleted via admin APIs.
+/// These are system roles with special meaning:
+/// - `owner`: Assigned only during tenant bootstrap, has full tenant control
+/// - `admin`: System administrator role, manages users and resources
+/// - `user`: Default role for regular users
+const PROTECTED_ROLES: &[&str] = &["owner", "admin", "user"];
+
+/// Check if a role is protected (cannot be modified via admin APIs)
+fn is_protected_role(role: &str) -> bool {
+    PROTECTED_ROLES.contains(&role.to_lowercase().as_str())
+}
+
+// ============================================================================
 // Role Management Handlers
 // ============================================================================
 
@@ -49,9 +65,12 @@ pub async fn create_role<S: AuthService>(
     let tenant_id = admin_user.tenant_id;
     let role_name = payload.role_name.trim().to_lowercase();
 
-    // Prevent creating system roles
-    if role_name == "admin" || role_name == "user" {
-        return Err(AppError::Forbidden("Cannot create system roles (admin, user)".to_string()));
+    // Prevent creating protected system roles
+    if is_protected_role(&role_name) {
+        return Err(AppError::Forbidden(format!(
+            "Cannot create protected role '{}'. Protected roles are: {:?}",
+            role_name, PROTECTED_ROLES
+        )));
     }
 
     // Require at least one permission
@@ -241,9 +260,12 @@ pub async fn update_role<S: AuthService>(
     let tenant_id = admin_user.tenant_id;
     let role_name = role_name.trim().to_lowercase();
 
-    // Prevent modifying system roles
-    if role_name == "admin" || role_name == "user" {
-        return Err(AppError::Forbidden("Cannot modify system roles (admin, user)".to_string()));
+    // Prevent modifying protected system roles
+    if is_protected_role(&role_name) {
+        return Err(AppError::Forbidden(format!(
+            "Cannot modify protected role '{}'. Protected roles are: {:?}",
+            role_name, PROTECTED_ROLES
+        )));
     }
 
     // Require at least one permission
@@ -364,9 +386,12 @@ pub async fn delete_role<S: AuthService>(
     let tenant_id = admin_user.tenant_id;
     let role_name = role_name.trim().to_lowercase();
 
-    // Prevent deleting system roles
-    if role_name == "admin" || role_name == "user" {
-        return Err(AppError::Forbidden("Cannot delete system roles (admin, user)".to_string()));
+    // Prevent deleting protected system roles
+    if is_protected_role(&role_name) {
+        return Err(AppError::Forbidden(format!(
+            "Cannot delete protected role '{}'. Protected roles are: {:?}",
+            role_name, PROTECTED_ROLES
+        )));
     }
 
     let mut enforcer = state.enforcer.write().await;
@@ -456,8 +481,21 @@ pub async fn assign_role_to_user<S: AuthService>(
     let tenant_id = admin_user.tenant_id;
     let role_name = payload.role_name.trim().to_lowercase();
 
+    // Prevent assigning owner role via admin API
+    // Owner is a protected role assigned only during tenant bootstrap (registration)
+    if role_name == "owner" {
+        return Err(AppError::Forbidden(
+            "Cannot assign 'owner' role via admin API. Owner role is assigned only during tenant registration."
+                .to_string(),
+        ));
+    }
+
     // Verify user exists and belongs to admin's tenant
-    state.auth_service.get_user(user_id, tenant_id).await?;
+    // Use get_user_any_status to allow role assignment for suspended/inactive users
+    state
+        .auth_service
+        .get_user_any_status(user_id, tenant_id)
+        .await?;
 
     let mut enforcer = state.enforcer.write().await;
 
@@ -476,10 +514,27 @@ pub async fn assign_role_to_user<S: AuthService>(
         tenant_id.to_string(),
     ];
 
-    let added = enforcer
-        .add_grouping_policy(grouping)
-        .await
-        .map_err(|e| AppError::InternalError(format!("Failed to add grouping policy: {}", e)))?;
+    let added = match enforcer.add_grouping_policy(grouping).await {
+        Ok(added) => added,
+        Err(e) => {
+            let error_msg = e.to_string().to_lowercase();
+            // Check for database unique constraint violation
+            // This can happen when in-memory Casbin is out of sync with database
+            if error_msg.contains("duplicate key")
+                || error_msg.contains("unique constraint")
+                || error_msg.contains("already exists")
+            {
+                tracing::warn!(
+                    user_id = %user_id,
+                    role = %role_name,
+                    tenant_id = %tenant_id,
+                    "Role assignment conflict detected (DB has policy not in memory)"
+                );
+                return Err(AppError::Conflict(format!("User already has role '{}'", role_name)));
+            }
+            return Err(AppError::InternalError(format!("Failed to add grouping policy: {}", e)));
+        },
+    };
 
     if !added {
         return Err(AppError::Conflict(format!("User already has role '{}'", role_name)));
@@ -532,8 +587,21 @@ pub async fn remove_role_from_user<S: AuthService>(
     let tenant_id = admin_user.tenant_id;
     let role_name = role_name.trim().to_lowercase();
 
+    // Prevent removing owner role via admin API
+    // Owner role cannot be removed - it's permanently assigned during tenant bootstrap
+    if role_name == "owner" {
+        return Err(AppError::Forbidden(
+            "Cannot remove 'owner' role via admin API. Owner role is permanent and cannot be removed."
+                .to_string(),
+        ));
+    }
+
     // Verify user exists and belongs to admin's tenant
-    state.auth_service.get_user(user_id, tenant_id).await?;
+    // Use get_user_any_status to allow role removal for suspended/inactive users
+    state
+        .auth_service
+        .get_user_any_status(user_id, tenant_id)
+        .await?;
 
     let mut enforcer = state.enforcer.write().await;
 
@@ -620,7 +688,11 @@ pub async fn get_user_roles<S: AuthService>(
     let tenant_id = admin_user.tenant_id;
 
     // Verify user exists and belongs to admin's tenant
-    state.auth_service.get_user(user_id, tenant_id).await?;
+    // Use get_user_any_status to allow viewing roles for suspended/inactive users
+    state
+        .auth_service
+        .get_user_any_status(user_id, tenant_id)
+        .await?;
 
     let enforcer = state.enforcer.read().await;
 

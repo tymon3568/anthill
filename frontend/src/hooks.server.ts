@@ -1,10 +1,15 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, json } from '@sveltejs/kit';
 import { validateAndParseToken, shouldRefreshToken } from '$lib/auth/jwt';
 import { handleAuthError, createAuthError, AuthErrorCode } from '$lib/auth/errors';
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { parseTenantFromHostname } from '$lib/tenant';
 import { env } from '$env/dynamic/public';
+
+// Check if request is an API route (should return JSON errors, not redirects)
+function isApiRoute(pathname: string): boolean {
+	return pathname.startsWith('/api/');
+}
 
 // Get backend URL
 const USER_SERVICE_URL = env.PUBLIC_USER_SERVICE_URL || 'http://localhost:8000';
@@ -127,7 +132,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 
 		if (!accessToken) {
-			// No token and refresh failed, redirect to login
+			// No token and refresh failed
+			if (isApiRoute(pathname)) {
+				// API routes: return JSON error
+				return json({ error: 'Authentication required', code: 'NO_SESSION' }, { status: 401 });
+			}
+			// Page routes: redirect to login
 			throw redirect(302, `/login?redirect=${encodeURIComponent(pathname)}`);
 		}
 
@@ -187,9 +197,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// which is not recommended. Instead, we trust the httpOnly cookie mechanism.
 		const userInfo = await validateAndParseToken(currentAccessToken, false);
 		if (!userInfo) {
-			// Invalid token, redirect to login
+			// Invalid token
 			cookies.delete('access_token', { path: '/' });
 			cookies.delete('refresh_token', { path: '/' });
+
+			if (isApiRoute(pathname)) {
+				// API routes: return JSON error
+				return json(
+					{ error: 'Invalid authentication token', code: 'INVALID_TOKEN' },
+					{ status: 401 }
+				);
+			}
+			// Page routes: redirect to login
 			handleAuthError(
 				createAuthError(AuthErrorCode.INVALID_TOKEN),
 				`/login?redirect=${encodeURIComponent(pathname)}`

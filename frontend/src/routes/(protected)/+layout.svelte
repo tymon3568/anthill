@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import AppHeader from '$lib/components/app-header.svelte';
@@ -42,7 +43,10 @@
 <Sidebar.Provider>
 	<AppSidebar />
 	<Sidebar.Inset>
-		<AppHeader onSearchClick={openCommandPalette} />
+		<!-- Force AppHeader to re-render when pathname changes -->
+		{#key $page.url.pathname}
+			<AppHeader onSearchClick={openCommandPalette} />
+		{/key}
 		<main class="flex-1 overflow-auto p-4 md:p-6">
 			{@render children()}
 		</main>
