@@ -39,7 +39,10 @@ export function decodeJwtPayload(token: string): JWTPayload | null {
 	try {
 		const payload = token.split('.')[1];
 		// Handle URL-safe base64 (base64url)
-		const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+		let base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+		// Add padding if needed (base64 strings must have length divisible by 4)
+		const paddingNeeded = (4 - (base64.length % 4)) % 4;
+		base64 += '='.repeat(paddingNeeded);
 		const decoded = JSON.parse(atob(base64));
 		return decoded as JWTPayload;
 	} catch (error) {

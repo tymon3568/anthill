@@ -143,29 +143,29 @@ Legend:
   - Định nghĩa trong `docker-compose.yml` với persistent volumes.
   - Health checks để đảm bảo service availability.
 
-### 6. Object Storage: RustFS
+### 6. Object Storage: MinIO
 
-- **Công nghệ**: RustFS - High-performance distributed object storage viết bằng Rust.
+- **Công nghệ**: MinIO - High-performance S3-compatible object storage.
 - **Vai trò**:
-  - **S3-compatible**: 100% tương thích với S3 API, drop-in replacement cho MinIO.
-  - **High Performance**: Viết bằng Rust, tối ưu cho performance và memory safety.
+  - **S3-compatible**: 100% tương thích với S3 API.
+  - **High Performance**: Được tối ưu cho cloud-native workloads.
   - **File Storage**: Lưu trữ avatars, documents, và các files ứng dụng.
 - **Cấu hình**:
   ```yaml
-  rustfs:
-    image: rustfs/rustfs:latest
+  minio:
+    image: minio/minio:latest
     environment:
-      RUSTFS_ROOT_USER: rustfsadmin
-      RUSTFS_ROOT_PASSWORD: rustfsadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
-      - rustfs_data:/data
+      - minio_data:/data
     command: server /data --console-address ":9001"
   ```
 - **Lợi ích**:
-  - ✅ Performance cao hơn MinIO trong nhiều benchmark.
-  - ✅ Memory footprint nhỏ hơn.
-  - ✅ Native Rust ecosystem integration.
-  - ✅ Fully S3-compatible, dễ migrate từ MinIO.
+  - ✅ Production-ready và được sử dụng rộng rãi.
+  - ✅ Có sẵn Docker image chính thức.
+  - ✅ Ecosystem phong phú với mc CLI.
+  - ✅ Fully S3-compatible.
 
 ### 7. Cache Layer: KeyDB
 
