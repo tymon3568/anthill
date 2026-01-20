@@ -59,7 +59,7 @@ The project uses **Event-Driven Microservices** architecture with the following 
 - **Database**: PostgreSQL
 - **Cache**: KeyDB (Redis-compatible, multi-threaded)
 - **Message Queue**: NATS JetStream
-- **Object Storage**: MinIO (S3-compatible)
+- **Object Storage**: RustFS (S3-compatible)
 - **API Gateway**: Apache APISIX (high-performance, plugin-based)
 - **Observability**: OpenTelemetry + SigNoz + ClickHouse
 - **Analytics**: Cube
@@ -149,7 +149,7 @@ curl -fsSL https://bun.sh/install | bash
 git clone <your-repo-url>
 cd anthill
 
-# Start PostgreSQL, KeyDB, NATS, MinIO
+# Start PostgreSQL, KeyDB, NATS, RustFS
 docker-compose -f infra/docker_compose/docker-compose.yml up -d
 
 # Return to root directory
@@ -414,7 +414,7 @@ MIT License - See `LICENSE` file for more details.
 - [SigNoz](https://signoz.io/) - Open-source APM & Observability
 - [OpenTelemetry](https://opentelemetry.io/) - Observability framework
 - [KeyDB](https://docs.keydb.dev/) - High-performance Redis alternative
-- [MinIO](https://min.io/) - S3-compatible object storage
+- [RustFS](https://github.com/rustfs/rustfs) - S3-compatible object storage
 - [Casbin](https://casbin.org/) - Authorization library
 - [Cube](https://cube.dev/) - Analytics platform
 

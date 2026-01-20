@@ -117,8 +117,6 @@ async fn create_test_user(
         failed_login_attempts: 0,
         locked_until: None,
         password_changed_at: Some(now),
-        kanidm_user_id: None,
-        kanidm_synced_at: None,
         auth_method: "password".to_string(),
         migration_invited_at: None,
         migration_completed_at: None,

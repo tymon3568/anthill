@@ -102,8 +102,7 @@ where
             revoked: false,
             revoked_at: None,
             revoked_reason: None,
-            kanidm_session_id: None,        // NEW: Not a Kanidm session
-            auth_method: "jwt".to_string(), // NEW: Legacy JWT auth
+            auth_method: "jwt".to_string(),
             created_at: now,
             last_used_at: now,
         };
@@ -230,12 +229,10 @@ where
             last_login_at: None,
             failed_login_attempts: 0,
             locked_until: None,
-            password_changed_at: Some(now), // Password just set
-            kanidm_user_id: None,           // Not from Kanidm
-            kanidm_synced_at: None,
-            auth_method: "password".to_string(), // Password-only auth
-            migration_invited_at: None,          // Not invited yet
-            migration_completed_at: None,        // Not migrated
+            password_changed_at: Some(now),
+            auth_method: "password".to_string(),
+            migration_invited_at: None,   // Not invited yet
+            migration_completed_at: None, // Not migrated
             created_at: now,
             updated_at: now,
             deleted_at: None,
@@ -340,14 +337,6 @@ where
             .await?
             .ok_or(AppError::InvalidCredentials)?;
 
-        // Check auth method - password auth must be enabled
-        // Block login for users who registered via Kanidm (now deprecated)
-        if user.auth_method == "kanidm" {
-            return Err(AppError::ValidationError(
-                "This account was created via external authentication. Please use the password reset flow to set a password.".to_string()
-            ));
-        }
-
         // Verify password (must have password_hash for password auth)
         let password_hash = user.password_hash.as_ref().ok_or_else(|| {
             AppError::ValidationError(
@@ -413,8 +402,7 @@ where
             revoked: false,
             revoked_at: None,
             revoked_reason: None,
-            kanidm_session_id: None,        // NEW: Not a Kanidm session
-            auth_method: "jwt".to_string(), // NEW: Legacy JWT auth
+            auth_method: "jwt".to_string(),
             created_at: chrono::Utc::now(),
             last_used_at: chrono::Utc::now(),
         };
@@ -668,8 +656,6 @@ where
             failed_login_attempts: 0,
             locked_until: None,
             password_changed_at: Some(now),
-            kanidm_user_id: None,
-            kanidm_synced_at: None,
             auth_method: "password".to_string(),
             migration_invited_at: None,
             migration_completed_at: None,

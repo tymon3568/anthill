@@ -144,8 +144,7 @@ pub async fn get_user_roles<S: AuthService>(
         .map(|g| g[1].clone())
         .collect();
 
-    // For now, groups are the same as roles (Kanidm groups map to roles)
-    // In the future, this could include additional group memberships
+    // Groups map directly to roles in the current implementation
     let groups = roles.clone();
 
     drop(enforcer);
