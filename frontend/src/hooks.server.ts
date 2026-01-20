@@ -38,6 +38,9 @@ const publicApiRoutes = new Set([
 	'/api/v1/auth/verify-email'
 ]);
 
+// Public API route prefixes (for routes with query params)
+const publicApiPrefixes = ['/api/v1/auth/check-tenant-slug'];
+
 function isPublicRoute(pathname: string): boolean {
 	// Exact match for root
 	if (pathname === '/') return true;
@@ -47,6 +50,9 @@ function isPublicRoute(pathname: string): boolean {
 
 	// Check public API routes (exact matching only)
 	if (publicApiRoutes.has(pathname)) return true;
+
+	// Check public API route prefixes (for routes with query params)
+	if (publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))) return true;
 
 	return false;
 }

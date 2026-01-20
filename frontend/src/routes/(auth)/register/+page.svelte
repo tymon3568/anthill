@@ -38,6 +38,50 @@
 	let registeredTenantId = $state('');
 	let isResending = $state(false);
 
+	// Session storage keys for persistence across page refresh
+	const STORAGE_KEY_EMAIL = 'anthill_register_email';
+	const STORAGE_KEY_TENANT_ID = 'anthill_register_tenant_id';
+	const STORAGE_KEY_SUCCESS = 'anthill_register_success';
+
+	// Restore registration state from sessionStorage on mount (browser only)
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const storedEmail = sessionStorage.getItem(STORAGE_KEY_EMAIL);
+			const storedTenantId = sessionStorage.getItem(STORAGE_KEY_TENANT_ID);
+			const storedSuccess = sessionStorage.getItem(STORAGE_KEY_SUCCESS);
+
+			if (storedSuccess === 'true' && storedEmail) {
+				registeredEmail = storedEmail;
+				registeredTenantId = storedTenantId || '';
+				registrationSuccess = true;
+			}
+		}
+	});
+
+	// Helper to persist registration state to sessionStorage
+	function persistRegistrationState(email: string, tenantId: string) {
+		if (typeof window !== 'undefined') {
+			sessionStorage.setItem(STORAGE_KEY_EMAIL, email);
+			sessionStorage.setItem(STORAGE_KEY_TENANT_ID, tenantId);
+			sessionStorage.setItem(STORAGE_KEY_SUCCESS, 'true');
+		}
+	}
+
+	// Helper to clear registration state from sessionStorage
+	function clearRegistrationState() {
+		if (typeof window !== 'undefined') {
+			sessionStorage.removeItem(STORAGE_KEY_EMAIL);
+			sessionStorage.removeItem(STORAGE_KEY_TENANT_ID);
+			sessionStorage.removeItem(STORAGE_KEY_SUCCESS);
+		}
+	}
+
+	// Handle navigation to login page - clears session storage
+	function handleGoToLogin() {
+		clearRegistrationState();
+		goto('/login');
+	}
+
 	// Cooldown timer for resend button
 	let resendCooldown = $state(0);
 	let cooldownInterval: ReturnType<typeof setInterval> | null = null;
@@ -166,6 +210,8 @@
 				if (result.data?.user?.tenant_id) {
 					registeredTenantId = result.data.user.tenant_id;
 				}
+				// Persist state to sessionStorage for page refresh resilience
+				persistRegistrationState(registeredEmail, registeredTenantId);
 				registrationSuccess = true;
 			} else {
 				error = result.error || 'Registration failed';
@@ -290,9 +336,7 @@
 						</Button>
 					</div>
 
-					<Button onclick={() => goto('/login')} variant="outline" class="w-full">
-						Go to Login
-					</Button>
+					<Button onclick={handleGoToLogin} variant="outline" class="w-full">Go to Login</Button>
 				</CardContent>
 			</Card>
 

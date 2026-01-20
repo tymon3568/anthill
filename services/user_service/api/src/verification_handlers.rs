@@ -80,13 +80,21 @@ where
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
     // Get tenant_id from header (required for multi-tenant context)
-    let tenant_id = headers
-        .get("x-tenant-id")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| Uuid::parse_str(s).ok());
+    let tenant_id_header = headers.get("x-tenant-id").and_then(|v| v.to_str().ok());
+
+    let tenant_id = match tenant_id_header {
+        Some(id_str) => Uuid::parse_str(id_str).map_err(|_| {
+            AppError::ValidationError("Invalid X-Tenant-ID header format".to_string())
+        })?,
+        None => {
+            return Err(AppError::ValidationError(
+                "X-Tenant-ID header is required for resend verification".to_string(),
+            ));
+        },
+    };
 
     let response = verification_service
-        .resend_verification_email(&req.email, tenant_id)
+        .resend_verification_email(&req.email, Some(tenant_id))
         .await?;
 
     Ok(Json(response))
