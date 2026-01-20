@@ -1,0 +1,128 @@
+# OpenTelemetry + SigNoz Tracing Stack
+# Usage: docker-compose -f docker-compose.tracing.yml up -d
+#
+# Access:
+#   - SigNoz UI: http://localhost:3301
+#   - OTel Collector (gRPC): http://localhost:4317
+#   - OTel Collector (HTTP): http://localhost:4318
+#   - ClickHouse: http://localhost:8123
+
+version: '3.8'
+
+services:
+  # ClickHouse - High-performance columnar database for trace storage
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    container_name: anthill-clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native interface
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-clickhouse_password}
+      - CLICKHOUSE_DB=signoz_traces
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - anthill-tracing
+
+  # OpenTelemetry Collector - Central telemetry pipeline
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: anthill-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics (internal)
+      - "8889:8889"   # Prometheus exporter
+      - "13133:13133" # Health check
+    volumes:
+      - ../monitoring/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    environment:
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-clickhouse_password}
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:13133/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - anthill-tracing
+
+  # SigNoz Query Service - Backend API for trace queries
+  signoz-query-service:
+    image: signoz/query-service:0.45.0
+    container_name: anthill-signoz-query
+    ports:
+      - "8080:8080"
+    environment:
+      - ClickHouseUrl=tcp://clickhouse:9000?database=signoz_traces
+      - STORAGE=clickhouse
+      - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - anthill-tracing
+
+  # SigNoz Frontend - Web UI for trace visualization
+  signoz-frontend:
+    image: signoz/frontend:0.45.0
+    container_name: anthill-signoz-frontend
+    ports:
+      - "3301:3301"
+    environment:
+      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080
+    depends_on:
+      signoz-query-service:
+        condition: service_healthy
+    networks:
+      - anthill-tracing
+
+  # SigNoz Alert Manager (optional)
+  alertmanager:
+    image: signoz/alertmanager:0.23.5
+    container_name: anthill-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - alertmanager_data:/data
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/data
+      - --cluster.advertise-address=0.0.0.0:9093
+    networks:
+      - anthill-tracing
+
+volumes:
+  clickhouse_data:
+    driver: local
+  clickhouse_logs:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+networks:
+  anthill-tracing:
+    driver: bridge
+    name: anthill-tracing

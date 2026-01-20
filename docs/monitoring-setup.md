@@ -2,28 +2,57 @@
 
 ## Tổng Quan
 
-Hướng dẫn thiết lập monitoring và observability cho Anthill SaaS platform sử dụng Prometheus, Grafana, Loki, và AlertManager.
+Hướng dẫn thiết lập monitoring và observability cho Anthill SaaS platform sử dụng:
+- **Metrics**: Prometheus + Grafana
+- **Logging**: Loki + Promtail
+- **Distributed Tracing**: OpenTelemetry + SigNoz + ClickHouse
+- **Alerting**: AlertManager
 
 ## Kiến Trúc Monitoring
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Services      │    │   Prometheus    │    │    Grafana      │
-│   (Metrics)     │───▶│   (Scraping)    │───▶│   (Dashboards)   │
-│                 │    │                 │    │                 │
-│ • /metrics      │    │ • Service       │    │ • Anthill        │
-│ • Health checks │    │   Discovery     │    │   Overview      │
-│ • Custom metrics│    │ • Alert Rules   │    │ • Service        │
-└─────────────────┘    └─────────────────┘    │   Details       │
-                                              └─────────────────┘
-┌─────────────────┐    ┌─────────────────┐
-│     Loki        │    │  AlertManager   │
-│   (Logs)        │    │   (Alerts)      │
-│                 │    │                 │
-│ • Promtail      │    │ • Email         │
-│ • Log aggregation│    │ • Slack        │
-│ • Query logs    │    │ • PagerDuty     │
-└─────────────────┘    └─────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Observability Architecture                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐ │
+│  │ User Service │   │  Inventory   │   │   Order      │   │   Payment    │ │
+│  │              │   │   Service    │   │   Service    │   │   Service    │ │
+│  │ • tracing    │   │ • tracing    │   │ • tracing    │   │ • tracing    │ │
+│  │ • metrics    │   │ • metrics    │   │ • metrics    │   │ • metrics    │ │
+│  │ • logs       │   │ • logs       │   │ • logs       │   │ • logs       │ │
+│  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘   └──────┬───────┘ │
+│         │                  │                  │                  │         │
+│         └────────────┬─────┴─────────┬────────┴──────────┬───────┘         │
+│                      │               │                   │                 │
+│                      ▼               ▼                   ▼                 │
+│              ┌───────────────────────────────────────────────┐             │
+│              │           OpenTelemetry Collector             │             │
+│              │  (Receives, Processes, Exports Telemetry)     │             │
+│              │  Port: 4317 (gRPC), 4318 (HTTP)               │             │
+│              └───────────────┬───────────────────────────────┘             │
+│                              │                                             │
+│         ┌────────────────────┼────────────────────┐                        │
+│         │                    │                    │                        │
+│         ▼                    ▼                    ▼                        │
+│  ┌─────────────┐     ┌─────────────┐      ┌─────────────┐                  │
+│  │ Prometheus  │     │   SigNoz    │      │    Loki     │                  │
+│  │  (Metrics)  │     │  (Traces)   │      │   (Logs)    │                  │
+│  └──────┬──────┘     └──────┬──────┘      └──────┬──────┘                  │
+│         │                   │                    │                        │
+│         │            ┌──────┴──────┐             │                        │
+│         │            │ ClickHouse  │             │                        │
+│         │            │  (Storage)  │             │                        │
+│         │            └─────────────┘             │                        │
+│         │                                        │                        │
+│         └────────────────┬───────────────────────┘                        │
+│                          ▼                                                │
+│                   ┌─────────────┐                                         │
+│                   │   Grafana   │                                         │
+│                   │ (Dashboards)│                                         │
+│                   └─────────────┘                                         │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Triển Khai Monitoring Stack
@@ -385,6 +414,441 @@ providers:
 }
 ```
 
+## Distributed Tracing với OpenTelemetry + SigNoz
+
+### Tổng Quan Distributed Tracing
+
+Distributed tracing cho phép theo dõi request flow qua tất cả microservices, đặc biệt quan trọng khi debug các vấn đề liên quan đến NATS messaging.
+
+### Triển Khai SigNoz Stack
+
+```yaml
+# infra/docker_compose/docker-compose.tracing.yml
+version: '3.8'
+
+services:
+  # ClickHouse - Storage backend for SigNoz
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native interface
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=clickhouse_password
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Prometheus exporter
+    volumes:
+      - ./monitoring/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    depends_on:
+      - clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:13133/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # SigNoz Query Service
+  signoz-query-service:
+    image: signoz/query-service:0.45.0
+    ports:
+      - "8080:8080"
+    environment:
+      - ClickHouseUrl=tcp://clickhouse:9000
+      - STORAGE=clickhouse
+    depends_on:
+      - clickhouse
+      - otel-collector
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # SigNoz Frontend
+  signoz-frontend:
+    image: signoz/frontend:0.45.0
+    ports:
+      - "3301:3301"
+    environment:
+      - QUERY_SERVICE_URL=http://signoz-query-service:8080
+    depends_on:
+      - signoz-query-service
+
+volumes:
+  clickhouse_data:
+```
+
+### OpenTelemetry Collector Configuration
+
+```yaml
+# infra/monitoring/otel-collector/otel-collector-config.yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Add resource attributes
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: "development"
+        action: upsert
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1000
+    spike_limit_mib: 200
+
+  # Tail-based sampling for high-volume traces
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100
+    policies:
+      # Always sample errors
+      - name: errors-policy
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      # Sample slow requests
+      - name: latency-policy
+        type: latency
+        latency:
+          threshold_ms: 1000
+      # Probabilistic sampling for others
+      - name: probabilistic-policy
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+exporters:
+  # Export to SigNoz/ClickHouse
+  clickhousetraces:
+    endpoint: tcp://clickhouse:9000
+    database: signoz_traces
+    username: default
+    password: clickhouse_password
+    traces_table_name: signoz_index_v2
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Export metrics to Prometheus
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: anthill
+
+  # Debug logging (development only)
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, tail_sampling]
+      exporters: [clickhousetraces]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [debug]
+
+  extensions: [health_check]
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+```
+
+### Rust Service Instrumentation
+
+Thêm các dependencies vào `Cargo.toml` của mỗi service:
+
+```toml
+[dependencies]
+# Tracing ecosystem
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.22"
+
+# OpenTelemetry
+opentelemetry = { version = "0.21", features = ["rt-tokio", "trace"] }
+opentelemetry-otlp = { version = "0.14", features = ["tonic", "trace"] }
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+
+# For NATS context propagation
+opentelemetry-semantic-conventions = "0.13"
+```
+
+### Initialize OpenTelemetry Tracing
+
+```rust
+// shared/telemetry/src/lib.rs
+use opentelemetry::global;
+use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::{
+    runtime,
+    trace::{Config, Sampler, TracerProvider},
+    Resource,
+};
+use opentelemetry::KeyValue;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+
+pub fn init_telemetry(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // Get collector endpoint from environment
+    let otlp_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| "http://localhost:4317".to_string());
+
+    // Build the tracer
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(&otlp_endpoint),
+        )
+        .with_trace_config(
+            Config::default()
+                .with_sampler(Sampler::AlwaysOn)
+                .with_resource(Resource::new(vec![
+                    KeyValue::new("service.name", service_name.to_string()),
+                    KeyValue::new("service.version", env!("CARGO_PKG_VERSION")),
+                ])),
+        )
+        .install_batch(runtime::Tokio)?;
+
+    // Create OpenTelemetry tracing layer
+    let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    // Create JSON formatter for structured logs
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .json()
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true);
+
+    // Combine layers with env filter
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env().add_directive("info".parse()?))
+        .with(fmt_layer)
+        .with(otel_layer)
+        .init();
+
+    Ok(())
+}
+
+pub fn shutdown_telemetry() {
+    global::shutdown_tracer_provider();
+}
+```
+
+### NATS Message Tracing
+
+Propagate trace context qua NATS messages để trace async workflows:
+
+```rust
+// shared/telemetry/src/nats.rs
+use opentelemetry::{
+    global,
+    propagation::{Extractor, Injector, TextMapPropagator},
+    Context,
+};
+use std::collections::HashMap;
+use tracing::{instrument, Span};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
+
+/// Inject trace context into NATS message headers
+pub fn inject_context(headers: &mut HashMap<String, String>) {
+    let propagator = opentelemetry::global::get_text_map_propagator(|propagator| {
+        propagator.inject_context(&Span::current().context(), &mut HeaderInjector(headers));
+    });
+}
+
+/// Extract trace context from NATS message headers
+pub fn extract_context(headers: &HashMap<String, String>) -> Context {
+    let propagator = global::get_text_map_propagator(|propagator| {
+        propagator.extract(&HeaderExtractor(headers))
+    });
+    propagator
+}
+
+struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
+
+impl<'a> Injector for HeaderInjector<'a> {
+    fn set(&mut self, key: &str, value: String) {
+        self.0.insert(key.to_string(), value);
+    }
+}
+
+struct HeaderExtractor<'a>(&'a HashMap<String, String>);
+
+impl<'a> Extractor for HeaderExtractor<'a> {
+    fn get(&self, key: &str) -> Option<&str> {
+        self.0.get(key).map(|v| v.as_str())
+    }
+
+    fn keys(&self) -> Vec<&str> {
+        self.0.keys().map(|k| k.as_str()).collect()
+    }
+}
+
+// Example: Publishing with trace context
+#[instrument(skip(client, payload))]
+pub async fn publish_with_tracing(
+    client: &async_nats::Client,
+    subject: &str,
+    payload: Vec<u8>,
+) -> Result<(), async_nats::Error> {
+    let mut headers = HashMap::new();
+    inject_context(&mut headers);
+
+    // Convert to NATS headers
+    let mut nats_headers = async_nats::HeaderMap::new();
+    for (key, value) in headers {
+        nats_headers.insert(key.as_str(), value.as_str());
+    }
+
+    client
+        .publish_with_headers(subject.into(), nats_headers, payload.into())
+        .await
+}
+
+// Example: Subscribing with trace context
+#[instrument(skip(message), fields(subject = %message.subject))]
+pub fn handle_message_with_tracing(message: &async_nats::Message) {
+    // Extract headers
+    let headers: HashMap<String, String> = message
+        .headers
+        .as_ref()
+        .map(|h| {
+            h.iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Set parent context from message headers
+    let parent_context = extract_context(&headers);
+    Span::current().set_parent(parent_context);
+
+    // Now this span is linked to the original trace
+    tracing::info!("Processing message");
+}
+```
+
+### Instrumenting Axum Handlers
+
+```rust
+use axum::{
+    extract::{Path, State},
+    routing::get,
+    Json, Router,
+};
+use tracing::{instrument, info, error};
+
+#[instrument(
+    skip(state),
+    fields(
+        otel.kind = "server",
+        http.method = "GET",
+        http.route = "/api/v1/products/:id"
+    )
+)]
+pub async fn get_product(
+    State(state): State<AppState>,
+    Path(product_id): Path<i64>,
+) -> Result<Json<Product>, AppError> {
+    info!(product_id = %product_id, "Fetching product");
+
+    let product = state
+        .product_repo
+        .find_by_id(product_id)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Failed to fetch product");
+            AppError::Internal(e.to_string())
+        })?;
+
+    Ok(Json(product))
+}
+
+// Using tower-http for automatic HTTP tracing
+use tower_http::trace::TraceLayer;
+
+pub fn create_router(state: AppState) -> Router {
+    Router::new()
+        .route("/api/v1/products/:id", get(get_product))
+        .layer(TraceLayer::new_for_http())
+        .with_state(state)
+}
+```
+
+### Các Kịch Bản Tracing Quan Trọng
+
+| Kịch bản | Spans được tạo | Mục đích |
+|----------|----------------|----------|
+| HTTP Request | `http.request` → `db.query` → `cache.get` | Trace full request lifecycle |
+| NATS Publish/Subscribe | `nats.publish` → `nats.receive` → `handler` | Trace async message flow |
+| Database Query | `db.query` với SQL statement | Performance analysis |
+| External API Call | `http.client` với target service | Debug integration issues |
+| Background Job | `job.execute` với job parameters | Monitor async processing |
+
+### Truy Cập SigNoz UI
+
+Sau khi deploy:
+
+```bash
+# Start tracing stack
+docker-compose -f infra/docker_compose/docker-compose.tracing.yml up -d
+
+# Access SigNoz UI
+open http://localhost:3301
+```
+
+**SigNoz Features:**
+- **Traces**: Xem distributed traces với flame graphs
+- **Services**: Service map và dependency visualization
+- **Metrics**: RED metrics (Rate, Errors, Duration)
+- **Logs**: Correlated logs với traces
+- **Alerts**: Trace-based alerting
+
 ## Cấu Hình Loki (Logging)
 
 ### Loki Configuration
@@ -493,6 +957,7 @@ scrape_configs:
                   status: response.status
                   method: request.method
                   path: request.uri
+                  latency: latency
             - labels:
                 status:
                 method:

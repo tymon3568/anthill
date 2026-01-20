@@ -421,6 +421,151 @@ All services use standardized ports for consistency across development and produ
 - **CI/CD**: GitHub Actions để build Docker images và deploy.
 - **Monitoring**: Prometheus + Grafana, hoặc Netdata.
 
+### Observability & Distributed Tracing
+
+Microservices architecture yêu cầu observability toàn diện để debug và monitor request flows. Stack này sử dụng **OpenTelemetry** làm chuẩn instrumentation và **SigNoz** làm backend phân tích.
+
+#### Observability Stack
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         Observability Architecture                       │
+│                                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                   │
+│  │ User Service │  │Inventory Svc │  │ Order Service│  ... (Rust Apps)  │
+│  │  + OTel SDK  │  │  + OTel SDK  │  │  + OTel SDK  │                   │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                   │
+│         │                  │                  │                          │
+│         └──────────────────┼──────────────────┘                          │
+│                            │ OTLP (gRPC/HTTP)                            │
+│                            ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │              OpenTelemetry Collector                             │    │
+│  │  ┌─────────┐  ┌──────────────┐  ┌─────────────────────────┐     │    │
+│  │  │Receivers│→ │  Processors  │→ │       Exporters          │     │    │
+│  │  │ (OTLP)  │  │(Batch, Filter)│  │(SigNoz, Prometheus, etc)│     │    │
+│  │  └─────────┘  └──────────────┘  └─────────────────────────┘     │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                            │                                             │
+│                            ▼                                             │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │                        SigNoz                                    │    │
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐        │    │
+│  │  │    Traces     │  │    Metrics    │  │     Logs      │        │    │
+│  │  │  (Jaeger UI)  │  │  (Dashboards) │  │  (Search)     │        │    │
+│  │  └───────────────┘  └───────────────┘  └───────────────┘        │    │
+│  │                            │                                     │    │
+│  │                            ▼                                     │    │
+│  │  ┌─────────────────────────────────────────────────────────┐    │    │
+│  │  │                    ClickHouse                            │    │    │
+│  │  │  (High-performance columnar storage for traces/metrics)  │    │    │
+│  │  └─────────────────────────────────────────────────────────┘    │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Components
+
+| Component | Role | Technology |
+|-----------|------|------------|
+| **OpenTelemetry SDK** | Instrumentation trong Rust services | `tracing`, `tracing-opentelemetry`, `opentelemetry-otlp` |
+| **OTel Collector** | Nhận, xử lý và export telemetry data | OpenTelemetry Collector Contrib |
+| **SigNoz** | Unified observability platform (traces, metrics, logs) | SigNoz (open-source APM) |
+| **ClickHouse** | High-performance storage cho telemetry data | ClickHouse (columnar DB) |
+
+#### Rust Service Instrumentation
+
+```rust
+// Cargo.toml dependencies
+[dependencies]
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-opentelemetry = "0.22"
+opentelemetry = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.14", features = ["tonic"] }
+
+// Example: Initialize OpenTelemetry tracing
+use opentelemetry::global;
+use opentelemetry_otlp::WithExportConfig;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+pub fn init_telemetry(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(
+            opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint("http://otel-collector:4317"),
+        )
+        .with_trace_config(
+            opentelemetry::sdk::trace::config()
+                .with_resource(opentelemetry::sdk::Resource::new(vec![
+                    opentelemetry::KeyValue::new("service.name", service_name.to_string()),
+                ])),
+        )
+        .install_batch(opentelemetry::runtime::Tokio)?;
+
+    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(telemetry_layer)
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    Ok(())
+}
+
+// Example: Instrument async functions
+#[tracing::instrument(skip(pool))]
+pub async fn get_product(pool: &PgPool, product_id: Uuid) -> Result<Product> {
+    tracing::info!("Fetching product");
+    // ... database query
+}
+
+// Example: Add custom spans for NATS messaging
+#[tracing::instrument(skip(nats_client, payload))]
+pub async fn publish_order_event(nats_client: &Client, payload: &OrderEvent) -> Result<()> {
+    tracing::info!(event_type = %payload.event_type, "Publishing to NATS");
+    // ... publish to NATS
+}
+```
+
+#### Key Tracing Scenarios
+
+1. **HTTP Request Flow**: Trace requests từ Gateway → Service → Database
+2. **NATS Message Flow**: Trace async messages giữa services qua NATS
+3. **Database Queries**: Trace tất cả SQL queries với timing
+4. **External API Calls**: Trace calls đến marketplace APIs (Shopee, Lazada, etc.)
+5. **Background Jobs**: Trace scheduled tasks và async workers
+
+#### Trace Context Propagation
+
+```rust
+// Propagate trace context qua NATS headers
+use opentelemetry::global;
+use opentelemetry::propagation::TextMapPropagator;
+
+pub fn inject_trace_context(headers: &mut HashMap<String, String>) {
+    let propagator = global::get_text_map_propagator();
+    let cx = tracing::Span::current().context();
+    propagator.inject_context(&cx, &mut HeaderInjector(headers));
+}
+
+pub fn extract_trace_context(headers: &HashMap<String, String>) -> Context {
+    let propagator = global::get_text_map_propagator();
+    propagator.extract(&HeaderExtractor(headers))
+}
+```
+
+#### Benefits
+
+- ✅ **End-to-end visibility**: Xem toàn bộ request flow qua multiple services
+- ✅ **Debug async flows**: Trace NATS messages và async events
+- ✅ **Performance insights**: Identify bottlenecks và slow queries
+- ✅ **Error correlation**: Link errors với specific traces
+- ✅ **Unified platform**: Traces, metrics, và logs trong một UI
+
 ## 🚀 Quy trình phát triển & triển khai
 
 1.  **Local Dev**: Sử dụng `docker-compose.yml` trong `infra/docker_compose/` để chạy môi trường development (PostgreSQL, KeyDB, NATS, RustFS).

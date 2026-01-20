@@ -54,15 +54,16 @@ The project uses **Event-Driven Microservices** architecture with the following 
 
 - **Backend**: Rust + Axum + Tokio + SQLx
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Tailwind CSS + shadcn-svelte
-- **Authentication**: Self-hosted JWT-based authentication
+- **Authentication**: Native JWT with httpOnly cookies (self-hosted)
 - **Authorization**: Casbin-rs (RBAC)
 - **Database**: PostgreSQL
 - **Cache**: KeyDB (Redis-compatible, multi-threaded)
-- **Message Queue**: NATS
-- **Object Storage**: RustFS (S3-compatible)
+- **Message Queue**: NATS JetStream
+- **Object Storage**: MinIO (S3-compatible)
+- **API Gateway**: Apache APISIX (high-performance, plugin-based)
+- **Observability**: OpenTelemetry + SigNoz + ClickHouse
 - **Analytics**: Cube
-- **Deployment**: Docker Compose (Dokploy/Komodo for VPS)
-- **Gateway**: Apache APISIX
+- **Deployment**: Docker Compose / Kubernetes
 
 See architecture details at [ARCHITECTURE.md](./ARCHITECTURE.md)
 
@@ -103,8 +104,8 @@ anthill/
 │   └── openapi/                # OpenAPI spec generation
 ├── infra/                       # Infrastructure config
 │   ├── docker_compose/         # Local dev environment
-│   ├── nginx/                  # API Gateway configuration
-│   └── monitoring/             # Prometheus, Grafana, Loki setup
+│   ├── apisix/                 # API Gateway configuration
+│   └── monitoring/             # OpenTelemetry, SigNoz, Prometheus setup
 ├── migrations/                  # Database migrations
 ├── scripts/                     # Utility scripts
 ├── PROJECT_TRACKING/            # Project tracking and tasks
@@ -148,7 +149,7 @@ curl -fsSL https://bun.sh/install | bash
 git clone <your-repo-url>
 cd anthill
 
-# Start PostgreSQL, KeyDB, NATS, RustFS
+# Start PostgreSQL, KeyDB, NATS, MinIO
 docker-compose -f infra/docker_compose/docker-compose.yml up -d
 
 # Return to root directory
@@ -314,15 +315,16 @@ See details in `migrations/`. Main tables:
 
 ## 🔐 Authentication & Authorization
 
-- **Authentication**: Self-hosted JWT-based authentication
+- **Authentication**: Native JWT with httpOnly cookies (self-hosted)
   - User registration, login, password management
   - Email verification and password reset flows
-  - Secure httpOnly cookie-based token storage
-  - Session management with refresh tokens
+  - Secure httpOnly cookie-based session management
+  - JWT token issuance and validation
+  - Password hashing with Argon2
 - **Authorization**: Casbin-rs with multi-tenant RBAC
   - Policy-based access control
-  - Role-based permission management
-- **Tenant Isolation**: Automatically filter queries by `tenant_id`
+  - Role-based permissions per tenant
+- **Tenant Isolation**: Automatically filter queries by `tenant_id` from JWT claims
 
 ## 🌐 API Documentation
 
@@ -330,15 +332,21 @@ Each service exposes OpenAPI spec at `/api/docs` endpoint.
 
 Example: `http://localhost:3000/api/docs` for user-service.
 
-## 📦 Deployment (Docker Compose)
+## 📦 Deployment
 
-### Local → Production (VPS)
+### Local Development
 
-1. Set up your VPS with Docker and Docker Compose installed
-2. Clone the repository and configure environment variables
-3. Use `docker-compose -f infra/docker_compose/docker-compose.yml up -d` for stateful services
-4. Build and deploy microservices with Dockerfiles
-5. Use **Dokploy** or **Komodo** for easy VPS deployment management
+```bash
+# Start all infrastructure services
+docker-compose -f infra/docker_compose/docker-compose.yml up -d
+```
+
+### Production
+
+1. Configure environment variables for each service
+2. Deploy with Docker Compose or Kubernetes
+3. Configure Apache APISIX routes and plugins
+4. Set up SigNoz for observability
 
 See details in `docs/production-deployment.md`
 
@@ -351,10 +359,14 @@ See details in `docs/production-deployment.md`
 
 ## 📈 Monitoring & Observability
 
-- **Logging**: `tracing` crate + OpenTelemetry
+- **Distributed Tracing**: OpenTelemetry SDK + SigNoz
+  - End-to-end request tracing across all services
+  - NATS message flow tracing with context propagation
+  - ClickHouse for high-performance trace storage
 - **Metrics**: Prometheus + Grafana
-- **Tracing**: Distributed tracing with Jaeger (optional)
+- **Logging**: `tracing` crate with structured JSON output
 - **Health Checks**: `/health` endpoint for each service
+- **API Gateway Observability**: APISIX built-in metrics and access logs
 
 See details in `docs/monitoring-setup.md`
 
@@ -398,6 +410,11 @@ MIT License - See `LICENSE` file for more details.
 
 - [Axum](https://github.com/tokio-rs/axum) - Web framework
 - [SvelteKit](https://kit.svelte.dev/) - Frontend framework
+- [Apache APISIX](https://apisix.apache.org/) - API Gateway
+- [SigNoz](https://signoz.io/) - Open-source APM & Observability
+- [OpenTelemetry](https://opentelemetry.io/) - Observability framework
+- [KeyDB](https://docs.keydb.dev/) - High-performance Redis alternative
+- [MinIO](https://min.io/) - S3-compatible object storage
 - [Casbin](https://casbin.org/) - Authorization library
 - [Cube](https://cube.dev/) - Analytics platform
 
