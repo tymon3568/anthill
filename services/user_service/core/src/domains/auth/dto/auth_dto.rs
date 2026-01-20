@@ -198,3 +198,25 @@ pub struct CheckTenantSlugResp {
     #[schema(example = "Acme Corp")]
     pub existing_tenant_name: Option<String>,
 }
+
+/// Registration response (no tokens - requires email verification first)
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RegisterResp {
+    /// Success message
+    #[schema(example = "Registration successful. Please check your email to verify your account.")]
+    pub message: String,
+
+    /// User ID (for reference)
+    pub user_id: Uuid,
+
+    /// Tenant ID (for reference)
+    pub tenant_id: Uuid,
+
+    /// Email address (for verification resend)
+    #[schema(example = "user@example.com")]
+    pub email: String,
+
+    /// Whether email verification is required before login
+    #[schema(example = true)]
+    pub requires_email_verification: bool,
+}

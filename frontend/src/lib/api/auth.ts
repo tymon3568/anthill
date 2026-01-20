@@ -119,6 +119,15 @@ export interface EmailUserInfo {
 	created_at: string;
 }
 
+// Response for registration (no tokens - email verification required)
+export interface EmailRegisterResponse {
+	message: string;
+	user_id: string;
+	tenant_id: string;
+	email: string;
+	requires_email_verification: boolean;
+}
+
 export interface RefreshTokenRequest {
 	refresh_token: string;
 }
@@ -254,9 +263,9 @@ export const authApi = {
 		);
 	},
 
-	async emailRegister(userData: EmailRegisterRequest): Promise<ApiResponse<EmailAuthResponse>> {
+	async emailRegister(userData: EmailRegisterRequest): Promise<ApiResponse<EmailRegisterResponse>> {
 		// Use authApiClient which routes through SvelteKit proxy
-		return authApiClient.post<EmailAuthResponse>(
+		return authApiClient.post<EmailRegisterResponse>(
 			'/auth/register',
 			userData as unknown as Record<string, unknown>
 		);

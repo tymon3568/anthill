@@ -1,6 +1,6 @@
 import type { AuthStore, User, Tenant } from '$lib/types';
 import { authLogic } from '$lib/auth/auth-logic';
-import { authApi, type EmailAuthResponse } from '$lib/api/auth';
+import { authApi, type EmailAuthResponse, type EmailRegisterResponse } from '$lib/api/auth';
 import { AuthSession } from '$lib/auth/session';
 
 // Browser detection - fallback for testing environments
@@ -63,7 +63,7 @@ export const authStore = {
 		password: string,
 		fullName: string,
 		tenantName?: string
-	): Promise<{ success: boolean; data?: EmailAuthResponse; error?: string }> {
+	): Promise<{ success: boolean; data?: EmailRegisterResponse; error?: string }> {
 		authStore.setLoading(true);
 		try {
 			const response = await authApi.emailRegister({
@@ -74,21 +74,8 @@ export const authStore = {
 			});
 
 			if (response.success && response.data) {
-				// Store session using our session manager
-				AuthSession.setSession(response.data);
-
-				// Map to User interface
-				const user: User = {
-					id: response.data.user.id,
-					email: response.data.user.email,
-					name: response.data.user.full_name || response.data.user.email,
-					role: (response.data.user.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
-					tenantId: response.data.user.tenant_id,
-					createdAt: response.data.user.created_at,
-					updatedAt: response.data.user.created_at
-				};
-
-				authStore.setUser(user);
+				// Registration successful - but user must verify email before logging in
+				// Do NOT set session or user - no tokens are returned
 				return { success: true, data: response.data };
 			} else {
 				return { success: false, error: response.error || 'Registration failed' };

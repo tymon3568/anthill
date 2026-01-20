@@ -207,8 +207,8 @@
 				// Show verification email message instead of redirecting
 				registeredEmail = formData.email;
 				// Get tenant_id from the response for resend functionality
-				if (result.data?.user?.tenant_id) {
-					registeredTenantId = result.data.user.tenant_id;
+				if (result.data?.tenant_id) {
+					registeredTenantId = result.data.tenant_id;
 				}
 				// Persist state to sessionStorage for page refresh resilience
 				persistRegistrationState(registeredEmail, registeredTenantId);

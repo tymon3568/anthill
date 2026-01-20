@@ -11,7 +11,9 @@ use user_service_core::domains::auth::{
         service::AuthService,
     },
     dto::admin_dto::{AdminCreateUserReq, AdminCreateUserResp, PROTECTED_ROLES},
-    dto::auth_dto::{AuthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp},
+    dto::auth_dto::{
+        AuthResp, LoginReq, RefreshReq, RegisterReq, RegisterResp, UserInfo, UserListResp,
+    },
     utils::password_validator::validate_password_quick,
 };
 use uuid::Uuid;
@@ -121,9 +123,9 @@ where
     async fn register(
         &self,
         req: RegisterReq,
-        ip_address: Option<String>,
-        user_agent: Option<String>,
-    ) -> Result<AuthResp, AppError> {
+        _ip_address: Option<String>,
+        _user_agent: Option<String>,
+    ) -> Result<RegisterResp, AppError> {
         // Determine tenant and whether it's a new or existing tenant
         let (tenant, is_new_tenant) = if let Some(tenant_name) = &req.tenant_name {
             // Generate URL-safe slug from tenant name
@@ -247,42 +249,15 @@ where
                 .await?;
         }
 
-        // Generate tokens
-        let access_claims = Claims::new_access(
-            created_user.user_id,
-            created_user.tenant_id,
-            created_user.role.clone(),
-            self.jwt_expiration,
-        );
-        let refresh_claims = Claims::new_refresh(
-            created_user.user_id,
-            created_user.tenant_id,
-            created_user.role.clone(),
-            self.jwt_refresh_expiration,
-        );
-
-        let access_token = encode_jwt(&access_claims, &self.jwt_secret)?;
-        let refresh_token = encode_jwt(&refresh_claims, &self.jwt_secret)?;
-
-        // Create session record
-        self.create_session(
-            created_user.user_id,
-            created_user.tenant_id,
-            &access_token,
-            &refresh_token,
-            self.jwt_expiration,
-            self.jwt_refresh_expiration,
-            ip_address,
-            user_agent,
-        )
-        .await?;
-
-        Ok(AuthResp {
-            access_token,
-            refresh_token,
-            token_type: "Bearer".to_string(),
-            expires_in: self.jwt_expiration,
-            user: self.user_to_user_info(&created_user),
+        // Return RegisterResp without tokens - user must verify email first
+        // No session is created until user logs in after email verification
+        Ok(RegisterResp {
+            message: "Registration successful. Please check your email to verify your account."
+                .to_string(),
+            user_id: created_user.user_id,
+            tenant_id: created_user.tenant_id,
+            email: created_user.email,
+            requires_email_verification: true,
         })
     }
 
@@ -355,6 +330,13 @@ where
         // Check if account is active
         if user.status != "active" {
             return Err(AppError::InvalidCredentials);
+        }
+
+        // Check if email is verified
+        if !user.email_verified {
+            return Err(AppError::ValidationError(
+                "Email not verified. Please check your inbox and verify your email before logging in.".to_string(),
+            ));
         }
 
         // Check if account is locked

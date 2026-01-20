@@ -23,7 +23,7 @@ use user_service_core::domains::auth::{
     },
     dto::auth_dto::{
         AuthResp, CheckTenantSlugQuery, CheckTenantSlugResp, ErrorResp, HealthResp, LoginReq,
-        OptionalRefreshReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
+        OptionalRefreshReq, RefreshReq, RegisterReq, RegisterResp, UserInfo, UserListResp,
     },
 };
 use user_service_infra::auth::EmailSender;
@@ -208,6 +208,11 @@ pub async fn health_check() -> Json<HealthResp> {
 ///
 /// Upon successful registration, a Casbin grouping policy is automatically created:
 /// `(user_id, role, tenant_id)` - This ensures the user's role policies are enforced.
+///
+/// ## Email Verification Required
+///
+/// Registration does NOT return authentication tokens. Users must verify their email
+/// before they can log in. A verification email is sent automatically.
 #[utoipa::path(
     post,
     path = "/api/v1/auth/register",
@@ -215,7 +220,7 @@ pub async fn health_check() -> Json<HealthResp> {
     operation_id = "user_register",
     request_body = RegisterReq,
     responses(
-        (status = 201, description = "User registered successfully. Role is 'owner' for new tenant, 'user' for existing tenant.", body = AuthResp),
+        (status = 201, description = "User registered successfully. Email verification required before login.", body = RegisterResp),
         (status = 400, description = "Invalid request (validation error)", body = ErrorResp),
         (status = 409, description = "User already exists in the tenant", body = ErrorResp),
     )
@@ -236,13 +241,18 @@ pub async fn register<S: AuthService>(
         .register(payload, client_info.ip_address, client_info.user_agent)
         .await?;
 
-    // Add Casbin grouping policy for the new user
-    // The user's role (owner/user) is determined by the service based on:
-    // - 'owner' if user created a new tenant
-    // - 'user' if user joined an existing tenant
-    let user_id_str = resp.user.id.to_string();
-    let tenant_id_str = resp.user.tenant_id.to_string();
-    let role = &resp.user.role;
+    // Get user info for Casbin setup - need to fetch role from database
+    // since RegisterResp doesn't include role info
+    let user_id_str = resp.user_id.to_string();
+    let tenant_id_str = resp.tenant_id.to_string();
+
+    // Fetch user to get role for Casbin
+    // Use auth_service to get user info (it has the role)
+    let user_info = state
+        .auth_service
+        .get_user(resp.user_id, resp.tenant_id)
+        .await?;
+    let role = &user_info.role;
 
     // If this is a new tenant (user is owner), copy default policies to the new tenant
     // This ensures the new tenant has the same permission structure as default_tenant
@@ -280,12 +290,12 @@ pub async fn register<S: AuthService>(
     // Log error but don't fail registration - user can request resend later
     if let Some(ref verification_service) = state.email_verification_service {
         if let Err(e) = verification_service
-            .send_verification_email(resp.user.id, resp.user.tenant_id, &resp.user.email)
+            .send_verification_email(resp.user_id, resp.tenant_id, &resp.email)
             .await
         {
             tracing::error!(
                 user_id = %user_id_str,
-                email = %resp.user.email,
+                email = %resp.email,
                 error = %e,
                 "Failed to send verification email; user can request resend"
             );
@@ -297,13 +307,8 @@ pub async fn register<S: AuthService>(
         );
     }
 
-    // Set httpOnly cookies for authentication tokens
-    let cookie_config = CookieConfig::new(&state.config);
-    let mut headers = HeaderMap::new();
-    set_auth_cookies(&mut headers, &resp.access_token, &resp.refresh_token, &cookie_config)
-        .map_err(|e| AppError::InternalError(format!("Failed to set auth cookies: {}", e)))?;
-
-    Ok((StatusCode::CREATED, headers, Json(resp)))
+    // No tokens returned - user must verify email before login
+    Ok((StatusCode::CREATED, Json(resp)))
 }
 
 /// Check tenant slug availability
