@@ -38,12 +38,18 @@ export interface UserInfo {
 export function decodeJwtPayload(token: string): JWTPayload | null {
 	try {
 		const payload = token.split('.')[1];
+		if (!payload) {
+			throw new Error('Invalid JWT format');
+		}
 		// Handle URL-safe base64 (base64url)
 		let base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
 		// Add padding if needed (base64 strings must have length divisible by 4)
 		const paddingNeeded = (4 - (base64.length % 4)) % 4;
 		base64 += '='.repeat(paddingNeeded);
-		const decoded = JSON.parse(atob(base64));
+		// Support both browser (atob) and Node.js (Buffer) environments
+		const json =
+			typeof atob === 'function' ? atob(base64) : Buffer.from(base64, 'base64').toString('binary');
+		const decoded = JSON.parse(json);
 		return decoded as JWTPayload;
 	} catch (error) {
 		console.error('Failed to decode JWT:', error);

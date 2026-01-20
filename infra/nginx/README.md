@@ -1,7 +1,7 @@
 # [DEPRECATED] Anthill Nginx - API Gateway & Reverse Proxy
 
 > ⚠️ **DEPRECATED**: Dự án đã chuyển sang sử dụng **Apache APISIX** làm API Gateway.
-> Xem cấu hình mới tại `infra/apisix/`.
+> Cấu hình APISIX sẽ được thêm vào trong các bản cập nhật tiếp theo.
 
 ---
 
@@ -16,9 +16,8 @@ Dự án đã migrate từ NGINX sang Apache APISIX vì các lý do sau:
 
 ## APISIX Configuration
 
-Xem hướng dẫn cấu hình APISIX tại:
-- `infra/apisix/README.md`
-- `infra/apisix/config.yaml`
+> **Note**: Cấu hình APISIX (`infra/apisix/`) đang được phát triển.
+> Hiện tại, sử dụng Docker Compose với APISIX image mặc định.
 
 ## Legacy Files
 

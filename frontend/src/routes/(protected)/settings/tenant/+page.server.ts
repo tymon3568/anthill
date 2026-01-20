@@ -11,8 +11,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	// Check if user has owner role
 	const isOwner = user.role === 'owner';
 
+	// Server-side authorization: redirect non-owners
+	if (!isOwner) {
+		throw redirect(302, '/settings');
+	}
+
 	return {
 		user,
-		isOwner: isOwner ?? false
+		isOwner: true
 	};
 };

@@ -17,11 +17,11 @@ This document describes database migrations that were originally created for Sel
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Database migrations | ✅ **Kept** | Schema remains valid, not reverted |
-| `self-auth_user_id` column | 🔸 **Unused** | Nullable, can be repurposed for future OAuth2 |
-| `self-auth_session_id` column | 🔸 **Unused** | Nullable, kept for schema stability |
+| `self_auth_user_id` column | 🔸 **Unused** | Nullable, can be repurposed for future OAuth2 |
+| `self_auth_session_id` column | 🔸 **Unused** | Nullable, kept for schema stability |
 | `auth_method` column | ✅ **In Use** | Currently only uses 'password' value |
 | Migration scripts | ❌ **Deleted** | Scripts in `scripts/` removed |
-| `self-auth_tenant_groups` table | 🔸 **Unused** | Migration exists but table is empty |
+| `self_auth_tenant_groups` table | 🔸 **Unused** | Migration exists but table is empty |
 | Views (`v_migration_progress`) | 🔸 **Unused** | Can be dropped in future cleanup migration |
 
 ### Sections Now Obsolete:
@@ -95,11 +95,11 @@ SELECT
   t.name as tenant_name,
   t.slug as tenant_slug,
   COUNT(u.user_id) as total_users,
-  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'password' AND u.self-auth_user_id IS NULL) as password_only,
-  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'self-auth') as self-auth_only,
+  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'password' AND u.self_auth_user_id IS NULL) as password_only,
+  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'self_auth') as self_auth_only,
   COUNT(u.user_id) FILTER (WHERE u.auth_method = 'dual') as dual_auth,
-  COUNT(u.user_id) FILTER (WHERE u.self-auth_user_id IS NOT NULL) as migrated_users,
-  ROUND(100.0 * COUNT(u.user_id) FILTER (WHERE u.self-auth_user_id IS NOT NULL) / NULLIF(COUNT(u.user_id), 0), 2) as migration_percent,
+  COUNT(u.user_id) FILTER (WHERE u.self_auth_user_id IS NOT NULL) as migrated_users,
+  ROUND(100.0 * COUNT(u.user_id) FILTER (WHERE u.self_auth_user_id IS NOT NULL) / NULLIF(COUNT(u.user_id), 0), 2) as migration_percent,
   MAX(u.migration_completed_at) as last_migration_at
 FROM tenants t
 LEFT JOIN users u ON t.tenant_id = u.tenant_id AND u.deleted_at IS NULL
@@ -121,18 +121,18 @@ ALTER TABLE sessions
 
 -- Add Self-auth session tracking
 ALTER TABLE sessions 
-  ADD COLUMN self-auth_session_id UUID,
+  ADD COLUMN self_auth_session_id UUID,
   ADD COLUMN auth_method VARCHAR(50) NOT NULL DEFAULT 'jwt';
 
 -- Constraint: auth_method must be valid
 ALTER TABLE sessions 
   ADD CONSTRAINT sessions_auth_method_check 
-  CHECK (auth_method IN ('jwt', 'self-auth', 'dual'));
+  CHECK (auth_method IN ('jwt', 'self_auth', 'dual'));
 
 -- Indexes for Self-auth sessions
-CREATE INDEX idx_sessions_self-auth_session 
-  ON sessions(self-auth_session_id) 
-  WHERE self-auth_session_id IS NOT NULL AND NOT revoked;
+CREATE INDEX idx_sessions_self_auth_session 
+  ON sessions(self_auth_session_id) 
+  WHERE self_auth_session_id IS NOT NULL AND NOT revoked;
 
 CREATE INDEX idx_sessions_auth_method 
   ON sessions(auth_method, created_at) 
@@ -227,7 +227,7 @@ $$ LANGUAGE plpgsql;
 
 **Features**:
 - Fetches users from Self-auth API
-- Updates self-auth_synced_at timestamps
+- Updates self_auth_synced_at timestamps
 - Creates missing users
 - Deactivates removed users
 - Conflict resolution
@@ -252,7 +252,7 @@ pub struct User {
 pub struct Session {
     pub access_token_hash: Option<String>,  // Changed from String
     pub refresh_token_hash: Option<String>, // Changed from String
-    pub self-auth_session_id: Option<Uuid>,
+    pub self_auth_session_id: Option<Uuid>,
     pub auth_method: SessionAuthMethod,
     // ... other fields
 }
@@ -322,15 +322,15 @@ Applied 20250110000016/migrate sessions self-auth support (14ms) ⭐
 Column                  | Type          | Nullable | Default
 ------------------------|---------------|----------|--------------------
 password_hash           | text          | YES      | ✅ (was NOT NULL)
-self-auth_user_id          | uuid          | YES      | 
-self-auth_synced_at        | timestamptz   | YES      | 
+self_auth_user_id          | uuid          | YES      | 
+self_auth_synced_at        | timestamptz   | YES      | 
 auth_method             | varchar(50)   | NO       | 'password' ✅
 migration_invited_at    | timestamptz   | YES      | 
 migration_completed_at  | timestamptz   | YES      | 
 
 Indexes:
   idx_users_auth_method         ON (auth_method) WHERE deleted_at IS NULL ✅
-  idx_users_self-auth_id           ON (self-auth_user_id) WHERE ... ✅
+  idx_users_self_auth_id           ON (self_auth_user_id) WHERE ... ✅
   idx_users_migration_status    ON (tenant_id, auth_method, migration_completed_at) ✅
   idx_users_pending_migration   ON (tenant_id, migration_invited_at) WHERE ... ✅
 ```
@@ -341,14 +341,14 @@ Column                    | Type        | Nullable | Default
 --------------------------|-------------|----------|----------
 access_token_hash         | text        | YES      | ✅ (was NOT NULL)
 refresh_token_hash        | text        | YES      | ✅ (was NOT NULL)
-self-auth_session_id         | uuid        | YES      | 
+self_auth_session_id         | uuid        | YES      | 
 auth_method               | varchar(50) | NO       | 'jwt' ✅
 
 Check Constraints:
-  sessions_auth_method_check: auth_method IN ('jwt', 'self-auth', 'dual') ✅
+  sessions_auth_method_check: auth_method IN ('jwt', 'self_auth', 'dual') ✅
 
 Indexes:
-  idx_sessions_self-auth_session   ON (self-auth_session_id) WHERE ... ✅
+  idx_sessions_self_auth_session   ON (self_auth_session_id) WHERE ... ✅
   idx_sessions_auth_method      ON (auth_method, created_at) WHERE ... ✅
   idx_sessions_user_auth        ON (user_id, auth_method, created_at) WHERE ... ✅
 ```
@@ -471,7 +471,7 @@ let session = Session {
     access_token_hash: Some("hash123".into()),
     refresh_token_hash: Some("refresh_hash".into()),
     auth_method: SessionAuthMethod::Jwt,
-    self-auth_session_id: None,
+    self_auth_session_id: None,
     // ... other fields
 };
 ```
@@ -508,10 +508,10 @@ Final: Self-auth-only user (password_hash → NULL)
 
 **New Indexes Created** (7 total):
 1. `idx_users_auth_method` - Fast filtering by authentication method
-2. `idx_users_self-auth_id` - Lookup users by Self-auth UUID
+2. `idx_users_self_auth_id` - Lookup users by Self-auth UUID
 3. `idx_users_migration_status` - Track migration progress per tenant
 4. `idx_users_pending_migration` - Find users awaiting migration
-5. `idx_sessions_self-auth_session` - Lookup by Self-auth session ID
+5. `idx_sessions_self_auth_session` - Lookup by Self-auth session ID
 6. `idx_sessions_auth_method` - Session analytics by auth type
 7. `idx_sessions_user_auth` - User's sessions grouped by auth method
 

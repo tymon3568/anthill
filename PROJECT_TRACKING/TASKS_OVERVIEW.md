@@ -57,7 +57,7 @@
 
     - [✅] 3.1 Authentication (Self-Built) - `Done`
           → [View folder](./V1_MVP/03_User_Service/3.1_Self-auth_Integration/)
-          → **Tech Stack Changed**: Self-auth removed, using self-built email/password auth
+          → **Tech Stack Changed**: Kanidm removed, using self-built email/password auth
           → Email/password auth with bcrypt + JWT tokens (User Service managed)
           → Progress: 1 Done, 6 Cancelled (Updated: 2026-01-16)
 

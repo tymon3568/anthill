@@ -121,7 +121,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			display_name: userInfo.name ?? mockUserProfile.display_name,
 			full_name: userInfo.name ?? mockUserProfile.full_name,
 			tenant_id: userInfo.tenantId || mockUserProfile.tenant_id,
-			roles: userInfo.role ? [userInfo.role] : mockUserProfile.roles,
+			// Security: Use server-verified roles from backend, not unverified JWT claims
+			roles: mockUserProfile.roles,
 			// Keep permissions from mock data for now
 			permissions: mockUserProfile.permissions
 		};
@@ -202,7 +203,8 @@ export const PUT: RequestHandler = async ({ request, cookies }) => {
 			display_name: filteredData.display_name ?? userInfo.name ?? mockUserProfile.display_name,
 			full_name: filteredData.full_name ?? userInfo.name ?? mockUserProfile.full_name,
 			tenant_id: userInfo.tenantId || mockUserProfile.tenant_id,
-			roles: userInfo.role ? [userInfo.role] : mockUserProfile.roles,
+			// Security: Use server-verified roles from backend, not unverified JWT claims
+			roles: mockUserProfile.roles,
 			permissions: mockUserProfile.permissions,
 			updated_at: new Date().toISOString()
 		};

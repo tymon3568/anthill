@@ -73,7 +73,8 @@ dig your-domain.com
 sudo apt install certbot
 
 # Generate certificates
-sudo certbot certonly --standalone -d your-domain.com -d *.your-domain.com
+# Wildcard certificates require DNS-01 challenge (HTTP-01 doesn't support wildcards)
+sudo certbot certonly --manual --preferred-challenges dns -d your-domain.com -d "*.your-domain.com"
 
 # Certificates will be at:
 # /etc/letsencrypt/live/your-domain.com/fullchain.pem
