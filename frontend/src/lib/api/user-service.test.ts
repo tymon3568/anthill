@@ -238,6 +238,7 @@ describe('User Service API Client', () => {
 			email: 'user@example.com',
 			fullName: 'Test User',
 			role: 'user',
+			roles: ['user'],
 			status: 'active',
 			emailVerified: true,
 			createdAt: '2024-01-01T00:00:00Z'

@@ -65,6 +65,7 @@ where
             full_name: user.full_name.clone(),
             tenant_id: user.tenant_id,
             role: user.role.clone(),
+            roles: vec![], // Will be populated by handler with Casbin roles
             status: user.status.clone(),
             created_at: user.created_at,
         }

@@ -62,6 +62,7 @@ where
             full_name: user.full_name.clone(),
             tenant_id: user.tenant_id,
             role: user.role.clone(),
+            roles: vec![], // Will be populated by handler with Casbin roles
             status: user.status.clone(),
             created_at: user.created_at,
         }
@@ -434,6 +435,7 @@ where
                 email: user.email,
                 full_name: user.full_name,
                 role: user.role,
+                roles: vec![], // Will be populated by handler with Casbin roles if needed
                 status: user.status,
                 created_at: user.created_at,
             },

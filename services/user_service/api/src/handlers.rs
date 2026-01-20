@@ -26,6 +26,7 @@ use user_service_core::domains::auth::{
         OptionalRefreshReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
     },
 };
+use user_service_infra::auth::EmailSender;
 use uuid::Uuid;
 
 /// Application state containing service dependencies
@@ -46,6 +47,8 @@ pub struct AppState<S: AuthService> {
     pub config: shared_config::Config,
     // Rate limiter for invitation acceptance
     pub invitation_rate_limiter: Arc<InvitationRateLimiter>,
+    // Email sender for sending invitation emails
+    pub email_sender: Option<Arc<dyn EmailSender>>,
 }
 
 impl<S: AuthService> Clone for AppState<S> {
@@ -61,6 +64,7 @@ impl<S: AuthService> Clone for AppState<S> {
             authz_version_repo: self.authz_version_repo.clone(),
             config: self.config.clone(),
             invitation_rate_limiter: Arc::clone(&self.invitation_rate_limiter),
+            email_sender: self.email_sender.clone(),
         }
     }
 }
@@ -571,10 +575,25 @@ pub async fn list_users<S: AuthService>(
     // Extract tenant_id from authenticated user
     let tenant_id = auth_user.tenant_id;
 
-    let resp = state
+    let mut resp = state
         .auth_service
         .list_users(tenant_id, query.page, query.page_size, query.role, query.status)
         .await?;
+
+    // Populate roles from Casbin for each user
+    let enforcer = state.enforcer.read().await;
+    let tenant_id_str = tenant_id.to_string();
+
+    for user in &mut resp.users {
+        let user_roles = enforcer.get_filtered_grouping_policy(0, vec![user.id.to_string()]);
+        user.roles = user_roles
+            .into_iter()
+            .filter(|g| g.len() >= 3 && g[2] == tenant_id_str)
+            .map(|g| g[1].clone())
+            .collect();
+    }
+
+    drop(enforcer);
 
     Ok(Json(resp))
 }

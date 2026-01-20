@@ -15,7 +15,13 @@ function isApiRoute(pathname: string): boolean {
 const USER_SERVICE_URL = env.PUBLIC_USER_SERVICE_URL || 'http://localhost:8000';
 
 // Public routes that don't require authentication
-const publicRoutes = ['/login', '/register'];
+const publicRoutes = [
+	'/login',
+	'/register',
+	'/forgot-password',
+	'/reset-password',
+	'/verify-email'
+];
 
 // Public API routes (exact paths only - use Set for O(1) lookup)
 const publicApiRoutes = new Set([
@@ -24,7 +30,12 @@ const publicApiRoutes = new Set([
 	'/api/v1/auth/refresh',
 	'/api/v1/auth/oauth/authorize',
 	'/api/v1/auth/oauth/callback',
-	'/api/v1/auth/oauth/refresh'
+	'/api/v1/auth/oauth/refresh',
+	'/api/v1/auth/forgot-password',
+	'/api/v1/auth/validate-reset-token',
+	'/api/v1/auth/reset-password',
+	'/api/v1/auth/resend-verification',
+	'/api/v1/auth/verify-email'
 ]);
 
 function isPublicRoute(pathname: string): boolean {

@@ -18,6 +18,7 @@ use user_service_core::domains::auth::{
         },
     },
 };
+use user_service_infra::auth::smtp_sender::{templates, EmailContent};
 use uuid::Uuid;
 
 use crate::handlers::AppState;
@@ -65,13 +66,76 @@ where
         .create_invitation(
             admin_user.tenant_id,
             &payload.email,
-            &payload.role.unwrap_or_else(|| "user".to_string()),
+            &payload.role.clone().unwrap_or_else(|| "user".to_string()),
             admin_user.user_id,
             payload.custom_message.as_deref(),
             client_info.ip_address.as_deref(),
             client_info.user_agent.as_deref(),
         )
         .await?;
+
+    // Build invite link
+    let invite_link = format!("{}/invite/{}", state.config.invitation_base_url, plaintext_token);
+
+    // Get inviter name for email
+    let inviter_name = if let Some(ref user_repo) = state.user_repo {
+        user_repo
+            .find_by_id(admin_user.tenant_id, admin_user.user_id)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|u| u.full_name)
+            .unwrap_or_else(|| "An administrator".to_string())
+    } else {
+        "An administrator".to_string()
+    };
+
+    // Send invitation email
+    if let Some(ref email_sender) = state.email_sender {
+        // Use role from the created invitation to ensure consistency
+        let role = invitation.invited_role.clone();
+        let html_body = templates::invitation_email_html(
+            &invite_link,
+            &inviter_name,
+            &role,
+            state.config.invitation_expiry_hours,
+            payload.custom_message.as_deref(),
+        );
+        let text_body = templates::invitation_email_text(
+            &invite_link,
+            &inviter_name,
+            &role,
+            state.config.invitation_expiry_hours,
+            payload.custom_message.as_deref(),
+        );
+
+        let email_content = EmailContent {
+            to: invitation.email.clone(),
+            subject: "You're Invited to Join Anthill".to_string(),
+            html_body,
+            text_body,
+        };
+
+        if let Err(e) = email_sender.send(email_content).await {
+            tracing::error!(
+                email = %invitation.email,
+                error = %e,
+                "Failed to send invitation email"
+            );
+            // Don't fail the request if email fails - the invitation is still created
+        } else {
+            tracing::info!(
+                email = %invitation.email,
+                invitation_id = %invitation.invitation_id,
+                "Invitation email sent successfully"
+            );
+        }
+    } else {
+        tracing::warn!(
+            email = %invitation.email,
+            "Email sender not available - invitation email not sent"
+        );
+    }
 
     // For security, we don't return the token in the response
     // The admin should get it from the invite link construction
@@ -80,7 +144,7 @@ where
         email: invitation.email,
         role: invitation.invited_role,
         expires_at: invitation.expires_at,
-        invite_link: format!("{}/invite/{}", state.config.invitation_base_url, plaintext_token),
+        invite_link,
     };
 
     Ok((StatusCode::CREATED, Json(response)))
@@ -172,9 +236,12 @@ where
             email: invitation.email,
             full_name: payload.full_name,
             tenant_id: invitation.tenant_id,
-            role: invitation.invited_role,
+            role: invitation.invited_role.clone(),
+            roles: vec![invitation.invited_role], // Include the invited role
             status: "active".to_string(),
-            created_at: invitation.accepted_at.unwrap(),
+            created_at: invitation.accepted_at.ok_or_else(|| {
+                AppError::InternalError("Accepted invitation missing accepted_at timestamp".into())
+            })?,
         },
     };
 
@@ -378,12 +445,73 @@ where
         )
         .await?;
 
+    // Build invite link
+    let invite_link = format!("{}/invite/{}", state.config.invitation_base_url, plaintext_token);
+
+    // Get original inviter name for email (use invited_by_user_id, not current admin)
+    let inviter_name = if let Some(ref user_repo) = state.user_repo {
+        user_repo
+            .find_by_id(admin_user.tenant_id, invitation.invited_by_user_id)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|u| u.full_name)
+            .unwrap_or_else(|| "An administrator".to_string())
+    } else {
+        "An administrator".to_string()
+    };
+
+    // Send invitation email
+    if let Some(ref email_sender) = state.email_sender {
+        let html_body = templates::invitation_email_html(
+            &invite_link,
+            &inviter_name,
+            &invitation.invited_role,
+            state.config.invitation_expiry_hours,
+            invitation.custom_message.as_deref(),
+        );
+        let text_body = templates::invitation_email_text(
+            &invite_link,
+            &inviter_name,
+            &invitation.invited_role,
+            state.config.invitation_expiry_hours,
+            invitation.custom_message.as_deref(),
+        );
+
+        let email_content = EmailContent {
+            to: invitation.email.clone(),
+            subject: "You're Invited to Join Anthill".to_string(),
+            html_body,
+            text_body,
+        };
+
+        if let Err(e) = email_sender.send(email_content).await {
+            tracing::error!(
+                email = %invitation.email,
+                error = %e,
+                "Failed to resend invitation email"
+            );
+            // Don't fail the request if email fails - the invitation is still updated
+        } else {
+            tracing::info!(
+                email = %invitation.email,
+                invitation_id = %invitation.invitation_id,
+                "Invitation email resent successfully"
+            );
+        }
+    } else {
+        tracing::warn!(
+            email = %invitation.email,
+            "Email sender not available - invitation email not sent"
+        );
+    }
+
     let response = CreateInvitationResponse {
         invitation_id: invitation.invitation_id,
         email: invitation.email,
         role: invitation.invited_role,
         expires_at: invitation.expires_at,
-        invite_link: format!("{}/invite/{}", state.config.invitation_base_url, plaintext_token),
+        invite_link,
     };
 
     Ok(Json(response))

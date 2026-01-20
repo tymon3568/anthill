@@ -231,6 +231,7 @@ export const userServiceApi = {
 			full_name: string;
 			tenant_id: string;
 			role: string;
+			roles?: string[];
 			status?: string;
 			email_verified?: boolean;
 			created_at: string;
@@ -252,6 +253,7 @@ export const userServiceApi = {
 				email: user.email,
 				fullName: user.full_name,
 				role: user.role,
+				roles: user.roles || [],
 				status: (user.status as User['status']) || 'active',
 				emailVerified: user.email_verified ?? false,
 				createdAt: user.created_at,
