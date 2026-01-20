@@ -23,11 +23,9 @@ pub struct User {
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTime<Utc>>,
     pub password_changed_at: Option<DateTime<Utc>>,
-    pub kanidm_user_id: Option<Uuid>, // Legacy field (deprecated - OAuth removed)
-    pub kanidm_synced_at: Option<DateTime<Utc>>, // Legacy field (deprecated - OAuth removed)
-    pub auth_method: String,          // 'password' only (legacy values: 'kanidm', 'dual')
-    pub migration_invited_at: Option<DateTime<Utc>>, // NEW: Migration tracking
-    pub migration_completed_at: Option<DateTime<Utc>>, // NEW: Migration completion
+    pub auth_method: String, // 'password' only
+    pub migration_invited_at: Option<DateTime<Utc>>,
+    pub migration_completed_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>, // Soft delete
@@ -68,8 +66,7 @@ pub struct Session {
     pub revoked: bool,
     pub revoked_at: Option<DateTime<Utc>>,
     pub revoked_reason: Option<String>,
-    pub kanidm_session_id: Option<Uuid>, // Legacy field (deprecated - OAuth removed)
-    pub auth_method: String,             // 'jwt' only (legacy values: 'kanidm', 'dual')
+    pub auth_method: String, // 'jwt' only
     pub created_at: DateTime<Utc>,
     pub last_used_at: DateTime<Utc>,
 }

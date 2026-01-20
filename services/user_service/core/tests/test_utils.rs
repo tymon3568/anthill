@@ -27,8 +27,7 @@ pub struct UserBuilder {
     full_name: Option<String>,
     role: String,
     status: String,
-    auth_method: String,          // NEW
-    kanidm_user_id: Option<Uuid>, // NEW
+    auth_method: String,
 }
 
 impl UserBuilder {
@@ -43,8 +42,7 @@ impl UserBuilder {
             full_name: Some(Name().fake()),
             role: "user".to_string(),
             status: "active".to_string(),
-            auth_method: "password".to_string(), // NEW: Default to password auth
-            kanidm_user_id: None,                // NEW
+            auth_method: "password".to_string(),
         }
     }
 
@@ -72,7 +70,7 @@ impl UserBuilder {
         self
     }
 
-    /// Set password hash to None (Kanidm-only user)
+    /// Set password hash to None (external auth user)
     pub fn without_password(mut self) -> Self {
         self.password_hash = None;
         self
@@ -81,12 +79,6 @@ impl UserBuilder {
     /// Set auth method
     pub fn with_auth_method(mut self, auth_method: impl Into<String>) -> Self {
         self.auth_method = auth_method.into();
-        self
-    }
-
-    /// Set Kanidm user ID
-    pub fn with_kanidm_user_id(mut self, kanidm_user_id: Uuid) -> Self {
-        self.kanidm_user_id = Some(kanidm_user_id);
         self
     }
 
@@ -133,19 +125,9 @@ impl UserBuilder {
             failed_login_attempts: 0,
             locked_until: None,
             password_changed_at: Some(now),
-            kanidm_user_id: self.kanidm_user_id, // NEW
-            kanidm_synced_at: if self.kanidm_user_id.is_some() {
-                Some(now)
-            } else {
-                None
-            }, // NEW
-            auth_method: self.auth_method,       // NEW
-            migration_invited_at: None,          // NEW
-            migration_completed_at: if self.kanidm_user_id.is_some() {
-                Some(now)
-            } else {
-                None
-            }, // NEW
+            auth_method: self.auth_method,
+            migration_invited_at: None,
+            migration_completed_at: None,
             created_at: now,
             updated_at: now,
             deleted_at: None,
@@ -361,8 +343,7 @@ impl SessionBuilder {
             access_token_expires_at: now + chrono::Duration::minutes(15),
             refresh_token_expires_at: now + chrono::Duration::days(7),
             revoked: self.revoked,
-            kanidm_session_id: None,        // NEW: Default to None
-            auth_method: "jwt".to_string(), // NEW: Default to JWT auth
+            auth_method: "jwt".to_string(),
             revoked_at: if self.revoked { Some(now) } else { None },
             revoked_reason: if self.revoked {
                 Some("test_revoke".to_string())

@@ -37,10 +37,6 @@ pub fn get_test_config() -> Config {
         host: "127.0.0.1".to_string(),
         port: 8000,
         cors_origins: None,
-        kanidm_url: None,
-        kanidm_client_id: None,
-        kanidm_client_secret: None,
-        kanidm_redirect_url: None,
         nats_url: None,
         redis_url: None,
         casbin_model_path: "../../../shared/auth/model.conf".to_string(),
@@ -135,15 +131,12 @@ pub async fn create_test_user(
         failed_login_attempts: 0,
         locked_until: None,
         password_changed_at: Some(now),
+        auth_method: "password".to_string(),
+        migration_invited_at: None,
+        migration_completed_at: None,
         created_at: now,
         updated_at: now,
         deleted_at: None,
-        // New Phase 4 fields
-        kanidm_user_id: None,
-        kanidm_synced_at: None,
-        auth_method: "password".to_string(), // String, not enum
-        migration_invited_at: None,
-        migration_completed_at: None,
     };
 
     let user_repo = PgUserRepository::new(pool.clone());

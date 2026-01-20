@@ -51,23 +51,6 @@ pub trait UserRepository: Send + Sync {
     /// Note: This is only used for password reset flow where tenant context is unknown
     async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, AppError>;
 
-    /// Find user by Kanidm user ID within a tenant
-    async fn find_by_kanidm_id(
-        &self,
-        tenant_id: Uuid,
-        kanidm_user_id: &str,
-    ) -> Result<Option<User>, AppError>;
-
-    /// Create or update user from Kanidm authentication
-    /// Returns (user, is_new) tuple
-    async fn upsert_from_kanidm(
-        &self,
-        tenant_id: Uuid,
-        kanidm_user_id: &str,
-        email: Option<&str>,
-        username: Option<&str>,
-    ) -> Result<(User, bool), AppError>;
-
     /// Hard delete a user by ID (for compensating transactions)
     /// This permanently removes the user record - use with caution.
     /// Primarily used for rollback when subsequent operations fail after user creation.
@@ -88,13 +71,6 @@ pub trait TenantRepository: Send + Sync {
 
     /// Find tenant by slug
     async fn find_by_slug(&self, slug: &str) -> Result<Option<Tenant>, AppError>;
-
-    /// Find tenant by Kanidm group name
-    /// Returns (tenant, role) tuple if found
-    async fn find_by_kanidm_group(
-        &self,
-        group_name: &str,
-    ) -> Result<Option<(Tenant, String)>, AppError>;
 
     /// Set the owner of a tenant
     /// Called during registration when a new tenant is created

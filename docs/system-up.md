@@ -16,7 +16,7 @@ cargo run --bin user-service
 inventory service
 ```
 cd /home/arch/Project/test/anthill-windsurf
-PORT=8001 cargo run --bin inventory-service
+PORT=8001 NATS_URL=nats://localhost:4222 cargo run --bin inventory-service
 ```
 frontend service
 ```
