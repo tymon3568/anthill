@@ -17,7 +17,7 @@ Docker Compose Stack
 ├── anthill-order-service (Port: 8002)
 ├── anthill-payment-service (Port: 8003)
 ├── anthill-integration-service (Port: 8004)
-├── anthill-apisix-gateway (Port: 80/443/9180)
+├── anthill-apisix-gateway (Port: 80/443)
 ├── anthill-frontend (Port: 3000)
 ├── postgres (Port: 5432)
 ├── keydb (Port: 6379) - Redis-compatible cache
@@ -297,7 +297,8 @@ services:
     ports:
       - "80:9080"
       - "443:9443"
-      - "9180:9180"  # Admin API
+      # Admin API - DO NOT expose in production! Access via docker exec only
+      # - "9180:9180"
     volumes:
       - ./infra/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro

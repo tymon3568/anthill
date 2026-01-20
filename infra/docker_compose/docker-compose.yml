@@ -16,7 +16,7 @@ services:
       retries: 5
 
   keydb:
-    image: eqalpha/keydb:latest
+    image: eqalpha/keydb:x86_64_v6.3.4
     container_name: keydb_cache
     network_mode: host
     command: keydb-server --server-threads 2 --appendonly yes
@@ -39,38 +39,38 @@ services:
       timeout: 5s
       retries: 5
 
-  rustfs:
-    image: rustfs/rustfs:latest
-    container_name: rustfs_storage
+  minio:
+    image: minio/minio:latest
+    container_name: minio_storage
     network_mode: host
     environment:
-      RUSTFS_ACCESS_KEY: rustfsadmin
-      RUSTFS_SECRET_KEY: rustfsadmin
-      RUSTFS_CONSOLE_ENABLE: "true"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     volumes:
-      - rustfs_data:/data
+      - minio_data:/data
+    command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  rustfs-init:
+  minio-init:
     image: minio/mc:latest
-    container_name: rustfs_init
+    container_name: minio_init
     network_mode: host
     depends_on:
-      rustfs:
+      minio:
         condition: service_healthy
     volumes:
-      - ../init-rustfs.sh:/init-rustfs.sh:ro
-    entrypoint: ["sh", "/init-rustfs.sh"]
+      - ../init-minio.sh:/init-minio.sh:ro
+    entrypoint: ["sh", "/init-minio.sh"]
     environment:
-      - RUSTFS_ENDPOINT=http://localhost:9000
-      - RUSTFS_ACCESS_KEY=rustfsadmin
-      - RUSTFS_SECRET_KEY=rustfsadmin
+      - MINIO_ENDPOINT=http://localhost:9000
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
 
 volumes:
   postgres_data:
   keydb_data:
-  rustfs_data:
+  minio_data:

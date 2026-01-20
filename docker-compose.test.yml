@@ -27,7 +27,7 @@ services:
       - test-network
 
   keydb-test:
-    image: eqalpha/keydb:latest
+    image: eqalpha/keydb:x86_64_v6.3.4
     container_name: keydb_test
     command: keydb-server --server-threads 2 --appendonly yes
     ports:
