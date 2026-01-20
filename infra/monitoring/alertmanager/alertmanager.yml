@@ -1,0 +1,75 @@
+# Alertmanager Configuration for Anthill SaaS
+# Handles alert routing, grouping, and notification delivery
+
+global:
+  # The smarthost and SMTP sender used for mail notifications
+  smtp_smarthost: "localhost:25"
+  smtp_from: "alertmanager@anthill.local"
+  smtp_require_tls: false
+
+  # The default Slack API URL
+  # slack_api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'
+
+  # ResolveTimeout is the time after which an alert is declared resolved
+  resolve_timeout: 5m
+
+# The root route for matching alert rules
+route:
+  # Default receiver when no match
+  receiver: "default-receiver"
+
+  # Group alerts by alertname and service
+  group_by: ["alertname", "service"]
+
+  # How long to wait before sending grouped notifications
+  group_wait: 30s
+
+  # How long to wait before sending a new notification for a group
+  group_interval: 5m
+
+  # How long to wait before resending a notification
+  repeat_interval: 4h
+
+  # Child routes for specific alert handling
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: "critical-receiver"
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning alerts
+    - match:
+        severity: warning
+      receiver: "warning-receiver"
+      group_wait: 1m
+      repeat_interval: 4h
+
+# Inhibition rules to mute alerts when a more severe alert is active
+inhibit_rules:
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname", "service"]
+
+# Receiver definitions
+receivers:
+  - name: "default-receiver"
+    # Configure webhook, email, or Slack for default alerts
+    # webhook_configs:
+    #   - url: 'http://localhost:9000/webhook'
+
+  - name: "critical-receiver"
+    # Configure urgent notifications for critical alerts
+    # pagerduty_configs:
+    #   - service_key: 'your-pagerduty-key'
+
+  - name: "warning-receiver"
+    # Configure less urgent notifications for warnings
+    # email_configs:
+    #   - to: 'alerts@example.com'
+
+# Templates for notification formatting
+templates: []

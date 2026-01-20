@@ -1,0 +1,176 @@
+# OpenTelemetry Collector Configuration for Anthill SaaS
+# This collector receives telemetry from all microservices and exports to SigNoz/ClickHouse
+
+receivers:
+  # OTLP receiver for traces, metrics, and logs from services
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "http://localhost:*"
+            - "http://127.0.0.1:*"
+
+  # Host metrics for infrastructure monitoring
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      network:
+
+processors:
+  # Batch processor for better performance
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Add common resource attributes
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: "${DEPLOYMENT_ENV:-development}"
+        action: upsert
+      - key: service.namespace
+        value: "anthill"
+        action: upsert
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1500
+    spike_limit_mib: 300
+
+  # Attribute processing for better organization
+  attributes:
+    actions:
+      # Normalize HTTP attributes
+      - key: http.method
+        action: upsert
+        from_attribute: http.request.method
+      - key: http.status_code
+        action: upsert
+        from_attribute: http.response.status_code
+
+  # Tail-based sampling for production (reduce storage while keeping important traces)
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 1000
+    expected_new_traces_per_sec: 100
+    policies:
+      # Always sample errors
+      - name: errors-policy
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      # Always sample slow requests (> 1s)
+      - name: latency-policy
+        type: latency
+        latency:
+          threshold_ms: 1000
+      # Sample all NATS traces (important for debugging async flows)
+      - name: nats-policy
+        type: string_attribute
+        string_attribute:
+          key: messaging.system
+          values: [nats]
+      # Probabilistic sampling for normal traces
+      - name: probabilistic-policy
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+exporters:
+  # Export traces to ClickHouse (SigNoz backend)
+  clickhousetraces:
+    endpoint: tcp://clickhouse:9000
+    database: signoz_traces
+    username: default
+    password: "${CLICKHOUSE_PASSWORD}"
+    traces_table_name: signoz_index_v2
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Export metrics to ClickHouse
+  clickhousemetricswrite:
+    endpoint: tcp://clickhouse:9000
+    database: signoz_metrics
+    username: default
+    password: "${CLICKHOUSE_PASSWORD}"
+    timeout: 10s
+
+  # Prometheus exporter for Grafana integration
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: anthill
+    send_timestamps: true
+    metric_expiration: 5m
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Debug logging (enable in development)
+  debug:
+    verbosity: basic
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # Logging exporter for traces (development)
+  # logging:
+  #   loglevel: debug
+
+extensions:
+  # Health check endpoint
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: "/"
+    check_collector_pipeline:
+      enabled: true
+      interval: "5m"
+      exporter_failure_threshold: 5
+
+  # Performance profiling (development)
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # ZPages for debugging
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+
+  pipelines:
+    # Traces pipeline (tail_sampling before batch to avoid splitting spans)
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, attributes, tail_sampling, batch]
+      exporters: [clickhousetraces]
+
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, clickhousemetricswrite]
+
+    # Logs pipeline
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [debug]
+
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      address: 0.0.0.0:8888
+      level: detailed
