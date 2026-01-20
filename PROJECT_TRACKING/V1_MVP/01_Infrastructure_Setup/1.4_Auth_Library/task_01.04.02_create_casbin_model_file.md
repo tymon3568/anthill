@@ -44,4 +44,4 @@ Create the Casbin model configuration file at `shared/auth/model.conf`. This mod
   - Casbin model file created early in project setup
   - Still valid and in use for multi-tenant RBAC with self-built email/password auth
   - Status: Done ✓
-*   2026-01-04: Note updated - Kanidm removed from tech stack, Casbin continues to be used for RBAC
+*   2026-01-04: Note updated - Self-auth removed from tech stack, Casbin continues to be used for RBAC

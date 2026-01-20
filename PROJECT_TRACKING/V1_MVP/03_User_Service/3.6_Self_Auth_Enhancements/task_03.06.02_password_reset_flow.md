@@ -83,7 +83,7 @@ Implement a secure password reset flow for users who have forgotten their passwo
 
 ## Dependencies:
 *   Task: `task_03.06.01_email_verification_flow.md` (Status: Todo) - Shares EmailSender infrastructure
-*   Task: `task_03.01.10_remove_kanidm_integration.md` (Status: InProgress_By_Claude)
+*   Task: `task_03.01.10_remove_self-auth_integration.md` (Status: InProgress_By_Claude)
 *   SMTP server available for email sending
 
 ## Related Documents:

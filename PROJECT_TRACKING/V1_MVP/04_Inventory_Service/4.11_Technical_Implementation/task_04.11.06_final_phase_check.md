@@ -89,7 +89,7 @@ Done
     - Fixed inventory_levels table: inventory_level_id -> inventory_id
     - Corrected migration path: ../migrations -> ../../../../migrations
     - Updated repository and service imports to match actual exports
-    - Replaced direct casbin/shared_kanidm usage with proper shared_auth/shared_kanidm_client
+    - Replaced direct casbin/shared_self-auth usage with proper shared_auth/shared_self-auth_client
     - cargo check --workspace now passes without test compilation errors
 
 ---

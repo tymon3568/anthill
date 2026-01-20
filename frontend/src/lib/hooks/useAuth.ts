@@ -70,10 +70,10 @@ export function useAuth() {
 		isAuthenticated: authState.isAuthenticated,
 		isLoading: authState.isLoading,
 		login: async () => {
-			// OAuth2 login - redirect to authorization endpoint
+			// OAuth2 login - redirect to authorization endpoint (deprecated)
 			authStore.setLoading(true);
 			try {
-				// This will redirect to Kanidm OAuth2 authorize endpoint
+				// This will redirect to OAuth2 authorize endpoint
 				// The actual implementation is in the server endpoint
 				window.location.href = '/api/v1/auth/oauth/authorize';
 				// Return a promise that never resolves since navigation is in progress
@@ -86,10 +86,10 @@ export function useAuth() {
 			}
 		},
 		register: async () => {
-			// OAuth2 registration - redirect to authorization endpoint
+			// OAuth2 registration - redirect to authorization endpoint (deprecated)
 			authStore.setLoading(true);
 			try {
-				// This will redirect to Kanidm OAuth2 authorize endpoint for registration
+				// This will redirect to OAuth2 authorize endpoint for registration
 				// The actual implementation is in the server endpoint
 				window.location.href = '/api/v1/auth/oauth/authorize?mode=register';
 				// Return a promise that never resolves since navigation is in progress
@@ -109,7 +109,7 @@ export function useAuth() {
 			// Clear user data cookie (non-sensitive display data)
 			document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
 
-			// Optional: Redirect to Kanidm logout endpoint
+			// Optional: Redirect to external logout endpoint if needed
 			// window.location.href = 'https://idm.example.com/ui/logout';
 		}
 	};

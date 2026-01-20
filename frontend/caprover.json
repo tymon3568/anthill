@@ -16,10 +16,6 @@
 		{
 			"key": "VITE_API_BASE_URL",
 			"value": "http://srv-anthill-user-service"
-		},
-		{
-			"key": "VITE_KANIDM_BASE_URL",
-			"value": "https://idm.example.com"
 		}
 	],
 	"instructions": {

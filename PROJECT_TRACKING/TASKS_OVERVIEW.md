@@ -7,15 +7,18 @@
 **Tech Stack**:
 - Backend: Rust + Axum 0.8 + Tokio + SQLx + PostgreSQL
 - Architecture: 3-Crate Pattern (Clean Architecture + DDD + Repository Pattern)
-- Infrastructure: CapRover + Docker Swarm + NATS + Redis
+- Infrastructure: Docker Compose + KeyDB + NATS + RustFS
+- Deployment: Dokploy/Komodo (VPS)
 - Status: Phase 3 - User Service Production Ready (~30% complete)
 
 ## 🏗️ Architecture Overview
 
-**Multi-Tenancy Strategy**: Dual layer security (PostgreSQL RLS + Casbin RBAC)
+**Multi-Tenancy Strategy**: Dual layer security (Application-level filtering + Casbin RBAC)
 **Service Structure**: Microservices with shared libraries
 **Database**: Single PostgreSQL instance with tenant isolation
-**Deployment**: CapRover PaaS with automatic deployments
+**Cache**: KeyDB (Redis-compatible, multi-threaded)
+**Storage**: RustFS (S3-compatible object storage)
+**Deployment**: Docker Compose with VPS (Dokploy/Komodo)
 
 ## 🗂️ Roadmap & Status
 
@@ -53,8 +56,8 @@
 > **Progress**: 44 Done + 7 Cancelled = 51 tasks (Updated: 2026-01-16)
 
     - [✅] 3.1 Authentication (Self-Built) - `Done`
-          → [View folder](./V1_MVP/03_User_Service/3.1_Kanidm_Integration/)
-          → **Tech Stack Changed**: Kanidm removed, using self-built email/password auth
+          → [View folder](./V1_MVP/03_User_Service/3.1_Self-auth_Integration/)
+          → **Tech Stack Changed**: Self-auth removed, using self-built email/password auth
           → Email/password auth with bcrypt + JWT tokens (User Service managed)
           → Progress: 1 Done, 6 Cancelled (Updated: 2026-01-16)
 
@@ -487,7 +490,7 @@ open http://localhost:8000/docs  # Swagger UI
       - All modules completed: Auth, Casbin, User Management, Testing, AuthZ Versioning, Self Auth Enhancements
       - Status values standardized to folder-tasks workflow format
       - Invalid statuses (Superseded, trailing spaces) fixed
-      - 7 Kanidm tasks marked as Cancelled (tech stack changed to self-built auth)
+      - 7 Self-auth tasks marked as Cancelled (tech stack changed to self-built auth)
 - ✅ **Project Metrics Updated**: Overall progress now 48% (117 Done + 7 Cancelled out of 252 tasks)
 - ✅ **Critical Path Updated**: Phase 3 milestones marked as Done
 

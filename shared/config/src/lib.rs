@@ -33,18 +33,6 @@ pub struct Config {
     /// CORS allowed origins (comma-separated list, optional)
     pub cors_origins: Option<String>,
 
-    /// Kanidm server URL (optional - for OAuth2/OIDC integration)
-    pub kanidm_url: Option<String>,
-
-    /// Kanidm OAuth2 client ID (optional)
-    pub kanidm_client_id: Option<String>,
-
-    /// Kanidm OAuth2 client secret (optional)
-    pub kanidm_client_secret: Option<String>,
-
-    /// Kanidm redirect URL (optional)
-    pub kanidm_redirect_url: Option<String>,
-
     /// NATS server URL (optional - for event-driven messaging)
     pub nats_url: Option<String>,
 
@@ -488,10 +476,6 @@ impl Default for Config {
             host: default_host(),
             port: default_port(),
             cors_origins: None,
-            kanidm_url: None,
-            kanidm_client_id: None,
-            kanidm_client_secret: None,
-            kanidm_redirect_url: None,
             nats_url: None,
             redis_url: None,
             casbin_model_path: default_casbin_model_path(),

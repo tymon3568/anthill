@@ -52,7 +52,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			email: userInfo.email,
 			username: userInfo.name || userInfo.email.split('@')[0],
 			tenant_id: userInfo.tenantId || 'default-tenant',
-			roles: userInfo.groups || [],
+			roles: userInfo.role ? [userInfo.role] : [],
 			permissions: [] // Would be calculated based on roles
 		};
 

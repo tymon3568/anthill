@@ -30,7 +30,7 @@ See [`.svelte-instructions.md`](.svelte-instructions.md) for complete developmen
 - **Tailwind CSS**: Utility-first CSS framework
 - **CapRover Deployment**: Ready for containerized deployment
 - **Multi-tenant Architecture**: Built for SaaS with tenant isolation
-- **Kanidm Authentication**: OAuth2/OIDC integration with Kanidm
+- **Self-Auth Authentication**: Email/password authentication with JWT tokens
 
 ## Tech Stack
 
@@ -162,7 +162,7 @@ Create a `.env` file with:
 
 ```env
 VITE_API_BASE_URL=http://srv-anthill-user-service
-VITE_KANIDM_BASE_URL=https://idm.example.com
+
 ```
 
 ## Migration from Svelte 4

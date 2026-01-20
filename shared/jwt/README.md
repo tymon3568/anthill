@@ -1,73 +1,64 @@
-# shared/jwt - DEPRECATED
+# shared/jwt - JWT Token Utilities
 
-⚠️ **This crate is deprecated and will be removed in a future version.**
+This crate provides JWT (JSON Web Token) utilities for the Anthill platform.
 
-## Reason for Deprecation
+## Purpose
 
-With the migration to Kanidm OAuth2/OIDC authentication, JWT token generation is now handled by Kanidm. This crate is only kept for:
+The `shared_jwt` crate handles:
 
-1. **Legacy token support** - Validating existing user tokens during migration period
-2. **Test utilities** - Integration tests that need to generate tokens
-3. **Backward compatibility** - Dual authentication mode (Kanidm + legacy JWT)
+1. **JWT Token Generation** - Creating access and refresh tokens for authenticated users
+2. **JWT Token Validation** - Decoding and validating tokens with signature verification
+3. **Claims Management** - Defining the structure and types of JWT claims
 
-## Migration Path
+## Usage
 
 ### For Production Code
 
-**Before** (using shared_jwt):
 ```rust
-use shared_jwt::{encode_jwt, Claims};
+use shared_jwt::{encode_jwt, decode_jwt, Claims};
 
-let claims = Claims::new_access(user_id, tenant_id, role, expiration);
-let token = encode_jwt(&claims, secret)?;
-```
+// Create access token claims
+let claims = Claims::new_access(user_id, tenant_id, role, expiration_seconds);
+let access_token = encode_jwt(&claims, &jwt_secret)?;
 
-**After** (using Kanidm):
-```rust
-// Users authenticate with Kanidm OAuth2
-// Kanidm issues JWT tokens
-// User service validates Kanidm JWTs with JWKS
+// Create refresh token claims
+let refresh_claims = Claims::new_refresh(user_id, tenant_id, role, refresh_expiration);
+let refresh_token = encode_jwt(&refresh_claims, &jwt_secret)?;
+
+// Validate and decode a token
+let claims = decode_jwt(&token, &jwt_secret)?;
 ```
 
 ### For Tests
 
-**Before** (using shared_jwt):
 ```rust
 use shared_jwt::{encode_jwt, Claims};
 
-let token = encode_jwt(&claims, jwt_secret)?;
+// Generate test tokens
+let claims = Claims::new_access(test_user_id, test_tenant_id, "user".to_string(), 3600);
+let token = encode_jwt(&claims, &test_jwt_secret)?;
 ```
 
-**After** (using test helpers):
-```rust
-use user_service_api::test_helpers::create_test_jwt;
+## Token Types
 
-let token = create_test_jwt(user_id, tenant_id, role);
-```
+- **Access Token**: Short-lived token (default: 15 minutes) for API authentication
+- **Refresh Token**: Longer-lived token (default: 7 days) for obtaining new access tokens
 
-## Removal Timeline
+## Security Notes
 
-- **Phase 3** (Current): Dual authentication mode - both Kanidm and legacy JWT work
-- **Phase 4**: Database migration - migrate all users to Kanidm
-- **Phase 5**: Deprecation warnings - log warnings when legacy JWT used
-- **Phase 6**: Remove legacy JWT support - only Kanidm authentication
-- **Phase 7**: Delete this crate
+- JWT secrets should be at least 256 bits (32 bytes) for HS256
+- Tokens should be transmitted over HTTPS only
+- Access tokens are stored hashed (SHA-256) in session records
+- Refresh tokens enable token rotation for security
 
-## Dependencies to Remove Later
+## Dependencies
 
-When removing this crate, also remove from:
-- `Cargo.toml` workspace members
-- `shared/auth/Cargo.toml`
-- `services/user_service/infra/Cargo.toml`
-- `services/user_service/api/Cargo.toml`
-
-And refactor:
-- `shared/auth/src/extractors.rs` - remove legacy JWT validation
-- `services/user_service/infra/src/auth/service.rs` - remove JWT generation
-- All test files using `shared_jwt`
+This crate is used by:
+- `shared/auth` - JWT validation in request extractors
+- `services/user_service/infra` - Token generation during login/registration
+- `services/user_service/api` - Authentication handlers
 
 ## See Also
 
-- `docs/KANIDM_MIGRATION_PLAN.md` - Full migration plan
-- `shared/kanidm_client/` - New Kanidm OAuth2 client
-- `shared/auth/src/extractors.rs` - Dual JWT validation implementation
+- `shared/auth/src/extractors.rs` - JWT validation in API requests
+- `services/user_service/infra/src/auth/service.rs` - Token generation

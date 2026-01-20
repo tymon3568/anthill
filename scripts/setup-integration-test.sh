@@ -146,8 +146,8 @@ cd "$PROJECT_ROOT/infra/docker_compose"
 if docker ps | grep -q postgres_db; then
     echo -e "${GREEN}✓ PostgreSQL already running${NC}"
 else
-    echo "Starting PostgreSQL, Redis, NATS, MinIO..."
-    $DOCKER_COMPOSE_CMD up -d postgres redis nats minio
+    echo "Starting PostgreSQL, KeyDB, NATS, RustFS..."
+    $DOCKER_COMPOSE_CMD up -d postgres keydb nats rustfs
 
     # Wait for PostgreSQL to be ready
     echo "Waiting for PostgreSQL to be ready..."

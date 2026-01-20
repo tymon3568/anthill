@@ -43,7 +43,7 @@ Make `services/user_service/api/tests/auth_middleware_test.rs` pass reliably by 
 
 ### Out of Scope
 - Major redesign of auth architecture
-- Large changes to Kanidm integration / tenant mapping rules beyond what is required for tests
+- Large changes to Self-auth integration / tenant mapping rules beyond what is required for tests
 - Fixing unrelated integration tests in other services (e.g., `inventory_service_api` 401 failures)
 
 ## Why This Matters

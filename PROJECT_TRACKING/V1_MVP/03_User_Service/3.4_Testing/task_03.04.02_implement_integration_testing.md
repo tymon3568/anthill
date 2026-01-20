@@ -13,7 +13,7 @@
 ## Detailed Description:
 Implement comprehensive integration testing that validates the entire user service stack including authentication endpoints, self-built JWT authentication, database operations, and tenant isolation.
 
-**Note**: This task has been updated for self-built authentication (Kanidm integration was cancelled).
+**Note**: This task has been updated for self-built authentication (Self-auth integration was cancelled).
 
 ## Specific Sub-tasks:
 - [x] 1. Set up test database with Docker for integration tests

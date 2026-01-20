@@ -1,7 +1,7 @@
 # Phase 4: Database Migration Plan
 
 **Status**: 🚧 In Progress  
-**Goal**: Migrate existing users from password-based auth to Kanidm OAuth2  
+**Goal**: Migrate existing users from password-based auth to Self-auth OAuth2  
 **Started**: 2025-11-03
 
 ---
@@ -10,15 +10,15 @@
 
 ### Current State (Before Migration)
 - ✅ Users table has `password_hash` column (bcrypt)
-- ✅ Users table has `kanidm_user_id` column (added in Phase 3)
-- ✅ `kanidm_tenant_groups` table exists
+- ✅ Users table has `self-auth_user_id` column (added in Phase 3)
+- ✅ `self-auth_tenant_groups` table exists
 - ✅ OAuth2 flow working for NEW users
 - ⚠️ OLD users still use password authentication
 
 ### Target State (After Migration)
-- ✅ All users have `kanidm_user_id` (linked to Kanidm)
+- ✅ All users have `self-auth_user_id` (linked to Self-auth)
 - ✅ `password_hash` column nullable (legacy support)
-- ✅ All tenants mapped to Kanidm groups
+- ✅ All tenants mapped to Self-auth groups
 - ✅ Dual authentication working (OAuth2 + password fallback)
 - 🎯 Production ready for gradual rollout
 
@@ -29,7 +29,7 @@
 ### Strategy: **Gradual Migration (Dual Auth)**
 
 **Why NOT "Big Bang"?**
-- ❌ Risky: All users forced to Kanidm at once
+- ❌ Risky: All users forced to Self-auth at once
 - ❌ No rollback: Breaking change
 - ❌ Support nightmare: Mass password resets
 
@@ -47,12 +47,12 @@ Phase 4.1: Database Schema Updates (SAFE)
   ├─ Add migration tracking columns
   └─ Create admin tools for bulk migration
 
-Phase 4.2: Kanidm User Creation (MANUAL/AUTOMATED)
+Phase 4.2: Self-auth User Creation (MANUAL/AUTOMATED)
   ├─ Export existing users from PostgreSQL
-  ├─ Create users in Kanidm (via API/CLI)
-  ├─ Create tenant groups in Kanidm
+  ├─ Create users in Self-auth (via API/CLI)
+  ├─ Create tenant groups in Self-auth
   ├─ Assign users to groups
-  └─ Record kanidm_user_id in PostgreSQL
+  └─ Record self-auth_user_id in PostgreSQL
 
 Phase 4.3: Testing & Validation
   ├─ Test dual authentication
@@ -86,16 +86,16 @@ Make database ready for dual authentication (OAuth2 + password fallback).
 **Migration**: `20250110000014_password_hash_nullable.sql`
 
 ```sql
--- Allow password_hash to be NULL (for Kanidm-only users)
+-- Allow password_hash to be NULL (for Self-auth-only users)
 ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
 
 -- Add comment
 COMMENT ON COLUMN users.password_hash IS 
-  'DEPRECATED: Bcrypt password hash. NULL for Kanidm-only users. Will be removed after full migration.';
+  'DEPRECATED: Bcrypt password hash. NULL for Self-auth-only users. Will be removed after full migration.';
 ```
 
 **Why nullable?**
-- NEW users from Kanidm won't have password
+- NEW users from Self-auth won't have password
 - OLD users keep password (fallback)
 - Gradual migration support
 
@@ -114,13 +114,13 @@ ALTER TABLE users ADD COLUMN migration_completed_at TIMESTAMPTZ;
 
 -- Constraints
 ALTER TABLE users ADD CONSTRAINT users_auth_method_check 
-  CHECK (auth_method IN ('password', 'kanidm', 'dual'));
+  CHECK (auth_method IN ('password', 'self-auth', 'dual'));
 
--- Update existing Kanidm users
+-- Update existing Self-auth users
 UPDATE users 
-SET auth_method = 'kanidm', 
-    migration_completed_at = kanidm_synced_at
-WHERE kanidm_user_id IS NOT NULL;
+SET auth_method = 'self-auth', 
+    migration_completed_at = self-auth_synced_at
+WHERE self-auth_user_id IS NOT NULL;
 
 -- Index for analytics
 CREATE INDEX idx_users_auth_method ON users(auth_method);
@@ -129,11 +129,11 @@ CREATE INDEX idx_users_migration_status
 
 -- Comments
 COMMENT ON COLUMN users.auth_method IS 
-  'Authentication method: password (legacy), kanidm (OAuth2 only), dual (both)';
+  'Authentication method: password (legacy), self-auth (OAuth2 only), dual (both)';
 COMMENT ON COLUMN users.migration_invited_at IS 
-  'When user was invited to migrate to Kanidm (email sent)';
+  'When user was invited to migrate to Self-auth (email sent)';
 COMMENT ON COLUMN users.migration_completed_at IS 
-  'When user completed Kanidm migration (first OAuth2 login)';
+  'When user completed Self-auth migration (first OAuth2 login)';
 ```
 
 **Analytics Queries**:
@@ -142,9 +142,9 @@ COMMENT ON COLUMN users.migration_completed_at IS
 SELECT 
   t.name AS tenant_name,
   COUNT(*) FILTER (WHERE u.auth_method = 'password') AS password_users,
-  COUNT(*) FILTER (WHERE u.auth_method = 'kanidm') AS kanidm_users,
+  COUNT(*) FILTER (WHERE u.auth_method = 'self-auth') AS self-auth_users,
   COUNT(*) FILTER (WHERE u.auth_method = 'dual') AS dual_users,
-  ROUND(100.0 * COUNT(*) FILTER (WHERE u.auth_method IN ('kanidm', 'dual')) / COUNT(*), 2) AS migration_percent
+  ROUND(100.0 * COUNT(*) FILTER (WHERE u.auth_method IN ('self-auth', 'dual')) / COUNT(*), 2) AS migration_percent
 FROM users u
 JOIN tenants t ON u.tenant_id = t.tenant_id
 WHERE u.deleted_at IS NULL
@@ -162,40 +162,40 @@ ORDER BY last_login_at DESC NULLS LAST;
 ---
 
 #### 1.3. Sessions Table Update
-**Migration**: `20250110000016_sessions_kanidm_support.sql`
+**Migration**: `20250110000016_sessions_self-auth_support.sql`
 
 ```sql
--- Make token hashes nullable (Kanidm handles tokens)
+-- Make token hashes nullable (Self-auth handles tokens)
 ALTER TABLE sessions ALTER COLUMN access_token_hash DROP NOT NULL;
 ALTER TABLE sessions ALTER COLUMN refresh_token_hash DROP NOT NULL;
 
--- Add Kanidm session tracking
-ALTER TABLE sessions ADD COLUMN kanidm_session_id UUID;
+-- Add Self-auth session tracking
+ALTER TABLE sessions ADD COLUMN self-auth_session_id UUID;
 ALTER TABLE sessions ADD COLUMN auth_method VARCHAR(50) NOT NULL DEFAULT 'jwt';
 
 -- Constraint
 ALTER TABLE sessions ADD CONSTRAINT sessions_auth_method_check
-  CHECK (auth_method IN ('jwt', 'kanidm', 'dual'));
+  CHECK (auth_method IN ('jwt', 'self-auth', 'dual'));
 
 -- Index
-CREATE INDEX idx_sessions_kanidm_session ON sessions(kanidm_session_id) WHERE kanidm_session_id IS NOT NULL;
+CREATE INDEX idx_sessions_self-auth_session ON sessions(self-auth_session_id) WHERE self-auth_session_id IS NOT NULL;
 
 -- Comments
-COMMENT ON COLUMN sessions.kanidm_session_id IS 'Kanidm session UUID for session tracking';
-COMMENT ON COLUMN sessions.auth_method IS 'Authentication method used: jwt (legacy), kanidm (OAuth2), dual (both)';
+COMMENT ON COLUMN sessions.self-auth_session_id IS 'Self-auth session UUID for session tracking';
+COMMENT ON COLUMN sessions.auth_method IS 'Authentication method used: jwt (legacy), self-auth (OAuth2), dual (both)';
 ```
 
 **Why?**
-- Kanidm manages its own sessions
-- Need to track which sessions are Kanidm-based
-- Optional: Can revoke Kanidm sessions via API
+- Self-auth manages its own sessions
+- Need to track which sessions are Self-auth-based
+- Optional: Can revoke Self-auth sessions via API
 
 ---
 
-## 📝 Phase 4.2: Kanidm User Creation
+## 📝 Phase 4.2: Self-auth User Creation
 
 ### Goal
-Create all existing users in Kanidm and link them to PostgreSQL.
+Create all existing users in Self-auth and link them to PostgreSQL.
 
 ### Approach: Two Options
 
@@ -203,27 +203,27 @@ Create all existing users in Kanidm and link them to PostgreSQL.
 **When**: < 100 users, single tenant
 
 **Steps**:
-1. Export users: `scripts/export-users-for-kanidm.sh`
-2. Manual Kanidm CLI commands
-3. Update PostgreSQL with kanidm_user_id
+1. Export users: `scripts/export-users-for-self-auth.sh`
+2. Manual Self-auth CLI commands
+3. Update PostgreSQL with self-auth_user_id
 
 #### Option B: Automated (Production)
 **When**: 100+ users, multiple tenants
 
 **Tools**:
-- Migration script: `scripts/migrate-users-to-kanidm.sh`
-- Kanidm API integration
+- Migration script: `scripts/migrate-users-to-self-auth.sh`
+- Self-auth API integration
 - Batch processing with rollback
 
 ---
 
 ### 4.2.1. Export Existing Users
 
-**Script**: `scripts/export-users-for-kanidm.sh`
+**Script**: `scripts/export-users-for-self-auth.sh`
 
 ```bash
 #!/bin/bash
-# Export users from PostgreSQL for Kanidm migration
+# Export users from PostgreSQL for Self-auth migration
 
 set -e
 
@@ -243,14 +243,14 @@ SELECT
       'full_name', u.full_name,
       'role', u.role,
       'status', u.status,
-      'has_kanidm', (u.kanidm_user_id IS NOT NULL)
+      'has_self-auth', (u.self-auth_user_id IS NOT NULL)
     )
   )
 FROM users u
 JOIN tenants t ON u.tenant_id = t.tenant_id
 WHERE u.deleted_at IS NULL
   AND u.status = 'active'
-  AND u.kanidm_user_id IS NULL -- Only users NOT yet in Kanidm
+  AND u.self-auth_user_id IS NULL -- Only users NOT yet in Self-auth
 ORDER BY t.slug, u.email;
 SQL
 
@@ -258,25 +258,25 @@ echo "✅ Exported to: $OUTPUT_FILE"
 echo ""
 echo "Next steps:"
 echo "1. Review the file"
-echo "2. Run: ./scripts/migrate-users-to-kanidm.sh $OUTPUT_FILE"
+echo "2. Run: ./scripts/migrate-users-to-self-auth.sh $OUTPUT_FILE"
 ```
 
 ---
 
 ### 4.2.2. Automated Migration Script
 
-**Script**: `scripts/migrate-users-to-kanidm.sh`
+**Script**: `scripts/migrate-users-to-self-auth.sh`
 
 ```bash
 #!/bin/bash
-# Migrate users from PostgreSQL to Kanidm
-# Creates users in Kanidm, assigns to groups, updates PostgreSQL
+# Migrate users from PostgreSQL to Self-auth
+# Creates users in Self-auth, assigns to groups, updates PostgreSQL
 
 set -e
 
 # Configuration
-KANIDM_URL=${KANIDM_URL:-"https://idm.example.com"}
-KANIDM_ADMIN_TOKEN=${KANIDM_ADMIN_TOKEN:-""}
+SELF_AUTH_URL=${SELF_AUTH_URL:-"https://idm.example.com"}
+SELF_AUTH_ADMIN_TOKEN=${SELF_AUTH_ADMIN_TOKEN:-""}
 DATABASE_URL=${DATABASE_URL:-"postgresql://anthill:anthill@localhost:5432/anthill"}
 INPUT_FILE=$1
 DRY_RUN=${DRY_RUN:-"false"}
@@ -287,15 +287,15 @@ if [ -z "$INPUT_FILE" ]; then
   exit 1
 fi
 
-if [ -z "$KANIDM_ADMIN_TOKEN" ]; then
-  echo "❌ Error: KANIDM_ADMIN_TOKEN not set"
-  echo "Get token with: kanidm login admin"
-  echo "Then: export KANIDM_ADMIN_TOKEN=<token>"
+if [ -z "$SELF_AUTH_ADMIN_TOKEN" ]; then
+  echo "❌ Error: SELF_AUTH_ADMIN_TOKEN not set"
+  echo "Get token with: self-auth login admin"
+  echo "Then: export SELF_AUTH_ADMIN_TOKEN=<token>"
   exit 1
 fi
 
 echo "🔧 Migration Configuration:"
-echo "  Kanidm URL: $KANIDM_URL"
+echo "  Self-auth URL: $SELF_AUTH_URL"
 echo "  Database: $DATABASE_URL"
 echo "  Input File: $INPUT_FILE"
 echo "  Dry Run: $DRY_RUN"
@@ -321,44 +321,44 @@ for i in $(seq 0 $((USER_COUNT - 1))); do
   echo "[$((i+1))/$USER_COUNT] Migrating: $EMAIL (tenant: $TENANT_SLUG)"
   
   if [ "$DRY_RUN" == "true" ]; then
-    echo "  [DRY RUN] Would create user in Kanidm"
+    echo "  [DRY RUN] Would create user in Self-auth"
     echo "  [DRY RUN] Would add to group: tenant_${TENANT_SLUG}_users"
     continue
   fi
   
-  # Create user in Kanidm
-  KANIDM_USER_ID=$(kanidm person create "$EMAIL" "$FULL_NAME" --output json | jq -r '.uuid')
+  # Create user in Self-auth
+  SELF_AUTH_USER_ID=$(self-auth person create "$EMAIL" "$FULL_NAME" --output json | jq -r '.uuid')
   
-  if [ -z "$KANIDM_USER_ID" ]; then
-    echo "  ❌ Failed to create user in Kanidm"
+  if [ -z "$SELF_AUTH_USER_ID" ]; then
+    echo "  ❌ Failed to create user in Self-auth"
     continue
   fi
   
-  echo "  ✅ Created in Kanidm: $KANIDM_USER_ID"
+  echo "  ✅ Created in Self-auth: $SELF_AUTH_USER_ID"
   
   # Add to tenant group
   GROUP_NAME="tenant_${TENANT_SLUG}_users"
-  kanidm group add-members "$GROUP_NAME" "$EMAIL" || {
+  self-auth group add-members "$GROUP_NAME" "$EMAIL" || {
     echo "  ⚠️  Group $GROUP_NAME not found, creating..."
-    kanidm group create "$GROUP_NAME"
-    kanidm group add-members "$GROUP_NAME" "$EMAIL"
+    self-auth group create "$GROUP_NAME"
+    self-auth group add-members "$GROUP_NAME" "$EMAIL"
   }
   
   # Add to role-specific group if admin
   if [ "$ROLE" == "admin" ] || [ "$ROLE" == "super_admin" ]; then
     ADMIN_GROUP="tenant_${TENANT_SLUG}_admins"
-    kanidm group add-members "$ADMIN_GROUP" "$EMAIL" || {
+    self-auth group add-members "$ADMIN_GROUP" "$EMAIL" || {
       echo "  ⚠️  Group $ADMIN_GROUP not found, creating..."
-      kanidm group create "$ADMIN_GROUP"
-      kanidm group add-members "$ADMIN_GROUP" "$EMAIL"
+      self-auth group create "$ADMIN_GROUP"
+      self-auth group add-members "$ADMIN_GROUP" "$EMAIL"
     }
   fi
   
-  # Update PostgreSQL with kanidm_user_id
+  # Update PostgreSQL with self-auth_user_id
   psql "$DATABASE_URL" -c "
     UPDATE users 
-    SET kanidm_user_id = '$KANIDM_USER_ID',
-        kanidm_synced_at = NOW(),
+    SET self-auth_user_id = '$SELF_AUTH_USER_ID',
+        self-auth_synced_at = NOW(),
         auth_method = 'dual',
         migration_completed_at = NOW()
     WHERE user_id = '$USER_ID';
@@ -371,18 +371,18 @@ done
 echo "🎉 Migration complete!"
 echo ""
 echo "Verification:"
-echo "  psql $DATABASE_URL -c \"SELECT COUNT(*) FROM users WHERE kanidm_user_id IS NOT NULL;\""
+echo "  psql $DATABASE_URL -c \"SELECT COUNT(*) FROM users WHERE self-auth_user_id IS NOT NULL;\""
 ```
 
 ---
 
 ### 4.2.3. Tenant Group Setup
 
-**Script**: `scripts/setup-kanidm-tenant-groups.sh`
+**Script**: `scripts/setup-self-auth-tenant-groups.sh`
 
 ```bash
 #!/bin/bash
-# Create Kanidm groups for all tenants
+# Create Self-auth groups for all tenants
 
 set -e
 
@@ -398,27 +398,27 @@ for SLUG in $TENANTS; do
   echo "Creating groups for tenant: $SLUG"
   
   # Create users group
-  kanidm group create "tenant_${SLUG}_users" || echo "  ℹ️  Group already exists"
-  kanidm group set displayname "tenant_${SLUG}_users" "${SLUG} Users"
+  self-auth group create "tenant_${SLUG}_users" || echo "  ℹ️  Group already exists"
+  self-auth group set displayname "tenant_${SLUG}_users" "${SLUG} Users"
   
   # Create admins group
-  kanidm group create "tenant_${SLUG}_admins" || echo "  ℹ️  Group already exists"
-  kanidm group set displayname "tenant_${SLUG}_admins" "${SLUG} Admins"
+  self-auth group create "tenant_${SLUG}_admins" || echo "  ℹ️  Group already exists"
+  self-auth group set displayname "tenant_${SLUG}_admins" "${SLUG} Admins"
   
   # Get group UUIDs
-  USER_GROUP_UUID=$(kanidm group get "tenant_${SLUG}_users" --output json | jq -r '.uuid')
-  ADMIN_GROUP_UUID=$(kanidm group get "tenant_${SLUG}_admins" --output json | jq -r '.uuid')
+  USER_GROUP_UUID=$(self-auth group get "tenant_${SLUG}_users" --output json | jq -r '.uuid')
+  ADMIN_GROUP_UUID=$(self-auth group get "tenant_${SLUG}_admins" --output json | jq -r '.uuid')
   
   # Get tenant_id
   TENANT_ID=$(psql "$DATABASE_URL" -t -A -c "SELECT tenant_id FROM tenants WHERE slug = '$SLUG';")
   
-  # Insert into kanidm_tenant_groups
+  # Insert into self-auth_tenant_groups
   psql "$DATABASE_URL" -c "
-    INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name, role)
+    INSERT INTO self-auth_tenant_groups (tenant_id, self-auth_group_uuid, self-auth_group_name, role)
     VALUES 
       ('$TENANT_ID', '$USER_GROUP_UUID', 'tenant_${SLUG}_users', 'member'),
       ('$TENANT_ID', '$ADMIN_GROUP_UUID', 'tenant_${SLUG}_admins', 'admin')
-    ON CONFLICT (tenant_id, kanidm_group_uuid) DO NOTHING;
+    ON CONFLICT (tenant_id, self-auth_group_uuid) DO NOTHING;
   " || echo "  ℹ️  Mapping already exists"
   
   echo "  ✅ Groups created and mapped"
@@ -448,11 +448,11 @@ echo "🎉 All tenant groups set up!"
 - [ ] User without tenant group denied access
 
 #### 4.3.3. Edge Cases
-- [ ] User with no kanidm_user_id (legacy)
-- [ ] User with kanidm_user_id but invalid UUID
-- [ ] Kanidm server down (fallback to password)
-- [ ] Expired Kanidm token (refresh works)
-- [ ] Revoked Kanidm session
+- [ ] User with no self-auth_user_id (legacy)
+- [ ] User with self-auth_user_id but invalid UUID
+- [ ] Self-auth server down (fallback to password)
+- [ ] Expired Self-auth token (refresh works)
+- [ ] Revoked Self-auth session
 
 #### 4.3.4. Performance Tests
 - [ ] JWT validation latency < 50ms
@@ -494,20 +494,20 @@ echo "🎉 All tenant groups set up!"
 ### Invitation Email Template
 
 ```markdown
-Subject: 🔐 Introducing Secure Login with Kanidm
+Subject: 🔐 Introducing Secure Login with Self-auth
 
 Hi [User Name],
 
 We're excited to introduce a more secure way to access Anthill Inventory!
 
 **What's changing?**
-- New login option using Kanidm (our Identity Provider)
+- New login option using Self-auth (our Identity Provider)
 - Support for Passkeys, WebAuthn, and TOTP (2FA)
 - More secure than traditional passwords
 
 **What you need to do:**
-1. Click "Login with Kanidm" on the login page
-2. Create your Kanidm account (one-time setup)
+1. Click "Login with Self-auth" on the login page
+2. Create your Self-auth account (one-time setup)
 3. Done! You can now use Passkeys or TOTP for login
 
 **Your password still works**
@@ -515,7 +515,7 @@ We're excited to introduce a more secure way to access Anthill Inventory!
 - Password login available until [DATE]
 
 **Questions?**
-- Migration guide: https://docs.anthill.example/kanidm-migration
+- Migration guide: https://docs.anthill.example/self-auth-migration
 - Support: support@anthill.example
 
 Thanks,
@@ -527,7 +527,7 @@ Anthill Team
 ## 📝 Phase 4.5: Cleanup (Future)
 
 ### Prerequisites
-- ✅ 100% of active users migrated to Kanidm
+- ✅ 100% of active users migrated to Self-auth
 - ✅ No password logins in last 30 days
 - ✅ All tenants confirmed migrated
 
@@ -545,16 +545,16 @@ ALTER TABLE users DROP COLUMN password_changed_at;
 ALTER TABLE users DROP COLUMN failed_login_attempts;
 ALTER TABLE users DROP COLUMN locked_until;
 
--- Remove auth_method (all users on Kanidm)
+-- Remove auth_method (all users on Self-auth)
 ALTER TABLE users DROP COLUMN auth_method;
 ALTER TABLE users DROP COLUMN migration_invited_at;
 ALTER TABLE users DROP COLUMN migration_completed_at;
 
 -- Update constraints
-ALTER TABLE users ALTER COLUMN kanidm_user_id SET NOT NULL;
+ALTER TABLE users ALTER COLUMN self-auth_user_id SET NOT NULL;
 
 -- Update comments
-COMMENT ON TABLE users IS 'User accounts authenticated via Kanidm OAuth2';
+COMMENT ON TABLE users IS 'User accounts authenticated via Self-auth OAuth2';
 ```
 
 #### 5.2. Remove Password Endpoints
@@ -578,7 +578,7 @@ bcrypt = "0.15"  # No longer needed
 
 | Metric | Target | How to Measure |
 |--------|--------|----------------|
-| Migration Rate | 95% in 60 days | `SELECT ... FROM users WHERE auth_method IN ('kanidm', 'dual')` |
+| Migration Rate | 95% in 60 days | `SELECT ... FROM users WHERE auth_method IN ('self-auth', 'dual')` |
 | Auth Latency | < 100ms p99 | Monitor JWT validation time |
 | Error Rate | < 0.1% | Count failed OAuth2 callbacks |
 | User Satisfaction | 4.5/5 | Post-migration survey |
@@ -591,7 +591,7 @@ bcrypt = "0.15"  # No longer needed
 WITH stats AS (
   SELECT 
     COUNT(*) AS total_users,
-    COUNT(*) FILTER (WHERE auth_method = 'kanidm') AS kanidm_only,
+    COUNT(*) FILTER (WHERE auth_method = 'self-auth') AS self-auth_only,
     COUNT(*) FILTER (WHERE auth_method = 'dual') AS dual_auth,
     COUNT(*) FILTER (WHERE auth_method = 'password') AS password_only
   FROM users 
@@ -599,7 +599,7 @@ WITH stats AS (
 )
 SELECT 
   *,
-  ROUND(100.0 * (kanidm_only + dual_auth) / total_users, 2) AS migration_percent
+  ROUND(100.0 * (self-auth_only + dual_auth) / total_users, 2) AS migration_percent
 FROM stats;
 
 -- Daily migration progress
@@ -619,26 +619,26 @@ ORDER BY migration_date DESC;
 ### Phase 4.1: Schema Updates
 - [ ] Run migration: 20250110000014_password_hash_nullable.sql
 - [ ] Run migration: 20250110000015_add_migration_tracking.sql
-- [ ] Run migration: 20250110000016_sessions_kanidm_support.sql
+- [ ] Run migration: 20250110000016_sessions_self-auth_support.sql
 - [ ] Verify migrations applied
 - [ ] Test application still works
 
-### Phase 4.2: Kanidm Setup
-- [ ] Create scripts/export-users-for-kanidm.sh
-- [ ] Create scripts/migrate-users-to-kanidm.sh
-- [ ] Create scripts/setup-kanidm-tenant-groups.sh
+### Phase 4.2: Self-auth Setup
+- [ ] Create scripts/export-users-for-self-auth.sh
+- [ ] Create scripts/migrate-users-to-self-auth.sh
+- [ ] Create scripts/setup-self-auth-tenant-groups.sh
 - [ ] Test scripts in development
 - [ ] Export production users
-- [ ] Create Kanidm tenant groups
+- [ ] Create Self-auth tenant groups
 - [ ] Migrate users (dry run first)
-- [ ] Verify kanidm_user_id populated
+- [ ] Verify self-auth_user_id populated
 
 ### Phase 4.3: Testing
 - [ ] Write dual auth integration tests
 - [ ] Test all scenarios (NEW, OLD, MIGRATED users)
 - [ ] Performance testing
 - [ ] Security testing
-- [ ] Load testing with Kanidm
+- [ ] Load testing with Self-auth
 
 ### Phase 4.4: Rollout
 - [ ] Migrate internal users (Week 1)
@@ -670,8 +670,8 @@ SET auth_method = 'password',
     migration_completed_at = NULL
 WHERE auth_method = 'dual';
 
--- Clear kanidm_user_id (optional)
-UPDATE users SET kanidm_user_id = NULL;
+-- Clear self-auth_user_id (optional)
+UPDATE users SET self-auth_user_id = NULL;
 ```
 
 #### Partial Rollback (Specific Tenant)
@@ -695,8 +695,8 @@ git revert <commit_hash>
 ## 📚 References
 
 - Phase 3 Summary: [PHASE_3_SUMMARY.md](./PHASE_3_SUMMARY.md)
-- Kanidm API Docs: https://kanidm.com/
-- Migration Guide: [docs/KANIDM_OAUTH2_TESTING.md](./KANIDM_OAUTH2_TESTING.md)
+- Self-auth API Docs: https://self-auth.com/
+- Migration Guide: [docs/SELF_AUTH_OAUTH2_TESTING.md](./SELF_AUTH_OAUTH2_TESTING.md)
 - Database Schema: [migrations/README.md](../migrations/README.md)
 
 ---

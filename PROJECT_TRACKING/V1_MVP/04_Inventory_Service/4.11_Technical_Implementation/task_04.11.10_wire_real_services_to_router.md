@@ -211,7 +211,7 @@ let protected_routes_with_layers = protected_routes
 ## PR Review Issues (from PR #121)
 
 ### Critical
-- [x] Fix environment detection inconsistency between `create_router` and `create_kanidm_client` (Severity: Critical, Reviewer: codeant-ai, Security issue - could skip JWT verification in production)
+- [x] Fix environment detection inconsistency between `create_router` and `create_self-auth_client` (Severity: Critical, Reviewer: codeant-ai, Security issue - could skip JWT verification in production)
 
 ### Warning
 - [x] Reuse existing `stock_move_repo` for putaway instead of creating duplicate instance (Severity: Warning, Reviewers: gemini, coderabbitai, sourcery)
@@ -273,7 +273,7 @@ let protected_routes_with_layers = protected_routes
   - Status: InProgress_By_Claude (fixing issues)
 ---
 * 2025-12-29 03:15: All PR Review issues fixed and pushed by Claude
-  - Fixed environment detection in create_kanidm_client (Critical/Security)
+  - Fixed environment detection in create_self-auth_client (Critical/Security)
   - Updated StubDeliveryService: pub(crate) visibility, neutral error messages, added tracing
   - Added clarifying comment for putaway stock_move_repo usage with TODO
   - Fixed task doc formatting (dates, table spacing, markdown link)

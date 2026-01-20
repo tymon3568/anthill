@@ -43,4 +43,4 @@ Add necessary Casbin dependencies to the `shared/auth` crate to enable RBAC func
   - Casbin dependencies added early in project setup
   - Still valid and in use for authorization with self-built email/password auth
   - Status: Done ✓
-*   2026-01-04: Note updated - Kanidm removed from tech stack, Casbin continues to be used for RBAC
+*   2026-01-04: Note updated - Self-auth removed from tech stack, Casbin continues to be used for RBAC

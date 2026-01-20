@@ -8,9 +8,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/auth/login');
 	}
 
-	// Check if user has owner role by examining groups
-	// Strict matching: exact 'owner' or suffix pattern '_owners'
-	const isOwner = user.groups?.some((group) => group === 'owner' || group.endsWith('_owners'));
+	// Check if user has owner role
+	const isOwner = user.role === 'owner';
 
 	return {
 		user,

@@ -118,6 +118,14 @@ where
             )));
         }
 
+        // Check if user already exists (non-deleted) with this email in tenant
+        if self.user_repo.email_exists(tenant_id, email).await? {
+            return Err(AppError::Conflict(format!(
+                "User with email {} already exists in this organization",
+                email
+            )));
+        }
+
         // Generate secure token
         let (plaintext_token, token_hash) = generate_invite_token();
 

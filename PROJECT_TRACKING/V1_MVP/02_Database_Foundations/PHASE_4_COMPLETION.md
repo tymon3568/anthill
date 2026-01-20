@@ -8,29 +8,29 @@
 
 ## ⚠️ DEPRECATION NOTICE (2026-01-04)
 
-**The Kanidm integration has been removed from the project.**
+**The Self-auth integration has been removed from the project.**
 
-This document describes database migrations that were originally created for Kanidm OAuth2/OIDC integration. The tech stack has changed to **self-built email/password authentication**.
+This document describes database migrations that were originally created for Self-auth OAuth2/OIDC integration. The tech stack has changed to **self-built email/password authentication**.
 
 ### What This Means:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Database migrations | ✅ **Kept** | Schema remains valid, not reverted |
-| `kanidm_user_id` column | 🔸 **Unused** | Nullable, can be repurposed for future OAuth2 |
-| `kanidm_session_id` column | 🔸 **Unused** | Nullable, kept for schema stability |
+| `self-auth_user_id` column | 🔸 **Unused** | Nullable, can be repurposed for future OAuth2 |
+| `self-auth_session_id` column | 🔸 **Unused** | Nullable, kept for schema stability |
 | `auth_method` column | ✅ **In Use** | Currently only uses 'password' value |
 | Migration scripts | ❌ **Deleted** | Scripts in `scripts/` removed |
-| `kanidm_tenant_groups` table | 🔸 **Unused** | Migration exists but table is empty |
+| `self-auth_tenant_groups` table | 🔸 **Unused** | Migration exists but table is empty |
 | Views (`v_migration_progress`) | 🔸 **Unused** | Can be dropped in future cleanup migration |
 
 ### Sections Now Obsolete:
 - Migration scripts section (scripts deleted)
 - User migration flow diagrams
-- Kanidm session handling examples
+- Self-auth session handling examples
 - Dual-auth test data descriptions
 
-**See:** `task_03.01.10_remove_kanidm_integration.md` for full removal details.
+**See:** `task_03.01.10_remove_self-auth_integration.md` for full removal details.
 
 ---
 
@@ -38,7 +38,7 @@ This document describes database migrations that were originally created for Kan
 
 Successfully completed **Phase 4: Database Migration** for flexible authentication support. All 3 database migrations applied and schema verified.
 
-> **Current State**: Only email/password authentication is used. The schema retains Kanidm-related columns as nullable for future OAuth2 provider integration if needed.
+> **Current State**: Only email/password authentication is used. The schema retains Self-auth-related columns as nullable for future OAuth2 provider integration if needed.
 
 ### Key Achievements
 - ✅ **3 migrations** created and applied (20250110000014, 000015, 000016)
@@ -66,7 +66,7 @@ ALTER TABLE users ADD COLUMN auth_method VARCHAR(50) NOT NULL DEFAULT 'password'
 CREATE INDEX idx_users_auth_method ON users(auth_method) WHERE deleted_at IS NULL;
 ```
 
-**Impact**: Allows users to exist without password (originally for Kanidm-only auth; now unused but kept for future OAuth2 support)
+**Impact**: Allows users to exist without password (originally for Self-auth-only auth; now unused but kept for future OAuth2 support)
 
 ### Migration 20250110000015: Migration Tracking
 **File**: `migrations/20250110000015_add_migration_tracking.sql`
@@ -95,11 +95,11 @@ SELECT
   t.name as tenant_name,
   t.slug as tenant_slug,
   COUNT(u.user_id) as total_users,
-  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'password' AND u.kanidm_user_id IS NULL) as password_only,
-  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'kanidm') as kanidm_only,
+  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'password' AND u.self-auth_user_id IS NULL) as password_only,
+  COUNT(u.user_id) FILTER (WHERE u.auth_method = 'self-auth') as self-auth_only,
   COUNT(u.user_id) FILTER (WHERE u.auth_method = 'dual') as dual_auth,
-  COUNT(u.user_id) FILTER (WHERE u.kanidm_user_id IS NOT NULL) as migrated_users,
-  ROUND(100.0 * COUNT(u.user_id) FILTER (WHERE u.kanidm_user_id IS NOT NULL) / NULLIF(COUNT(u.user_id), 0), 2) as migration_percent,
+  COUNT(u.user_id) FILTER (WHERE u.self-auth_user_id IS NOT NULL) as migrated_users,
+  ROUND(100.0 * COUNT(u.user_id) FILTER (WHERE u.self-auth_user_id IS NOT NULL) / NULLIF(COUNT(u.user_id), 0), 2) as migration_percent,
   MAX(u.migration_completed_at) as last_migration_at
 FROM tenants t
 LEFT JOIN users u ON t.tenant_id = u.tenant_id AND u.deleted_at IS NULL
@@ -109,30 +109,30 @@ GROUP BY t.tenant_id, t.name, t.slug;
 
 **Purpose**: Track migration progress by tenant in real-time
 
-### Migration 20250110000016: Sessions Kanidm Support
-**File**: `migrations/20250110000016_sessions_kanidm_support.sql`
+### Migration 20250110000016: Sessions Self-auth Support
+**File**: `migrations/20250110000016_sessions_self-auth_support.sql`
 
 **Schema Changes**:
 ```sql
--- Make token hashes nullable for Kanidm sessions
+-- Make token hashes nullable for Self-auth sessions
 ALTER TABLE sessions 
   ALTER COLUMN access_token_hash DROP NOT NULL,
   ALTER COLUMN refresh_token_hash DROP NOT NULL;
 
--- Add Kanidm session tracking
+-- Add Self-auth session tracking
 ALTER TABLE sessions 
-  ADD COLUMN kanidm_session_id UUID,
+  ADD COLUMN self-auth_session_id UUID,
   ADD COLUMN auth_method VARCHAR(50) NOT NULL DEFAULT 'jwt';
 
 -- Constraint: auth_method must be valid
 ALTER TABLE sessions 
   ADD CONSTRAINT sessions_auth_method_check 
-  CHECK (auth_method IN ('jwt', 'kanidm', 'dual'));
+  CHECK (auth_method IN ('jwt', 'self-auth', 'dual'));
 
--- Indexes for Kanidm sessions
-CREATE INDEX idx_sessions_kanidm_session 
-  ON sessions(kanidm_session_id) 
-  WHERE kanidm_session_id IS NOT NULL AND NOT revoked;
+-- Indexes for Self-auth sessions
+CREATE INDEX idx_sessions_self-auth_session 
+  ON sessions(self-auth_session_id) 
+  WHERE self-auth_session_id IS NOT NULL AND NOT revoked;
 
 CREATE INDEX idx_sessions_auth_method 
   ON sessions(auth_method, created_at) 
@@ -179,26 +179,26 @@ $$ LANGUAGE plpgsql;
 
 ## Phase 4.2: Migration Scripts Created
 
-### 1. `scripts/migrate-user-to-kanidm.sh`
-**Purpose**: Migrate single user from password → Kanidm/dual auth
+### 1. `scripts/migrate-user-to-self-auth.sh`
+**Purpose**: Migrate single user from password → Self-auth/dual auth
 
 **Usage**:
 ```bash
-./scripts/migrate-user-to-kanidm.sh \
+./scripts/migrate-user-to-self-auth.sh \
   --email user@example.com \
-  --kanidm-id "uuid-from-kanidm" \
-  --mode dual  # or 'kanidm'
+  --self-auth-id "uuid-from-self-auth" \
+  --mode dual  # or 'self-auth'
 ```
 
 **Features**:
 - Validates email exists in database
-- Creates Kanidm user if needed
+- Creates Self-auth user if needed
 - Updates auth_method
 - Sends migration invite email
 - Records migration_invited_at timestamp
 
 ### 2. `scripts/bulk-migrate-tenant.sh`
-**Purpose**: Migrate entire tenant to Kanidm
+**Purpose**: Migrate entire tenant to Self-auth
 
 **Usage**:
 ```bash
@@ -215,19 +215,19 @@ $$ LANGUAGE plpgsql;
 - Rollback on errors
 - CSV export of migration results
 
-### 3. `scripts/sync-kanidm-users.sh`
-**Purpose**: Periodic sync of Kanidm → Anthill user data
+### 3. `scripts/sync-self-auth-users.sh`
+**Purpose**: Periodic sync of Self-auth → Anthill user data
 
 **Usage**:
 ```bash
-./scripts/sync-kanidm-users.sh \
+./scripts/sync-self-auth-users.sh \
   --tenant-slug testcorp \
   --dry-run  # Preview changes
 ```
 
 **Features**:
-- Fetches users from Kanidm API
-- Updates kanidm_synced_at timestamps
+- Fetches users from Self-auth API
+- Updates self-auth_synced_at timestamps
 - Creates missing users
 - Deactivates removed users
 - Conflict resolution
@@ -252,7 +252,7 @@ pub struct User {
 pub struct Session {
     pub access_token_hash: Option<String>,  // Changed from String
     pub refresh_token_hash: Option<String>, // Changed from String
-    pub kanidm_session_id: Option<Uuid>,
+    pub self-auth_session_id: Option<Uuid>,
     pub auth_method: SessionAuthMethod,
     // ... other fields
 }
@@ -305,10 +305,10 @@ Applied 20250110000005/migrate fix casbin views (5ms)
 Applied 20250110000010/migrate create user profiles (33ms)
 Applied 20250110000011/migrate fix tenant drift (11ms)
 Applied 20250110000012/migrate fix casbin rule not null (4ms)
-Applied 20250110000013/migrate kanidm integration (16ms)
+Applied 20250110000013/migrate self-auth integration (16ms)
 Applied 20250110000014/migrate password hash nullable (3ms) ⭐
 Applied 20250110000015/migrate add migration tracking (13ms) ⭐
-Applied 20250110000016/migrate sessions kanidm support (14ms) ⭐
+Applied 20250110000016/migrate sessions self-auth support (14ms) ⭐
 ```
 
 **Status**: 12/13 migrations successful  
@@ -322,15 +322,15 @@ Applied 20250110000016/migrate sessions kanidm support (14ms) ⭐
 Column                  | Type          | Nullable | Default
 ------------------------|---------------|----------|--------------------
 password_hash           | text          | YES      | ✅ (was NOT NULL)
-kanidm_user_id          | uuid          | YES      | 
-kanidm_synced_at        | timestamptz   | YES      | 
+self-auth_user_id          | uuid          | YES      | 
+self-auth_synced_at        | timestamptz   | YES      | 
 auth_method             | varchar(50)   | NO       | 'password' ✅
 migration_invited_at    | timestamptz   | YES      | 
 migration_completed_at  | timestamptz   | YES      | 
 
 Indexes:
   idx_users_auth_method         ON (auth_method) WHERE deleted_at IS NULL ✅
-  idx_users_kanidm_id           ON (kanidm_user_id) WHERE ... ✅
+  idx_users_self-auth_id           ON (self-auth_user_id) WHERE ... ✅
   idx_users_migration_status    ON (tenant_id, auth_method, migration_completed_at) ✅
   idx_users_pending_migration   ON (tenant_id, migration_invited_at) WHERE ... ✅
 ```
@@ -341,14 +341,14 @@ Column                    | Type        | Nullable | Default
 --------------------------|-------------|----------|----------
 access_token_hash         | text        | YES      | ✅ (was NOT NULL)
 refresh_token_hash        | text        | YES      | ✅ (was NOT NULL)
-kanidm_session_id         | uuid        | YES      | 
+self-auth_session_id         | uuid        | YES      | 
 auth_method               | varchar(50) | NO       | 'jwt' ✅
 
 Check Constraints:
-  sessions_auth_method_check: auth_method IN ('jwt', 'kanidm', 'dual') ✅
+  sessions_auth_method_check: auth_method IN ('jwt', 'self-auth', 'dual') ✅
 
 Indexes:
-  idx_sessions_kanidm_session   ON (kanidm_session_id) WHERE ... ✅
+  idx_sessions_self-auth_session   ON (self-auth_session_id) WHERE ... ✅
   idx_sessions_auth_method      ON (auth_method, created_at) WHERE ... ✅
   idx_sessions_user_auth        ON (user_id, auth_method, created_at) WHERE ... ✅
 ```
@@ -363,31 +363,31 @@ Indexes:
 
 ### Test Users Created
 
-| Email                        | Auth Method | Has Password | Has Kanidm | Invited | Completed |
+| Email                        | Auth Method | Has Password | Has Self-auth | Invited | Completed |
 |------------------------------|-------------|--------------|------------|---------|-----------|
 | `password-user@test.com`     | password    | ✅           | ❌         | ❌      | ❌        |
-| `kanidm-user@test.com`       | kanidm      | ❌           | ✅         | ❌      | ✅        |
+| `self-auth-user@test.com`       | self-auth      | ❌           | ✅         | ❌      | ✅        |
 | `dual-user@test.com`         | dual        | ✅           | ✅         | ✅      | ❌        |
 | `pending-migration@test.com` | password    | ✅           | ❌         | ✅      | ❌        |
 
 **Interpretation**:
 - **Password-only**: Legacy user (not started migration)
-- **Kanidm-only**: Fully migrated user (no password, Kanidm authentication only)
-- **Dual**: Migration in progress (can use either password or Kanidm)
+- **Self-auth-only**: Fully migrated user (no password, Self-auth authentication only)
+- **Dual**: Migration in progress (can use either password or Self-auth)
 - **Pending**: Invited to migrate but not yet started
 
 ### Test Sessions Created
 
-| Auth Method | Token Hash | Kanidm Session | Valid  | Status         |
+| Auth Method | Token Hash | Self-auth Session | Valid  | Status         |
 |-------------|------------|----------------|--------|----------------|
 | jwt         | ✅         | ❌             | ✅     | Active         |
-| kanidm      | ❌         | ✅             | ✅     | Active         |
+| self-auth      | ❌         | ✅             | ✅     | Active         |
 | dual        | ✅         | ✅             | ✅     | Active         |
 | jwt         | ✅         | ❌             | ❌     | Expired (deleted) |
 
 **Session Distribution** (after cleanup):
 - **JWT**: 1 active session (password authentication)
-- **Kanidm**: 1 active session (OAuth2 authentication)
+- **Self-auth**: 1 active session (OAuth2 authentication)
 - **Dual**: 1 active session (both methods available)
 
 ### Analytics View Results
@@ -397,14 +397,14 @@ Indexes:
 SELECT * FROM v_migration_progress;
 ```
 
-| Tenant     | Total Users | Password Only | Kanidm Only | Dual Auth | Migrated | % Complete | Last Migration       |
+| Tenant     | Total Users | Password Only | Self-auth Only | Dual Auth | Migrated | % Complete | Last Migration       |
 |------------|-------------|---------------|-------------|-----------|----------|------------|----------------------|
 | Test Corp  | 4           | 2             | 1           | 1         | 2        | **50.00%** | 2025-01-02 12:28:51 |
 
 **Insights**:
-- 50% of users have Kanidm authentication enabled
+- 50% of users have Self-auth authentication enabled
 - 2 users still on password-only (candidates for migration)
-- 1 user fully migrated (kanidm-only)
+- 1 user fully migrated (self-auth-only)
 - 1 user in transition (dual-auth)
 
 #### 2. Session Statistics (`v_session_stats`)
@@ -415,12 +415,12 @@ SELECT * FROM v_session_stats;
 | Auth Method | Total | Active | Valid | Avg Age (hrs) | Most Recent Use      |
 |-------------|-------|--------|-------|---------------|----------------------|
 | jwt         | 2     | 2      | 1     | 0.0           | 2025-01-03 12:30:29 |
-| kanidm      | 1     | 1      | 1     | 0.0           | 2025-01-03 12:00:29 |
+| self-auth      | 1     | 1      | 1     | 0.0           | 2025-01-03 12:00:29 |
 | dual        | 1     | 1      | 1     | 0.0           | 2025-01-03 12:25:29 |
 
 **Insights**:
 - All 3 auth methods actively in use
-- 100% of kanidm/dual sessions are valid
+- 100% of self-auth/dual sessions are valid
 - 50% of JWT sessions are valid (1 expired)
 
 #### 3. Cleanup Function Test
@@ -438,7 +438,7 @@ SELECT auth_method, COUNT(*) FROM sessions GROUP BY auth_method;
 | Auth Method | Count |
 |-------------|-------|
 | jwt         | 1     | (expired session deleted ✅)
-| kanidm      | 1     |
+| self-auth      | 1     |
 | dual        | 1     |
 
 **Conclusion**: Cleanup function correctly identified and deleted sessions older than 30 days.
@@ -471,7 +471,7 @@ let session = Session {
     access_token_hash: Some("hash123".into()),
     refresh_token_hash: Some("refresh_hash".into()),
     auth_method: SessionAuthMethod::Jwt,
-    kanidm_session_id: None,
+    self-auth_session_id: None,
     // ... other fields
 };
 ```
@@ -489,13 +489,13 @@ Day 0: Existing user (password-only)
   ↓
 Day 1: Invite sent (migration_invited_at set)
   ↓
-Day 2: User links Kanidm (auth_method → 'dual')
+Day 2: User links Self-auth (auth_method → 'dual')
   ↓
 Day 30: Transition period ends
   ↓
-Day 31: Password disabled (auth_method → 'kanidm')
+Day 31: Password disabled (auth_method → 'self-auth')
   ↓
-Final: Kanidm-only user (password_hash → NULL)
+Final: Self-auth-only user (password_hash → NULL)
 ```
 
 **All stages tested** ✅
@@ -508,10 +508,10 @@ Final: Kanidm-only user (password_hash → NULL)
 
 **New Indexes Created** (7 total):
 1. `idx_users_auth_method` - Fast filtering by authentication method
-2. `idx_users_kanidm_id` - Lookup users by Kanidm UUID
+2. `idx_users_self-auth_id` - Lookup users by Self-auth UUID
 3. `idx_users_migration_status` - Track migration progress per tenant
 4. `idx_users_pending_migration` - Find users awaiting migration
-5. `idx_sessions_kanidm_session` - Lookup by Kanidm session ID
+5. `idx_sessions_self-auth_session` - Lookup by Self-auth session ID
 6. `idx_sessions_auth_method` - Session analytics by auth type
 7. `idx_sessions_user_auth` - User's sessions grouped by auth method
 
@@ -550,7 +550,7 @@ SELECT * FROM cleanup_expired_sessions(30);
 // ✅ SAFE: Password required check in validation
 impl RegisterReq {
     pub fn validate(&self) -> Result<(), AppError> {
-        if self.auth_method != Some(AuthMethod::Kanidm) && self.password.is_none() {
+        if self.auth_method != Some(AuthMethod::Self-auth) && self.password.is_none() {
             return Err(AppError::ValidationError("Password required".into()));
         }
         Ok(())
@@ -577,7 +577,7 @@ if auth_method == SessionAuthMethod::Jwt && access_token_hash.is_none() {
 -- ✅ SAFE: Database-level constraint
 ALTER TABLE sessions 
   ADD CONSTRAINT sessions_auth_method_check 
-  CHECK (auth_method IN ('jwt', 'kanidm', 'dual'));
+  CHECK (auth_method IN ('jwt', 'self-auth', 'dual'));
 ```
 
 **Attack Vector**: Invalid auth_method value  
@@ -605,11 +605,11 @@ CREATE INDEX idx_users_pending_migration
 **Severity**: Low (only affects test environment setup)  
 **Resolution**: Create role manually or ignore (not critical for production)
 
-### 2. No Cascade Delete for Kanidm Sessions
-**Scenario**: User deleted in Kanidm but session remains in Anthill  
+### 2. No Cascade Delete for Self-auth Sessions
+**Scenario**: User deleted in Self-auth but session remains in Anthill  
 **Impact**: Stale sessions not automatically cleaned  
 **Mitigation**: 
-- Use `sync-kanidm-users.sh` periodic sync
+- Use `sync-self-auth-users.sh` periodic sync
 - Rely on `cleanup_expired_sessions()` function
 - Implement webhook listener (future Phase)
 
@@ -640,9 +640,9 @@ async fn test_dual_auth_registration() {
 ### 2. Migration Script Testing
 ```bash
 # Test single user migration
-./scripts/migrate-user-to-kanidm.sh \
+./scripts/migrate-user-to-self-auth.sh \
   --email password-user@test.com \
-  --kanidm-id "new-uuid" \
+  --self-auth-id "new-uuid" \
   --mode dual
 
 # Verify migration_invited_at set
@@ -661,7 +661,7 @@ psql -c "SELECT migration_invited_at FROM users WHERE email='password-user@test.
 ### 4. Security Audit
 - [ ] Verify password validation cannot be bypassed
 - [ ] Test auth_method constraint enforcement
-- [ ] Validate Kanidm session revocation propagates
+- [ ] Validate Self-auth session revocation propagates
 - [ ] Check for SQL injection vectors in new queries
 
 ---
@@ -690,7 +690,7 @@ psql -c "SELECT migration_invited_at FROM users WHERE email='password-user@test.
 Phase 4 successfully established the **database foundation for dual authentication**. All critical migrations applied, schema changes verified, and analytics infrastructure tested with comprehensive test data. The system now supports:
 
 1. ✅ **Password-only users** (legacy authentication)
-2. ✅ **Kanidm-only users** (fully migrated)
+2. ✅ **Self-auth-only users** (fully migrated)
 3. ✅ **Dual-auth users** (transition period)
 4. ✅ **Migration tracking** (progress monitoring per tenant)
 5. ✅ **Session analytics** (auth method distribution)

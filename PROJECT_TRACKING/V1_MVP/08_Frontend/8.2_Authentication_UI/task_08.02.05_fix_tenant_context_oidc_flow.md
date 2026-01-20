@@ -11,11 +11,11 @@
 **Last Updated:** 2026-01-01 12:45
 
 ## Detailed Description:
-Fix the authentication flow to properly handle tenant context and implement Kanidm OIDC integration. Currently, the login fails with "400 Bad Request: Tenant context required" because:
+Fix the authentication flow to properly handle tenant context and implement Self-auth OIDC integration. Currently, the login fails with "400 Bad Request: Tenant context required" because:
 
 1. Frontend login form only collects Email/Password, but backend requires tenant context
 2. Backend CORS only allows `localhost:5173`, not tenant subdomains (`*.localhost:5173`)
-3. Frontend lacks Kanidm OIDC "Sign in with Kanidm" button integration
+3. Frontend lacks Self-auth OIDC "Sign in with Self-auth" button integration
 
 ## Issues Identified:
 
@@ -29,10 +29,10 @@ Fix the authentication flow to properly handle tenant context and implement Kani
 - **Problem:** Only `localhost:5173` is allowed, not `*.localhost:5173`
 - **Impact:** Cannot use subdomain-based tenant identification
 
-### Issue 3: Missing Kanidm OIDC Integration
+### Issue 3: Missing Self-auth OIDC Integration
 - **Location:** `frontend/src/routes/(auth)/login/+page.svelte`
-- **Problem:** No "Sign in with Kanidm" button despite Kanidm being configured
-- **Kanidm Status:** Running at https://localhost:8300 with test user (alice / Test123!@#)
+- **Problem:** No "Sign in with Self-auth" button despite Self-auth being configured
+- **Self-auth Status:** Running at https://localhost:8300 with test user (alice / Test123!@#)
 
 ## Technical Approach:
 
@@ -49,12 +49,12 @@ Fix the authentication flow to properly handle tenant context and implement Kani
 - Pros: Cleaner UX, standard SaaS pattern
 - Cons: Requires CORS and DNS/hosts config
 
-### Option C: Implement Full Kanidm OIDC Flow
-- Add "Sign in with Kanidm" button
+### Option C: Implement Full Self-auth OIDC Flow
+- Add "Sign in with Self-auth" button
 - Implement OAuth2 authorization code flow with PKCE
-- Map Kanidm groups to tenants
+- Map Self-auth groups to tenants
 - Pros: Single sign-on, enterprise-ready
-- Cons: More complex, requires Kanidm client setup
+- Cons: More complex, requires Self-auth client setup
 
 ## Specific Sub-tasks:
 
@@ -80,12 +80,12 @@ Fix the authentication flow to properly handle tenant context and implement Kani
   - Added "Organization" input to login page
   - Auto-detects from subdomain, falls back to manual input
 
-### Phase 3: Kanidm OIDC Integration (Optional)
-- [ ] 3.1. Add "Sign in with Kanidm" button to login page
+### Phase 3: Self-auth OIDC Integration (Optional)
+- [ ] 3.1. Add "Sign in with Self-auth" button to login page
 - [ ] 3.2. Implement OAuth2 authorize redirect
 - [ ] 3.3. Handle OAuth2 callback and token exchange
-- [ ] 3.4. Map Kanidm user to local user + tenant
-- [ ] 3.5. Test full OIDC flow with Kanidm
+- [ ] 3.4. Map Self-auth user to local user + tenant
+- [ ] 3.5. Test full OIDC flow with Self-auth
 
 ### Phase 4: Testing & Validation
 - [ ] 4.1. Test login with tenant subdomain
@@ -116,7 +116,7 @@ Fix the authentication flow to properly handle tenant context and implement Kani
 - `frontend/src/lib/api/auth.ts` - Auth API client
 - `frontend/src/hooks.server.ts` - Server hooks
 - `services/user_service/api/src/main.rs` - Backend CORS config
-- `infra/docker_compose/docker-compose.yml` - Kanidm service config
+- `infra/docker_compose/docker-compose.yml` - Self-auth service config
 
 ## Files to Modify:
 
@@ -132,7 +132,7 @@ frontend/src/hooks.server.ts           # Tenant detection from subdomain
 frontend/src/routes/(auth)/login/+page.svelte  # Add tenant input / OIDC button
 frontend/src/lib/api/client.ts         # Add X-Tenant-Id header
 frontend/src/lib/stores/auth.svelte.ts # Update login to include tenant
-frontend/.env                          # Kanidm OIDC config
+frontend/.env                          # Self-auth OIDC config
 ```
 
 ## Environment Setup for Testing:
@@ -144,7 +144,7 @@ Add to `/etc/hosts`:
 127.0.0.1 demo.localhost
 ```
 
-### Kanidm Test Credentials
+### Self-auth Test Credentials
 - URL: https://localhost:8300
 - User: alice
 - Password: Test123!@#
@@ -212,7 +212,7 @@ Add to `/etc/hosts`:
 * 2026-01-01 12:45: Task ready for review by Claude
     - Phase 1 (Backend CORS): ✅ Documented, backend already supports CORS_ORIGINS
     - Phase 2 (Frontend Tenant Context): ✅ Fully implemented
-    - Phase 3 (Kanidm OIDC): ⏸️ Optional, deferred to separate task
+    - Phase 3 (Self-auth OIDC): ⏸️ Optional, deferred to separate task
     - Phase 4 (Testing): ⚠️ Requires manual integration testing
     - Committed and pushed to branch: fix/08.02.05-tenant-context-oidc-flow
     - PR URL: https://github.com/tymon3568/anthill/pull/new/fix/08.02.05-tenant-context-oidc-flow

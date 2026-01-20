@@ -8,10 +8,8 @@ export interface User {
 	tenantId: string;
 	createdAt: string;
 	updatedAt: string;
-	// Kanidm-specific fields
-	kanidm_user_id?: string;
+	// Optional fields
 	preferred_username?: string;
-	groups?: string[];
 }
 
 export interface Tenant {

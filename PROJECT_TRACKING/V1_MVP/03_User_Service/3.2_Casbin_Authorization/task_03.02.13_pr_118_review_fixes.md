@@ -57,11 +57,11 @@ Out of scope:
     - Inserted `AuthzState` into request extensions (alongside `SharedEnforcer`) in `shared/auth/src/layer.rs`.
 
 ### Warning
-- [x] Confirm tenant/tenant_id handling aligns with guidelines: tenant_id intended to be derived from Kanidm groups → mapped via `kanidm_tenant_groups` → injected into request context
+- [x] Confirm tenant/tenant_id handling aligns with guidelines: tenant_id intended to be derived from Self-auth groups → mapped via `self-auth_tenant_groups` → injected into request context
   - Severity: **Warning**
   - Reviewer: **CodeRabbit**
   - Notes:
-    - Kanidm integration was cancelled (see 3.1_Kanidm_Integration tasks)
+    - Self-auth integration was cancelled (see 3.1_Self-auth_Integration tasks)
     - tenant_id is now extracted directly from JWT claims in self-managed auth flow
     - This is intentional design decision per project architecture
   - Status: **Resolved** - tenant_id from JWT is the correct behavior for self-managed auth
@@ -122,7 +122,7 @@ Out of scope:
 
 * 2026-01-16: Task reviewed and completed by Antigravity
   - All critical issues verified as fixed (AuthzState in request extensions)
-  - Warning issue resolved: Kanidm was cancelled, tenant_id from JWT is correct behavior
+  - Warning issue resolved: Self-auth was cancelled, tenant_id from JWT is correct behavior
   - Style issues marked as resolved (PR merged, not applicable post-merge)
   - All acceptance criteria verified met
   - Status updated to Done

@@ -15,14 +15,15 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis_cache
+  keydb:
+    image: eqalpha/keydb:latest
+    container_name: keydb_cache
     network_mode: host
+    command: keydb-server --server-threads 2 --appendonly yes
     volumes:
-      - redis_data:/data
+      - keydb_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "keydb-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,40 +39,38 @@ services:
       timeout: 5s
       retries: 5
 
-  minio:
-    image: minio/minio:latest
-    container_name: minio_storage
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs_storage
     network_mode: host
-    # ⚠️ Development-only credentials - DO NOT use in production
-    # For production: use .env file or secure secret injection
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_REGION_NAME: us-east-1
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_CONSOLE_ENABLE: "true"
     volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
+      - rustfs_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  minio-init:
+  rustfs-init:
     image: minio/mc:latest
-    container_name: minio_init
+    container_name: rustfs_init
     network_mode: host
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
     volumes:
-      - ./infra/init-minio.sh:/init-minio.sh:ro
-    command: sh /init-minio.sh
-    # ⚠️ Development-only credentials - must match minio service credentials
+      - ../init-rustfs.sh:/init-rustfs.sh:ro
+    entrypoint: ["sh", "/init-rustfs.sh"]
     environment:
-      - MC_HOST_local=http://minioadmin:minioadmin@localhost:9000
+      - RUSTFS_ENDPOINT=http://localhost:9000
+      - RUSTFS_ACCESS_KEY=rustfsadmin
+      - RUSTFS_SECRET_KEY=rustfsadmin
 
 volumes:
   postgres_data:
-  redis_data:
-  minio_data:
+  keydb_data:
+  rustfs_data:

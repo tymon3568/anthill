@@ -124,22 +124,22 @@ echo $JWT_SECRET
 # Validate claims (sub, tenant_id, exp)
 ```
 
-#### 2. Kanidm Integration Issues
+#### 2. Self-auth Integration Issues
 
-**Error**: `Kanidm authentication failed`
+**Error**: `Self-auth authentication failed`
 ```
-KanidmError: invalid_client
+Self-authError: invalid_client
 ```
 
 **Solution**:
 ```bash
-# Check Kanidm configuration
-echo $KANIDM_URL
-echo $KANIDM_CLIENT_ID
-echo $KANIDM_CLIENT_SECRET
+# Check Self-auth configuration
+echo $SELF_AUTH_URL
+echo $SELF_AUTH_CLIENT_ID
+echo $SELF_AUTH_CLIENT_SECRET
 
-# Verify Kanidm server is running
-curl https://your-kanidm-domain.com/.well-known/openid-configuration
+# Verify Self-auth server is running
+curl https://your-self-auth-domain.com/.well-known/openid-configuration
 
 # Check OAuth2 client registration
 ```
@@ -379,7 +379,7 @@ DATABASE_URL environment variable not found
 # Add all required variables
 ```
 
-### Nginx Gateway Issues
+### APISIX Gateway Issues
 
 #### 1. 502 Bad Gateway
 
@@ -393,11 +393,11 @@ DATABASE_URL environment variable not found
 # Check upstream service health
 curl http://localhost:8000/health
 
-# Check nginx configuration
-docker-compose exec nginx nginx -t
+# Check APISIX configuration
+docker-compose exec apisix apisix test
 
-# Check nginx logs
-docker-compose logs nginx
+# Check APISIX logs
+docker-compose logs apisix
 ```
 
 #### 2. SSL Certificate Issues
