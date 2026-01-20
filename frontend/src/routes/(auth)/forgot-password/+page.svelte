@@ -13,6 +13,7 @@
 	import Mail from '@lucide/svelte/icons/mail';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import CheckCircle from '@lucide/svelte/icons/check-circle';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 
 	let email = $state('');
 	let isLoading = $state(false);
@@ -27,24 +28,28 @@
 		try {
 			const response = await authApi.forgotPassword(email);
 
-			if (response.success) {
-				isSubmitted = true;
+			if (response.success && response.data) {
+				// Check backend response success field
+				if (response.data.success) {
+					isSubmitted = true;
+				} else {
+					// Email not found or other issue - show the message from backend
+					error = response.data.message;
+				}
 			} else {
-				// Check for rate limiting
+				// API error (rate limit, network, etc.)
 				if (
 					response.error?.toLowerCase().includes('rate') ||
-					response.error?.toLowerCase().includes('limit')
+					response.error?.toLowerCase().includes('many requests')
 				) {
 					error = 'Too many requests. Please try again later.';
 				} else {
-					// Always show success for security (timing-safe)
-					isSubmitted = true;
+					error = response.error || 'An error occurred. Please try again.';
 				}
 			}
 		} catch (err) {
 			console.error('Forgot password request failed:', err);
-			// Always show success for security (timing-safe) except for rate limiting
-			isSubmitted = true;
+			error = 'An unexpected error occurred. Please try again.';
 		} finally {
 			isLoading = false;
 		}
@@ -72,8 +77,8 @@
 					</div>
 					<CardTitle class="text-green-700">Check Your Email</CardTitle>
 					<CardDescription>
-						If an account exists with <strong class="text-gray-900">{email}</strong>, you'll receive
-						a password reset link shortly.
+						We've sent a password reset link to <strong class="text-gray-900">{email}</strong>.
+						Please check your inbox.
 					</CardDescription>
 				{:else}
 					<div

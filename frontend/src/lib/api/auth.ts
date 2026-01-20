@@ -219,6 +219,13 @@ export interface SessionInfo {
 // Register user data type - alias to EmailRegisterRequest for consistency
 export type RegisterUserData = EmailRegisterRequest;
 
+// Password Reset Response type
+export interface ForgotPasswordResponse {
+	success: boolean;
+	message: string;
+	email_masked: string;
+}
+
 export interface UserProfile {
 	id: string;
 	email: string;
@@ -446,8 +453,8 @@ export const authApi = {
 	},
 
 	// Password Reset Methods
-	async forgotPassword(email: string): Promise<ApiResponse<void>> {
-		return apiClient.post<void>('/auth/forgot-password', { email });
+	async forgotPassword(email: string): Promise<ApiResponse<ForgotPasswordResponse>> {
+		return apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', { email });
 	},
 
 	async validateResetToken(token: string): Promise<ApiResponse<void>> {

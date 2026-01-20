@@ -171,11 +171,19 @@ where
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> Result<ForgotPasswordResp, AppError> {
-        // Always return success response (timing-safe)
         let masked_email = mask_email(email);
+
+        // Response for when email is not found
+        let not_found_response = ForgotPasswordResp {
+            success: false,
+            message: "No account found with this email address. Please check your email or register a new account.".to_string(),
+            email_masked: masked_email.clone(),
+        };
+
+        // Success response when email is sent
         let success_response = ForgotPasswordResp {
-            message: "If an account exists with this email, a password reset link has been sent."
-                .to_string(),
+            success: true,
+            message: "Password reset link has been sent to your email.".to_string(),
             email_masked: masked_email.clone(),
         };
 
@@ -200,8 +208,10 @@ where
                 "Password reset rate limit exceeded"
             );
 
-            // Still return success to prevent enumeration
-            return Ok(success_response);
+            // Return rate limit error
+            return Err(AppError::TooManyRequests(
+                "Too many password reset requests. Please try again later.".to_string(),
+            ));
         }
 
         // Try to find user by email
@@ -212,9 +222,9 @@ where
                 match self.user_repo.find_by_email(tid, email).await? {
                     Some(u) => u,
                     None => {
-                        // User doesn't exist in this tenant - still return success (timing-safe)
+                        // User doesn't exist in this tenant
                         tracing::debug!(email = %email, tenant_id = %tid, "Password reset for non-existent user in tenant");
-                        return Ok(success_response);
+                        return Ok(not_found_response);
                     },
                 }
             },
@@ -226,9 +236,9 @@ where
                         u
                     },
                     None => {
-                        // User doesn't exist - still return success (timing-safe)
+                        // User doesn't exist
                         tracing::debug!(email = %email, "Password reset for non-existent user (global lookup)");
-                        return Ok(success_response);
+                        return Ok(not_found_response);
                     },
                 }
             },
@@ -243,7 +253,11 @@ where
                 user_id = %user.user_id,
                 "Password reset for Legacy OAuth-only user"
             );
-            return Ok(success_response);
+            return Ok(ForgotPasswordResp {
+                success: false,
+                message: "This account uses social login. Please sign in with your social account instead.".to_string(),
+                email_masked: masked_email,
+            });
         }
 
         // Invalidate any existing pending tokens for this user

@@ -48,11 +48,12 @@ pub struct ValidateResetTokenReq {
 }
 
 /// Response for forgot-password request
-///
-/// Always returns success to prevent email enumeration.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ForgotPasswordResp {
-    /// Message (always indicates success)
+    /// Whether the operation was successful (email exists and reset link sent)
+    pub success: bool,
+
+    /// Message describing the result
     pub message: String,
 
     /// Email address (masked for security)
