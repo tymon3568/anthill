@@ -92,7 +92,8 @@ where
 
     // Send invitation email
     if let Some(ref email_sender) = state.email_sender {
-        let role = payload.role.clone().unwrap_or_else(|| "user".to_string());
+        // Use role from the created invitation to ensure consistency
+        let role = invitation.invited_role.clone();
         let html_body = templates::invitation_email_html(
             &invite_link,
             &inviter_name,
@@ -238,7 +239,9 @@ where
             role: invitation.invited_role.clone(),
             roles: vec![invitation.invited_role], // Include the invited role
             status: "active".to_string(),
-            created_at: invitation.accepted_at.unwrap(),
+            created_at: invitation.accepted_at.ok_or_else(|| {
+                AppError::InternalError("Accepted invitation missing accepted_at timestamp".into())
+            })?,
         },
     };
 
@@ -445,10 +448,10 @@ where
     // Build invite link
     let invite_link = format!("{}/invite/{}", state.config.invitation_base_url, plaintext_token);
 
-    // Get inviter name for email
+    // Get original inviter name for email (use invited_by_user_id, not current admin)
     let inviter_name = if let Some(ref user_repo) = state.user_repo {
         user_repo
-            .find_by_id(admin_user.tenant_id, admin_user.user_id)
+            .find_by_id(admin_user.tenant_id, invitation.invited_by_user_id)
             .await
             .ok()
             .flatten()

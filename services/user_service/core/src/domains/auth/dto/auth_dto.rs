@@ -122,6 +122,7 @@ pub struct UserInfo {
     /// User role (owner/admin/user). Assigned automatically during registration:
     /// - 'owner' if user created a new tenant
     /// - 'user' if user joined an existing tenant
+    ///
     /// Note: This is the primary role from the users table. See `roles` for all assigned roles from Casbin.
     #[schema(example = "owner")]
     pub role: String,
@@ -129,7 +130,7 @@ pub struct UserInfo {
     /// All roles assigned to this user from Casbin RBAC system.
     /// This includes all roles the user has been assigned via the admin role management API.
     #[serde(default)]
-    #[schema(example = json!(["user", "admin"]))]
+    #[schema(example = json!(["user", "admin"]), value_type = Vec<String>)]
     pub roles: Vec<String>,
 
     /// User status (active/suspended)

@@ -261,9 +261,10 @@ impl UserRepository for PgUserRepository {
 
     async fn find_by_email_global(&self, email: &str) -> Result<Option<User>, AppError> {
         // Find user by email across all tenants (for password reset when tenant is unknown)
-        // Returns the first active, non-deleted user found with this email
+        // Returns the most recently created active, non-deleted user found with this email
+        // Note: ORDER BY ensures deterministic results when duplicates exist
         let user = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE email = $1 AND status = 'active' AND deleted_at IS NULL LIMIT 1"
+            "SELECT * FROM users WHERE email = $1 AND status = 'active' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1"
         )
         .bind(email)
         .fetch_optional(&self.pool)

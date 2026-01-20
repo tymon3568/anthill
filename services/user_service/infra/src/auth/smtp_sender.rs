@@ -404,6 +404,16 @@ This is an automated message, please do not reply."#,
         )
     }
 
+    /// Escape HTML special characters to prevent XSS/injection
+    fn escape_html(input: &str) -> String {
+        input
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#39;")
+    }
+
     /// Generate HTML email template for invitation
     pub fn invitation_email_html(
         invite_url: &str,
@@ -412,8 +422,16 @@ This is an automated message, please do not reply."#,
         expiry_hours: i64,
         custom_message: Option<&str>,
     ) -> String {
+        // Escape all user-provided content to prevent HTML injection
+        let inviter_name_escaped = escape_html(inviter_name);
+        let role_escaped = escape_html(role);
+        let invite_url_escaped = escape_html(invite_url);
+
         let custom_message_html = custom_message
-            .map(|msg| format!(r#"<p style="margin: 0 0 20px; color: #6b7280; font-size: 14px; font-style: italic;">Message from {}: "{}"</p>"#, inviter_name, msg))
+            .map(|msg| {
+                let msg_escaped = escape_html(msg);
+                format!(r#"<p style="margin: 0 0 20px; color: #6b7280; font-size: 14px; font-style: italic;">Message from {}: "{}"</p>"#, inviter_name_escaped, msg_escaped)
+            })
             .unwrap_or_default();
 
         format!(
@@ -470,9 +488,9 @@ This is an automated message, please do not reply."#,
     </table>
 </body>
 </html>"#,
-            invite_url = invite_url,
-            inviter_name = inviter_name,
-            role = role,
+            invite_url = invite_url_escaped,
+            inviter_name = inviter_name_escaped,
+            role = role_escaped,
             custom_message_html = custom_message_html,
             expiry_hours = expiry_hours
         )
