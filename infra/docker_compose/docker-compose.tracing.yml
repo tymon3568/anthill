@@ -7,7 +7,7 @@
 #   - OTel Collector (HTTP): http://localhost:4318
 #   - ClickHouse: http://localhost:8123
 
-version: '3.8'
+version: "3.8"
 
 services:
   # ClickHouse - High-performance columnar database for trace storage
@@ -15,8 +15,8 @@ services:
     image: clickhouse/clickhouse-server:24.1
     container_name: anthill-clickhouse
     ports:
-      - "8123:8123"  # HTTP interface
-      - "9000:9000"  # Native interface
+      - "8123:8123" # HTTP interface
+      - "9000:9000" # Native interface
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_logs:/var/log/clickhouse-server
@@ -42,10 +42,10 @@ services:
     container_name: anthill-otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     ports:
-      - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"   # OTLP HTTP receiver
-      - "8888:8888"   # Prometheus metrics (internal)
-      - "8889:8889"   # Prometheus exporter
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "8888:8888" # Prometheus metrics (internal)
+      - "8889:8889" # Prometheus exporter
       - "13133:13133" # Health check
     volumes:
       - ../monitoring/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
@@ -69,7 +69,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ClickHouseUrl=tcp://clickhouse:9000?database=signoz_traces
+      - ClickHouseUrl=tcp://default:${CLICKHOUSE_PASSWORD:-clickhouse_password}@clickhouse:9000?database=signoz_traces
       - STORAGE=clickhouse
       - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
     depends_on:
@@ -92,7 +92,7 @@ services:
     ports:
       - "3301:3301"
     environment:
-      - FRONTEND_API_ENDPOINT=http://signoz-query-service:8080
+      - QUERY_SERVICE_URL=http://signoz-query-service:8080
     depends_on:
       signoz-query-service:
         condition: service_healthy
@@ -107,6 +107,7 @@ services:
       - "9093:9093"
     volumes:
       - alertmanager_data:/data
+      - ../monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/data

@@ -60,7 +60,7 @@ processors:
   # Tail-based sampling for production (reduce storage while keeping important traces)
   tail_sampling:
     decision_wait: 10s
-    num_traces: 100
+    num_traces: 1000
     expected_new_traces_per_sec: 100
     policies:
       # Always sample errors
@@ -91,7 +91,7 @@ exporters:
     endpoint: tcp://clickhouse:9000
     database: signoz_traces
     username: default
-    password: "${CLICKHOUSE_PASSWORD:-clickhouse_password}"
+    password: "${CLICKHOUSE_PASSWORD}"
     traces_table_name: signoz_index_v2
     timeout: 10s
     retry_on_failure:
@@ -105,7 +105,7 @@ exporters:
     endpoint: tcp://clickhouse:9000
     database: signoz_metrics
     username: default
-    password: "${CLICKHOUSE_PASSWORD:-clickhouse_password}"
+    password: "${CLICKHOUSE_PASSWORD}"
     timeout: 10s
 
   # Prometheus exporter for Grafana integration
@@ -149,10 +149,10 @@ service:
   extensions: [health_check, pprof, zpages]
 
   pipelines:
-    # Traces pipeline
+    # Traces pipeline (tail_sampling before batch to avoid splitting spans)
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch, resource, attributes, tail_sampling]
+      processors: [memory_limiter, resource, attributes, tail_sampling, batch]
       exporters: [clickhousetraces]
 
     # Metrics pipeline

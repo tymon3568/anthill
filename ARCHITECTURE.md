@@ -483,6 +483,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-opentelemetry = "0.22"
 opentelemetry = { version = "0.21", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.14", features = ["tonic"] }
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
 
 // Example: Initialize OpenTelemetry tracing
 use opentelemetry::global;
@@ -490,20 +491,22 @@ use opentelemetry_otlp::WithExportConfig;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 pub fn init_telemetry(service_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let otlp_endpoint = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT")
+        .unwrap_or_else(|_| "http://otel-collector:4317".to_string());
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(
             opentelemetry_otlp::new_exporter()
                 .tonic()
-                .with_endpoint("http://otel-collector:4317"),
+                .with_endpoint(otlp_endpoint),
         )
         .with_trace_config(
-            opentelemetry::sdk::trace::config()
-                .with_resource(opentelemetry::sdk::Resource::new(vec![
+            opentelemetry_sdk::trace::Config::default()
+                .with_resource(opentelemetry_sdk::Resource::new(vec![
                     opentelemetry::KeyValue::new("service.name", service_name.to_string()),
                 ])),
         )
-        .install_batch(opentelemetry::runtime::Tokio)?;
+        .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 
     let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
@@ -545,16 +548,24 @@ pub async fn publish_order_event(nats_client: &Client, payload: &OrderEvent) -> 
 // Propagate trace context qua NATS headers
 use opentelemetry::global;
 use opentelemetry::propagation::TextMapPropagator;
+use opentelemetry::Context;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
+use std::collections::HashMap;
+
+struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
+struct HeaderExtractor<'a>(&'a HashMap<String, String>);
 
 pub fn inject_trace_context(headers: &mut HashMap<String, String>) {
-    let propagator = global::get_text_map_propagator();
-    let cx = tracing::Span::current().context();
-    propagator.inject_context(&cx, &mut HeaderInjector(headers));
+    global::get_text_map_propagator(|propagator| {
+        let cx = tracing::Span::current().context();
+        propagator.inject_context(&cx, &mut HeaderInjector(headers));
+    });
 }
 
 pub fn extract_trace_context(headers: &HashMap<String, String>) -> Context {
-    let propagator = global::get_text_map_propagator();
-    propagator.extract(&HeaderExtractor(headers))
+    global::get_text_map_propagator(|propagator| {
+        propagator.extract(&HeaderExtractor(headers))
+    })
 }
 ```
 

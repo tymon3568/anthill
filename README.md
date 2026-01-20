@@ -320,7 +320,7 @@ See details in `migrations/`. Main tables:
   - Email verification and password reset flows
   - Secure httpOnly cookie-based session management
   - JWT token issuance and validation
-  - Password hashing with Argon2
+  - Password hashing with bcrypt
 - **Authorization**: Casbin-rs with multi-tenant RBAC
   - Policy-based access control
   - Role-based permissions per tenant

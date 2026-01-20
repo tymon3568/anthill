@@ -437,7 +437,7 @@ services:
       - clickhouse_data:/var/lib/clickhouse
     environment:
       - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=clickhouse_password
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-clickhouse_password}
     ulimits:
       nofile:
         soft: 262144
@@ -473,7 +473,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ClickHouseUrl=tcp://clickhouse:9000
+      - ClickHouseUrl=tcp://clickhouse:9000?database=signoz_traces
       - STORAGE=clickhouse
     depends_on:
       - clickhouse
@@ -556,7 +556,7 @@ exporters:
     endpoint: tcp://clickhouse:9000
     database: signoz_traces
     username: default
-    password: clickhouse_password
+    password: ${CLICKHOUSE_PASSWORD}
     traces_table_name: signoz_index_v2
     timeout: 10s
     retry_on_failure:
@@ -696,17 +696,16 @@ use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 /// Inject trace context into NATS message headers
 pub fn inject_context(headers: &mut HashMap<String, String>) {
-    let propagator = opentelemetry::global::get_text_map_propagator(|propagator| {
+    opentelemetry::global::get_text_map_propagator(|propagator| {
         propagator.inject_context(&Span::current().context(), &mut HeaderInjector(headers));
     });
 }
 
 /// Extract trace context from NATS message headers
 pub fn extract_context(headers: &HashMap<String, String>) -> Context {
-    let propagator = global::get_text_map_propagator(|propagator| {
+    global::get_text_map_propagator(|propagator| {
         propagator.extract(&HeaderExtractor(headers))
-    });
-    propagator
+    })
 }
 
 struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
