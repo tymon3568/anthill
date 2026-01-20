@@ -85,7 +85,7 @@ Initialize SvelteKit project with TypeScript strict mode and configure essential
     - Updated TypeScript config with strict mode and path mapping
     - Verified ESLint and Prettier configurations with Svelte/Tailwind support
     - Configured VS Code settings and extensions for optimal SvelteKit development
-    - Set up environment variables for API endpoints and Kanidm integration
+    - Set up environment variables for API endpoints and Self-auth integration
     - Created Svelte 5 runes stores for auth and inventory state management
     - Configured testing framework (Vitest + Playwright) with proper environments
     - Set up CapRover deployment configuration with Dockerfile and caprover.json

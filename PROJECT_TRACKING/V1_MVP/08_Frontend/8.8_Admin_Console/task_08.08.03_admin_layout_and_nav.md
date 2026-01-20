@@ -37,7 +37,7 @@ Create the layout wrapper for the Admin Console area (`/admin`). This should lik
 ## Notes / Discussion:
 ---
 * Ideally, the Admin Console is just a section of the main app, but visually distinct (e.g., "Admin" badge or section header).
-* Implementation uses Kanidm groups for role checking (groups containing 'admin' or 'owner').
+* Implementation uses Self-auth groups for role checking (groups containing 'admin' or 'owner').
 * Added 'owner' role to User type union for consistency.
 
 ## AI Agent Log:
@@ -48,7 +48,7 @@ Create the layout wrapper for the Admin Console area (`/admin`). This should lik
     - Will create admin layout with role-based access control
     - Starting implementation of sub-task 1: Admin Layout
 *   2026-01-17 14:35: Implementation completed by Opus
-    - Created `/frontend/src/routes/(protected)/admin/+layout.server.ts` - Server-side admin role guard using Kanidm groups
+    - Created `/frontend/src/routes/(protected)/admin/+layout.server.ts` - Server-side admin role guard using Self-auth groups
     - Created `/frontend/src/routes/(protected)/admin/+layout.svelte` - Admin layout with tab navigation
     - Created `/frontend/src/routes/(protected)/admin/+page.server.ts` - Redirect to /admin/users
     - Created `/frontend/src/routes/(protected)/admin/users/+page.svelte` - Placeholder for user management

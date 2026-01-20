@@ -26,8 +26,7 @@
 				role: (data.user.role as 'owner' | 'admin' | 'manager' | 'user') ?? 'user',
 				tenantId: data.user.tenantId ?? '',
 				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-				groups: data.user.groups
+				updatedAt: new Date().toISOString()
 			};
 			authStore.setUser(user);
 		}

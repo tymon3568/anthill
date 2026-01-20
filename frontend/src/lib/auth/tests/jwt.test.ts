@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	decodeJwtPayload,
 	validateAndParseToken,
-	extractTenantFromGroups,
 	isTokenExpired,
 	getTokenExpiry,
 	shouldRefreshToken
@@ -107,30 +106,6 @@ describe('JWT Utilities', () => {
 
 			const result = await validateAndParseToken(invalidJwt, false);
 			expect(result).toBeNull();
-		});
-	});
-
-	describe('extractTenantFromGroups', () => {
-		it('should extract tenant from groups', () => {
-			const groups = ['tenant_acme_users', 'tenant_xyz_admins', 'other_group'];
-			const result = extractTenantFromGroups(groups);
-			expect(result).toBe('acme');
-		});
-
-		it('should return undefined when no tenant group found', () => {
-			const groups = ['admin_users', 'regular_users'];
-			const result = extractTenantFromGroups(groups);
-			expect(result).toBeUndefined();
-		});
-
-		it('should handle empty groups array', () => {
-			const result = extractTenantFromGroups([]);
-			expect(result).toBeUndefined();
-		});
-
-		it('should handle undefined groups', () => {
-			const result = extractTenantFromGroups(undefined as any);
-			expect(result).toBeUndefined();
 		});
 	});
 

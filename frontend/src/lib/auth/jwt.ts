@@ -1,12 +1,11 @@
 // Simplified JWT handling for client-side use only
 // Removed complex signature verification - not needed for client-side
 
-export interface KanidmJWT {
-	sub: string; // Kanidm user UUID
+export interface JWTPayload {
+	sub: string; // User UUID
 	email: string; // User email
 	preferred_username?: string;
 	name?: string;
-	groups: string[]; // Kanidm groups (tenant mappings)
 	exp: number; // Expiry timestamp
 	iat: number; // Issued at timestamp
 	iss?: string; // Issuer
@@ -29,7 +28,6 @@ export interface UserInfo {
 	userId: string;
 	email: string;
 	name?: string;
-	groups: string[];
 	tenantId?: string;
 	role?: string;
 }
@@ -37,13 +35,22 @@ export interface UserInfo {
 /**
  * Decode JWT payload without verification (for client-side use)
  */
-export function decodeJwtPayload(token: string): KanidmJWT | null {
+export function decodeJwtPayload(token: string): JWTPayload | null {
 	try {
 		const payload = token.split('.')[1];
+		if (!payload) {
+			throw new Error('Invalid JWT format');
+		}
 		// Handle URL-safe base64 (base64url)
-		const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-		const decoded = JSON.parse(atob(base64));
-		return decoded as KanidmJWT;
+		let base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+		// Add padding if needed (base64 strings must have length divisible by 4)
+		const paddingNeeded = (4 - (base64.length % 4)) % 4;
+		base64 += '='.repeat(paddingNeeded);
+		// Support both browser (atob) and Node.js (Buffer) environments
+		const json =
+			typeof atob === 'function' ? atob(base64) : Buffer.from(base64, 'base64').toString('binary');
+		const decoded = JSON.parse(json);
+		return decoded as JWTPayload;
 	} catch (error) {
 		console.error('Failed to decode JWT:', error);
 		return null;
@@ -80,27 +87,6 @@ export function shouldRefreshToken(token: string): boolean {
 }
 
 /**
- * Extract tenant ID from Kanidm groups
- */
-export function extractTenantFromGroups(groups: string[]): string | undefined {
-	if (!groups || !Array.isArray(groups)) {
-		return undefined;
-	}
-
-	// Look for groups that match tenant pattern
-	const tenantGroup = groups.find(
-		(group) => group.startsWith('tenant_') && group.endsWith('_users')
-	);
-
-	if (tenantGroup) {
-		// Extract tenant name from group
-		return tenantGroup.replace('tenant_', '').replace('_users', '');
-	}
-
-	return undefined;
-}
-
-/**
  * Validate and parse JWT token with optional signature verification
  *
  * @param token - JWT token to validate
@@ -111,10 +97,9 @@ export function extractTenantFromGroups(groups: string[]): string | undefined {
  *
  * verifySignature=true (SECURE):
  *   - Calls server endpoint that performs full JWT signature verification
- *   - Validates signature against Kanidm JWKS (cryptographic verification)
+ *   - Validates signature against JWKS (cryptographic verification)
  *   - Checks exp, nbf, iss claims
  *   - Rejects expired or manipulated tokens
- *   - Groups and tenantId are signature-protected (cannot be tampered)
  *   - USE THIS for any security-critical operations (authorization, access control)
  *
  * verifySignature=false (INSECURE):
@@ -131,7 +116,7 @@ export async function validateAndParseToken(
 	try {
 		if (verifySignature) {
 			// SECURE PATH: Server-side cryptographic verification
-			// The backend performs full JWT signature verification against Kanidm JWKS
+			// The backend performs full JWT signature verification
 			try {
 				const response = await fetch('/api/v1/auth/verify-token', {
 					method: 'POST',
@@ -148,7 +133,6 @@ export async function validateAndParseToken(
 				}
 
 				// Trust server response - it has cryptographically verified the token
-				// Groups, tenantId, and all claims are signature-protected
 				const userInfo: UserInfo = await response.json();
 				return userInfo;
 			} catch (networkError) {
@@ -166,7 +150,7 @@ export async function validateAndParseToken(
 		// Check if token is expired (note: exp claim itself can be forged!)
 		if (isTokenExpired(token)) return null;
 
-		// Detect token type: Backend JWT has tenant_id, Kanidm JWT has groups
+		// Detect token type: Backend JWT has tenant_id
 		const isBackendToken = 'tenant_id' in payload && 'role' in payload;
 
 		if (isBackendToken) {
@@ -176,22 +160,16 @@ export async function validateAndParseToken(
 				userId: backendPayload.sub,
 				email: '', // Backend JWT doesn't include email, will be fetched from user info
 				name: undefined,
-				groups: [],
 				tenantId: backendPayload.tenant_id,
 				role: backendPayload.role
 			};
 		}
 
-		// Kanidm JWT format (legacy)
-		// Extract tenant from groups (note: groups can be forged!)
-		const tenantId = extractTenantFromGroups(payload.groups);
-
+		// Standard JWT format
 		return {
 			userId: payload.sub,
 			email: payload.email,
-			name: payload.name || payload.preferred_username,
-			groups: payload.groups,
-			tenantId
+			name: payload.name || payload.preferred_username
 		};
 	} catch (error) {
 		console.error('Token validation failed:', error);

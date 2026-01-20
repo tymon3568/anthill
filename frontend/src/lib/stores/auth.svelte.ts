@@ -159,9 +159,9 @@ export const authStore = {
 			}
 		}
 
-		// Fallback to OAuth2 initialization
+		// Fallback: Try to read from legacy user_data cookie (deprecated)
 		try {
-			// Read user data from cookie set by OAuth2 callback
+			// Read user data from cookie (legacy OAuth2 fallback - deprecated)
 			const userDataCookie = document.cookie
 				.split('; ')
 				.find((row) => row.startsWith('user_data='));
@@ -170,23 +170,17 @@ export const authStore = {
 				const userDataStr = decodeURIComponent(userDataCookie.split('=')[1]);
 				const userData = JSON.parse(userDataStr);
 
-				// Map OAuth2 user data to our User interface
-				// Generate ISO timestamp without instantiating mutable Date in reactive context
-				const nowIso = ((ts: number) => {
-					const d = new Date(ts);
-					return d.toISOString();
-				})(Date.now());
+				// Map cookie data to User interface
+				const nowIso = new Date().toISOString();
 				const user: User = {
-					id: userData.kanidm_user_id,
+					id: userData.id || userData.user_id,
 					email: userData.email,
-					name: userData.preferred_username || userData.email,
-					role: 'user', // Default role, could be determined from groups
-					tenantId: userData.tenant?.tenant_id || '',
-					createdAt: nowIso, // We don't have this from OAuth2
-					updatedAt: nowIso,
-					kanidm_user_id: userData.kanidm_user_id,
-					preferred_username: userData.preferred_username,
-					groups: userData.groups
+					name: userData.preferred_username || userData.full_name || userData.email,
+					role: userData.role || 'user',
+					tenantId: userData.tenant?.tenant_id || userData.tenant_id || '',
+					createdAt: userData.created_at || nowIso,
+					updatedAt: userData.updated_at || nowIso,
+					preferred_username: userData.preferred_username
 				};
 
 				const tenant: Tenant | null = userData.tenant

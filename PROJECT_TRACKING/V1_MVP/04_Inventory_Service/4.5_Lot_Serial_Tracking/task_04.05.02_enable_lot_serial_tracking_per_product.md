@@ -69,7 +69,7 @@ Modify the `products` table to add a `tracking_method` field. This will allow en
   - Status: All verification checks passed, task ready for final user review and approval
 *   2025-11-29 12:00: [PR Review Auto-Fix] by Grok_Code
   - Analyzed PR #80 review comments from CodeRabbit, Sourcery, Gemini, Greptile
-  - Fixed critical SQL injection vulnerabilities in migrate-users-to-kanidm.sh and setup-kanidm-tenant-groups.sh by parameterizing queries
+  - Fixed critical SQL injection vulnerabilities in migrate-users-to-self-auth.sh and setup-self-auth-tenant-groups.sh by parameterizing queries
   - Resolved type cast overflow in receipt.rs serial validation (arr.len() as i64 → arr.len() != item.received_quantity as usize)
   - Enhanced serial number validation with uniqueness checks and type safety (all must be strings)
   - Added warning logging for unknown tracking methods instead of silent bypass

@@ -477,19 +477,22 @@ scrape_configs:
                 level:
                 service:
 
-  - job_name: nginx
+  - job_name: apisix
     static_configs:
       - targets:
           - localhost
         labels:
-          job: nginx
-          __path__: /var/log/nginx/*.log
+          job: apisix
+          __path__: /var/log/apisix/*.log
     pipeline_stages:
       - match:
-          selector: '{job="nginx"}'
+          selector: '{job="apisix"}'
           stages:
-            - regex:
-                expression: '^(?P<remote_addr>\S+) - (?P<remote_user>\S+) \[(?P<time_local>.*?)\] "(?P<request>.*?)" (?P<status>\d+) (?P<body_bytes_sent>\d+) "(?P<http_referer>.*?)" "(?P<http_user_agent>.*?)" "(?P<http_x_forwarded_for>.*?)" rt=(?P<request_time>.*?) uct="(?P<upstream_connect_time>.*?)" uht="(?P<upstream_header_time>.*?)" urt="(?P<upstream_response_time>.*?)"$'
+            - json:
+                expressions:
+                  status: response.status
+                  method: request.method
+                  path: request.uri
             - labels:
                 status:
                 method:

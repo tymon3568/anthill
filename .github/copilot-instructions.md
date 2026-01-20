@@ -401,15 +401,17 @@ let encrypted = encrypt(&plaintext, &key)?;
 sqlx::query!("INSERT INTO integrations (credentials) VALUES ($1)", encrypted)
 ```
 
-## Deployment (CapRover)
+## Deployment (Docker Compose)
 
 Each service:
 1. Has `Dockerfile` in service directory
-2. Deployed as separate "App" in CapRover
-3. Communicates via `srv-<app-name>` hostname on Docker overlay network
-4. Auto-scaled via CapRover UI
+2. Deployed as container in Docker Compose stack
+3. Communicates via Docker network hostname (e.g., `user-service:8000`)
+4. Can be scaled via `docker compose up -d --scale service=N`
 
-Stateful services (PostgreSQL, Redis, NATS, MinIO) deployed as One-Click Apps.
+Stateful services (PostgreSQL, KeyDB, NATS, RustFS) defined in `docker-compose.yml`.
+
+For VPS deployment, use **Dokploy** or **Komodo** for easy management.
 
 ## Documentation Lookup with Context7
 

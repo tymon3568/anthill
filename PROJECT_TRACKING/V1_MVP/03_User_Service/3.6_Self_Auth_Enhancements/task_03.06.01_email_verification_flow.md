@@ -71,7 +71,7 @@ Implement a production-ready email verification flow for user registration. When
 - [x] API documentation updated with new endpoints
 
 ## Dependencies:
-*   Task: `task_03.01.10_remove_kanidm_integration.md` (Status: InProgress_By_Claude)
+*   Task: `task_03.01.10_remove_self-auth_integration.md` (Status: InProgress_By_Claude)
 *   SMTP server available for email sending (can use dev SMTP like Mailhog for testing)
 
 ## Related Documents:
@@ -129,7 +129,7 @@ CREATE INDEX idx_verification_token_expires ON email_verification_tokens(expires
 ## AI Agent Log:
 ---
 *   2026-01-04 00:50: Task created as part of self-auth enhancement plan
-    - Follows removal of Kanidm integration
+    - Follows removal of Self-auth integration
     - Part of production-ready auth features
 *   2026-01-16: **Antigravity** - Implementation complete
     - Created `migrations/20260115000001_create_email_verification_tokens_table.sql`

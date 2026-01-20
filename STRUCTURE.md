@@ -263,8 +263,9 @@ cargo build --features export-spec
 | **Logging** | tracing + tracing-subscriber |
 | **Async Runtime** | tokio |
 | **Frontend** | SvelteKit 2 + Svelte 5 |
-| **Cache** | Redis |
+| **Cache** | KeyDB (Redis-compatible) |
 | **Message Queue** | NATS |
+| **Object Storage** | RustFS (S3-compatible) |
 
 ## 🔐 Authentication
 

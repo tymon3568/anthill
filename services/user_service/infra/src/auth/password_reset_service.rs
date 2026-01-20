@@ -237,11 +237,11 @@ where
         // Use the user's tenant_id for subsequent operations
         let effective_tenant_id = user.tenant_id;
 
-        // Check if user has password auth (can't reset if they only have Kanidm auth)
-        if user.password_hash.is_none() && user.auth_method == "kanidm" {
+        // Check if user has password auth (can't reset if they only have Legacy OAuth auth)
+        if user.password_hash.is_none() && user.auth_method == "legacy_oauth" {
             tracing::debug!(
                 user_id = %user.user_id,
-                "Password reset for Kanidm-only user"
+                "Password reset for Legacy OAuth-only user"
             );
             return Ok(success_response);
         }

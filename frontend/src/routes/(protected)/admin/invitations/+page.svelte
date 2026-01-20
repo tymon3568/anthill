@@ -155,15 +155,15 @@
 				await loadInvitations();
 			} else {
 				// Handle specific errors
-				if (
-					response.error?.toLowerCase().includes('already') ||
-					response.error?.toLowerCase().includes('conflict')
+				const errorLower = response.error?.toLowerCase() || '';
+				if (errorLower.includes('user') && errorLower.includes('already exists')) {
+					inviteError = 'A user with this email already exists in this organization.';
+				} else if (
+					errorLower.includes('pending invitation') ||
+					errorLower.includes('invitation already')
 				) {
 					inviteError = 'An invitation has already been sent to this email.';
-				} else if (
-					response.error?.toLowerCase().includes('rate') ||
-					response.error?.toLowerCase().includes('limit')
-				) {
+				} else if (errorLower.includes('rate') || errorLower.includes('limit')) {
 					inviteError = 'Too many invitations sent. Please try again later.';
 				} else {
 					inviteError = response.error || 'Failed to send invitation';

@@ -211,9 +211,10 @@ test.describe('Authentication E2E Tests', () => {
 	});
 });
 
-// OAuth2 Flow E2E Tests
-test.describe('OAuth2 Authentication Flow', () => {
-	test('should redirect to Kanidm for OAuth2 login', async ({ page }) => {
+// Legacy OAuth2 Flow E2E Tests (Deprecated - OAuth2 removed)
+// These tests are kept for reference but should be removed in future cleanup
+test.describe.skip('OAuth2 Authentication Flow (Deprecated)', () => {
+	test('should redirect to OAuth provider for login', async ({ page }) => {
 		// Mock the OAuth2 authorize endpoint
 		await page.route('**/api/v1/auth/oauth/authorize', async (route) => {
 			await route.fulfill({
@@ -229,14 +230,14 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 		// Click OAuth2 login button (assuming it exists)
 		const oauthButton = page
-			.locator('button:has-text("Sign in with Kanidm")')
+			.locator('button:has-text("Sign in with SSO")')
 			.or(page.locator('button:has-text("OAuth2")'))
 			.or(page.locator('[data-testid="oauth-login"]'));
 
 		if (await oauthButton.isVisible()) {
 			await oauthButton.click();
 
-			// Should redirect to Kanidm
+			// Should redirect to OAuth provider
 			await page.waitForURL('**/idm.example.com/**');
 			expect(page.url()).toContain('idm.example.com');
 		} else {
@@ -437,7 +438,7 @@ test.describe('OAuth2 Authentication Flow', () => {
 
 		// Try to trigger OAuth2 flow
 		const oauthButton = page
-			.locator('button:has-text("Sign in with Kanidm")')
+			.locator('button:has-text("Sign in with SSO")')
 			.or(page.locator('button:has-text("OAuth2")'));
 
 		if (await oauthButton.isVisible()) {

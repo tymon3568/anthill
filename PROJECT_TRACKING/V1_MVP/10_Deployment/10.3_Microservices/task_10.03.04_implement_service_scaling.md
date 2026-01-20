@@ -15,7 +15,7 @@ Implement auto-scaling and load balancing for all microservices to handle varyin
 
 ## Specific Sub-tasks:
 - [ ] 1. Configure horizontal pod auto-scaling for each service
-- [ ] 2. Set up load balancing with NGINX or CapRover's built-in balancer
+- [ ] 2. Set up load balancing with Apache APISIX
 - [ ] 3. Define scaling metrics and thresholds
 - [ ] 4. Configure auto-scaling policies based on CPU and memory
 - [ ] 5. Set up custom metrics for application-specific scaling

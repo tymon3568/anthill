@@ -54,5 +54,5 @@ Run cargo check, cargo fmt, and cargo clippy on the entire workspace to identify
     - Verified cargo check --workspace passes
     - Verified cargo clippy --workspace passes
     - Verified cargo fmt --check passes
-    - All quality gates met after Kanidm removal and other fixes
+    - All quality gates met after Self-auth removal and other fixes
     - Status updated to Done

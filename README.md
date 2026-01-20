@@ -54,14 +54,15 @@ The project uses **Event-Driven Microservices** architecture with the following 
 
 - **Backend**: Rust + Axum + Tokio + SQLx
 - **Frontend**: SvelteKit 2 + Svelte 5 + TypeScript + Tailwind CSS + shadcn-svelte
-- **Authentication**: Kanidm (OAuth2/OIDC Identity Provider)
+- **Authentication**: Self-hosted JWT-based authentication
 - **Authorization**: Casbin-rs (RBAC)
 - **Database**: PostgreSQL
-- **Cache**: Redis
+- **Cache**: KeyDB (Redis-compatible, multi-threaded)
 - **Message Queue**: NATS
+- **Object Storage**: RustFS (S3-compatible)
 - **Analytics**: Cube
-- **Deployment**: CapRover (Docker Swarm)
-- **Gateway**: NGINX (managed by CapRover)
+- **Deployment**: Docker Compose (Dokploy/Komodo for VPS)
+- **Gateway**: Apache APISIX
 
 See architecture details at [ARCHITECTURE.md](./ARCHITECTURE.md)
 
@@ -94,12 +95,11 @@ anthill/
 │   ├── tailwind.config.js      # Tailwind CSS configuration
 │   └── playwright.config.ts    # E2E testing configuration
 ├── shared/                      # Shared libraries
-│   ├── auth/                   # Casbin RBAC, Kanidm integration
+│   ├── auth/                   # Casbin RBAC
 │   ├── config/                 # Environment config loader
 │   ├── db/                     # Database utilities
 │   ├── error/                  # Error types and HTTP responses
 │   ├── jwt/                    # JWT encoding/decoding
-│   ├── kanidm_client/          # Kanidm OAuth2/OIDC client
 │   └── openapi/                # OpenAPI spec generation
 ├── infra/                       # Infrastructure config
 │   ├── docker_compose/         # Local dev environment
@@ -148,8 +148,8 @@ curl -fsSL https://bun.sh/install | bash
 git clone <your-repo-url>
 cd anthill
 
-# Start PostgreSQL, Redis, NATS
-docker-compose up -d
+# Start PostgreSQL, KeyDB, NATS, RustFS
+docker-compose -f infra/docker_compose/docker-compose.yml up -d
 
 # Return to root directory
 ```
@@ -314,15 +314,15 @@ See details in `migrations/`. Main tables:
 
 ## 🔐 Authentication & Authorization
 
-- **Authentication**: Kanidm (OAuth2/OIDC Provider)
+- **Authentication**: Self-hosted JWT-based authentication
   - User registration, login, password management
-  - Multi-factor authentication (Passkeys, WebAuthn, TOTP)
-  - JWT token issuance and validation
-  - Session management
+  - Email verification and password reset flows
+  - Secure httpOnly cookie-based token storage
+  - Session management with refresh tokens
 - **Authorization**: Casbin-rs with multi-tenant RBAC
   - Policy-based access control
-  - Group-based role mapping from Kanidm
-- **Tenant Isolation**: Automatically filter queries by `tenant_id` from Kanidm groups
+  - Role-based permission management
+- **Tenant Isolation**: Automatically filter queries by `tenant_id`
 
 ## 🌐 API Documentation
 
@@ -330,15 +330,15 @@ Each service exposes OpenAPI spec at `/api/docs` endpoint.
 
 Example: `http://localhost:3000/api/docs` for user-service.
 
-## 📦 Deployment (CapRover)
+## 📦 Deployment (Docker Compose)
 
-### Local → CapRover
+### Local → Production (VPS)
 
-1. Install CapRover on your VPS: https://caprover.com/docs/get-started.html
-2. Deploy stateful services (PostgreSQL, Redis, NATS) via One-Click Apps
-3. Create `Dockerfile` for each microservice
-4. Create app in CapRover and connect with GitHub
-5. Push code → CapRover automatically builds & deploys
+1. Set up your VPS with Docker and Docker Compose installed
+2. Clone the repository and configure environment variables
+3. Use `docker-compose -f infra/docker_compose/docker-compose.yml up -d` for stateful services
+4. Build and deploy microservices with Dockerfiles
+5. Use **Dokploy** or **Komodo** for easy VPS deployment management
 
 See details in `docs/production-deployment.md`
 
@@ -398,8 +398,6 @@ MIT License - See `LICENSE` file for more details.
 
 - [Axum](https://github.com/tokio-rs/axum) - Web framework
 - [SvelteKit](https://kit.svelte.dev/) - Frontend framework
-- [Kanidm](https://kanidm.com/) - Identity management platform
-- [CapRover](https://caprover.com/) - PaaS platform
 - [Casbin](https://casbin.org/) - Authorization library
 - [Cube](https://cube.dev/) - Analytics platform
 

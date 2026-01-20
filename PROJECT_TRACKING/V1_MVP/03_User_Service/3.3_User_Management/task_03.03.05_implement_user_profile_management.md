@@ -17,7 +17,7 @@ Implement comprehensive user profile management system allowing users to view an
 - [x] 1. Create `user_profiles` database table with optional fields
 - [x] 2. Implement `GET /api/v1/users/profile` - Get current user profile
 - [x] 3. Implement `PUT /api/v1/users/profile` - Update user profile
-- [ ] 4. Implement `POST /api/v1/users/profile/avatar` - Upload profile picture with MinIO S3 integration.
+- [ ] 4. Implement `POST /api/v1/users/profile/avatar` - Upload profile picture with RustFS S3 integration.
 - [x] 5. Add profile validation and sanitization
 - [x] 6. Implement profile visibility settings (public/private/team_only)
 - [x] 7. Add notification preferences management
@@ -37,7 +37,7 @@ Implement comprehensive user profile management system allowing users to view an
 
 ## Dependencies:
 - V1_MVP/03_User_Service/3.3_User_Management/task_03.03.01_list_users_in_tenant.md
-- V1_MVP/01_Infrastructure_Setup/1.7_Storage_Service/task_01.07.01_setup_minio_s3_storage.md
+- V1_MVP/01_Infrastructure_Setup/1.7_Storage_Service/task_01.07.01_setup_rustfs_s3_storage.md
 
 ## Related Documents:
 - `migrations/20250110000010_create_user_profiles.sql` ✅ Created

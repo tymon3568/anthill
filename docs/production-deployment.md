@@ -2,54 +2,58 @@
 
 ## Tổng Quan
 
-Hướng dẫn triển khai production cho Anthill SaaS platform sử dụng **CapRover** làm PaaS (Platform as a Service) trên VPS.
+Hướng dẫn triển khai production cho Anthill SaaS platform sử dụng **Docker Compose** để deploy lên VPS. Có thể sử dụng các công cụ như **Dokploy** hoặc **Komodo** để quản lý deployment.
 
 ## Kiến Trúc Triển Khai
 
-### CapRover Apps Structure
+### Docker Compose Services Structure
 
-Mỗi microservice được triển khai như một **App riêng biệt** trong CapRover:
+Mỗi microservice được triển khai như một **container riêng biệt** trong Docker Compose:
 
 ```
-CapRover Dashboard
+Docker Compose Stack
 ├── anthill-user-service (Port: 8000)
 ├── anthill-inventory-service (Port: 8001)
 ├── anthill-order-service (Port: 8002)
 ├── anthill-payment-service (Port: 8003)
 ├── anthill-integration-service (Port: 8004)
-├── anthill-nginx-gateway (Port: 80/443)
+├── anthill-apisix-gateway (Port: 80/443)
 ├── anthill-frontend (Port: 3000)
-├── anthill-postgres (One-Click App)
-├── anthill-redis (One-Click App)
-└── anthill-nats (One-Click App)
+├── postgres (Port: 5432)
+├── keydb (Port: 6379) - Redis-compatible cache
+├── nats (Port: 4222)
+└── rustfs (Port: 9000/9001) - S3-compatible storage
 ```
 
 ### Networking
 
-- **Internal Communication**: Sử dụng Docker overlay network hostname
-  - `srv-user-service:8000`
-  - `srv-inventory-service:8001`
+- **Internal Communication**: Sử dụng Docker network hostname
+  - `user-service:8000`
+  - `inventory-service:8001`
   - etc.
 
-- **External Access**: Chỉ qua Nginx Gateway
+- **External Access**: Chỉ qua APISIX Gateway
   - `https://your-domain.com/api/v1/*`
 
 ## Chuẩn Bị VPS
 
-### 1. Cài Đặt CapRover
+### 1. Cài Đặt Docker và Docker Compose
 
 ```bash
-# Trên Ubuntu 20.04+/Debian 10+
+# Trên Ubuntu 22.04+/Debian 12+
 sudo apt update
-sudo apt install docker.io docker-compose
+sudo apt install -y docker.io docker-compose-plugin
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# Cài CapRover
-docker run -p 80:80 -p 443:443 -p 3000:3000 -e ACCEPTED_TERMS=true -v /var/run/docker.sock:/var/run/docker.sock -v /captain:/captain caprover/cli-cpu:latest
-```
+# Thêm user vào docker group
+sudo usermod -aG docker $USER
+newgrp docker
 
-Truy cập `http://your-server-ip:3000` để setup CapRover.
+# Verify installation
+docker --version
+docker compose version
+```
 
 ### 2. Cấu Hình Domain
 
@@ -58,539 +62,397 @@ Truy cập `http://your-server-ip:3000` để setup CapRover.
 your-domain.com → VPS_IP
 *.your-domain.com → VPS_IP
 
-# Trong CapRover: Apps → anthill-nginx-gateway → Domains
-# Thêm: your-domain.com, *.your-domain.com
+# Verify DNS
+dig your-domain.com
 ```
 
 ### 3. SSL Certificates
 
 ```bash
-# Sử dụng script generate SSL
-DOMAIN=your-domain.com ./scripts/generate-ssl-cert.sh letsencrypt
+# Install Certbot
+sudo apt install certbot
 
-# Hoặc tự động qua CapRover (recommended)
-# CapRover Dashboard → Apps → anthill-nginx-gateway → HTTP Settings → Force HTTPS
+# Generate certificates
+# Wildcard certificates require DNS-01 challenge (HTTP-01 doesn't support wildcards)
+sudo certbot certonly --manual --preferred-challenges dns -d your-domain.com -d "*.your-domain.com"
+
+# Certificates will be at:
+# /etc/letsencrypt/live/your-domain.com/fullchain.pem
+# /etc/letsencrypt/live/your-domain.com/privkey.pem
 ```
 
-## Triển Khai Kanidm Authentication
+## Triển Khai với Docker Compose
 
-### Kanidm Server Setup
-
-1. **Deploy Kanidm Server**:
-   ```bash
-   # One-Click App hoặc custom deployment
-   caprover deploy --appName anthill-kanidm --image kanidm/server:latest
-   ```
-
-2. **Kanidm Configuration**:
-   ```bash
-   # Environment Variables cho Kanidm
-   KANIDM_DOMAIN=idm.your-domain.com
-   KANIDM_ORIGIN=https://idm.your-domain.com
-   KANIDM_TLS_CHAIN=/data/chain.pem
-   KANIDM_TLS_KEY=/data/key.pem
-   KANIDM_DB_PATH=/data/kanidm.db
-   ```
-
-3. **SSL Certificates cho Kanidm**:
-   ```bash
-   # Generate certificates
-   ./scripts/generate-ssl-cert.sh kanidm idm.your-domain.com
-   ```
-
-### OAuth2 Client Configuration
-
-1. **Tạo OAuth2 Client trong Kanidm**:
-   ```bash
-   # Via Kanidm CLI hoặc Web UI
-   kanidm system oauth2 create \
-     --name anthill \
-     --displayname "Anthill SaaS" \
-     --origin https://your-domain.com \
-     --scope openid profile email groups
-   ```
-
-2. **Lấy Client Credentials**:
-   ```bash
-   # Sau khi tạo client
-   kanidm system oauth2 show-basic-secret --name anthill
-   # Output: Client ID và Secret
-   ```
-
-### Service Authentication Configuration
-
-Mỗi microservice cần cấu hình Kanidm:
+### 1. Clone Repository
 
 ```bash
-# Environment Variables cho tất cả services
-KANIDM_URL=https://idm.your-domain.com
-KANIDM_CLIENT_ID=anthill
-KANIDM_CLIENT_SECRET=YOUR_OAUTH2_CLIENT_SECRET
+git clone <your-repo-url> /opt/anthill
+cd /opt/anthill
+```
+
+### 2. Cấu Hình Environment Variables
+
+```bash
+# Copy example env file
+cp .env.example .env.production
+
+# Edit with your production values
+nano .env.production
+```
+
+**Production Environment Variables**:
+```bash
+# Database
+DATABASE_URL=postgres://inventory_user:STRONG_PASSWORD@postgres:5432/inventory_saas
+
+# JWT
 JWT_SECRET=CHANGE_THIS_STRONG_SECRET_64_CHARS_MIN
-OAUTH2_REDIRECT_URI=https://your-domain.com/api/v1/auth/oauth/callback
+
+# KeyDB (Redis-compatible)
+REDIS_URL=redis://keydb:6379
+KEYDB_URL=redis://keydb:6379
+
+# NATS
+NATS_URL=nats://nats:4222
+
+# RustFS (S3-compatible storage)
+RUSTFS_ENDPOINT=http://rustfs:9000
+RUSTFS_ACCESS_KEY=rustfsadmin
+RUSTFS_SECRET_KEY=CHANGE_THIS_STRONG_PASSWORD
+RUSTFS_BUCKET_NAME=anthill-files
+
+# Self-auth (if using)
+SELF_AUTH_URL=https://idm.your-domain.com
+SELF_AUTH_CLIENT_ID=anthill
+SELF_AUTH_CLIENT_SECRET=OAUTH2_CLIENT_SECRET
 ```
 
-### Frontend Authentication Configuration
+### 3. Start Stateful Services
 
 ```bash
-# Frontend Environment Variables
-PUBLIC_KANIDM_AUTHORIZE_URL=https://idm.your-domain.com/ui/oauth2
-PUBLIC_KANIDM_TOKEN_URL=https://idm.your-domain.com/oauth2/token
-PUBLIC_KANIDM_CLIENT_ID=anthill
-PUBLIC_OAUTH2_REDIRECT_URI=https://your-domain.com/api/v1/auth/oauth/callback
-PUBLIC_API_BASE_URL=https://your-domain.com/api/v1
+# Start database, cache, message queue, storage
+docker compose -f infra/docker_compose/docker-compose.yml up -d
+
+# Verify services are healthy
+docker compose -f infra/docker_compose/docker-compose.yml ps
 ```
 
-### Tenant Mapping Setup
+### 4. Run Database Migrations
 
-1. **Tạo Kanidm Groups cho Tenants**:
+```bash
+# Set DATABASE_URL
+export DATABASE_URL=postgres://user:password@localhost:5432/inventory_db
+
+# Run migrations
+sqlx migrate run
+```
+
+### 5. Build and Deploy Microservices
+
+```bash
+# Build all service images
+docker build -t anthill-user-service:latest -f services/user_service/Dockerfile .
+docker build -t anthill-inventory-service:latest -f services/inventory_service/Dockerfile .
+# ... repeat for other services
+
+# Or use docker-compose for all services
+docker compose -f docker-compose.production.yml up -d
+```
+
+## Production Docker Compose Example
+
+Create `docker-compose.production.yml`:
+
+```yaml
+version: "3.8"
+
+services:
+  # Stateful Services
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: inventory_saas
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - anthill-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory_saas"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  keydb:
+    image: eqalpha/keydb:latest
+    container_name: keydb
+    command: keydb-server --server-threads 2 --appendonly yes --requirepass ${KEYDB_PASSWORD}
+    volumes:
+      - keydb_data:/data
+    networks:
+      - anthill-network
+    healthcheck:
+      test: ["CMD", "keydb-cli", "-a", "${KEYDB_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats
+    command: "-js"
+    networks:
+      - anthill-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8222/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs
+    environment:
+      RUSTFS_ROOT_USER: ${RUSTFS_ACCESS_KEY}
+      RUSTFS_ROOT_PASSWORD: ${RUSTFS_SECRET_KEY}
+    volumes:
+      - rustfs_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - anthill-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Application Services
+  user-service:
+    image: anthill-user-service:latest
+    container_name: user-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://:${KEYDB_PASSWORD}@keydb:6379
+      - NATS_URL=nats://nats:4222
+      - PORT=8000
+    networks:
+      - anthill-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keydb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  inventory-service:
+    image: anthill-inventory-service:latest
+    container_name: inventory-service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://:${KEYDB_PASSWORD}@keydb:6379
+      - NATS_URL=nats://nats:4222
+      - PORT=8001
+    networks:
+      - anthill-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keydb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Add more services as needed...
+
+  # Frontend
+  frontend:
+    image: anthill-frontend:latest
+    container_name: frontend
+    environment:
+      - API_BASE_URL=http://apisix:9080/api/v1
+    networks:
+      - anthill-network
+    restart: unless-stopped
+
+  # APISIX Gateway
+  apisix:
+    image: apache/apisix:latest
+    container_name: apisix
+    ports:
+      - "80:9080"
+      - "443:9443"
+      # Admin API - DO NOT expose in production! Access via docker exec only
+      # - "9180:9180"
+    volumes:
+      - ./infra/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - anthill-network
+    depends_on:
+      - user-service
+      - inventory-service
+      - frontend
+    restart: unless-stopped
+
+networks:
+  anthill-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  keydb_data:
+  rustfs_data:
+```
+
+## Deployment với Dokploy / Komodo
+
+### Dokploy Setup
+
+1. **Install Dokploy** trên VPS:
    ```bash
-   # Tạo groups trong Kanidm
-   kanidm group create tenant_acme_users
-   kanidm group create tenant_acme_admins
-   kanidm group create tenant_xyz_users
+   curl -fsSL https://get.dokploy.com | sh
    ```
 
-2. **Database Mapping**:
-   ```sql
-   -- Insert tenant-group mappings
-   INSERT INTO kanidm_tenant_groups (tenant_id, kanidm_group_uuid, kanidm_group_name)
-   VALUES
-     ('550e8400-e29b-41d4-a716-446655440000', 'group-uuid-1', 'tenant_acme_users'),
-     ('550e8400-e29b-41d4-a716-446655440001', 'group-uuid-2', 'tenant_xyz_users');
-   ```
+2. **Truy cập Dokploy Dashboard** tại `http://your-vps-ip:3000`
 
-### Authentication Flow Testing
+3. **Create Project** và import Docker Compose configuration
 
-Sau khi deploy, test authentication flow:
+4. **Configure Environment Variables** trong Dokploy UI
 
-```bash
-# 1. Test OAuth2 authorize endpoint
-curl -X GET "https://your-domain.com/api/v1/auth/oauth/authorize" \
-  -H "Accept: application/json"
+5. **Deploy** - Dokploy sẽ tự động build và deploy
 
-# Should redirect to Kanidm login
+### Komodo Setup
 
-# 2. Test protected endpoint
-curl -X GET "https://your-domain.com/api/v1/users/profile" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-
-# Should return user profile or 401 if not authenticated
-
-# 3. Test token refresh
-curl -X POST "https://your-domain.com/api/v1/auth/oauth/refresh" \
-  -H "Content-Type: application/json" \
-  -d '{"refresh_token": "YOUR_REFRESH_TOKEN"}'
-
-# Should return new access token
-```
-
-### Monitoring Authentication
-
-Thêm authentication metrics vào monitoring:
-
-```rust
-// Trong mỗi service, track auth events
-use prometheus::{register_counter, register_histogram};
-
-lazy_static! {
-    static ref AUTH_REQUESTS: Counter = register_counter!(
-        "auth_requests_total",
-        "Total number of authentication requests"
-    ).unwrap();
-
-    static ref AUTH_SUCCESS: Counter = register_counter!(
-        "auth_success_total",
-        "Total number of successful authentications"
-    ).unwrap();
-
-    static ref AUTH_FAILURES: Counter = register_counter!(
-        "auth_failures_total",
-        "Total number of authentication failures"
-    ).unwrap();
-
-    static ref TOKEN_REFRESH_DURATION: Histogram = register_histogram!(
-        "token_refresh_duration_seconds",
-        "Time taken for token refresh"
-    ).unwrap();
-}
-```
-
-### Security Considerations
-
-1. **Token Storage**: HttpOnly cookies, never localStorage
-2. **CORS Policy**: Restrict origins to your domain only
-3. **Rate Limiting**: Implement OAuth2 endpoint rate limiting
-4. **Audit Logging**: Log all authentication events
-5. **Session Management**: Short-lived access tokens (15 min), refresh tokens (24h)
-
-### Backup & Recovery
-
-1. **Kanidm Database Backup**:
+1. **Install Komodo**:
    ```bash
-   # Backup Kanidm data
-   caprover exec --appName anthill-kanidm --command "sqlite3 /data/kanidm.db .backup /backup/kanidm-$(date +%Y%m%d).db"
+   curl -fsSL https://komodo.sh/install | sh
    ```
 
-2. **JWT Secrets Backup**:
-   - Store JWT secrets in secure vault (HashiCorp Vault, AWS Secrets Manager)
-   - Rotate secrets quarterly
-   - Document secret rotation procedure
+2. **Configure** với file `komodo.yml`
 
-### Troubleshooting Authentication
-
-#### Common Issues
-
-1. **OAuth2 Redirect URI Mismatch**:
-   ```
-   Error: redirect_uri does not match
-   Solution: Verify OAUTH2_REDIRECT_URI matches Kanidm client configuration
-   ```
-
-2. **Token Validation Failed**:
-   ```
-   Error: JWT signature verification failed
-   Solution: Check JWT_SECRET consistency across services
-   ```
-
-3. **Tenant Context Missing**:
-   ```
-   Error: No tenant found for user
-   Solution: Verify kanidm_tenant_groups table has correct mappings
-   ```
-
-4. **CORS Errors**:
-   ```
-   Error: CORS policy blocked
-   Solution: Check Nginx CORS configuration for auth endpoints
-   ```
-
-#### Debug Commands
-
-```bash
-# Check Kanidm service status
-caprover logs --appName anthill-kanidm
-
-# Test OAuth2 endpoints
-curl -v "https://idm.your-domain.com/.well-known/openid-configuration"
-
-# Check JWT token contents
-curl -X POST "https://your-domain.com/api/v1/auth/oauth/callback" \
-  -d "code=test-code&state=test-state" \
-  -v
-
-# Verify tenant mapping
-caprover exec --appName anthill-postgres --command "psql -c 'SELECT * FROM kanidm_tenant_groups;'"
-```
-
-### PostgreSQL Database
-
-1. **CapRover One-Click App**:
-   - Tìm "PostgreSQL" trong One-Click Apps
-   - App Name: `anthill-postgres`
-   - Version: Latest stable
-   - Persistent Storage: Enable
-
-2. **Environment Variables**:
-   ```
-   POSTGRES_DB=inventory_saas
-   POSTGRES_USER=inventory_user
-   POSTGRES_PASSWORD=CHANGE_THIS_STRONG_PASSWORD
-   ```
-
-3. **Backup Configuration**:
-   - Enable automated backups
-   - Schedule: Daily at 2 AM
-   - Retention: 30 days
-
-### Redis Cache
-
-1. **One-Click App**: `anthill-redis`
-2. **Persistent Storage**: Enable
-3. **Environment**:
-   ```
-   REDIS_PASSWORD=CHANGE_THIS_STRONG_PASSWORD
-   ```
-
-### NATS Message Queue
-
-1. **One-Click App**: `anthill-nats`
-2. **Configuration**:
-   ```
-   NATS_CLUSTER_NAME=anthill-cluster
-   ```
-
-## Triển Khai Microservices
-
-### Chuẩn Bị Docker Images
-
-Mỗi service cần `Dockerfile` trong thư mục gốc:
-
-```dockerfile
-# services/user_service/Dockerfile
-FROM rust:1.70-slim AS builder
-
-WORKDIR /app
-COPY . .
-
-# Build với optimizations
-RUN cargo build --release --bin user-service
-
-# Runtime image
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-
-COPY --from=builder /app/target/release/user-service /usr/local/bin/user-service
-
-EXPOSE 8000
-CMD ["user-service"]
-```
-
-### Build & Push Images
-
-```bash
-# Login Docker registry (Docker Hub, GitHub Container Registry, etc.)
-docker login
-
-# Build và push từng service
-cd services/user_service
-docker build -t your-registry/anthill-user-service:latest .
-docker push your-registry/anthill-user-service:latest
-
-# Lặp lại cho các service khác
-```
-
-### CapRover App Configuration
-
-Cho mỗi service, tạo app với cấu hình:
-
-#### User Service Example
-
-1. **App Name**: `anthill-user-service`
-2. **Source**:
-   - Method: `ImageName`
-   - Image: `your-registry/anthill-user-service:latest`
-
-3. **Environment Variables**:
+3. **Deploy**:
    ```bash
-   DATABASE_URL=postgres://inventory_user:PASSWORD@srv-anthill-postgres:5432/inventory_saas
-   JWT_SECRET=CHANGE_THIS_STRONG_SECRET_64_CHARS
-   REDIS_URL=redis://srv-anthill-redis:6379
-   NATS_URL=nats://srv-anthill-nats:4222
-   KANIDM_URL=https://idm.your-domain.com
-   KANIDM_CLIENT_ID=anthill
-   KANIDM_CLIENT_SECRET=OAUTH2_CLIENT_SECRET
-   ```
-
-4. **Port Mapping**: `8000` (internal port)
-
-5. **Persistent Storage**: Không cần (stateless)
-
-6. **Health Check**:
-   - HTTP Path: `/health`
-   - Initial Delay: 30s
-   - Period: 10s
-   - Timeout: 5s
-
-### Lặp Lại Cho Các Service Khác
-
-- **Inventory Service**: Port 8001
-- **Order Service**: Port 8002
-- **Payment Service**: Port 8003
-- **Integration Service**: Port 8004
-
-## Triển Khai Nginx Gateway
-
-### Dockerfile
-
-```dockerfile
-# infra/nginx/Dockerfile
-FROM nginx:alpine
-
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY conf.d/ /etc/nginx/conf.d/
-
-EXPOSE 80 443
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-### CapRover Configuration
-
-1. **App Name**: `anthill-nginx-gateway`
-2. **Source**: Image from `infra/nginx/`
-3. **Port Mapping**: `80`, `443`
-4. **Domains**: `your-domain.com`, `*.your-domain.com`
-5. **SSL**: Force HTTPS, Let's Encrypt auto-renewal
-
-### Nginx Configuration
-
-```nginx
-# infra/nginx/conf.d/upstreams.conf
-upstream user_service {
-    server srv-anthill-user-service:8000;
-}
-upstream inventory_service {
-    server srv-anthill-inventory-service:8001;
-}
-# ... other services
-
-# infra/nginx/conf.d/api-gateway.conf
-location ~ ^/api/v1/auth {
-    proxy_pass http://user_service;
-    # proxy headers...
-}
-location ~ ^/api/v1/products {
-    proxy_pass http://inventory_service;
-}
-# ... routing rules
-```
-
-## Triển Khai Frontend
-
-### Build Configuration
-
-```dockerfile
-# Dockerfile for SvelteKit
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-
-COPY . .
-RUN npm run build
-
-FROM node:18-alpine AS runtime
-
-WORKDIR /app
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/build ./
-COPY --from=builder /app/node_modules ./node_modules
-
-EXPOSE 3000
-CMD ["node", "build/index.js"]
-```
-
-### CapRover App
-
-1. **App Name**: `anthill-frontend`
-2. **Source**: Image hoặc GitHub integration
-3. **Environment**:
-   ```
-   API_BASE_URL=https://your-domain.com/api/v1
+   komodo deploy
    ```
 
 ## Monitoring & Observability
 
 ### Prometheus + Grafana
 
-1. **Deploy Prometheus**: One-Click App `anthill-prometheus`
-2. **Deploy Grafana**: One-Click App `anthill-grafana`
-3. **Configure Data Source**: Prometheus URL
-4. **Import Dashboards**: Anthill overview dashboard
+```yaml
+# Add to docker-compose.production.yml
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - anthill-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - anthill-network
+    restart: unless-stopped
+```
 
 ### Application Metrics
 
-Mỗi service expose `/metrics` endpoint với Prometheus format:
-
-```rust
-use prometheus::{Encoder, TextEncoder, register_counter};
-use warp::Filter;
-
-let request_counter = register_counter!("requests_total", "Total number of requests").unwrap();
-
-let metrics_route = warp::path("metrics")
-    .map(|| {
-        let encoder = TextEncoder::new();
-        let metric_families = prometheus::gather();
-        let mut buffer = Vec::new();
-        encoder.encode(&metric_families, &mut buffer).unwrap();
-        String::from_utf8(buffer).unwrap()
-    });
-```
-
-## Database Migrations
-
-### Chạy Migrations Trên Production
-
-```bash
-# Via CapRover CLI
-caprover exec --appName anthill-postgres --command "psql -U inventory_user -d inventory_saas -f /path/to/migrations.sql"
-
-# Hoặc tạo migration runner service
-caprover exec --appName anthill-user-service --command "./migration-runner"
-```
+Mỗi service expose `/metrics` endpoint với Prometheus format.
 
 ## Backup Strategy
 
 ### Database Backups
 
 ```bash
-# Automated via CapRover
-# Apps → anthill-postgres → Backup
-# - Schedule: 0 2 * * * (daily 2 AM)
-# - Retention: 30 days
-# - Storage: External S3/MinIO
+# Automated backup script
+#!/bin/bash
+BACKUP_DIR=/opt/backups
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Backup PostgreSQL
+docker exec postgres pg_dump -U inventory_user inventory_saas > $BACKUP_DIR/db_$DATE.sql
+
+# Backup RustFS
+docker exec rustfs mc mirror /data $BACKUP_DIR/rustfs_$DATE
+
+# Compress and upload to remote storage
+gzip $BACKUP_DIR/*.sql
+# Upload to S3/R2/etc...
 ```
 
-### Application Backups
+### Cronjob Setup
 
-- **Docker Images**: Push to registry with tags
-- **Configuration**: Git repository
-- **SSL Certificates**: Backup `/etc/ssl/anthill/`
+```bash
+# Add to crontab
+0 2 * * * /opt/anthill/scripts/backup.sh >> /var/log/anthill-backup.log 2>&1
+```
 
-## Scaling & Performance
+## Scaling & High Availability
 
 ### Horizontal Scaling
 
 ```bash
-# Scale service instances
-caprover scale --appName anthill-user-service --replicas 3
-
-# Load balancing tự động qua CapRover
+# Scale specific service
+docker compose -f docker-compose.production.yml up -d --scale user-service=3
 ```
 
-### Database Optimization
+### Docker Swarm (Optional)
 
-```sql
--- Connection pooling
-ALTER SYSTEM SET max_connections = '200';
+For higher availability, migrate to Docker Swarm:
 
--- Shared buffers (25% of RAM)
-ALTER SYSTEM SET shared_buffers = '512MB';
+```bash
+# Initialize swarm
+docker swarm init
 
--- Work memory
-ALTER SYSTEM SET work_mem = '4MB';
+# Deploy stack
+docker stack deploy -c docker-compose.production.yml anthill
 ```
 
 ## Security Hardening
 
 ### Network Security
 
-- **Firewall**: Chỉ mở ports 80, 443, 22
-- **Internal Network**: Services chỉ communicate qua internal network
-- **SSL/TLS**: Force HTTPS everywhere
-
-### Application Security
-
-- **Environment Variables**: Không hardcode secrets
-- **JWT Tokens**: Short expiry (15 minutes) + refresh tokens
-- **Rate Limiting**: Implement via Nginx
-- **CORS**: Restrict to allowed origins
-
-### Database Security
-
-```sql
--- Create read-only user cho analytics
-CREATE USER analytics_user WITH PASSWORD 'STRONG_PASSWORD';
-GRANT CONNECT ON DATABASE inventory_saas TO analytics_user;
-GRANT USAGE ON SCHEMA public TO analytics_user;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO analytics_user;
-
--- Row Level Security (future)
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+```bash
+# UFW firewall
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw allow http
+sudo ufw allow https
+sudo ufw enable
 ```
+
+### Container Security
+
+- Run containers as non-root users
+- Use read-only filesystems where possible
+- Limit container resources (CPU, memory)
+- Keep images updated
 
 ## Troubleshooting
 
@@ -598,36 +460,51 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 1. **Service Unhealthy**:
    ```bash
-   caprover logs --appName anthill-user-service
-   caprover restart --appName anthill-user-service
+   docker compose logs user-service
+   docker compose restart user-service
    ```
 
 2. **Database Connection Failed**:
-   - Check `DATABASE_URL` environment variable
-   - Verify PostgreSQL service is running
-   - Check network connectivity: `caprover exec --appName anthill-user-service --command "ping srv-anthill-postgres"`
-
-3. **SSL Certificate Issues**:
    ```bash
-   # Renew certificates
-   ./scripts/generate-ssl-cert.sh letsencrypt
-   caprover restart --appName anthill-nginx-gateway
+   # Check postgres logs
+   docker compose logs postgres
+   
+   # Test connection
+   docker exec postgres pg_isready -U inventory_user -d inventory_saas
    ```
 
-### Monitoring Commands
+3. **Storage Issues (RustFS)**:
+   ```bash
+   # Check RustFS health
+   curl http://localhost:9000/minio/health/ready
+   
+   # Check logs
+   docker compose logs rustfs
+   ```
+
+4. **Cache Issues (KeyDB)**:
+   ```bash
+   # Test KeyDB connection
+   docker exec keydb keydb-cli ping
+   
+   # Check memory usage
+   docker exec keydb keydb-cli info memory
+   ```
+
+### Debug Commands
 
 ```bash
-# Check service status
-caprover ps
+# View all service statuses
+docker compose ps
 
-# View logs
-caprover logs --appName anthill-user-service --lines 100
+# View logs (last 100 lines)
+docker compose logs --tail=100 <service-name>
 
-# Check resource usage
-caprover info --appName anthill-user-service
+# Enter container shell
+docker compose exec <service-name> sh
 
-# Debug container
-caprover exec --appName anthill-user-service --command "bash"
+# Check network connectivity
+docker compose exec user-service ping postgres
 ```
 
 ## Maintenance Tasks
@@ -647,51 +524,8 @@ caprover exec --appName anthill-user-service --command "bash"
 - Performance optimization
 - Capacity planning
 
-## Emergency Procedures
-
-### Service Outage
-1. Check CapRover dashboard for service status
-2. Review logs for error messages
-3. Restart affected service
-4. If database issue, check PostgreSQL logs
-5. Communicate with users about downtime
-
-### Data Loss
-1. Stop all services immediately
-2. Restore from latest backup
-3. Verify data integrity
-4. Restart services gradually
-5. Investigate root cause
-
-## Cost Optimization
-
-### VPS Selection
-- **Development**: 2 vCPU, 4GB RAM ($20/month)
-- **Production Small**: 4 vCPU, 8GB RAM ($40/month)
-- **Production Medium**: 8 vCPU, 16GB RAM ($80/month)
-
-### Resource Allocation
-- **PostgreSQL**: 2 vCPU, 4GB RAM
-- **Redis**: 1 vCPU, 2GB RAM
-- **NATS**: 1 vCPU, 1GB RAM
-- **Each Service**: 1 vCPU, 2GB RAM (scale as needed)
-
-## Migration Strategy
-
-### Blue-Green Deployment
-1. Deploy new version to `anthill-user-service-green`
-2. Test thoroughly
-3. Switch traffic via Nginx upstream
-4. Keep old version as rollback option
-
-### Zero-Downtime Updates
-- Use database migrations with backward compatibility
-- Deploy services one by one
-- Monitor health checks during rollout
-- Rollback plan ready
-
 ---
 
-**Last Updated**: November 4, 2025
-**CapRover Version**: Latest stable
+**Last Updated**: January 2026
 **Docker Version**: 24.0+
+**Docker Compose Version**: 2.20+

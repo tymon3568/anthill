@@ -86,7 +86,7 @@ Implement comprehensive rate limiting for authentication endpoints to prevent br
 - [x] `cargo test --package shared_rate_limit` passes (24 tests)
 
 ## Dependencies:
-*   Task: `task_03.01.10_remove_kanidm_integration.md` (Status: Done)
+*   Task: `task_03.01.10_remove_self-auth_integration.md` (Status: Done)
 *   Redis service available (optional, can use in-memory fallback)
 
 ## Related Documents:

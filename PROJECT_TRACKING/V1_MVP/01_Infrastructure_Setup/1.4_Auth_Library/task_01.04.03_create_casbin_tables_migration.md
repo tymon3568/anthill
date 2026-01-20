@@ -50,4 +50,4 @@ Create database migration for Casbin RBAC tables. The `casbin_rule` table will s
     - Casbin tables migration created and applied early in project
     - Still valid and in use for storing RBAC policies with self-built email/password auth
     - Status: Done ✓
-*   2026-01-04: Note updated - Kanidm removed from tech stack, Casbin continues to be used for RBAC
+*   2026-01-04: Note updated - Self-auth removed from tech stack, Casbin continues to be used for RBAC

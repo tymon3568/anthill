@@ -1,7 +1,7 @@
 version: "3.8"
 
 # Integration Testing Environment
-# Isolated test environment with dedicated PostgreSQL, Redis, and NATS instances
+# Isolated test environment with dedicated PostgreSQL, KeyDB, and NATS instances
 # Usage: docker-compose -f docker-compose.test.yml up -d
 
 services:
@@ -26,15 +26,16 @@ services:
     networks:
       - test-network
 
-  redis-test:
-    image: redis:7-alpine
-    container_name: redis_test
+  keydb-test:
+    image: eqalpha/keydb:x86_64_v6.3.4
+    container_name: keydb_test
+    command: keydb-server --server-threads 2 --appendonly yes
     ports:
       - "6380:6379" # Use different port to avoid conflicts
     volumes:
-      - redis_test_data:/data
+      - keydb_test_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "keydb-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -92,7 +93,7 @@ services:
 volumes:
   postgres_test_data:
     driver: local
-  redis_test_data:
+  keydb_test_data:
     driver: local
 
 networks:

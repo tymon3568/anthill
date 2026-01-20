@@ -1,4 +1,4 @@
-# Kiến Trúc Hệ Thống - Inventory SaaS Platform (CapRover Edition)
+# Kiến Trúc Hệ Thống - Inventory SaaS Platform (Docker Compose Edition)
 
 ## 🎯 Triết Lý Kiến Trúc
 
@@ -31,30 +31,30 @@
   - thật sự cần builder/phức tạp; khi đó phải có test coverage đủ tốt.
 
 
-Kiến trúc này được thiết kế dựa trên triết lý thực dụng: **"Sử dụng công cụ phù hợp nhất cho từng công việc"**. Chúng ta ưu tiên các công cụ hạ tầng phổ biến, hiệu suất cao và đã được chứng minh (`battle-tested`), đồng thời tập trung sức mạnh của **Rust** vào nơi nó tạo ra nhiều giá trị nhất: **core business logic**. Nền tảng triển khai là **CapRover**, một PaaS mạnh mẽ giúp đơn giản hóa tối đa việc vận hành.
+Kiến trúc này được thiết kế dựa trên triết lý thực dụng: **"Sử dụng công cụ phù hợp nhất cho từng công việc"**. Chúng ta ưu tiên các công cụ hạ tầng phổ biến, hiệu suất cao và đã được chứng minh (`battle-tested`), đồng thời tập trung sức mạnh của **Rust** vào nơi nó tạo ra nhiều giá trị nhất: **core business logic**. Nền tảng triển khai là **Docker Compose**, một giải pháp container orchestration đơn giản và mạnh mẽ, phù hợp cho việc deploy lên VPS với các công cụ như **Dokploy** hoặc **Komodo**.
 
-- **Đơn giản & Hiệu quả**: Tận dụng tối đa các tính năng tự động của CapRover để giảm thiểu công sức quản lý hạ tầng.
-- **Hiệu năng cao**: Sử dụng các công cụ tiêu chuẩn ngành (NGINX, Docker Swarm, PostgreSQL, Redis) kết hợp với các microservice viết bằng Rust.
-- **An toàn & Bảo mật**: Tận dụng mạng nội bộ của Docker và các cơ chế bảo mật của CapRover, kết hợp với sự an toàn bộ nhớ của Rust.
+- **Đơn giản & Hiệu quả**: Sử dụng Docker Compose để quản lý toàn bộ stack, dễ dàng triển khai và bảo trì.
+- **Hiệu năng cao**: Sử dụng các công cụ tiêu chuẩn ngành (Apache APISIX, Docker, PostgreSQL, KeyDB, RustFS) kết hợp với các microservice viết bằng Rust.
+- **An toàn & Bảo mật**: Tận dụng mạng nội bộ của Docker và các cơ chế bảo mật, kết hợp với sự an toàn bộ nhớ của Rust.
 - **Authentication nội bộ**: Sử dụng **Email/Password authentication** do User Service quản lý, đơn giản và phù hợp cho MVP.
 
-## 🏗️ Kiến Trúc Tổng Thể trên CapRover
+## 🏗️ Kiến Trúc Tổng Thể với Docker Compose
 
-CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS tiện lợi. Kiến trúc của chúng ta sẽ xoay quanh các khái niệm "App" và "One-Click App" của CapRover.
+Docker Compose cung cấp một cách đơn giản để định nghĩa và chạy multi-container Docker applications. Kiến trúc của chúng ta xoay quanh các service containers.
 
 ```
                  Internet
                      │
 ┌────────────────────▼─────────────────────────────────────┐
-│              CapRover Cluster                            │
-│          (1 hoặc nhiều server)                           │
+│              Docker Compose Stack                        │
+│          (Single VPS hoặc multi-node)                   │
 │ ┌────────────────────────────────────────────────────┐   │
-│ │     CapRover NGINX Ingress Proxy                   │   │ (Gateway Tự Động)
-│ │   (Load Balancing, SSL, Routing)                   │   │
+│ │     Apache APISIX API Gateway                      │   │ (Gateway)
+│ │   (Load Balancing, SSL, Routing, Plugins)          │   │
 │ └──────────────────┬─────────────────────────────────┘   │
-│                    │ (Route tới app qua Hostname)        │
+│                    │ (Route tới service qua hostname)    │
 │ ┌──────────────────┴─────────────────────────────────┐   │
-│ │       Docker Swarm Overlay Network                 │   │ (Mạng nội bộ an toàn)
+│ │       Docker Bridge Network                        │   │ (Mạng nội bộ an toàn)
 │ │                                                    │   │
 │ │ ┌───────────────┐   ┌───────────────┐              │   │
 │ │ │  Rust Service │   │  Rust Service │              │   │
@@ -64,28 +64,38 @@ CapRover xây dựng trên Docker Swarm, cung cấp một môi trường PaaS ti
 │ │ └───────▲───────┘           │                       │   │
 │ │         │                    │                       │   │
 │ │ ┌───────┴───────────────────┴───────┐             │   │
-│ │ │  PostgreSQL  │  │ NATS / Redis   │             │   │  (Stateful Services)
-│ │ │(One-Click App│  │ (One-Click App)│             │   │
+│ │ │  PostgreSQL  │  │ NATS / KeyDB   │             │   │  (Stateful Services)
+│ │ │              │  │                │             │   │
 │ │ └──────────────┘  └────────────────┘             │   │
+│ │ ┌──────────────────────────────────┐             │   │
+│ │ │         RustFS (S3-compatible)   │             │   │  (Object Storage)
+│ │ └──────────────────────────────────┘             │   │
 │ └────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────┘
 
 Legend:
   User Svc: Authentication (Email/Password), User/Tenant management, Casbin authorization
   Other Services: Inventory, Order, Payment, Integration
+  KeyDB: High-performance Redis-compatible cache (multi-threaded)
+  RustFS: High-performance S3-compatible object storage (Rust-native)
 ```
 
 ## 🧩 Chi tiết các thành phần
 
-### 1. Gateway & Routing: NGINX của CapRover
+### 1. Gateway & Routing: Apache APISIX
 
-- **Công cụ**: NGINX được tích hợp sẵn và quản lý hoàn toàn bởi CapRover.
+- **Công cụ**: Apache APISIX được cấu hình qua Docker Compose.
 - **Vai trò**:
   - **Edge Gateway**: Là điểm vào duy nhất cho tất cả traffic từ internet.
-  - **Load Balancer**: Tự động cân bằng tải giữa các instance của một app.
-  - **SSL Termination**: Tự động cài đặt và gia hạn chứng chỉ Let's Encrypt.
-  - **Routing**: Route traffic đến các service Rust dựa trên tên miền được cấu hình cho mỗi app (ví dụ: `api.yourdomain.com`, `inventory-api.yourdomain.com`).
-- **Lợi ích**: Không cần quản lý gateway riêng. Cấu hình cực kỳ đơn giản qua giao diện CapRover.
+  - **Load Balancer**: Cân bằng tải giữa các instance của một service.
+  - **SSL Termination**: Xử lý SSL/TLS certificates (Let's Encrypt hoặc custom).
+  - **Routing**: Route traffic đến các service Rust dựa trên path patterns.
+  - **Plugin System**: Hỗ trợ nhiều plugins cho rate limiting, authentication, logging, etc.
+- **Lợi ích**: 
+  - High performance (dựa trên OpenResty/NGINX + Lua).
+  - Dynamic configuration qua Admin API (không cần restart).
+  - Plugin ecosystem phong phú.
+  - Dashboard UI để quản lý routes và plugins.
 
 ### 2. Backend Microservices: Rust & Axum
 
@@ -93,9 +103,9 @@ Legend:
 - **Vai trò**: Đây là nơi chứa đựng toàn bộ business logic của hệ thống (User, Inventory, Order, Integration...). Mỗi service là một project Rust riêng biệt.
 - **Triển khai**:
   1.  Mỗi service có một `Dockerfile` để đóng gói thành một image.
-  2.  Trong CapRover, mỗi service được định nghĩa là một "App".
-  3.  Kết nối CapRover với GitHub/GitLab, và nó sẽ tự động build và deploy mỗi khi có `git push`.
-  4.  Scaling (tăng/giảm số container) được thực hiện dễ dàng qua giao diện.
+  2.  Trong Docker Compose, mỗi service được định nghĩa như một container.
+  3.  Kết nối với CI/CD (GitHub Actions) để tự động build và deploy.
+  4.  Scaling được thực hiện qua Docker Compose `scale` hoặc Docker Swarm.
 
 ### 3. Frontend Application: SvelteKit 2 with Svelte 5
 
@@ -109,30 +119,77 @@ Legend:
   - **API Client**: Native fetch API để call backend APIs.
   - **Testing**: Vitest cho unit tests, Playwright cho E2E tests.
 - **Triển khai**:
-  - Deployed như một CapRover App riêng biệt.
+  - Deployed như một container riêng biệt trong Docker Compose.
   - Build thành static assets hoặc SSR dựa trên nhu cầu.
-  - Kết nối với backend services qua internal network.
+  - Kết nối với backend services qua internal Docker network.
 
-### 4. Giao tiếp giữa các Service: Docker Swarm Network
+### 4. Giao tiếp giữa các Service: Docker Network
 
-- **Công nghệ**: Docker Swarm Overlay Network.
-- **Vai trò**: Tạo một mạng ảo riêng tư và an toàn cho tất cả các app trong CapRover.
-- **Cách hoạt động**: Các service có thể gọi nhau qua tên app. CapRover tự động tạo một hostname là `srv-<app-name>`. Ví dụ, từ `order-service`, bạn có thể kết nối tới `inventory-service` qua địa chỉ `http://srv-inventory-svc:8000`.
-- **Lợi ích**: Đơn giản, an toàn, không cần cấu hình service discovery phức tạp như Consul hay Etcd.
+- **Công nghệ**: Docker Bridge Network (hoặc Overlay Network cho multi-node).
+- **Vai trò**: Tạo một mạng ảo riêng tư và an toàn cho tất cả các containers.
+- **Cách hoạt động**: Các service có thể gọi nhau qua container name. Ví dụ, từ `order-service`, bạn có thể kết nối tới `inventory-service` qua địa chỉ `http://inventory-service:8001`.
+- **Lợi ích**: Đơn giản, an toàn, không cần cấu hình service discovery phức tạp.
 
-### 5. Database & Message Queue: CapRover One-Click Apps
+### 5. Database & Message Queue
 
-- **Công nghệ**: Sử dụng kho ứng dụng có sẵn của CapRover.
+- **Công nghệ**: Containers được định nghĩa trong Docker Compose.
 - **Các lựa chọn**:
-  - **Database**: **PostgreSQL** (đã được chứng minh, viết bằng C).
-  - **Cache**: **Redis** (tiêu chuẩn ngành, viết bằng C).
-  - **Message Queue**: **NATS** (hiệu năng cao, viết bằng Go).
-  - **Analytics**: **Cube.js** có thể được triển khai như một app riêng.
+  - **Database**: **PostgreSQL 16** (đã được chứng minh, viết bằng C).
+  - **Cache**: **KeyDB** (Redis-compatible, multi-threaded, high-performance).
+  - **Message Queue**: **NATS 2.10** (hiệu năng cao, viết bằng Go).
+  - **Object Storage**: **RustFS** (S3-compatible, high-performance, viết bằng Rust).
+  - **Analytics**: **Cube.js** có thể được triển khai như một container riêng.
 - **Triển khai**:
-  - Vào mục "One-Click Apps", tìm và triển khai các ứng dụng trên chỉ với vài cú click.
-  - CapRover tự động quản lý việc lưu trữ dữ liệu bền vững (persistent storage) cho chúng.
+  - Định nghĩa trong `docker-compose.yml` với persistent volumes.
+  - Health checks để đảm bảo service availability.
 
-### 6. Authentication: Email/Password (User Service)
+### 6. Object Storage: MinIO
+
+- **Công nghệ**: MinIO - High-performance S3-compatible object storage.
+- **Vai trò**:
+  - **S3-compatible**: 100% tương thích với S3 API.
+  - **High Performance**: Được tối ưu cho cloud-native workloads.
+  - **File Storage**: Lưu trữ avatars, documents, và các files ứng dụng.
+- **Cấu hình**:
+  ```yaml
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+  ```
+- **Lợi ích**:
+  - ✅ Production-ready và được sử dụng rộng rãi.
+  - ✅ Có sẵn Docker image chính thức.
+  - ✅ Ecosystem phong phú với mc CLI.
+  - ✅ Fully S3-compatible.
+
+### 7. Cache Layer: KeyDB
+
+- **Công nghệ**: KeyDB - High-performance, multi-threaded Redis fork.
+- **Vai trò**:
+  - **Session Storage**: Lưu trữ user sessions.
+  - **Caching**: Cache frequently accessed data.
+  - **Rate Limiting**: Store rate limit counters.
+  - **Pub/Sub**: Real-time messaging giữa services.
+- **Cấu hình**:
+  ```yaml
+  keydb:
+    image: eqalpha/keydb:latest
+    command: keydb-server --server-threads 2 --appendonly yes
+    volumes:
+      - keydb_data:/data
+  ```
+- **Lợi ích so với Redis**:
+  - ✅ **Multi-threaded**: Tận dụng multiple CPU cores (Redis là single-threaded).
+  - ✅ **Higher throughput**: 2-5x performance improvement trong nhiều workloads.
+  - ✅ **Active-Active replication**: Built-in multi-master support.
+  - ✅ **100% Redis compatible**: Drop-in replacement, không cần thay đổi code.
+
+### 8. Authentication: Email/Password (User Service)
 
 - **Công nghệ**: User Service (Rust) với bcrypt password hashing, JWT tokens.
 - **Vai trò**:
@@ -158,7 +215,7 @@ Legend:
   - ✅ Full control over authentication flow.
   - ✅ Phù hợp cho MVP và small-to-medium teams.
 
-### 7. Authorization: Casbin-rs
+### 9. Authorization: Casbin-rs
 
 - **Công nghệ**: Crate `casbin-rs`.
 - **Vai trò**:
@@ -177,7 +234,7 @@ Legend:
 ("user", "tenant-uuid-123", "products", "read")
 ```
 
-### 8. Multi-Tenancy Strategy
+### 10. Multi-Tenancy Strategy
 
 **Quyết định kiến trúc**: Sử dụng **Shared Database với Tenant Isolation bằng tenant_id**
 
@@ -259,9 +316,9 @@ Legend:
   FOREIGN KEY (tenant_id, product_id) REFERENCES products(tenant_id, product_id)
   ```
 
-### 9. Database Design Standards
+### 11. Database Design Standards
 
-#### 9.1 UUID Version: Use UUID v7
+#### 11.1 UUID Version: Use UUID v7
 
 - **Lý do**: UUID v7 có timestamp prefix → better index locality, improved query performance
 - **Implementation**: Sử dụng `uuid` crate với feature `v7`
@@ -270,7 +327,7 @@ Legend:
   let id = Uuid::now_v7(); // Timestamp-based UUID
   ```
 
-#### 9.2 Currency/Money: Use BIGINT (cents)
+#### 11.2 Currency/Money: Use BIGINT (cents)
 
 - **Quyết định**: Lưu tiền dưới dạng `BIGINT` (đơn vị nhỏ nhất - cents, xu)
 - **Lý do**:
@@ -280,7 +337,7 @@ Legend:
 - **Example**: $10.50 → 1050 cents, 100.000 VND → 100000
 - **Rust type**: `i64` hoặc custom `Money` type
 
-#### 9.3 Soft Delete Strategy
+#### 11.3 Soft Delete Strategy
 
 - **Pattern**: Add `deleted_at TIMESTAMPTZ` column
 - **Apply to**: Critical tables (products, orders, users)
@@ -291,7 +348,7 @@ Legend:
     WHERE deleted_at IS NULL;
   ```
 
-#### 9.4 Timestamps Convention
+#### 11.4 Timestamps Convention
 
 - Use `TIMESTAMPTZ` (timezone-aware) cho tất cả timestamp columns
 - Standard columns: `created_at`, `updated_at`, `deleted_at`
@@ -301,7 +358,7 @@ Legend:
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   ```
 
-#### 9.5 Sensitive Data: Application-level Encryption
+#### 11.5 Sensitive Data: Application-level Encryption
 
 - **Use case**: `credentials` field trong bảng `integrations`
 - **Strategy**: Encrypt trong Rust trước khi lưu DB
@@ -309,7 +366,7 @@ Legend:
 - **Key management**: Environment variable, không hard-code
 - **Format**: Store as `BYTEA` hoặc `TEXT` (base64-encoded)
 
-## 🔧 Technology Stack Summary (CapRover Edition)
+## 🔧 Technology Stack Summary (Docker Compose Edition)
 
 ### Service Port Assignments
 
@@ -320,7 +377,7 @@ All services use standardized ports for consistency across development and produ
 - **Order Service**: Port 8002 (Order Processing, Fulfillment)
 - **Integration Service**: Port 8003 (Marketplace Integrations, Sync Operations)
 - **Payment Service**: Port 8004 (Payment Processing, Gateway Integration)
-- **Frontend**: Port 5173 (Development) / Port 3000 (Production via CapRover)
+- **Frontend**: Port 5173 (Development) / Port 3000 (Production)
 
 **Port Override Mechanism**: Each service can override the default port via `PORT` environment variable for flexibility in different deployment scenarios.
 
@@ -348,29 +405,30 @@ All services use standardized ports for consistency across development and produ
 - **Authorization**: Casbin-rs (RBAC with tenant context)
 
 ### Infrastructure & Platform
-- **PaaS**: CapRover
-- **Container Orchestration**: Docker Swarm (do CapRover quản lý)
-- **API Gateway**: NGINX (do CapRover quản lý)
-- **Service Networking**: Docker Swarm Overlay Network
+- **Container Orchestration**: Docker Compose
+- **Deployment Platforms**: Dokploy, Komodo (VPS deployment)
+- **API Gateway**: Apache APISIX
+- **Service Networking**: Docker Bridge/Overlay Network
 
-### Stateful Services & Middleware (deployed như One-Click Apps)
+### Stateful Services & Middleware
 - **Database**: PostgreSQL 16
-- **Cache**: Redis 7
+- **Cache**: KeyDB (Redis-compatible, multi-threaded)
 - **Message Queue**: NATS 2.10
-- **Object Storage**: MinIO
+- **Object Storage**: RustFS (S3-compatible, Rust-native)
 - **Analytics**: Cube (optional)
 
 ### DevOps
-- **CI/CD**: Tích hợp sẵn trong CapRover (Webhook từ Git) hoặc dùng GitHub Actions để build Docker image và trigger deploy trên CapRover.
-- **Monitoring**: Netdata (thường có sẵn trong CapRover One-Click Apps).
+- **CI/CD**: GitHub Actions để build Docker images và deploy.
+- **Monitoring**: Prometheus + Grafana, hoặc Netdata.
 
 ## 🚀 Quy trình phát triển & triển khai
 
-1.  **Local Dev**: Sử dụng `docker_compose` để mô phỏng môi trường CapRover (các service Rust, Postgres, Redis, NATS, MinIO).
+1.  **Local Dev**: Sử dụng `docker-compose.yml` trong `infra/docker_compose/` để chạy môi trường development (PostgreSQL, KeyDB, NATS, RustFS).
 2.  **Code**: Viết logic cho các microservice bằng Rust.
 3.  **Push**: Đẩy code lên GitHub.
-4.  **Deploy**: CapRover nhận webhook, tự động build image từ `Dockerfile` và triển khai phiên bản mới.
-5.  **Scale/Manage**: Sử dụng giao diện CapRover để theo dõi logs, scaling, và quản lý các biến môi trường.
+4.  **Build**: GitHub Actions build Docker images và push to registry.
+5.  **Deploy**: Sử dụng Dokploy hoặc Komodo để deploy lên VPS với Docker Compose.
+6.  **Scale/Manage**: Sử dụng Docker Compose scaling hoặc Docker Swarm cho high availability.
 
 ## 🔐 Authentication Flow
 

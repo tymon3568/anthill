@@ -123,7 +123,7 @@ export interface RefreshTokenRequest {
 	refresh_token: string;
 }
 
-// OAuth2 types - DEPRECATED: OAuth2/Kanidm integration removed in PR #133
+// OAuth2 types - DEPRECATED: OAuth2 integration removed in PR #133
 // Kept for backward compatibility with any code that may reference these types
 // TODO: Remove in future cleanup once all references are updated
 
@@ -153,10 +153,9 @@ export interface OAuth2CallbackResp {
 	token_type: string;
 	expires_in?: number;
 	user?: {
-		kanidm_user_id?: string;
+		user_id?: string; // Legacy field
 		email?: string;
 		preferred_username?: string;
-		groups?: string[];
 	};
 	tenant?: {
 		tenant_id: string;
@@ -300,7 +299,7 @@ export const authApi = {
 		}>(`/auth/check-tenant-slug?slug=${encodeURIComponent(slug)}`);
 	},
 
-	// OAuth2 Flow Methods - DEPRECATED: OAuth2/Kanidm integration removed in PR #133
+	// OAuth2 Flow Methods - DEPRECATED: OAuth2 integration removed in PR #133
 	// These methods will throw errors as the backend endpoints no longer exist
 	// Kept for backward compatibility - will be removed in future cleanup
 

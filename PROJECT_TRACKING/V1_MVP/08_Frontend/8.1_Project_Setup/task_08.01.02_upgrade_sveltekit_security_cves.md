@@ -120,7 +120,7 @@ Upgrade `@sveltejs/kit` from version 2.47.1 to 2.49.2 (or latest stable) to addr
 **Root causes of auth blocking (pre-existing, not from upgrade):**
 1. Frontend login form only collects Email/Password, backend requires tenant context
 2. Backend CORS only allows `localhost:5173`, not tenant subdomains (`*.localhost:5173`)
-3. Frontend lacks Kanidm OIDC "Sign in" button integration
+3. Frontend lacks Self-auth OIDC "Sign in" button integration
 
 **Conclusion:** SvelteKit upgrade verified working. Auth issues are pre-existing and should be addressed in separate task.
 

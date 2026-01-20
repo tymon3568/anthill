@@ -87,7 +87,7 @@ All dependencies are declared in the header to keep the task parsable and consis
 - `status TEXT NOT NULL` (`draft` | `posted` | `cancelled`)
 - `scrap_location_id UUID NOT NULL` (dedicated tenant/warehouse scrap location)
 - `notes TEXT NULL`
-- `created_by UUID NULL` (kanidm user id if available)
+- `created_by UUID NULL` (self-auth user id if available)
 - `posted_by UUID NULL`
 - `posted_at TIMESTAMPTZ NULL`
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`

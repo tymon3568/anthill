@@ -128,7 +128,7 @@ Create comprehensive API for managing product categories and hierarchical organi
 * 2025-01-21 16:25: Corrected inventory service port to 8001 by Claude
 - CONFIRMED: According to nginx configuration, inventory service should run on port 8001
 - UPDATED: README.md to show PORT=8001 for inventory service
-- This aligns with nginx routing: /api/v1/products/* and /api/v1/inventory/*→ inventory-service:8001
+- This aligns with APISIX routing: /api/v1/products/* and /api/v1/inventory/*→ inventory-service:8001
 - Status: Port assignment corrected to match production nginx config ✓
 
 * 2025-01-22 09:00: Rebased feature branch onto latest main by Claude
@@ -251,7 +251,7 @@ Create comprehensive API for managing product categories and hierarchical organi
 - Successfully implemented proper dependency injection with AppState
 - Replaced all dummy tenant UUIDs with AuthUser extractors
 - Added RequireAdmin for admin-only bulk operations
-- Integrated Casbin enforcer and Kanidm client in application state
+- Integrated Casbin enforcer and Self-auth client in application state
 - All handlers now properly authenticate and authorize requests
 - Code committed and ready for testing
 - Task fully completed - auth integration and dependency injection implemented
