@@ -155,11 +155,11 @@ Legend:
   rustfs:
     image: rustfs/rustfs:latest
     environment:
-      RUSTFS_ROOT_USER: ${RUSTFS_ROOT_USER:-rustfsadmin}
-      RUSTFS_ROOT_PASSWORD: ${RUSTFS_ROOT_PASSWORD:-rustfsadmin}
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
     volumes:
       - rustfs_data:/data
-    command: server /data --console-address ":9001"
+    command: /data --console-address ":9001"
   ```
 - **Lợi ích**:
   - ✅ Production-ready và được viết bằng Rust.

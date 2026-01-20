@@ -71,8 +71,10 @@ impl UserBuilder {
     }
 
     /// Set password hash to None (external auth user)
+    /// Also updates auth_method to 'jwt' since password auth is not available
     pub fn without_password(mut self) -> Self {
         self.password_hash = None;
+        self.auth_method = "jwt".to_string();
         self
     }
 

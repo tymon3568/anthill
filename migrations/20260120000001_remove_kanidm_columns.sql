@@ -36,11 +36,13 @@ ALTER TABLE sessions DROP COLUMN IF EXISTS kanidm_session_id;
 
 -- Update auth_method constraint to only allow 'jwt' and 'password'
 ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_auth_method_check;
+
+-- Update existing 'kanidm' or 'dual' auth methods to 'jwt' BEFORE adding constraint
+UPDATE sessions SET auth_method = 'jwt' WHERE auth_method IN ('kanidm', 'dual');
+
+-- Add constraint after data is migrated
 ALTER TABLE sessions ADD CONSTRAINT sessions_auth_method_check
   CHECK (auth_method IN ('jwt', 'password'));
-
--- Update existing 'kanidm' or 'dual' auth methods to 'jwt'
-UPDATE sessions SET auth_method = 'jwt' WHERE auth_method IN ('kanidm', 'dual');
 
 -- =============================================================================
 -- STEP 4: Remove Kanidm columns from users table

@@ -132,9 +132,7 @@ pub fn get_cookie_value(headers: &axum::http::HeaderMap, cookie_name: &str) -> O
         .and_then(|value| value.to_str().ok())
         .and_then(|cookies| {
             cookies.split(';').find_map(|cookie| {
-                let mut parts = cookie.trim().splitn(2, '=');
-                let name = parts.next()?;
-                let value = parts.next()?;
+                let (name, value) = cookie.trim().split_once('=')?;
                 if name == cookie_name {
                     Some(value.to_string())
                 } else {
