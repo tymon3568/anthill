@@ -12,6 +12,7 @@
 	import { fullRegisterSchema, type RegisterForm } from '$lib/validation/auth';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { safeParse } from 'valibot';
 	import { authApi } from '$lib/api/auth';
 	import { toast } from 'svelte-sonner';
@@ -37,6 +38,49 @@
 	let registeredEmail = $state('');
 	let registeredTenantId = $state('');
 	let isResending = $state(false);
+
+	// Session storage keys for persistence across page refresh
+	const STORAGE_KEY_EMAIL = 'anthill_register_email';
+	const STORAGE_KEY_TENANT_ID = 'anthill_register_tenant_id';
+	const STORAGE_KEY_SUCCESS = 'anthill_register_success';
+
+	// Restore registration state from sessionStorage on mount
+	// Note: $effect only runs in browser, but we use the browser check for consistency
+	$effect(() => {
+		const storedEmail = sessionStorage.getItem(STORAGE_KEY_EMAIL);
+		const storedTenantId = sessionStorage.getItem(STORAGE_KEY_TENANT_ID);
+		const storedSuccess = sessionStorage.getItem(STORAGE_KEY_SUCCESS);
+
+		if (storedSuccess === 'true' && storedEmail) {
+			registeredEmail = storedEmail;
+			registeredTenantId = storedTenantId || '';
+			registrationSuccess = true;
+		}
+	});
+
+	// Helper to persist registration state to sessionStorage
+	function persistRegistrationState(email: string, tenantId: string) {
+		if (browser) {
+			sessionStorage.setItem(STORAGE_KEY_EMAIL, email);
+			sessionStorage.setItem(STORAGE_KEY_TENANT_ID, tenantId);
+			sessionStorage.setItem(STORAGE_KEY_SUCCESS, 'true');
+		}
+	}
+
+	// Helper to clear registration state from sessionStorage
+	function clearRegistrationState() {
+		if (browser) {
+			sessionStorage.removeItem(STORAGE_KEY_EMAIL);
+			sessionStorage.removeItem(STORAGE_KEY_TENANT_ID);
+			sessionStorage.removeItem(STORAGE_KEY_SUCCESS);
+		}
+	}
+
+	// Handle navigation to login page - clears session storage
+	function handleGoToLogin() {
+		clearRegistrationState();
+		goto('/login');
+	}
 
 	// Cooldown timer for resend button
 	let resendCooldown = $state(0);
@@ -163,9 +207,11 @@
 				// Show verification email message instead of redirecting
 				registeredEmail = formData.email;
 				// Get tenant_id from the response for resend functionality
-				if (result.data?.user?.tenant_id) {
-					registeredTenantId = result.data.user.tenant_id;
+				if (result.data?.tenant_id) {
+					registeredTenantId = result.data.tenant_id;
 				}
+				// Persist state to sessionStorage for page refresh resilience
+				persistRegistrationState(registeredEmail, registeredTenantId);
 				registrationSuccess = true;
 			} else {
 				error = result.error || 'Registration failed';
@@ -290,9 +336,7 @@
 						</Button>
 					</div>
 
-					<Button onclick={() => goto('/login')} variant="outline" class="w-full">
-						Go to Login
-					</Button>
+					<Button onclick={handleGoToLogin} variant="outline" class="w-full">Go to Login</Button>
 				</CardContent>
 			</Card>
 
