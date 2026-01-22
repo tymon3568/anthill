@@ -1,32 +1,8 @@
 import { onMount } from 'svelte';
 import { authState, authStore } from '$lib/stores/auth.svelte';
-import { authApi } from '$lib/api/auth';
 import { AuthSession } from '$lib/auth/session';
+import { COOKIE_USER_DATA } from '$lib/auth/constants';
 import type { User } from '$lib/types';
-import type { UserProfile } from '$lib/api/auth';
-
-// Backend UserInfo type from AuthResponse
-interface BackendUserInfo {
-	id: string;
-	email: string;
-	full_name?: string;
-	tenant_id: string;
-	role: string;
-	created_at: string;
-}
-
-// Convert UserProfile to User type
-function mapUserProfileToUser(profile: UserProfile): User {
-	return {
-		id: profile.id,
-		email: profile.email,
-		name: profile.display_name || profile.username || profile.email,
-		role: (profile.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
-		tenantId: profile.tenant_id,
-		createdAt: profile.created_at,
-		updatedAt: profile.updated_at
-	};
-}
 
 // Custom hook for auth initialization
 export function useAuth() {
@@ -35,13 +11,22 @@ export function useAuth() {
 		authStore.setLoading(true);
 
 		try {
+			// Check if server signaled that session is invalid (e.g., user deleted, session revoked)
+			// This is handled by AuthSession.isAuthenticated() which calls checkSessionInvalidated()
+			if (!AuthSession.isAuthenticated()) {
+				// Session was invalidated or no local session, don't try to restore
+				authStore.setUser(null);
+				authStore.setLoading(false);
+				return;
+			}
+
 			// Initialize auth state (await to avoid racing with storage init)
 			await authStore.initialize();
 
 			// Try to restore session from cookies (set by OAuth2 callback)
 			const userDataCookie = document.cookie
 				.split('; ')
-				.find((row) => row.startsWith('user_data='));
+				.find((row) => row.startsWith(`${COOKIE_USER_DATA}=`));
 
 			if (userDataCookie) {
 				try {
@@ -51,13 +36,13 @@ export function useAuth() {
 				} catch (error) {
 					console.error('Failed to parse stored user data from cookie:', error);
 					// Clear invalid cookie
-					document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+					document.cookie = `${COOKIE_USER_DATA}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 				}
 			}
 		} catch (error) {
 			console.error('Failed to initialize auth:', error);
 			// Clear any corrupted data
-			document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+			document.cookie = `${COOKIE_USER_DATA}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 		} finally {
 			// Always set loading to false, even if initialization fails
 			authStore.setLoading(false);
@@ -107,7 +92,7 @@ export function useAuth() {
 			authStore.logout();
 
 			// Clear user data cookie (non-sensitive display data)
-			document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+			document.cookie = `${COOKIE_USER_DATA}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 
 			// Optional: Redirect to external logout endpoint if needed
 			// window.location.href = 'https://idm.example.com/ui/logout';

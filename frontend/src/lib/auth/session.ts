@@ -1,4 +1,9 @@
 import { type EmailAuthResponse, type EmailUserInfo } from '$lib/api/auth';
+import {
+	COOKIE_SESSION_INVALIDATED,
+	STORAGE_USER_DATA,
+	STORAGE_TENANT_SLUG
+} from '$lib/auth/constants';
 
 /**
  * Session management utilities
@@ -52,10 +57,39 @@ export class AuthSession {
 	}
 
 	/**
+	 * Check if server has signaled session invalidation
+	 * This happens when refresh token fails with permanent errors like USER_NOT_FOUND
+	 */
+	private static checkSessionInvalidated(): boolean {
+		if (typeof window === 'undefined') return false;
+
+		const sessionInvalidatedCookie = document.cookie
+			.split('; ')
+			.find((row) => row.startsWith(`${COOKIE_SESSION_INVALIDATED}=`));
+
+		if (sessionInvalidatedCookie) {
+			// Clear the signal cookie (include samesite to match how it was set)
+			document.cookie = `${COOKIE_SESSION_INVALIDATED}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=lax`;
+
+			// Clear all auth-related localStorage
+			localStorage.removeItem(STORAGE_USER_DATA);
+			localStorage.removeItem(STORAGE_TENANT_SLUG);
+
+			console.log('[AuthSession] Session invalidated by server, cleared local state');
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Check if user has local session data
 	 * Note: This only checks localStorage - actual auth is validated server-side via cookies
 	 */
 	static isAuthenticated(): boolean {
+		// First check if server has signaled session invalidation
+		if (this.checkSessionInvalidated()) {
+			return false;
+		}
 		return this.getUser() !== null;
 	}
 

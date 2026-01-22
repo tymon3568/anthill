@@ -1,6 +1,7 @@
 import { redirect, json } from '@sveltejs/kit';
 import { validateAndParseToken, shouldRefreshToken } from '$lib/auth/jwt';
 import { handleAuthError, createAuthError, AuthErrorCode } from '$lib/auth/errors';
+import { COOKIE_SESSION_INVALIDATED, PERMANENT_ERROR_CODES } from '$lib/auth/constants';
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { parseTenantFromHostname } from '$lib/tenant';
@@ -28,6 +29,7 @@ const publicApiRoutes = new Set([
 	'/api/v1/auth/login',
 	'/api/v1/auth/register',
 	'/api/v1/auth/refresh',
+	'/api/v1/auth/validate',
 	'/api/v1/auth/oauth/authorize',
 	'/api/v1/auth/oauth/callback',
 	'/api/v1/auth/oauth/refresh',
@@ -144,12 +146,38 @@ export const handle: Handle = async ({ event, resolve }) => {
 						}
 					}
 				} else {
-					// Refresh failed - log error
+					// Refresh failed - check if it's a permanent error
+					const errorText = await refreshResponse.text().catch(() => 'Unknown error');
 					if (dev) {
-						const errorText = await refreshResponse.text().catch(() => 'Unknown error');
 						console.log(
 							`[hooks] Refresh failed with status ${refreshResponse.status}: ${errorText}`
 						);
+					}
+
+					// Check for permanent errors that indicate stale session
+					// These errors mean the user/session no longer exists and client should clear local state
+					const isPermanentError =
+						PERMANENT_ERROR_CODES.some((code) => errorText.includes(code)) ||
+						refreshResponse.status === 404;
+
+					if (isPermanentError) {
+						// Clear all auth cookies
+						cookies.delete('access_token', { path: '/' });
+						cookies.delete('refresh_token', { path: '/' });
+
+						// Set a signal cookie for client to clear localStorage
+						// This cookie is NOT httpOnly so client JS can read and clear it
+						cookies.set(COOKIE_SESSION_INVALIDATED, 'true', {
+							path: '/',
+							httpOnly: false,
+							secure: !dev,
+							sameSite: 'lax',
+							maxAge: 60 // Short-lived, just needs to survive the redirect
+						});
+
+						if (dev) {
+							console.log('[hooks] Session permanently invalid, signaling client to clear state');
+						}
 					}
 				}
 			} catch (error) {
