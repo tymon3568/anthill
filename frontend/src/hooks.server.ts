@@ -1,6 +1,7 @@
 import { redirect, json } from '@sveltejs/kit';
 import { validateAndParseToken, shouldRefreshToken } from '$lib/auth/jwt';
 import { handleAuthError, createAuthError, AuthErrorCode } from '$lib/auth/errors';
+import { COOKIE_SESSION_INVALIDATED, PERMANENT_ERROR_CODES } from '$lib/auth/constants';
 import type { Handle } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { parseTenantFromHostname } from '$lib/tenant';
@@ -147,9 +148,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 					// Check for permanent errors that indicate stale session
 					// These errors mean the user/session no longer exists and client should clear local state
 					const isPermanentError =
-						errorText.includes('USER_NOT_FOUND') ||
-						errorText.includes('SESSION_REVOKED') ||
-						errorText.includes('TENANT_NOT_FOUND') ||
+						PERMANENT_ERROR_CODES.some((code) => errorText.includes(code)) ||
 						refreshResponse.status === 404;
 
 					if (isPermanentError) {
@@ -159,7 +158,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 						// Set a signal cookie for client to clear localStorage
 						// This cookie is NOT httpOnly so client JS can read and clear it
-						cookies.set('session_invalidated', 'true', {
+						cookies.set(COOKIE_SESSION_INVALIDATED, 'true', {
 							path: '/',
 							httpOnly: false,
 							secure: !dev,

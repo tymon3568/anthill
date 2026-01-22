@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { AuthSession } from '$lib/auth/session';
+	import { STORAGE_TENANT_SLUG } from '$lib/auth/constants';
 
 	// Redirect authenticated users away from auth pages
 	// But first validate with server to handle stale localStorage data
@@ -27,7 +28,7 @@
 			} else {
 				// Session is invalid (401/403/404), clear local state
 				AuthSession.clearSession();
-				localStorage.removeItem('anthill_tenant_slug');
+				localStorage.removeItem(STORAGE_TENANT_SLUG);
 				console.log('[auth-layout] Session validation failed, cleared local state');
 			}
 		} catch {

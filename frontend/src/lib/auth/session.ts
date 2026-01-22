@@ -1,4 +1,9 @@
 import { type EmailAuthResponse, type EmailUserInfo } from '$lib/api/auth';
+import {
+	COOKIE_SESSION_INVALIDATED,
+	STORAGE_USER_DATA,
+	STORAGE_TENANT_SLUG
+} from '$lib/auth/constants';
 
 /**
  * Session management utilities
@@ -60,15 +65,15 @@ export class AuthSession {
 
 		const sessionInvalidatedCookie = document.cookie
 			.split('; ')
-			.find((row) => row.startsWith('session_invalidated='));
+			.find((row) => row.startsWith(`${COOKIE_SESSION_INVALIDATED}=`));
 
 		if (sessionInvalidatedCookie) {
-			// Clear the signal cookie
-			document.cookie = 'session_invalidated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+			// Clear the signal cookie (include samesite to match how it was set)
+			document.cookie = `${COOKIE_SESSION_INVALIDATED}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; samesite=lax`;
 
 			// Clear all auth-related localStorage
-			localStorage.removeItem(this.USER_KEY);
-			localStorage.removeItem('anthill_tenant_slug');
+			localStorage.removeItem(STORAGE_USER_DATA);
+			localStorage.removeItem(STORAGE_TENANT_SLUG);
 
 			console.log('[AuthSession] Session invalidated by server, cleared local state');
 			return true;

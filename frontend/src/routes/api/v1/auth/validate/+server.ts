@@ -18,13 +18,15 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	const accessToken = cookies.get('access_token');
 
 	if (!accessToken) {
-		throw error(401, JSON.stringify(createAuthError(AuthErrorCode.NO_SESSION)));
+		throw error(401, createAuthError(AuthErrorCode.NO_SESSION));
 	}
 
-	const userInfo = await validateAndParseToken(accessToken);
+	// SECURITY: Enable signature verification for server-side validation
+	// This endpoint is used for authorization decisions, so we must verify the token
+	const userInfo = await validateAndParseToken(accessToken, true);
 
 	if (!userInfo) {
-		throw error(401, JSON.stringify(createAuthError(AuthErrorCode.INVALID_TOKEN)));
+		throw error(401, createAuthError(AuthErrorCode.INVALID_TOKEN));
 	}
 
 	return json({ valid: true, userId: userInfo.userId });
