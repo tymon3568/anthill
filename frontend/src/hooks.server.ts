@@ -53,8 +53,17 @@ function isPublicRoute(pathname: string): boolean {
 	// Check public API routes (exact matching only)
 	if (publicApiRoutes.has(pathname)) return true;
 
-	// Check public API route prefixes (for routes with query params like check-tenant-slug)
-	if (publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))) return true;
+	// Check public API route prefixes (for routes with query params)
+	// Security: ensure next character after prefix is '?', '/', or end of string
+	// to prevent unintentionally exposing similarly-named routes (e.g., /check-tenant-slug-admin)
+	if (
+		publicApiPrefixes.some((prefix) => {
+			if (!pathname.startsWith(prefix)) return false;
+			const nextChar = pathname[prefix.length];
+			return nextChar === undefined || nextChar === '?' || nextChar === '/';
+		})
+	)
+		return true;
 
 	return false;
 }

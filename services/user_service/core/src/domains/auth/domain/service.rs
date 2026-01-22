@@ -1,6 +1,6 @@
 use crate::domains::auth::dto::admin_dto::{AdminCreateUserReq, AdminCreateUserResp};
 use crate::domains::auth::dto::auth_dto::{
-    AuthResp, LoginReq, RefreshReq, RegisterReq, UserInfo, UserListResp,
+    AuthResp, LoginReq, RefreshReq, RegisterReq, RegisterResp, UserInfo, UserListResp,
 };
 use async_trait::async_trait;
 use shared_error::AppError;
@@ -12,12 +12,13 @@ use uuid::Uuid;
 #[async_trait]
 pub trait AuthService: Send + Sync {
     /// Register a new user
+    /// Returns RegisterResp (no tokens) - user must verify email before login
     async fn register(
         &self,
         req: RegisterReq,
         ip_address: Option<String>,
         user_agent: Option<String>,
-    ) -> Result<AuthResp, AppError>;
+    ) -> Result<RegisterResp, AppError>;
 
     /// Login user
     async fn login(
