@@ -7,8 +7,8 @@
 **Priority:** P1
 **Status:** Todo
 **Assignee:** Unassigned
-**Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21
+**Created Date:** 2026-01-20
+**Last Updated:** 2026-01-20
 
 ## Detailed Description:
 Audit and fix accessibility issues across all components to achieve WCAG 2.1 AA compliance. This ensures the application is usable by people with disabilities.

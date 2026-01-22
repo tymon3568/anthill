@@ -7,8 +7,8 @@
 **Priority:** P1
 **Status:** Todo
 **Assignee:** Unassigned
-**Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21
+**Created Date:** 2026-01-20
+**Last Updated:** 2026-01-20
 
 ## Detailed Description:
 Add CSP reporting endpoint and test in report-only mode before enforcement. This allows monitoring CSP violations without breaking functionality.

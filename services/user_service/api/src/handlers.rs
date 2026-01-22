@@ -295,7 +295,6 @@ pub async fn register<S: AuthService>(
         {
             tracing::error!(
                 user_id = %user_id_str,
-                email = %resp.email,
                 error = %e,
                 "Failed to send verification email; user can request resend"
             );

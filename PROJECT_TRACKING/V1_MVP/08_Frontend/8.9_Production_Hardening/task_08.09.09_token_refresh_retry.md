@@ -7,8 +7,8 @@
 **Priority:** P0
 **Status:** Todo
 **Assignee:** Unassigned
-**Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21
+**Created Date:** 2026-01-20
+**Last Updated:** 2026-01-20
 
 ## Detailed Description:
 Add retry logic with exponential backoff for failed token refresh attempts. This improves resilience against temporary network issues and prevents overwhelming the auth server.

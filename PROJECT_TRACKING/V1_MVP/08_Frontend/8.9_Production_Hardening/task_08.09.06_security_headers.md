@@ -7,8 +7,8 @@
 **Priority:** P0
 **Status:** Todo
 **Assignee:** Unassigned
-**Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21
+**Created Date:** 2026-01-20
+**Last Updated:** 2026-01-20
 
 ## Detailed Description:
 Implement HSTS, X-Frame-Options, X-Content-Type-Options, and Permissions-Policy headers to enhance application security against common web vulnerabilities.

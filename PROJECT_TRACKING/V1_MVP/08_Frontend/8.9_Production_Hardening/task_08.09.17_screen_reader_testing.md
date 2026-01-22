@@ -7,8 +7,8 @@
 **Priority:** P1
 **Status:** Todo
 **Assignee:** Unassigned
-**Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21
+**Created Date:** 2026-01-20
+**Last Updated:** 2026-01-20
 
 ## Detailed Description:
 Test all major flows with NVDA/JAWS/VoiceOver screen readers to ensure the application is usable by visually impaired users.

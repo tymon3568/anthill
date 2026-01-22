@@ -7,8 +7,8 @@
 **Priority:** P0
 **Status:** Todo
 **Assignee:** Unassigned
-**Created Date:** 2025-01-21
-**Last Updated:** 2025-01-21
+**Created Date:** 2026-01-20
+**Last Updated:** 2026-01-20
 
 ## Detailed Description:
 Implement nonce-based CSP to remove 'unsafe-inline' from script-src directive. This significantly improves security by preventing XSS attacks through inline script injection.
