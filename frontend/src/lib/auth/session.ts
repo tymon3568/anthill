@@ -52,10 +52,39 @@ export class AuthSession {
 	}
 
 	/**
+	 * Check if server has signaled session invalidation
+	 * This happens when refresh token fails with permanent errors like USER_NOT_FOUND
+	 */
+	private static checkSessionInvalidated(): boolean {
+		if (typeof window === 'undefined') return false;
+
+		const sessionInvalidatedCookie = document.cookie
+			.split('; ')
+			.find((row) => row.startsWith('session_invalidated='));
+
+		if (sessionInvalidatedCookie) {
+			// Clear the signal cookie
+			document.cookie = 'session_invalidated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+			// Clear all auth-related localStorage
+			localStorage.removeItem(this.USER_KEY);
+			localStorage.removeItem('anthill_tenant_slug');
+
+			console.log('[AuthSession] Session invalidated by server, cleared local state');
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Check if user has local session data
 	 * Note: This only checks localStorage - actual auth is validated server-side via cookies
 	 */
 	static isAuthenticated(): boolean {
+		// First check if server has signaled session invalidation
+		if (this.checkSessionInvalidated()) {
+			return false;
+		}
 		return this.getUser() !== null;
 	}
 

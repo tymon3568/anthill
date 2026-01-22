@@ -1,31 +1,29 @@
 import { onMount } from 'svelte';
 import { authState, authStore } from '$lib/stores/auth.svelte';
-import { authApi } from '$lib/api/auth';
 import { AuthSession } from '$lib/auth/session';
 import type { User } from '$lib/types';
-import type { UserProfile } from '$lib/api/auth';
 
-// Backend UserInfo type from AuthResponse
-interface BackendUserInfo {
-	id: string;
-	email: string;
-	full_name?: string;
-	tenant_id: string;
-	role: string;
-	created_at: string;
-}
+// Check and handle session invalidation signal from server
+function handleSessionInvalidation(): boolean {
+	const sessionInvalidatedCookie = document.cookie
+		.split('; ')
+		.find((row) => row.startsWith('session_invalidated='));
 
-// Convert UserProfile to User type
-function mapUserProfileToUser(profile: UserProfile): User {
-	return {
-		id: profile.id,
-		email: profile.email,
-		name: profile.display_name || profile.username || profile.email,
-		role: (profile.role as 'owner' | 'admin' | 'manager' | 'user') || 'user',
-		tenantId: profile.tenant_id,
-		createdAt: profile.created_at,
-		updatedAt: profile.updated_at
-	};
+	if (sessionInvalidatedCookie) {
+		// Clear the signal cookie
+		document.cookie = 'session_invalidated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+		// Clear all auth-related localStorage
+		localStorage.removeItem('user_data');
+		localStorage.removeItem('anthill_tenant_slug');
+
+		// Clear any other auth cookies that might be accessible
+		document.cookie = 'user_data=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+		console.log('[useAuth] Session invalidated by server, cleared local state');
+		return true;
+	}
+	return false;
 }
 
 // Custom hook for auth initialization
@@ -35,6 +33,16 @@ export function useAuth() {
 		authStore.setLoading(true);
 
 		try {
+			// Check if server signaled that session is invalid (e.g., user deleted, session revoked)
+			// This happens when refresh token fails with permanent errors like USER_NOT_FOUND
+			const wasInvalidated = handleSessionInvalidation();
+			if (wasInvalidated) {
+				// Session was invalidated, don't try to restore from storage
+				authStore.setUser(null);
+				authStore.setLoading(false);
+				return;
+			}
+
 			// Initialize auth state (await to avoid racing with storage init)
 			await authStore.initialize();
 

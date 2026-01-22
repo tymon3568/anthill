@@ -28,6 +28,7 @@ const publicApiRoutes = new Set([
 	'/api/v1/auth/login',
 	'/api/v1/auth/register',
 	'/api/v1/auth/refresh',
+	'/api/v1/auth/validate',
 	'/api/v1/auth/oauth/authorize',
 	'/api/v1/auth/oauth/callback',
 	'/api/v1/auth/oauth/refresh',
@@ -38,6 +39,9 @@ const publicApiRoutes = new Set([
 	'/api/v1/auth/verify-email'
 ]);
 
+// Public API route prefixes (for routes with query params)
+const publicApiPrefixes = ['/api/v1/auth/check-tenant-slug'];
+
 function isPublicRoute(pathname: string): boolean {
 	// Exact match for root
 	if (pathname === '/') return true;
@@ -47,6 +51,9 @@ function isPublicRoute(pathname: string): boolean {
 
 	// Check public API routes (exact matching only)
 	if (publicApiRoutes.has(pathname)) return true;
+
+	// Check public API route prefixes (for routes with query params like check-tenant-slug)
+	if (publicApiPrefixes.some((prefix) => pathname.startsWith(prefix))) return true;
 
 	return false;
 }
@@ -129,12 +136,40 @@ export const handle: Handle = async ({ event, resolve }) => {
 						}
 					}
 				} else {
-					// Refresh failed - log error
+					// Refresh failed - check if it's a permanent error
+					const errorText = await refreshResponse.text().catch(() => 'Unknown error');
 					if (dev) {
-						const errorText = await refreshResponse.text().catch(() => 'Unknown error');
 						console.log(
 							`[hooks] Refresh failed with status ${refreshResponse.status}: ${errorText}`
 						);
+					}
+
+					// Check for permanent errors that indicate stale session
+					// These errors mean the user/session no longer exists and client should clear local state
+					const isPermanentError =
+						errorText.includes('USER_NOT_FOUND') ||
+						errorText.includes('SESSION_REVOKED') ||
+						errorText.includes('TENANT_NOT_FOUND') ||
+						refreshResponse.status === 404;
+
+					if (isPermanentError) {
+						// Clear all auth cookies
+						cookies.delete('access_token', { path: '/' });
+						cookies.delete('refresh_token', { path: '/' });
+
+						// Set a signal cookie for client to clear localStorage
+						// This cookie is NOT httpOnly so client JS can read and clear it
+						cookies.set('session_invalidated', 'true', {
+							path: '/',
+							httpOnly: false,
+							secure: !dev,
+							sameSite: 'lax',
+							maxAge: 60 // Short-lived, just needs to survive the redirect
+						});
+
+						if (dev) {
+							console.log('[hooks] Session permanently invalid, signaling client to clear state');
+						}
 					}
 				}
 			} catch (error) {
