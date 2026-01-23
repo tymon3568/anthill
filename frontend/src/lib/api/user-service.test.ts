@@ -389,13 +389,13 @@ describe('User Service API Client', () => {
 	// ============ Admin Role API Tests ============
 	describe('Admin Role API', () => {
 		const mockRole: Role = {
-			role_name: 'editor',
+			roleName: 'editor',
 			description: 'Can edit content',
 			permissions: [
 				{ resource: 'posts', action: 'read' },
 				{ resource: 'posts', action: 'write' }
 			],
-			user_count: 5
+			userCount: 5
 		};
 
 		describe('listRoles', () => {
@@ -411,7 +411,7 @@ describe('User Service API Client', () => {
 				expect(apiClient.get).toHaveBeenCalledWith('/admin/roles');
 				expect(result.success).toBe(true);
 				expect(result.data).toHaveLength(1);
-				expect(result.data?.[0].role_name).toBe('editor');
+				expect(result.data?.[0].roleName).toBe('editor');
 			});
 
 			it('should handle error when listing roles', async () => {

@@ -86,12 +86,12 @@ async function proxyRequest(
 
 		const response = await fetch(backendUrl, options);
 
-		// Handle 204 No Content - return empty response without body
+		// Handle 204 No Content - return empty response without body but preserve headers
 		if (response.status === 204) {
 			if (dev) {
 				console.log(`[proxy] Response 204 No Content`);
 			}
-			return new Response(null, { status: 204 });
+			return new Response(null, { status: 204, headers: response.headers });
 		}
 
 		// Get response body

@@ -283,6 +283,9 @@ fn encode_image(
             Ok((output, "image/png".to_string()))
         },
         "image/webp" => {
+            // Note: The `image` crate only supports lossless WebP encoding.
+            // For lossy encoding with configurable quality, consider using `libwebp` crate.
+            // See: https://github.com/jaredforth/webp
             let encoder = WebPEncoder::new_lossless(&mut output);
             img.write_with_encoder(encoder)
                 .map_err(|e| AppError::InternalError(format!("Failed to encode WebP: {}", e)))?;

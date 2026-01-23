@@ -57,7 +57,7 @@ pub struct ProfileResponse {
 
 /// DTO for updating user profile
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateProfileRequest {
     // User basic info (optional updates)
     pub full_name: Option<String>,

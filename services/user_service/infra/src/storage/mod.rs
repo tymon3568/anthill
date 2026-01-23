@@ -47,16 +47,29 @@ pub struct StorageConfig {
 impl StorageConfig {
     /// Create config from environment variables
     pub fn from_env() -> Result<Self, AppError> {
+        let access_key =
+            std::env::var("RUSTFS_ACCESS_KEY").or_else(|_| std::env::var("S3_ACCESS_KEY"));
+        let secret_key =
+            std::env::var("RUSTFS_SECRET_KEY").or_else(|_| std::env::var("S3_SECRET_KEY"));
+
+        // Warn if using default credentials (potential security risk in production)
+        let (access_key, secret_key) = match (access_key, secret_key) {
+            (Ok(ak), Ok(sk)) => (ak, sk),
+            _ => {
+                tracing::warn!(
+                    "RUSTFS_ACCESS_KEY/RUSTFS_SECRET_KEY not set, using default credentials. \
+                     This is insecure for production environments!"
+                );
+                ("rustfsadmin".to_string(), "rustfsadmin".to_string())
+            },
+        };
+
         Ok(Self {
             endpoint: std::env::var("RUSTFS_ENDPOINT")
                 .or_else(|_| std::env::var("S3_ENDPOINT"))
                 .unwrap_or_else(|_| "http://localhost:9000".to_string()),
-            access_key: std::env::var("RUSTFS_ACCESS_KEY")
-                .or_else(|_| std::env::var("S3_ACCESS_KEY"))
-                .unwrap_or_else(|_| "rustfsadmin".to_string()),
-            secret_key: std::env::var("RUSTFS_SECRET_KEY")
-                .or_else(|_| std::env::var("S3_SECRET_KEY"))
-                .unwrap_or_else(|_| "rustfsadmin".to_string()),
+            access_key,
+            secret_key,
             bucket_name: std::env::var("RUSTFS_BUCKET_NAME")
                 .or_else(|_| std::env::var("S3_BUCKET_NAME"))
                 .unwrap_or_else(|_| "anthill-files".to_string()),

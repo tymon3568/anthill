@@ -45,9 +45,10 @@ mc mb rustfs/documents --ignore-existing || true
 echo "Creating 'anthill-files' bucket..."
 mc mb rustfs/anthill-files --ignore-existing || true
 
-# Set public download policy for anthill-files bucket (for avatars, etc.)
-echo "Setting public download policy for 'anthill-files' bucket..."
-mc anonymous set download rustfs/anthill-files || true
+# Set public download policy only for avatars prefix (not the entire bucket)
+# This prevents exposing other potentially sensitive files in the bucket
+echo "Setting public download policy for 'anthill-files/avatars/' prefix..."
+mc anonymous set download rustfs/anthill-files/avatars/ || true
 
 echo "Listing buckets..."
 mc ls rustfs

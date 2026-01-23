@@ -496,8 +496,8 @@ export const userServiceApi = {
 				email: inv.email,
 				role: inv.role,
 				status: inv.status,
-				invitedBy: inv.invitedBy.userId,
-				invitedByName: inv.invitedBy.fullName || inv.invitedBy.email,
+				invitedBy: inv.invitedBy?.userId ?? '',
+				invitedByName: inv.invitedBy?.fullName || inv.invitedBy?.email || 'Unknown',
 				expiresAt: inv.expiresAt,
 				createdAt: inv.createdAt,
 				acceptedAt: inv.acceptedAt

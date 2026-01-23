@@ -104,16 +104,16 @@
 			// Fallback to default roles
 			roles = [
 				{
-					role_name: 'user',
+					roleName: 'user',
 					description: 'Regular user',
 					permissions: [],
-					user_count: 0
+					userCount: 0
 				},
 				{
-					role_name: 'admin',
+					roleName: 'admin',
 					description: 'Administrator',
 					permissions: [],
-					user_count: 0
+					userCount: 0
 				}
 			];
 		} finally {
@@ -512,9 +512,9 @@
 						{#if isLoadingRoles}
 							<Select.Item value="user" disabled>Loading...</Select.Item>
 						{:else}
-							{#each roles as role (role.role_name)}
-								<Select.Item value={role.role_name}>
-									{role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)}
+							{#each roles as role (role.roleName)}
+								<Select.Item value={role.roleName}>
+									{role.roleName.charAt(0).toUpperCase() + role.roleName.slice(1)}
 								</Select.Item>
 							{/each}
 						{/if}
