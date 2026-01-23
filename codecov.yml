@@ -39,57 +39,76 @@ comment:
     - main
 
 # Service-specific flags
+# These flags must match the flags used in CI workflow uploads
 flags:
+  # Main flags used by CI workflows
   unittests:
     paths:
-      - services/
-      - shared/
+      - services/**/src/**
+      - shared/**/src/**
     carryforward: true
 
   ci-all-tests:
     paths:
-      - services/
-      - shared/
+      - services/**/src/**
+      - shared/**/src/**
     carryforward: true
 
+  # Per-service flags for granular coverage tracking
+  # user_service has sub-crates: api, core, infra
   user_service:
     paths:
-      - services/user_service/
+      - services/user_service/api/src/**
+      - services/user_service/core/src/**
+      - services/user_service/infra/src/**
     carryforward: true
 
   inventory_service:
     paths:
-      - services/inventory_service/
+      - services/inventory_service/src/**
     carryforward: true
 
   order_service:
     paths:
-      - services/order_service/
+      - services/order_service/src/**
     carryforward: true
 
   payment_service:
     paths:
-      - services/payment_service/
+      - services/payment_service/src/**
     carryforward: true
 
   integration_service:
     paths:
-      - services/integration_service/
+      - services/integration_service/src/**
+    carryforward: true
+
+  # Shared crates
+  shared:
+    paths:
+      - shared/auth/src/**
+      - shared/config/src/**
+      - shared/db/src/**
+      - shared/error/src/**
+      - shared/events/src/**
+      - shared/jwt/src/**
+      - shared/rate_limit/src/**
+      - shared/types/src/**
     carryforward: true
 
   frontend:
     paths:
-      - frontend/
+      - frontend/src/**
     carryforward: true
 
 # Ignore patterns
 ignore:
+  # Test files should not count toward coverage
   - "**/*_test.rs"
   - "**/tests/**"
   - "**/benches/**"
   - "**/examples/**"
   - "target/**"
-  - "**/main.rs" # Main files usually don't need coverage
 
   # Frontend ignore patterns
   - "frontend/node_modules/**"
@@ -110,11 +129,30 @@ component_management:
       - type: project
         target: 70%
   individual_components:
-    - component_id: rust-backend
-      name: Rust Backend Services
+    - component_id: user-service
+      name: User Service
       paths:
-        - services/**
-        - shared/**
+        - services/user_service/**/src/**
+    - component_id: inventory-service
+      name: Inventory Service
+      paths:
+        - services/inventory_service/src/**
+    - component_id: order-service
+      name: Order Service
+      paths:
+        - services/order_service/src/**
+    - component_id: payment-service
+      name: Payment Service
+      paths:
+        - services/payment_service/src/**
+    - component_id: integration-service
+      name: Integration Service
+      paths:
+        - services/integration_service/src/**
+    - component_id: shared-crates
+      name: Shared Libraries
+      paths:
+        - shared/**/src/**
     - component_id: frontend
       name: SvelteKit Frontend
       paths:
