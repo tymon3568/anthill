@@ -27,6 +27,8 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "--cfg uuid_unstable"
+  SQLX_OFFLINE: true
+  SQLX_OFFLINE_DIR: ${{ github.workspace }}/.sqlx
   # Test database configuration
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: postgres
@@ -145,8 +147,6 @@ jobs:
           cargo test --workspace --lib --bins \
             --exclude integration_tests \
             -- --nocapture --test-threads=4
-        env:
-          SQLX_OFFLINE: true
 
       - name: Upload test results
         if: always()
@@ -615,8 +615,6 @@ jobs:
           cd services/${{ matrix.service }}
           cargo check --all-features
           cargo build --release
-        env:
-          SQLX_OFFLINE: true
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
