@@ -38,9 +38,15 @@ fake = {version = "2.9", features = ["derive", "uuid", "chrono"]}
 futures = "0.3"
 # Hex encoding
 hex = "0.4"
+# Image processing
+image = "0.25"
 # Inventory service crates (internal)
 inventory_service_core = {path = "services/inventory_service/core"}
 inventory_service_infra = {path = "services/inventory_service/infra"}
+# AWS SDK for S3-compatible storage (RustFS)
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.65"
+aws-smithy-runtime-api = "1.7"
 # Auth & security
 jsonwebtoken = "9.2"
 lazy_static = "1.4"

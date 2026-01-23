@@ -12,7 +12,7 @@
  * @module user-service
  */
 
-import { apiClient, createPaginationParams } from './client';
+import { apiClient, createPaginationParams, transformKeysToCamelCase } from './client';
 import type { ApiResponse } from '$lib/types';
 import type {
 	User,
@@ -158,7 +158,8 @@ export const userServiceApi = {
 				};
 			}
 
-			const data = await response.json();
+			const rawData = await response.json();
+			const data = transformKeysToCamelCase<AvatarUploadResponse>(rawData);
 			return { success: true, data };
 		} catch (error) {
 			return {
@@ -461,43 +462,45 @@ export const userServiceApi = {
 		const searchParams = createPaginationParams(params.page, params.perPage);
 		if (params.status) searchParams.set('status', params.status);
 
-		// Backend returns snake_case with nested objects
-		interface BackendInvitedBy {
-			user_id: string;
+		// apiClient auto-transforms snake_case to camelCase, so we use camelCase here
+		interface TransformedInvitedBy {
+			userId: string;
 			email: string;
-			full_name?: string;
+			fullName?: string;
 		}
-		interface BackendInvitation {
-			invitation_id: string;
+		interface TransformedInvitation {
+			invitationId: string;
 			email: string;
 			role: string;
 			status: InvitationStatus;
-			invited_by: BackendInvitedBy;
-			expires_at: string;
-			created_at: string;
-			accepted_at?: string;
+			invitedBy: TransformedInvitedBy;
+			expiresAt: string;
+			createdAt: string;
+			acceptedAt?: string;
 		}
-		interface BackendResponse {
-			invitations: BackendInvitation[];
+		interface TransformedResponse {
+			invitations: TransformedInvitation[];
 			total: number;
 			page: number;
-			page_size: number;
+			pageSize: number;
 		}
 
-		const result = await apiClient.get<BackendResponse>(`/admin/users/invitations?${searchParams}`);
+		const result = await apiClient.get<TransformedResponse>(
+			`/admin/users/invitations?${searchParams}`
+		);
 
 		if (result.success && result.data) {
-			// Transform snake_case to camelCase
+			// Map to Invitation interface format
 			const transformedInvitations: Invitation[] = result.data.invitations.map((inv) => ({
-				id: inv.invitation_id,
+				id: inv.invitationId,
 				email: inv.email,
 				role: inv.role,
 				status: inv.status,
-				invitedBy: inv.invited_by.user_id,
-				invitedByName: inv.invited_by.full_name || inv.invited_by.email,
-				expiresAt: inv.expires_at,
-				createdAt: inv.created_at,
-				acceptedAt: inv.accepted_at
+				invitedBy: inv.invitedBy?.userId ?? '',
+				invitedByName: inv.invitedBy?.fullName || inv.invitedBy?.email || 'Unknown',
+				expiresAt: inv.expiresAt,
+				createdAt: inv.createdAt,
+				acceptedAt: inv.acceptedAt
 			}));
 
 			const perPage = params.perPage || 10;

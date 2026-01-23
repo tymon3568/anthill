@@ -25,6 +25,7 @@ use user_service_infra::auth::{
     PgPasswordResetRepository, PgSessionRepository, PgTenantRepository, PgUserProfileRepository,
     PgUserRepository, ProfileServiceImpl, RedisAuthzVersionRepository, SmtpConfig, SmtpEmailSender,
 };
+use user_service_infra::storage::{StorageClient, StorageConfig};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -91,8 +92,36 @@ async fn main() {
         config.jwt_refresh_expiration,
     );
 
-    let profile_service =
-        ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo.clone()));
+    // Initialize storage client for file uploads (RustFS)
+    let storage_client = match StorageConfig::from_env() {
+        Ok(storage_config) => match StorageClient::new(storage_config).await {
+            Ok(client) => {
+                tracing::info!("✅ Storage client initialized (RustFS)");
+                Some(Arc::new(client))
+            },
+            Err(e) => {
+                tracing::warn!("⚠️ Failed to initialize storage client: {} - avatar uploads will use placeholder URLs", e);
+                None
+            },
+        },
+        Err(e) => {
+            tracing::warn!(
+                "⚠️ Storage configuration not found: {} - avatar uploads will use placeholder URLs",
+                e
+            );
+            None
+        },
+    };
+
+    let profile_service = if let Some(storage) = storage_client {
+        ProfileServiceImpl::with_storage(
+            Arc::new(profile_repo),
+            Arc::new(user_repo.clone()),
+            storage,
+        )
+    } else {
+        ProfileServiceImpl::new(Arc::new(profile_repo), Arc::new(user_repo.clone()))
+    };
 
     // Initialize invitation service
     let invitation_repo = PgInvitationRepository::new(db_pool.clone());
@@ -226,6 +255,8 @@ async fn main() {
         refresh_window: config.rate_limit_refresh_window,
         resend_verification_max: config.rate_limit_resend_max,
         resend_verification_window: config.rate_limit_resend_window,
+        file_upload_max: config.rate_limit_file_upload_max,
+        file_upload_window: config.rate_limit_file_upload_window,
         lockout_threshold: config.rate_limit_lockout_threshold,
         lockout_duration_seconds: config.rate_limit_lockout_duration,
         enabled: config.rate_limit_enabled,
@@ -491,31 +522,52 @@ async fn main() {
         .layer(shared_auth::CasbinAuthLayer::new(authz_state.clone()))
         .layer(Extension(authz_state.clone()));
 
-    // Profile routes (require authentication)
-    let profile_routes = Router::new()
-        .route("/api/v1/users/profile",
-            get(profile_handlers::get_profile::<ProfileServiceImpl>)
-            .put(profile_handlers::update_profile::<ProfileServiceImpl>)
-        )
-        // Avatar upload with 5MB body limit to prevent 413 before handler validation
+    // Personal profile routes (require authentication only, no Casbin - users manage their own profile)
+    // Avatar upload route with rate limiting (separated due to multiple layers)
+    let avatar_upload_route = Router::new()
         .route("/api/v1/users/profile/avatar",
             post(profile_handlers::upload_avatar::<ProfileServiceImpl>)
-                .layer(DefaultBodyLimit::max(5 * 1024 * 1024)) // 5MB
         )
-        .route("/api/v1/users/profile/visibility",
-            put(profile_handlers::update_visibility::<ProfileServiceImpl>)
+        .layer(DefaultBodyLimit::max(5 * 1024 * 1024)) // 5MB
+        .layer(RateLimitLayer::with_jwt_secret(
+            rate_limit_state.clone(),
+            RateLimitEndpoint::FileUpload,
+            config.jwt_secret.clone(),
+        ))
+        .layer(Extension(combined_state.profile.clone()))
+        .layer(Extension(authz_state.clone()));
+
+    let personal_profile_routes = Router::new()
+        .route(
+            "/api/v1/users/profile",
+            get(profile_handlers::get_profile::<ProfileServiceImpl>)
+                .put(profile_handlers::update_profile::<ProfileServiceImpl>),
         )
-        .route("/api/v1/users/profile/completeness",
-            get(profile_handlers::get_completeness::<ProfileServiceImpl>)
+        .route(
+            "/api/v1/users/profile/visibility",
+            put(profile_handlers::update_visibility::<ProfileServiceImpl>),
         )
-        .route("/api/v1/users/profiles/search",
-            post(profile_handlers::search_profiles::<ProfileServiceImpl>)
+        .route(
+            "/api/v1/users/profile/completeness",
+            get(profile_handlers::get_completeness::<ProfileServiceImpl>),
         )
-        .route("/api/v1/users/profiles/{user_id}",
-            get(profile_handlers::get_public_profile::<ProfileServiceImpl>)
+        .route(
+            "/api/v1/users/profiles/search",
+            post(profile_handlers::search_profiles::<ProfileServiceImpl>),
         )
-        .route("/api/v1/users/profiles/{user_id}/verification",
-            put(profile_handlers::update_verification::<ProfileServiceImpl>)
+        .route(
+            "/api/v1/users/profiles/{user_id}",
+            get(profile_handlers::get_public_profile::<ProfileServiceImpl>),
+        )
+        .merge(avatar_upload_route)
+        .layer(Extension(combined_state.profile.clone()))
+        .layer(Extension(authz_state.clone()));
+
+    // Admin profile routes (require authentication + Casbin authorization)
+    let admin_profile_routes = Router::new()
+        .route(
+            "/api/v1/users/profiles/{user_id}/verification",
+            put(profile_handlers::update_verification::<ProfileServiceImpl>),
         )
         .layer(Extension(combined_state.profile.clone()))
         .layer(shared_auth::CasbinAuthLayer::new(authz_state.clone()))
@@ -525,7 +577,8 @@ async fn main() {
     let api_routes = public_routes
         .merge(protected_routes)
         .merge(admin_routes)
-        .merge(profile_routes);
+        .merge(personal_profile_routes)
+        .merge(admin_profile_routes);
 
     // Build application with routes and Swagger UI
     let app = Router::new()

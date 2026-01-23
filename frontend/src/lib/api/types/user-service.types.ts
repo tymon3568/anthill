@@ -88,12 +88,12 @@ export interface Permission {
 	action: string;
 }
 
-/** Role definition - matches backend RoleInfo struct */
+/** Role definition - matches backend RoleInfo struct (camelCase after API transformation) */
 export interface Role {
-	role_name: string;
+	roleName: string;
 	description?: string;
 	permissions?: Permission[]; // May be undefined for system roles without explicit policies
-	user_count: number;
+	userCount: number;
 }
 
 /** Response from list roles endpoint */

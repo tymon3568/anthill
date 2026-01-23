@@ -14,10 +14,13 @@ use user_service_core::domains::auth::dto::profile_dto::{
 };
 use uuid::Uuid;
 
+use crate::storage::{process_avatar, ImageProcessingConfig, StorageClient};
+
 /// Profile service implementation
 pub struct ProfileServiceImpl {
     profile_repo: Arc<dyn UserProfileRepository>,
     user_repo: Arc<dyn UserRepository>,
+    storage_client: Option<Arc<StorageClient>>,
 }
 
 impl ProfileServiceImpl {
@@ -28,6 +31,20 @@ impl ProfileServiceImpl {
         Self {
             profile_repo,
             user_repo,
+            storage_client: None,
+        }
+    }
+
+    /// Create with storage client for avatar uploads
+    pub fn with_storage(
+        profile_repo: Arc<dyn UserProfileRepository>,
+        user_repo: Arc<dyn UserRepository>,
+        storage_client: Arc<StorageClient>,
+    ) -> Self {
+        Self {
+            profile_repo,
+            user_repo,
+            storage_client: Some(storage_client),
         }
     }
 }
@@ -42,7 +59,7 @@ impl ProfileService for ProfileServiceImpl {
         // Get user basic info
         let user = self
             .user_repo
-            .find_by_id(user_id, tenant_id)
+            .find_by_id(tenant_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -122,7 +139,7 @@ impl ProfileService for ProfileServiceImpl {
         if request.full_name.is_some() || request.phone.is_some() {
             let mut user = self
                 .user_repo
-                .find_by_id(user_id, tenant_id)
+                .find_by_id(tenant_id, user_id)
                 .await?
                 .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -144,20 +161,75 @@ impl ProfileService for ProfileServiceImpl {
         &self,
         user_id: Uuid,
         tenant_id: Uuid,
-        _request: UploadAvatarRequest,
-        _file_data: Vec<u8>,
+        request: UploadAvatarRequest,
+        file_data: Vec<u8>,
     ) -> Result<UploadAvatarResponse, AppError> {
-        // TODO: Implement file upload to S3 or similar storage
-        // For now, return a placeholder URL
-        let avatar_url = format!("https://storage.example.com/avatars/{}.jpg", user_id);
-
-        // Update user avatar_url
+        // Get current user to check for existing avatar
         let mut user = self
             .user_repo
-            .find_by_id(user_id, tenant_id)
+            .find_by_id(tenant_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
+        let old_avatar_url = user.avatar_url.clone();
+
+        // Process image: resize to avatar dimensions and compress
+        let config = ImageProcessingConfig::default();
+        let processed = process_avatar(&file_data, &request.content_type, &config)?;
+
+        tracing::info!(
+            user_id = %user_id,
+            original_size = %file_data.len(),
+            processed_size = %processed.data.len(),
+            original_dimensions = %format!("{}x{}", processed.original_dimensions.0, processed.original_dimensions.1),
+            final_dimensions = %format!("{}x{}", processed.final_dimensions.0, processed.final_dimensions.1),
+            "Avatar image processed before upload"
+        );
+
+        // Use processed content type (may differ from claimed type)
+        let content_type = &processed.content_type;
+
+        // Generate unique filename with extension based on detected type
+        let extension = match content_type.as_str() {
+            "image/png" => "png",
+            "image/gif" => "gif",
+            "image/webp" => "webp",
+            _ => "jpg",
+        };
+        let object_key = format!("avatars/{}/{}.{}", tenant_id, user_id, extension);
+
+        // Upload to storage if client is available, otherwise use placeholder
+        let avatar_url = if let Some(storage) = &self.storage_client {
+            // Use validated upload with magic bytes check (already validated during processing)
+            let url = storage
+                .upload_validated_image(&object_key, processed.data, content_type)
+                .await?;
+
+            // Clean up old avatar if it exists and is different from new one
+            if let Some(old_url) = &old_avatar_url {
+                if old_url != &url {
+                    if let Some(old_key) = storage.extract_key_from_url(old_url) {
+                        tracing::info!(
+                            old_key = %old_key,
+                            user_id = %user_id,
+                            "Cleaning up old avatar"
+                        );
+                        // Delete silently - don't fail upload if cleanup fails
+                        storage.delete_silent(&old_key).await;
+                    }
+                }
+            }
+
+            url
+        } else {
+            // Fallback to placeholder URL when storage is not configured
+            tracing::warn!(
+                "Storage client not configured, using placeholder URL for avatar upload"
+            );
+            format!("http://localhost:9000/anthill-files/{}", object_key)
+        };
+
+        // Update user avatar_url
         user.avatar_url = Some(avatar_url.clone());
         self.user_repo.update(&user).await?;
 
@@ -232,7 +304,7 @@ impl ProfileService for ProfileServiceImpl {
             // Fetch user data to get full_name and avatar_url
             let user = self
                 .user_repo
-                .find_by_id(p.user_id, tenant_id)
+                .find_by_id(tenant_id, p.user_id)
                 .await?
                 .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
@@ -271,7 +343,7 @@ impl ProfileService for ProfileServiceImpl {
 
         let user = self
             .user_repo
-            .find_by_id(user_id, tenant_id)
+            .find_by_id(tenant_id, user_id)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 

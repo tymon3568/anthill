@@ -1,5 +1,8 @@
 [dependencies]
 async-trait = {workspace = true}
+aws-config = {workspace = true}
+aws-sdk-s3 = {workspace = true}
+aws-smithy-runtime-api = {workspace = true}
 base64 = "0.22"
 bcrypt = {workspace = true}
 chrono = {workspace = true}
@@ -20,6 +23,11 @@ tracing = {workspace = true}
 # Internal crates
 user_service_core = {workspace = true}
 uuid = {workspace = true}
+# Storage enhancements
+tokio-retry = "0.3"
+metrics = "0.24"
+# Image processing
+image = { workspace = true }
 
 [package]
 name = "user_service_infra"

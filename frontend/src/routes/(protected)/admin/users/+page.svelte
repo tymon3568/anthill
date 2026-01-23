@@ -567,9 +567,9 @@
 						{#if isLoadingRoles}
 							<Select.Item value="user" disabled>Loading...</Select.Item>
 						{:else}
-							{#each roles as role (role.role_name)}
-								<Select.Item value={role.role_name}>
-									{role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)}
+							{#each roles as role (role.roleName)}
+								<Select.Item value={role.roleName}>
+									{role.roleName.charAt(0).toUpperCase() + role.roleName.slice(1)}
 								</Select.Item>
 							{/each}
 						{/if}
@@ -644,24 +644,24 @@
 				<div class="space-y-2">
 					<Label class="text-sm font-medium">Assign New Role</Label>
 					<div class="space-y-2">
-						{#each roles as role (role.role_name)}
-							{@const isAlreadyAssigned = userRoles.includes(role.role_name)}
+						{#each roles as role (role.roleName)}
+							{@const isAlreadyAssigned = userRoles.includes(role.roleName)}
 							{#if !isAlreadyAssigned}
 								<Button
 									variant="outline"
 									class="w-full justify-start"
-									onclick={() => handleAssignRole(role.role_name)}
+									onclick={() => handleAssignRole(role.roleName)}
 									disabled={isSubmitting}
 								>
 									<ShieldIcon class="mr-2 h-4 w-4" />
-									{role.role_name.charAt(0).toUpperCase() + role.role_name.slice(1)}
+									{role.roleName.charAt(0).toUpperCase() + role.roleName.slice(1)}
 									{#if role.description}
 										<span class="ml-2 text-xs text-muted-foreground">- {role.description}</span>
 									{/if}
 								</Button>
 							{/if}
 						{/each}
-						{#if roles.every((role) => userRoles.includes(role.role_name))}
+						{#if roles.every((role) => userRoles.includes(role.roleName))}
 							<p class="py-2 text-center text-sm text-muted-foreground">
 								User has all available roles assigned
 							</p>

@@ -110,7 +110,7 @@
 
 	function openEditDialog(role: Role) {
 		selectedRole = role;
-		formName = role.role_name;
+		formName = role.roleName;
 		formDescription = role.description || '';
 		formPermissions = new SvelteSet(
 			(role.permissions ?? []).map((p) => `${p.resource}:${p.action}`)
@@ -207,9 +207,9 @@
 				permissions: getSelectedPermissions()
 			};
 
-			const response = await userServiceApi.updateRole(selectedRole.role_name, data);
+			const response = await userServiceApi.updateRole(selectedRole.roleName, data);
 			if (response.success) {
-				toast.success(`Role "${selectedRole.role_name}" updated successfully`);
+				toast.success(`Role "${selectedRole.roleName}" updated successfully`);
 				showEditDialog = false;
 				await loadRoles();
 			} else {
@@ -228,9 +228,9 @@
 
 		isSubmitting = true;
 		try {
-			const response = await userServiceApi.deleteRole(selectedRole.role_name);
+			const response = await userServiceApi.deleteRole(selectedRole.roleName);
 			if (response.success) {
-				toast.success(`Role "${selectedRole.role_name}" deleted successfully`);
+				toast.success(`Role "${selectedRole.roleName}" deleted successfully`);
 				showDeleteDialog = false;
 				await loadRoles();
 			} else {
@@ -312,14 +312,14 @@
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
-						{#each roles as role (role.role_name)}
+						{#each roles as role (role.roleName)}
 							<Table.Row>
 								<Table.Cell class="font-medium">
 									<div class="flex items-center gap-2">
-										{#if isSystemRole(role.role_name)}
+										{#if isSystemRole(role.roleName)}
 											<LockIcon class="h-4 w-4 text-muted-foreground" />
 										{/if}
-										{capitalizeFirst(role.role_name)}
+										{capitalizeFirst(role.roleName)}
 									</div>
 								</Table.Cell>
 								<Table.Cell class="max-w-xs truncate text-muted-foreground">
@@ -333,19 +333,19 @@
 									</Badge>
 								</Table.Cell>
 								<Table.Cell>
-									<Badge variant={isSystemRole(role.role_name) ? 'default' : 'outline'}>
-										{isSystemRole(role.role_name) ? 'System' : 'Custom'}
+									<Badge variant={isSystemRole(role.roleName) ? 'default' : 'outline'}>
+										{isSystemRole(role.roleName) ? 'System' : 'Custom'}
 									</Badge>
 								</Table.Cell>
-								<Table.Cell>{role.user_count} user{role.user_count !== 1 ? 's' : ''}</Table.Cell>
+								<Table.Cell>{role.userCount} user{role.userCount !== 1 ? 's' : ''}</Table.Cell>
 								<Table.Cell class="text-right">
 									<div class="flex justify-end gap-2">
 										<Button
 											variant="ghost"
 											size="sm"
 											onclick={() => openEditDialog(role)}
-											disabled={isSystemRole(role.role_name)}
-											title={isSystemRole(role.role_name)
+											disabled={isSystemRole(role.roleName)}
+											title={isSystemRole(role.roleName)
 												? 'System roles cannot be edited'
 												: 'Edit Role'}
 										>
@@ -355,8 +355,8 @@
 											variant="ghost"
 											size="sm"
 											onclick={() => openDeleteDialog(role)}
-											disabled={isSystemRole(role.role_name)}
-											title={isSystemRole(role.role_name)
+											disabled={isSystemRole(role.roleName)}
+											title={isSystemRole(role.roleName)
 												? 'System roles cannot be deleted'
 												: 'Delete Role'}
 										>
@@ -494,7 +494,7 @@
 >
 	<Dialog.Content class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
 		<Dialog.Header>
-			<Dialog.Title>Edit Role: {selectedRole?.role_name}</Dialog.Title>
+			<Dialog.Title>Edit Role: {selectedRole?.roleName}</Dialog.Title>
 			<Dialog.Description>
 				Update the permissions for this role. Changes will affect all users with this role.
 			</Dialog.Description>
@@ -589,7 +589,7 @@
 			<Dialog.Title>Delete Role</Dialog.Title>
 			<Dialog.Description>
 				{#if selectedRole}
-					Are you sure you want to delete the role <strong>{selectedRole.role_name}</strong>? This
+					Are you sure you want to delete the role <strong>{selectedRole.roleName}</strong>? This
 					action cannot be undone. Users with this role will lose their associated permissions.
 				{/if}
 			</Dialog.Description>

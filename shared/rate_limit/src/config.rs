@@ -46,6 +46,12 @@ pub struct RateLimitConfig {
     #[serde(default = "default_accept_invite_window")]
     pub accept_invite_window: u64,
 
+    /// File upload limits (per user)
+    #[serde(default = "default_file_upload_max")]
+    pub file_upload_max: u32,
+    #[serde(default = "default_file_upload_window")]
+    pub file_upload_window: u64,
+
     /// Account lockout settings
     #[serde(default = "default_lockout_threshold")]
     pub lockout_threshold: u32,
@@ -111,6 +117,12 @@ fn default_accept_invite_max() -> u32 {
 fn default_accept_invite_window() -> u64 {
     3600 // 1 hour
 }
+fn default_file_upload_max() -> u32 {
+    10
+}
+fn default_file_upload_window() -> u64 {
+    3600 // 1 hour - 10 uploads per user per hour
+}
 fn default_lockout_threshold() -> u32 {
     10
 }
@@ -143,6 +155,8 @@ impl Default for RateLimitConfig {
             refresh_window: default_refresh_window(),
             accept_invite_max: default_accept_invite_max(),
             accept_invite_window: default_accept_invite_window(),
+            file_upload_max: default_file_upload_max(),
+            file_upload_window: default_file_upload_window(),
             lockout_threshold: default_lockout_threshold(),
             lockout_duration_seconds: default_lockout_duration_seconds(),
             global_requests_per_second: default_global_requests_per_second(),

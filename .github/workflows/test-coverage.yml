@@ -24,6 +24,8 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  SQLX_OFFLINE: true
+  SQLX_OFFLINE_DIR: ${{ github.workspace }}/.sqlx
 
 jobs:
   coverage:
@@ -73,7 +75,6 @@ jobs:
             --output-path lcov.info
         env:
           RUSTFLAGS: "--cfg uuid_unstable"
-          SQLX_OFFLINE: true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -138,7 +139,6 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
           JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
-          SQLX_OFFLINE: true
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
@@ -176,8 +176,6 @@ jobs:
             --all-features \
             --lcov \
             --output-path ../../lcov-inventory.info
-        env:
-          SQLX_OFFLINE: true
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5

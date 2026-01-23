@@ -196,6 +196,8 @@
 			const response = await userServiceApi.updateProfile(updateData);
 			if (response.success) {
 				toast.success('Profile updated successfully');
+				// Refresh profile data from server to confirm save worked
+				await loadProfile();
 				await loadCompleteness(); // Refresh completeness score
 			} else {
 				toast.error(response.error || 'Failed to update profile');
@@ -247,7 +249,8 @@
 			const response = await userServiceApi.uploadAvatar(file);
 			if (response.success && response.data) {
 				if (profile) {
-					profile.avatarUrl = response.data.avatarUrl;
+					// Reassign profile object to trigger Svelte 5 reactivity
+					profile = { ...profile, avatarUrl: response.data.avatarUrl };
 				}
 				toast.success('Avatar uploaded successfully');
 			} else {
@@ -347,7 +350,7 @@
 							<span class="text-sm font-bold text-blue-600">{completeness.score}%</span>
 						</div>
 						<Progress value={completeness.score} class="h-2" />
-						{#if completeness.recommendations.length > 0}
+						{#if completeness.recommendations && completeness.recommendations.length > 0}
 							<p class="mt-2 text-sm text-muted-foreground">
 								{completeness.recommendations[0]}
 							</p>
