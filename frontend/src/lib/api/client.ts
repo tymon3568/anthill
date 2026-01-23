@@ -1,6 +1,48 @@
 import type { ApiResponse } from '$lib/types';
 import { getCurrentTenantSlug } from '$lib/tenant';
 
+// Helper function to convert snake_case to camelCase
+function snakeToCamel(str: string): string {
+	return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+// Recursively transform all keys in an object from snake_case to camelCase
+export function transformKeysToCamelCase<T>(obj: unknown): T {
+	if (Array.isArray(obj)) {
+		return obj.map(transformKeysToCamelCase) as T;
+	}
+	if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
+		return Object.fromEntries(
+			Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
+				snakeToCamel(key),
+				transformKeysToCamelCase(value)
+			])
+		) as T;
+	}
+	return obj as T;
+}
+
+// Helper function to convert camelCase to snake_case
+function camelToSnake(str: string): string {
+	return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+// Recursively transform all keys in an object from camelCase to snake_case
+function transformKeysToSnakeCase<T>(obj: unknown): T {
+	if (Array.isArray(obj)) {
+		return obj.map(transformKeysToSnakeCase) as T;
+	}
+	if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
+		return Object.fromEntries(
+			Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
+				camelToSnake(key),
+				transformKeysToSnakeCase(value)
+			])
+		) as T;
+	}
+	return obj as T;
+}
+
 // Base API configuration
 // Use relative URL to route through SvelteKit proxy for proper cookie handling
 // The proxy at /api/v1/[...path] forwards requests to the backend with auth headers
@@ -128,7 +170,9 @@ class ApiClient {
 			const contentType = response.headers.get('content-type') ?? '';
 			let data: T;
 			if (contentType.includes('application/json')) {
-				data = await response.json();
+				// Transform snake_case keys from backend to camelCase for frontend
+				const rawData = await response.json();
+				data = transformKeysToCamelCase<T>(rawData);
 			} else {
 				data = (await response.text()) as unknown as T;
 			}
@@ -154,24 +198,30 @@ class ApiClient {
 		data?: Record<string, unknown>,
 		options?: { headers?: Record<string, string> }
 	): Promise<ApiResponse<T>> {
+		// Transform camelCase keys to snake_case for backend
+		const transformedData = data ? transformKeysToSnakeCase(data) : undefined;
 		return this.request<T>(endpoint, {
 			method: 'POST',
-			body: data ? JSON.stringify(data) : undefined,
+			body: transformedData ? JSON.stringify(transformedData) : undefined,
 			headers: options?.headers
 		});
 	}
 
 	async put<T>(endpoint: string, data?: Record<string, unknown>): Promise<ApiResponse<T>> {
+		// Transform camelCase keys to snake_case for backend
+		const transformedData = data ? transformKeysToSnakeCase(data) : undefined;
 		return this.request<T>(endpoint, {
 			method: 'PUT',
-			body: data ? JSON.stringify(data) : undefined
+			body: transformedData ? JSON.stringify(transformedData) : undefined
 		});
 	}
 
 	async patch<T>(endpoint: string, data?: Record<string, unknown>): Promise<ApiResponse<T>> {
+		// Transform camelCase keys to snake_case for backend
+		const transformedData = data ? transformKeysToSnakeCase(data) : undefined;
 		return this.request<T>(endpoint, {
 			method: 'PATCH',
-			body: data ? JSON.stringify(data) : undefined
+			body: transformedData ? JSON.stringify(transformedData) : undefined
 		});
 	}
 

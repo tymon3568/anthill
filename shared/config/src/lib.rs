@@ -158,6 +158,14 @@ pub struct Config {
     #[serde(default = "default_rate_limit_resend_window")]
     pub rate_limit_resend_window: u64,
 
+    /// File upload: max uploads per user (default: 10)
+    #[serde(default = "default_rate_limit_file_upload_max")]
+    pub rate_limit_file_upload_max: u32,
+
+    /// File upload: window in seconds (default: 3600 = 1 hour)
+    #[serde(default = "default_rate_limit_file_upload_window")]
+    pub rate_limit_file_upload_window: u64,
+
     /// Trust proxy headers for IP extraction (default: false)
     /// Only enable if behind a trusted reverse proxy
     #[serde(default)]
@@ -339,6 +347,14 @@ fn default_rate_limit_resend_window() -> u64 {
     3600 // 1 hour
 }
 
+fn default_rate_limit_file_upload_max() -> u32 {
+    10
+}
+
+fn default_rate_limit_file_upload_window() -> u64 {
+    3600 // 1 hour
+}
+
 // Decision cache defaults
 fn default_decision_cache_enabled() -> bool {
     true
@@ -426,6 +442,8 @@ impl Config {
             .set_default("rate_limit_refresh_window", 3600)?
             .set_default("rate_limit_resend_max", 3)?
             .set_default("rate_limit_resend_window", 3600)?
+            .set_default("rate_limit_file_upload_max", 10)?
+            .set_default("rate_limit_file_upload_window", 3600)?
             .set_default("rate_limit_trust_proxy_headers", false)?
             .set_default("rate_limit_proxy_count", 0)?
             // Decision cache defaults
@@ -508,6 +526,8 @@ impl Default for Config {
             rate_limit_refresh_window: default_rate_limit_refresh_window(),
             rate_limit_resend_max: default_rate_limit_resend_max(),
             rate_limit_resend_window: default_rate_limit_resend_window(),
+            rate_limit_file_upload_max: default_rate_limit_file_upload_max(),
+            rate_limit_file_upload_window: default_rate_limit_file_upload_window(),
             rate_limit_trust_proxy_headers: false,
             rate_limit_proxy_count: 0,
             rate_limit_trusted_ips: None,

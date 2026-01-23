@@ -277,13 +277,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 	})();
 
 	// Set CSP header based on environment
+	// Get RustFS public URL for img-src (avatars, uploads)
+	const rustfsUrl = env.PUBLIC_RUSTFS_URL || 'http://localhost:9000';
+
 	const csp = dev
 		? // Development CSP - more permissive
 			[
 				"default-src 'self'",
 				"script-src 'self' 'unsafe-inline' 'unsafe-eval'",
 				"style-src 'self' 'unsafe-inline'",
-				"img-src 'self' data: https:",
+				`img-src 'self' data: https: ${rustfsUrl}`,
 				"font-src 'self' data:",
 				"connect-src 'self' https: http://localhost:8000 http://127.0.0.1:8000 ws://localhost:5173 ws://localhost:5174 wss:",
 				"object-src 'none'",
@@ -295,7 +298,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				"default-src 'self'",
 				"script-src 'self' 'unsafe-inline'", // SvelteKit needs unsafe-inline for hydration
 				"style-src 'self' 'unsafe-inline'",
-				"img-src 'self' data: https:",
+				`img-src 'self' data: https: ${rustfsUrl}`,
 				"font-src 'self' data:",
 				"connect-src 'self' https: wss:",
 				"object-src 'none'",

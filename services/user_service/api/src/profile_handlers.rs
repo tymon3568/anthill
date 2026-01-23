@@ -226,7 +226,7 @@ pub async fn update_visibility<S: ProfileService>(
         .update_visibility(auth_user.user_id, auth_user.tenant_id, request)
         .await?;
 
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Get profile completeness score
@@ -351,7 +351,7 @@ pub async fn update_verification<S: ProfileService>(
         .update_verification(user_id, auth_user.tenant_id, request.verified, request.badge)
         .await?;
 
-    Ok(StatusCode::OK)
+    Ok(StatusCode::NO_CONTENT)
 }
 
 // ============================================================================

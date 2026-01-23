@@ -15,6 +15,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use tower::{Layer, Service};
 use tracing::{debug, info, warn};
+use uuid::Uuid;
 
 /// Rate limit endpoint type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +26,7 @@ pub enum RateLimitEndpoint {
     ResendVerification,
     Refresh,
     AcceptInvite,
+    FileUpload,
     Global,
 }
 
@@ -38,6 +40,7 @@ impl RateLimitEndpoint {
             Self::ResendVerification => "rate_limit:resend:user",
             Self::Refresh => "rate_limit:refresh:user",
             Self::AcceptInvite => "rate_limit:accept_invite:ip",
+            Self::FileUpload => "rate_limit:file_upload:user",
             Self::Global => "rate_limit:global:ip",
         }
     }
@@ -54,7 +57,7 @@ impl RateLimitEndpoint {
 
     /// Check if this endpoint uses user-based rate limiting
     pub fn is_user_based(&self) -> bool {
-        matches!(self, Self::ResendVerification | Self::Refresh)
+        matches!(self, Self::ResendVerification | Self::Refresh | Self::FileUpload)
     }
 }
 
@@ -179,6 +182,9 @@ impl RateLimitState {
             RateLimitEndpoint::AcceptInvite => {
                 (self.config.accept_invite_max, self.config.accept_invite_window)
             },
+            RateLimitEndpoint::FileUpload => {
+                (self.config.file_upload_max, self.config.file_upload_window)
+            },
             RateLimitEndpoint::Global => (self.config.global_requests_per_second * 60, 60),
         };
 
@@ -191,7 +197,9 @@ impl RateLimitState {
             RateLimitEndpoint::ForgotPassword => {
                 KeyGenerator::email_key(endpoint.key_prefix(), identifier)
             },
-            RateLimitEndpoint::ResendVerification | RateLimitEndpoint::Refresh => {
+            RateLimitEndpoint::ResendVerification
+            | RateLimitEndpoint::Refresh
+            | RateLimitEndpoint::FileUpload => {
                 KeyGenerator::user_key(endpoint.key_prefix(), identifier)
             },
         };
@@ -207,12 +215,31 @@ impl RateLimitState {
 pub struct RateLimitLayer {
     state: RateLimitState,
     endpoint: RateLimitEndpoint,
+    /// JWT secret for user-based rate limiting
+    jwt_secret: Option<String>,
 }
 
 impl RateLimitLayer {
     /// Create a new rate limit layer for a specific endpoint
     pub fn new(state: RateLimitState, endpoint: RateLimitEndpoint) -> Self {
-        Self { state, endpoint }
+        Self {
+            state,
+            endpoint,
+            jwt_secret: None,
+        }
+    }
+
+    /// Create a new rate limit layer with JWT secret for user-based endpoints
+    pub fn with_jwt_secret(
+        state: RateLimitState,
+        endpoint: RateLimitEndpoint,
+        jwt_secret: String,
+    ) -> Self {
+        Self {
+            state,
+            endpoint,
+            jwt_secret: Some(jwt_secret),
+        }
     }
 }
 
@@ -224,6 +251,7 @@ impl<S> Layer<S> for RateLimitLayer {
             inner,
             state: self.state.clone(),
             endpoint: self.endpoint,
+            jwt_secret: self.jwt_secret.clone(),
         }
     }
 }
@@ -234,6 +262,7 @@ pub struct RateLimitMiddleware<S> {
     inner: S,
     state: RateLimitState,
     endpoint: RateLimitEndpoint,
+    jwt_secret: Option<String>,
 }
 
 impl<S> Service<Request<Body>> for RateLimitMiddleware<S>
@@ -252,6 +281,7 @@ where
     fn call(&mut self, req: Request<Body>) -> Self::Future {
         let state = self.state.clone();
         let endpoint = self.endpoint;
+        let jwt_secret = self.jwt_secret.clone();
         let mut inner = self.inner.clone();
 
         Box::pin(async move {
@@ -269,8 +299,27 @@ where
                 return inner.call(req).await;
             }
 
+            // Determine the identifier based on endpoint type
+            let identifier = if endpoint.is_user_based() {
+                // For user-based endpoints, extract user ID from JWT
+                match extract_user_id_from_jwt(&req, jwt_secret.as_deref()) {
+                    Some(user_id) => user_id.to_string(),
+                    None => {
+                        // If no valid JWT, fall back to IP-based rate limiting
+                        // This provides some protection even for unauthenticated requests
+                        debug!(
+                            "No valid JWT for user-based rate limit on {:?}, falling back to IP",
+                            endpoint
+                        );
+                        ip.clone()
+                    },
+                }
+            } else {
+                ip.clone()
+            };
+
             // Check rate limit
-            match state.check_endpoint(endpoint, &ip).await {
+            match state.check_endpoint(endpoint, &identifier).await {
                 Ok(result) if result.allowed => {
                     // Add rate limit headers to response
                     let response = inner.call(req).await?;
@@ -279,8 +328,8 @@ where
                 Ok(result) => {
                     // Rate limit exceeded
                     info!(
-                        "Rate limit exceeded for IP {} on {:?}: {}/{} requests",
-                        ip, endpoint, result.limit, result.limit
+                        "Rate limit exceeded for {} on {:?}: {}/{} requests",
+                        identifier, endpoint, result.limit, result.limit
                     );
                     Ok(rate_limit_exceeded_response(&result))
                 },
@@ -291,6 +340,27 @@ where
                 },
             }
         })
+    }
+}
+
+/// Extract user ID from JWT token in Authorization header
+fn extract_user_id_from_jwt<B>(req: &Request<B>, jwt_secret: Option<&str>) -> Option<Uuid> {
+    let jwt_secret = jwt_secret?;
+
+    // Extract Authorization header
+    let auth_header = req.headers().get(header::AUTHORIZATION)?;
+    let auth_str = auth_header.to_str().ok()?;
+
+    // Extract token from "Bearer <token>"
+    let token = auth_str.strip_prefix("Bearer ")?;
+
+    // Decode JWT to get user ID
+    match shared_jwt::decode_jwt(token, jwt_secret) {
+        Ok(claims) => Some(claims.sub),
+        Err(e) => {
+            debug!("Failed to decode JWT for rate limiting: {}", e);
+            None
+        },
     }
 }
 

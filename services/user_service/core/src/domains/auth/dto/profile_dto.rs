@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 /// DTO for getting user profile (combines User + UserProfile data)
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfileResponse {
     // User basic info
     pub user_id: Uuid,
@@ -56,6 +57,7 @@ pub struct ProfileResponse {
 
 /// DTO for updating user profile
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct UpdateProfileRequest {
     // User basic info (optional updates)
     pub full_name: Option<String>,
@@ -90,45 +92,37 @@ pub struct UpdateProfileRequest {
 }
 
 /// Notification preferences structure
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
+#[serde(default)]
 pub struct NotificationPreferences {
+    #[serde(default = "default_true")]
     pub email_notifications: bool,
+    #[serde(default)]
     pub push_notifications: bool,
+    #[serde(default)]
     pub sms_notifications: bool,
+    #[serde(default)]
     pub notification_types: NotificationTypes,
 }
 
-impl Default for NotificationPreferences {
-    fn default() -> Self {
-        Self {
-            email_notifications: true,
-            push_notifications: false,
-            sms_notifications: false,
-            notification_types: NotificationTypes::default(),
-        }
-    }
+fn default_true() -> bool {
+    true
 }
 
 /// Specific notification type preferences
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, Default)]
+#[serde(default)]
 pub struct NotificationTypes {
+    #[serde(default = "default_true")]
     pub order_updates: bool,
+    #[serde(default = "default_true")]
     pub inventory_alerts: bool,
+    #[serde(default = "default_true")]
     pub system_announcements: bool,
+    #[serde(default = "default_true")]
     pub security_alerts: bool,
+    #[serde(default)]
     pub marketing_emails: bool,
-}
-
-impl Default for NotificationTypes {
-    fn default() -> Self {
-        Self {
-            order_updates: true,
-            inventory_alerts: true,
-            system_announcements: true,
-            security_alerts: true,
-            marketing_emails: false,
-        }
-    }
 }
 
 /// DTO for profile avatar upload
@@ -148,6 +142,7 @@ pub struct UploadAvatarResponse {
 
 /// DTO for profile visibility settings
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfileVisibilityRequest {
     pub profile_visibility: String, // public, private, team_only
     pub show_email: bool,

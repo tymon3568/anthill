@@ -34,6 +34,10 @@ hex = { workspace = true }
 # Shared crates
 shared_config = { workspace = true }
 shared_error = { workspace = true }
+shared_jwt = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
 
 # HTTP types
 http = "1.0"
@@ -44,4 +48,3 @@ futures-core = "0.3"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util", "macros"] }
-uuid = { workspace = true }

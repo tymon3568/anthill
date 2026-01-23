@@ -67,8 +67,10 @@ async function proxyRequest(
 
 		// Forward body for non-GET requests
 		if (method !== 'GET' && method !== 'HEAD') {
-			const body = await request.text();
-			if (body) {
+			// For multipart form data (file uploads), forward the raw body
+			// Using arrayBuffer() preserves binary data correctly
+			const body = await request.arrayBuffer();
+			if (body.byteLength > 0) {
 				options.body = body;
 			}
 		}
@@ -83,6 +85,14 @@ async function proxyRequest(
 		}
 
 		const response = await fetch(backendUrl, options);
+
+		// Handle 204 No Content - return empty response without body
+		if (response.status === 204) {
+			if (dev) {
+				console.log(`[proxy] Response 204 No Content`);
+			}
+			return new Response(null, { status: 204 });
+		}
 
 		// Get response body
 		const responseText = await response.text();
