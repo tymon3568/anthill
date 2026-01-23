@@ -246,14 +246,25 @@ describe('User Service API Client', () => {
 
 		describe('listUsers', () => {
 			it('should list users with default params', async () => {
-				const mockResponse: PaginatedUsers = {
-					data: [mockUser],
+				// Mock backend response format (snake_case)
+				const mockBackendResponse = {
+					users: [
+						{
+							id: 'user-123',
+							email: 'user@example.com',
+							full_name: 'Test User',
+							role: 'user',
+							roles: ['user'],
+							status: 'active',
+							email_verified: true,
+							created_at: '2024-01-01T00:00:00Z'
+						}
+					],
 					total: 1,
 					page: 1,
-					perPage: 10,
-					totalPages: 1
+					page_size: 10
 				};
-				vi.mocked(apiClient.get).mockResolvedValue({ success: true, data: mockResponse });
+				vi.mocked(apiClient.get).mockResolvedValue({ success: true, data: mockBackendResponse });
 
 				const result = await userServiceApi.listUsers();
 
@@ -263,14 +274,25 @@ describe('User Service API Client', () => {
 			});
 
 			it('should list users with filters', async () => {
-				const mockResponse: PaginatedUsers = {
-					data: [mockUser],
+				// Mock backend response format (snake_case)
+				const mockBackendResponse = {
+					users: [
+						{
+							id: 'user-123',
+							email: 'user@example.com',
+							full_name: 'Test User',
+							role: 'user',
+							roles: ['user'],
+							status: 'active',
+							email_verified: true,
+							created_at: '2024-01-01T00:00:00Z'
+						}
+					],
 					total: 1,
 					page: 1,
-					perPage: 10,
-					totalPages: 1
+					page_size: 10
 				};
-				vi.mocked(apiClient.get).mockResolvedValue({ success: true, data: mockResponse });
+				vi.mocked(apiClient.get).mockResolvedValue({ success: true, data: mockBackendResponse });
 
 				await userServiceApi.listUsers({ role: 'admin', status: 'active', search: 'test' });
 
