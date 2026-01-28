@@ -3,7 +3,7 @@
 // ============================================================
 //
 // Tool: https://dbdiagram.io/d (paste this code to visualize)
-// Last Updated: 2025-12-02
+// Last Updated: 2026-01-28
 // Multi-tenant architecture with application-level filtering
 //
 // HOW TO USE:
@@ -14,10 +14,24 @@
 // 5. Export as PNG/PDF/SQL if needed
 //
 // TABLES INCLUDED:
-// - Core: tenants, users, sessions, casbin_rule
-// - Inventory: products, unit_of_measures, warehouses, warehouse_zones, warehouse_locations, lots_serial_numbers
+// - Core: tenants, users, sessions, casbin_rule, user_profiles, user_invitations
+// - Auth: email_verification_tokens, password_reset_tokens, password_reset_audit
+// - Product: products, product_categories, product_variants, unit_of_measures, uom_conversions
+// - Warehouse: warehouses, warehouse_zones, warehouse_locations (unified), storage_categories
+// - Inventory: inventory_levels, lots_serial_numbers, daily_stock_snapshots
+// - Valuation: inventory_valuations, inventory_valuation_layers, inventory_valuation_history, inventory_valuation_settings
 // - Stock Operations: goods_receipts, delivery_orders, stock_transfers, stock_takes, stock_moves
 //   (and their respective line item tables)
+// - Quality: quality_checks, quality_check_lines, quality_control_points, quality_alerts
+// - Cycle Count: cycle_count_schedules, cycle_count_schedule_categories, cycle_count_schedule_locations
+// - Rules: putaway_rules, picking_methods, removal_strategies, reorder_rules
+// - RMA: rma_requests, rma_items
+// - Scrap: scrap_documents, scrap_lines
+// - Landed Cost: landed_cost_documents, landed_cost_lines, landed_cost_allocations
+// - Stock Reconciliation: stock_reconciliations, stock_reconciliation_items, stock_adjustments
+// - Pricing: price_lists, price_list_items, customer_price_lists, pricing_rules, pricing_rule_usage, price_history
+// - Events: event_outbox
+// - Authz: authz_audit_logs, tenant_authz_versions, user_authz_versions
 //
 // ============================================================
 
@@ -289,6 +303,25 @@ Table warehouse_locations {
   dimensions JSONB [note: 'length_mm, width_mm, height_mm, volume_m3']
   capacity_info JSONB [note: 'max_volume_m3, max_weight_kg, max_units, stacking_limit']
   location_attributes JSONB [note: 'powered, climate_controlled, accessible, priority']
+  // Hierarchical structure columns (migrated from storage_locations)
+  aisle VARCHAR(50) [note: 'Aisle identifier within zone']
+  rack VARCHAR(50) [note: 'Rack identifier within aisle']
+  level INTEGER [note: 'Level/shelf number on rack']
+  position INTEGER [note: 'Position number on level']
+  // Capacity and stock tracking
+  capacity BIGINT [note: 'Maximum capacity in base units']
+  current_stock BIGINT [default: 0, note: 'Current stock quantity at this location']
+  // Location flags
+  is_quarantine BOOLEAN [not null, default: false, note: 'Whether this location is for quarantined stock']
+  is_picking_location BOOLEAN [not null, default: true, note: 'Whether this location is used for picking']
+  // Dimension columns
+  length_cm INTEGER [note: 'Location length in centimeters']
+  width_cm INTEGER [note: 'Location width in centimeters']
+  height_cm INTEGER [note: 'Location height in centimeters']
+  weight_limit_kg INTEGER [note: 'Maximum weight limit in kilograms']
+  // Audit columns
+  created_by UUID [note: 'User who created this location']
+  updated_by UUID [note: 'User who last updated this location']
   is_active BOOLEAN [not null, default: true]
   created_at TIMESTAMPTZ [not null, default: `NOW()`]
   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
@@ -300,9 +333,12 @@ Table warehouse_locations {
     (tenant_id, warehouse_id) [name: 'idx_warehouse_locations_tenant_warehouse', where: 'deleted_at IS NULL']
     (tenant_id, zone_id) [name: 'idx_warehouse_locations_zone', where: 'deleted_at IS NULL']
     (tenant_id, location_type) [name: 'idx_warehouse_locations_tenant_type', where: 'deleted_at IS NULL']
+    (tenant_id, warehouse_id, aisle, rack, level, position) [name: 'idx_warehouse_locations_hierarchy', where: 'deleted_at IS NULL']
+    (tenant_id, warehouse_id, capacity, current_stock) [name: 'idx_warehouse_locations_capacity', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, warehouse_id) [name: 'idx_warehouse_locations_quarantine', where: 'deleted_at IS NULL AND is_active = true AND is_quarantine = true']
   }
 
-  Note: 'Individual storage locations within warehouse zones'
+  Note: 'Unified storage locations within warehouse zones (merged from storage_locations + warehouse_locations). Replaces the legacy storage_locations table.'
 }
 
 Table lots_serial_numbers {
@@ -515,10 +551,15 @@ Table stock_transfer_items {
   transfer_id UUID [not null]
   product_id UUID [not null]
   quantity BIGINT [not null, default: 0]
-  uom_id UUID [not null]
+  uom_id UUID
   unit_cost BIGINT [note: 'Cost per unit in cents/xu']
   line_total BIGINT [not null, default: 0, note: 'Calculated: quantity * unit_cost']
   line_number INTEGER [not null, default: 1]
+  // Zone/Location columns for location-level transfers (Module 4.5)
+  source_zone_id UUID [note: 'Source zone within source warehouse (optional)']
+  source_location_id UUID [note: 'Source location/bin within source warehouse (optional)']
+  destination_zone_id UUID [note: 'Destination zone within destination warehouse (optional)']
+  destination_location_id UUID [note: 'Destination location/bin within destination warehouse (optional)']
   notes TEXT
   created_at TIMESTAMPTZ [not null, default: `NOW()`]
   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
@@ -528,9 +569,13 @@ Table stock_transfer_items {
     (tenant_id, transfer_id, line_number) [unique, name: 'stock_transfer_items_unique_line_number']
     (tenant_id, transfer_id) [name: 'idx_stock_transfer_items_tenant_transfer', where: 'deleted_at IS NULL']
     (tenant_id, product_id) [name: 'idx_stock_transfer_items_tenant_product', where: 'deleted_at IS NULL']
+    (tenant_id, source_zone_id) [name: 'idx_transfer_items_source_zone', where: 'deleted_at IS NULL AND source_zone_id IS NOT NULL']
+    (tenant_id, source_location_id) [name: 'idx_transfer_items_source_location', where: 'deleted_at IS NULL AND source_location_id IS NOT NULL']
+    (tenant_id, destination_zone_id) [name: 'idx_transfer_items_dest_zone', where: 'deleted_at IS NULL AND destination_zone_id IS NOT NULL']
+    (tenant_id, destination_location_id) [name: 'idx_transfer_items_dest_location', where: 'deleted_at IS NULL AND destination_location_id IS NOT NULL']
   }
 
-  Note: 'Line items for Stock Transfers - individual products transferred'
+  Note: 'Line items for Stock Transfers - individual products transferred with optional zone/location granularity'
 }
 
 Table stock_takes {
@@ -682,21 +727,1322 @@ Ref: stock_transfers.(tenant_id, approved_by) > users.(tenant_id, user_id)
 Ref: stock_takes.(tenant_id, assigned_to) > users.(tenant_id, user_id)
 
 // ==================================
+// PRODUCT CATEGORIES (Missing from original ERD)
+// ==================================
+
+Table product_categories {
+  category_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  parent_category_id UUID [note: 'Self-referencing for hierarchy']
+  name VARCHAR(255) [not null]
+  description TEXT
+  code VARCHAR(100)
+  path TEXT [not null, note: 'Materialized path for hierarchy queries']
+  level INTEGER [not null, default: 0]
+  display_order INTEGER [not null, default: 0]
+  icon VARCHAR(100)
+  color VARCHAR(7) [note: 'Hex color code #RRGGBB']
+  image_url TEXT
+  is_active BOOLEAN [not null, default: true]
+  is_visible BOOLEAN [not null, default: true]
+  slug VARCHAR(255)
+  meta_title VARCHAR(255)
+  meta_description TEXT
+  meta_keywords TEXT
+  product_count INTEGER [not null, default: 0]
+  total_product_count INTEGER [not null, default: 0]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, category_id) [unique, name: 'idx_product_categories_tenant']
+    (tenant_id, code) [name: 'idx_product_categories_tenant_code', where: 'deleted_at IS NULL AND code IS NOT NULL']
+    (tenant_id, slug) [name: 'idx_product_categories_tenant_slug', where: 'deleted_at IS NULL']
+    (tenant_id, parent_category_id, display_order) [name: 'idx_product_categories_tenant_parent', where: 'deleted_at IS NULL']
+    (tenant_id, level) [name: 'idx_product_categories_tenant_level', where: 'deleted_at IS NULL']
+    (tenant_id, path) [name: 'idx_product_categories_tenant_path', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Hierarchical product categories with materialized path'
+}
+
+Table product_variants {
+  variant_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  parent_product_id UUID [not null]
+  variant_attributes JSONB [not null, default: '{}', note: 'e.g., {color: "red", size: "L"}']
+  sku TEXT [not null]
+  barcode TEXT
+  price_difference BIGINT [not null, default: 0, note: 'Price delta from parent product']
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, sku) [unique, name: 'product_variants_unique_sku_per_tenant']
+    (tenant_id, parent_product_id, variant_attributes) [unique, name: 'product_variants_unique_variant_per_product']
+    (tenant_id, parent_product_id) [name: 'idx_product_variants_tenant_parent', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Product variants with attribute combinations (color, size, etc.)'
+}
+
+// ==================================
+// STORAGE MANAGEMENT (Updated from warehouse_locations)
+// ==================================
+
+// ==================================
+// storage_locations TABLE - REMOVED (Module 4.5)
+// ==================================
+// This table has been merged into warehouse_locations as part of
+// the Location Architecture Fix (Module 4.5).
+//
+// All columns from storage_locations have been migrated to warehouse_locations:
+// - zone -> zone_id (FK to warehouse_zones)
+// - aisle, rack, level, position (added to warehouse_locations)
+// - capacity, current_stock (added to warehouse_locations)
+// - is_quarantine, is_picking_location (added to warehouse_locations)
+// - length_cm, width_cm, height_cm, weight_limit_kg (added to warehouse_locations)
+// - created_by, updated_by (added to warehouse_locations)
+//
+// See: warehouse_locations for the unified location table
+// ==================================
+
+Table storage_categories {
+  storage_category_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  name TEXT [not null]
+  code TEXT
+  description TEXT
+  properties JSONB [default: '{}', note: 'Temperature, humidity requirements, etc.']
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, storage_category_id) [pk]
+    (tenant_id, name) [unique, name: 'storage_categories_name_unique_per_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, code) [unique, name: 'storage_categories_code_unique_per_tenant', where: 'code IS NOT NULL AND deleted_at IS NULL']
+  }
+
+  Note: 'Categories for storage locations (cold storage, hazmat, etc.)'
+}
+
+// ==================================
+// INVENTORY LEVELS (Implemented)
+// ==================================
+
+Table inventory_levels {
+  inventory_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  product_id UUID [not null]
+  warehouse_id UUID [not null]
+  location_id UUID
+  available_quantity BIGINT [not null, default: 0]
+  reserved_quantity BIGINT [not null, default: 0]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, warehouse_id, location_id, product_id) [unique, name: 'idx_inventory_levels_tenant_warehouse_location_product_unique', where: 'deleted_at IS NULL']
+    (tenant_id, product_id, available_quantity DESC) [name: 'idx_inventory_levels_tenant_available_stock', where: 'deleted_at IS NULL AND available_quantity > 0']
+  }
+
+  Note: 'Current inventory levels per product/warehouse/location'
+}
+
+// ==================================
+// USER MANAGEMENT EXTENSIONS
+// ==================================
+
+Table user_profiles {
+  profile_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  user_id UUID [not null]
+  bio TEXT
+  timezone VARCHAR(50)
+  language VARCHAR(10) [default: 'en']
+  preferences JSONB [default: '{}']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Note: 'Extended user profile information'
+}
+
+Table user_invitations {
+  invitation_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  email VARCHAR(255) [not null]
+  role VARCHAR(50) [not null, default: 'user']
+  token_hash TEXT [not null]
+  invited_by UUID [not null]
+  expires_at TIMESTAMPTZ [not null]
+  accepted_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Note: 'Pending user invitations'
+}
+
+Table email_verification_tokens {
+  token_id UUID [pk, default: `uuid_generate_v7()`]
+  user_id UUID [not null]
+  token_hash TEXT [not null]
+  expires_at TIMESTAMPTZ [not null]
+  verified_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Note: 'Email verification tokens'
+}
+
+Table password_reset_tokens {
+  token_id UUID [pk, default: `uuid_generate_v7()`]
+  user_id UUID [not null]
+  token_hash TEXT [not null]
+  expires_at TIMESTAMPTZ [not null]
+  used_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Note: 'Password reset tokens'
+}
+
+// ==================================
+// UOM CONVERSIONS
+// ==================================
+
+Table uom_conversions {
+  conversion_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  from_uom_id UUID [not null]
+  to_uom_id UUID [not null]
+  conversion_factor DECIMAL(20,6) [not null]
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Note: 'Conversion rates between units of measure'
+}
+
+// ==================================
+// EVENT OUTBOX (For eventual consistency)
+// ==================================
+
+Table event_outbox {
+  event_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null]
+  event_type VARCHAR(100) [not null]
+  aggregate_type VARCHAR(100) [not null]
+  aggregate_id UUID [not null]
+  payload JSONB [not null]
+  published BOOLEAN [not null, default: false]
+  published_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Note: 'Transactional outbox for reliable event publishing'
+}
+
+// ==================================
+// ADDITIONAL RELATIONSHIPS
+// ==================================
+
+Ref: product_categories.(parent_category_id) > product_categories.(category_id)
+Ref: product_variants.(tenant_id, parent_product_id) > products.(tenant_id, product_id)
+// storage_locations references REMOVED - table merged into warehouse_locations (Module 4.5)
+// Ref: storage_locations.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id) -- REMOVED
+// Ref: storage_locations.(tenant_id, created_by) > users.(tenant_id, user_id) -- REMOVED
+Ref: inventory_levels.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: inventory_levels.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+// Updated: inventory_levels.location_id now references warehouse_locations (Module 4.5)
+Ref: inventory_levels.(tenant_id, location_id) > warehouse_locations.(tenant_id, location_id)
+// New: warehouse_locations audit column references
+Ref: warehouse_locations.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: warehouse_locations.(tenant_id, updated_by) > users.(tenant_id, user_id)
+// New: stock_transfer_items zone/location references (Module 4.5)
+Ref: stock_transfer_items.(tenant_id, source_zone_id) > warehouse_zones.(tenant_id, zone_id)
+Ref: stock_transfer_items.(tenant_id, source_location_id) > warehouse_locations.(tenant_id, location_id)
+Ref: stock_transfer_items.(tenant_id, destination_zone_id) > warehouse_zones.(tenant_id, zone_id)
+Ref: stock_transfer_items.(tenant_id, destination_location_id) > warehouse_locations.(tenant_id, location_id)
+Ref: user_profiles.(tenant_id, user_id) > users.(tenant_id, user_id)
+Ref: user_invitations.(tenant_id, invited_by) > users.(tenant_id, user_id)
+Ref: email_verification_tokens.(user_id) > users.(user_id)
+Ref: password_reset_tokens.(user_id) > users.(user_id)
+Ref: uom_conversions.(tenant_id, from_uom_id) > unit_of_measures.(tenant_id, uom_id)
+Ref: uom_conversions.(tenant_id, to_uom_id) > unit_of_measures.(tenant_id, uom_id)
+Ref: products.(category_id) > product_categories.(category_id)
+
+// ==================================
+// QUALITY MANAGEMENT
+// ==================================
+
+Table quality_control_points {
+  qc_point_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  name TEXT [not null]
+  type qc_point_type [not null, note: 'receipt/delivery/transfer/production']
+  product_id UUID
+  warehouse_id UUID
+  active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, qc_point_id) [unique]
+    (tenant_id, active) [name: 'idx_quality_control_points_tenant_active']
+    (tenant_id, product_id) [name: 'idx_quality_control_points_tenant_product']
+    (tenant_id, warehouse_id) [name: 'idx_quality_control_points_tenant_warehouse']
+  }
+
+  Note: 'Quality control checkpoints for inspections'
+}
+
+Table quality_checks {
+  qc_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  qc_point_id UUID [not null]
+  reference_type TEXT [not null, note: 'grn/do/transfer']
+  reference_id UUID [not null]
+  product_id UUID [not null]
+  lot_serial_id UUID
+  status qc_status [not null, default: 'pending', note: 'pending/in_progress/passed/failed']
+  inspector_id UUID
+  notes TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, qc_id) [unique]
+    (tenant_id, qc_point_id) [name: 'idx_quality_checks_tenant_qc_point']
+    (tenant_id, reference_type, reference_id) [name: 'idx_quality_checks_tenant_reference']
+    (tenant_id, product_id) [name: 'idx_quality_checks_tenant_product']
+    (tenant_id, status) [name: 'idx_quality_checks_tenant_status']
+  }
+
+  Note: 'Quality check records for incoming/outgoing goods'
+}
+
+Table quality_check_lines {
+  qc_line_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null]
+  qc_id UUID [not null]
+  test_type qc_test_type [not null, note: 'visual/measurement/functional']
+  name TEXT [not null]
+  value TEXT
+  min_value BIGINT
+  max_value BIGINT
+  uom_id UUID
+  result BOOLEAN
+  notes TEXT
+
+  Indexes {
+    (tenant_id, qc_id) [name: 'idx_quality_check_lines_tenant_qc']
+  }
+
+  Note: 'Individual test results within a quality check'
+}
+
+Table quality_alerts {
+  alert_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  qc_id UUID [not null]
+  title TEXT [not null]
+  description TEXT
+  priority alert_priority [not null, note: 'low/medium/high/critical']
+  status alert_status [not null, note: 'open/acknowledged/resolved/closed']
+  assigned_to UUID
+  resolution TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, status) [name: 'idx_quality_alerts_tenant_status']
+    (tenant_id, priority) [name: 'idx_quality_alerts_tenant_priority']
+    (assigned_to) [name: 'idx_quality_alerts_assigned_to']
+  }
+
+  Note: 'Alerts generated from failed quality checks'
+}
+
+// ==================================
+// CYCLE COUNT SCHEDULES
+// ==================================
+
+Table cycle_count_schedules {
+  schedule_id UUID [default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  name TEXT [not null]
+  description TEXT
+  warehouse_id UUID [not null]
+  frequency TEXT [not null, default: 'monthly', note: 'daily/weekly/monthly/quarterly/yearly/custom']
+  interval_days INTEGER [note: 'For custom frequency']
+  timezone TEXT [not null, default: 'UTC']
+  start_at TIMESTAMPTZ [not null]
+  next_run_at TIMESTAMPTZ [not null]
+  end_at TIMESTAMPTZ
+  abc_class TEXT [note: 'A/B/C classification filter']
+  min_value_cents BIGINT
+  min_qty BIGINT
+  is_active BOOLEAN [not null, default: true]
+  auto_create_stock_take BOOLEAN [not null, default: false]
+  notes TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, schedule_id) [pk]
+    (tenant_id, name) [unique, name: 'cycle_count_schedules_name_unique_per_tenant']
+    (tenant_id, next_run_at) [name: 'idx_cycle_count_schedules_next_run', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, warehouse_id) [name: 'idx_cycle_count_schedules_warehouse', where: 'deleted_at IS NULL']
+    (tenant_id, abc_class) [name: 'idx_cycle_count_schedules_abc_class', where: 'deleted_at IS NULL AND abc_class IS NOT NULL']
+  }
+
+  Note: 'Scheduled cycle count configurations for periodic inventory counts'
+}
+
+Table cycle_count_schedule_categories {
+  tenant_id UUID [not null]
+  schedule_id UUID [not null]
+  category_id UUID [not null]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, schedule_id, category_id) [pk]
+    (tenant_id, category_id) [name: 'idx_cycle_count_schedule_categories_category']
+  }
+
+  Note: 'Product categories included in cycle count schedules'
+}
+
+Table cycle_count_schedule_locations {
+  tenant_id UUID [not null]
+  schedule_id UUID [not null]
+  location_id UUID [not null]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, schedule_id, location_id) [pk]
+    (tenant_id, location_id) [name: 'idx_cycle_count_schedule_locations_location']
+  }
+
+  Note: 'Storage locations included in cycle count schedules'
+}
+
+// ==================================
+// INVENTORY RULES
+// ==================================
+
+Table putaway_rules {
+  rule_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  name VARCHAR(200) [not null]
+  description TEXT
+  sequence INTEGER [not null, note: 'Order of rule evaluation']
+  product_id UUID
+  product_category_id UUID
+  warehouse_id UUID
+  preferred_location_type VARCHAR(50)
+  preferred_zone VARCHAR(50)
+  preferred_aisle VARCHAR(50)
+  conditions JSONB [note: 'Additional matching conditions']
+  rule_type VARCHAR(50) [not null, default: 'product', note: 'product/category/attribute/fifo/fefo']
+  match_mode VARCHAR(20) [not null, default: 'exact', note: 'exact/contains/regex']
+  max_quantity BIGINT
+  min_quantity BIGINT
+  priority_score INTEGER [default: 0]
+  is_active BOOLEAN [not null, default: true]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  created_by UUID [not null]
+  updated_by UUID
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, sequence) [name: 'idx_putaway_rules_tenant_sequence', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, product_id) [name: 'idx_putaway_rules_tenant_product', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, product_category_id) [name: 'idx_putaway_rules_tenant_category', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, warehouse_id) [name: 'idx_putaway_rules_tenant_warehouse', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, rule_type, sequence) [name: 'idx_putaway_rules_tenant_type', where: 'deleted_at IS NULL AND is_active = true']
+  }
+
+  Note: 'Rules for automatic putaway location assignment'
+}
+
+Table picking_methods {
+  method_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  name VARCHAR(200) [not null]
+  description TEXT
+  method_type VARCHAR(50) [not null, note: 'batch/cluster/wave']
+  warehouse_id UUID [not null]
+  config JSONB [not null, default: '{}']
+  is_active BOOLEAN [not null, default: true]
+  is_default BOOLEAN [not null, default: false]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  created_by UUID [not null]
+  updated_by UUID
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, warehouse_id, is_active) [name: 'idx_picking_methods_tenant_active', where: 'deleted_at IS NULL']
+    (tenant_id, warehouse_id, is_default) [name: 'idx_picking_methods_tenant_default', where: 'deleted_at IS NULL AND is_default = true']
+    (tenant_id, method_type) [name: 'idx_picking_methods_tenant_type', where: 'deleted_at IS NULL AND is_active = true']
+  }
+
+  Note: 'Picking method configurations per warehouse (batch, cluster, wave)'
+}
+
+Table removal_strategies {
+  strategy_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  name VARCHAR(100) [not null]
+  strategy_type VARCHAR(20) [not null, note: 'fifo/lifo/fefo/closest_location/least_packages']
+  warehouse_id UUID
+  product_id UUID
+  active BOOLEAN [not null, default: true]
+  config JSONB
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  created_by UUID [not null]
+  updated_by UUID
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, name) [unique, name: 'idx_removal_strategies_unique_name_per_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, strategy_type, active) [name: 'idx_removal_strategies_tenant_type', where: 'deleted_at IS NULL']
+    (tenant_id, warehouse_id) [name: 'idx_removal_strategies_tenant_warehouse', where: 'deleted_at IS NULL AND warehouse_id IS NOT NULL']
+    (tenant_id, product_id) [name: 'idx_removal_strategies_tenant_product', where: 'deleted_at IS NULL AND product_id IS NOT NULL']
+  }
+
+  Note: 'Stock removal strategies (FIFO, LIFO, FEFO, etc.)'
+}
+
+Table reorder_rules {
+  rule_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  product_id UUID [not null]
+  warehouse_id UUID
+  reorder_point BIGINT [not null, note: 'Trigger level for reorder']
+  min_quantity BIGINT [not null]
+  max_quantity BIGINT [not null]
+  lead_time_days INTEGER [not null]
+  safety_stock BIGINT [not null, default: 0]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, product_id, warehouse_id) [unique, name: 'idx_reorder_rules_active', where: 'deleted_at IS NULL']
+    (tenant_id, product_id) [name: 'idx_reorder_rules_tenant_product']
+    (tenant_id, warehouse_id) [name: 'idx_reorder_rules_tenant_warehouse']
+  }
+
+  Note: 'Automatic reorder rules with min/max/reorder point'
+}
+
+// ==================================
+// RMA (RETURN MERCHANDISE AUTHORIZATION)
+// ==================================
+
+Table rma_requests {
+  rma_id UUID [pk, default: `gen_random_uuid()`]
+  rma_number VARCHAR(20) [unique, not null, note: 'Auto-generated RMA number']
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  customer_id UUID [not null]
+  original_delivery_id UUID [not null]
+  status VARCHAR(20) [not null, default: 'draft', note: 'draft/approved/received/processed/rejected']
+  return_reason TEXT
+  notes TEXT
+  total_items INTEGER [not null, default: 0]
+  total_value BIGINT [not null, default: 0]
+  currency_code VARCHAR(3) [not null, default: 'VND']
+  created_by UUID
+  updated_by UUID
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, rma_id) [unique, name: 'rma_requests_tenant_rma_unique']
+    (tenant_id, status) [name: 'idx_rma_requests_tenant_status', where: 'deleted_at IS NULL']
+    (tenant_id, customer_id) [name: 'idx_rma_requests_tenant_customer', where: 'deleted_at IS NULL']
+    (tenant_id, original_delivery_id) [name: 'idx_rma_requests_tenant_delivery', where: 'deleted_at IS NULL']
+    (tenant_id, created_at) [name: 'idx_rma_requests_tenant_created_at', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Return Merchandise Authorization requests for customer returns'
+}
+
+Table rma_items {
+  rma_item_id UUID [pk, default: `gen_random_uuid()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  rma_id UUID [not null]
+  product_id UUID [not null]
+  variant_id UUID
+  quantity_returned BIGINT [not null, note: 'Must be > 0']
+  condition VARCHAR(20) [not null, default: 'new', note: 'new/used/damaged/defective']
+  action VARCHAR(20) [not null, default: 'restock', note: 'restock/scrap/refund/exchange']
+  unit_cost BIGINT
+  line_total BIGINT
+  notes TEXT
+  created_by UUID
+  updated_by UUID
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, rma_id) [name: 'idx_rma_items_tenant_rma', where: 'deleted_at IS NULL']
+    (tenant_id, product_id) [name: 'idx_rma_items_tenant_product', where: 'deleted_at IS NULL']
+    (tenant_id, condition, action) [name: 'idx_rma_items_tenant_condition_action', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Line items for RMA requests'
+}
+
+// ==================================
+// SCRAP MANAGEMENT
+// ==================================
+
+Table scrap_documents {
+  scrap_id UUID
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  reference TEXT
+  status TEXT [not null, default: 'draft', note: 'draft/posted/cancelled']
+  scrap_location_id UUID [not null, note: 'Destination warehouse for scrapped items']
+  notes TEXT
+  created_by UUID
+  posted_by UUID
+  posted_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, scrap_id) [pk]
+    (tenant_id, status) [name: 'idx_scrap_documents_tenant_status']
+    (tenant_id, reference) [name: 'idx_scrap_documents_tenant_reference', where: 'reference IS NOT NULL']
+    (tenant_id, created_at) [name: 'idx_scrap_documents_tenant_created_at']
+    (tenant_id, posted_at) [name: 'idx_scrap_documents_tenant_posted_at', where: 'posted_at IS NOT NULL']
+  }
+
+  Note: 'Scrap documents for writing off damaged/obsolete inventory'
+}
+
+Table scrap_lines {
+  scrap_line_id UUID
+  tenant_id UUID [not null]
+  scrap_id UUID [not null]
+  product_id UUID [not null]
+  variant_id UUID
+  source_location_id UUID [not null]
+  lot_id UUID
+  serial_id UUID
+  qty BIGINT [not null, note: 'Must be > 0']
+  reason_code TEXT [note: 'damaged/expired/lost/quality_fail/obsolete/other']
+  reason TEXT
+  posted_stock_move_id UUID
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, scrap_line_id) [pk]
+    (tenant_id, scrap_id) [name: 'idx_scrap_lines_tenant_scrap']
+    (tenant_id, product_id) [name: 'idx_scrap_lines_tenant_product']
+    (tenant_id, source_location_id) [name: 'idx_scrap_lines_tenant_source_location']
+    (tenant_id, lot_id) [name: 'idx_scrap_lines_tenant_lot', where: 'lot_id IS NOT NULL']
+  }
+
+  Note: 'Line items for scrap documents'
+}
+
+// ==================================
+// LANDED COST
+// ==================================
+
+Table landed_cost_documents {
+  document_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  document_number VARCHAR(50) [not null]
+  reference_number VARCHAR(100)
+  status VARCHAR(20) [not null, default: 'draft', note: 'draft/posted/cancelled']
+  receipt_id UUID [not null, note: 'Reference to goods receipt']
+  total_cost_amount BIGINT [not null, default: 0]
+  currency_code VARCHAR(3) [not null, default: 'VND']
+  allocation_method VARCHAR(20) [not null, default: 'by_value', note: 'by_value/by_quantity/equal']
+  document_date TIMESTAMPTZ [not null, default: `NOW()`]
+  posted_at TIMESTAMPTZ
+  notes TEXT
+  created_by UUID [not null]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, document_id) [unique, name: 'landed_cost_documents_tenant_document_unique']
+    (tenant_id, document_number) [unique, name: 'landed_cost_documents_number_unique_per_tenant']
+    (tenant_id, receipt_id) [name: 'idx_landed_cost_documents_tenant_receipt', where: 'deleted_at IS NULL']
+    (tenant_id, status) [name: 'idx_landed_cost_documents_tenant_status', where: 'deleted_at IS NULL']
+    (tenant_id, document_date DESC) [name: 'idx_landed_cost_documents_tenant_date', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Landed cost documents for allocating additional costs to received goods'
+}
+
+Table landed_cost_lines {
+  line_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  document_id UUID [not null]
+  cost_type VARCHAR(50) [not null, note: 'freight/customs/insurance/handling/other']
+  description VARCHAR(255)
+  amount BIGINT [not null, note: 'Must be >= 0']
+  vendor_reference VARCHAR(100)
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, document_id) [name: 'idx_landed_cost_lines_tenant_document']
+    (tenant_id, cost_type) [name: 'idx_landed_cost_lines_cost_type']
+  }
+
+  Note: 'Individual cost components of a landed cost document'
+}
+
+Table landed_cost_allocations {
+  allocation_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  document_id UUID [not null]
+  receipt_item_id UUID [not null]
+  allocated_amount BIGINT [not null, note: 'Amount allocated to this item']
+  original_unit_cost BIGINT [not null]
+  new_unit_cost BIGINT [not null]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, document_id, receipt_item_id) [unique, name: 'landed_cost_allocations_unique_per_item']
+    (tenant_id, document_id) [name: 'idx_landed_cost_allocations_tenant_document']
+    (receipt_item_id) [name: 'idx_landed_cost_allocations_receipt_item']
+  }
+
+  Note: 'Allocation of landed costs to individual receipt items'
+}
+
+// ==================================
+// STOCK RECONCILIATION
+// ==================================
+
+Table stock_reconciliations {
+  reconciliation_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  reconciliation_number TEXT [not null]
+  name TEXT [not null]
+  description TEXT
+  status TEXT [not null, default: 'draft', note: 'draft/in_progress/completed/cancelled']
+  cycle_type TEXT [default: 'full', note: 'full/abc_a/abc_b/abc_c/location/random']
+  warehouse_id UUID
+  location_filter JSONB
+  product_filter JSONB
+  total_items INTEGER [default: 0]
+  counted_items INTEGER [default: 0]
+  total_variance BIGINT [default: 0]
+  created_by UUID [not null]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  started_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ
+  approved_by UUID
+  approved_at TIMESTAMPTZ
+  notes TEXT
+  deleted_at TIMESTAMPTZ
+  deleted_by UUID
+
+  Indexes {
+    (tenant_id, reconciliation_id) [unique, name: 'unique_tenant_reconciliation_id']
+    (tenant_id, reconciliation_number) [unique, name: 'unique_tenant_reconciliation_number']
+    (tenant_id, status) [name: 'idx_stock_reconciliations_tenant_status']
+    (tenant_id, warehouse_id) [name: 'idx_stock_reconciliations_tenant_warehouse']
+    (tenant_id, cycle_type) [name: 'idx_stock_reconciliations_tenant_cycle_type']
+    (tenant_id, created_at DESC) [name: 'idx_stock_reconciliations_tenant_created_at']
+  }
+
+  Note: 'Stock reconciliation/cycle count sessions'
+}
+
+Table stock_reconciliation_items {
+  tenant_id UUID [not null]
+  reconciliation_id UUID [not null]
+  product_id UUID [not null]
+  warehouse_id UUID [not null]
+  location_id UUID
+  expected_quantity BIGINT [not null, default: 0]
+  counted_quantity BIGINT
+  variance BIGINT [note: 'Computed: counted - expected']
+  variance_percentage DECIMAL(10,4)
+  unit_cost BIGINT [not null]
+  variance_value BIGINT
+  notes TEXT
+  counted_by UUID
+  counted_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+  deleted_by UUID
+
+  Indexes {
+    (tenant_id, reconciliation_id, product_id, warehouse_id) [pk]
+    (tenant_id, reconciliation_id) [name: 'idx_stock_reconciliation_items_tenant_reconciliation']
+    (tenant_id, product_id) [name: 'idx_stock_reconciliation_items_tenant_product']
+    (tenant_id, warehouse_id) [name: 'idx_stock_reconciliation_items_tenant_warehouse']
+    (tenant_id, reconciliation_id, variance) [name: 'idx_stock_reconciliation_items_variance']
+  }
+
+  Note: 'Individual product counts within stock reconciliation'
+}
+
+Table stock_adjustments {
+  adjustment_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  move_id UUID [not null, note: 'Reference to stock_moves']
+  product_id UUID [not null]
+  warehouse_id UUID [not null]
+  reason_code VARCHAR(50) [not null]
+  notes TEXT
+  approved_by UUID [not null]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, move_id) [unique, name: 'stock_adjustments_unique_move']
+    (tenant_id, product_id, created_at DESC) [name: 'idx_stock_adjustments_tenant_product', where: 'deleted_at IS NULL']
+    (tenant_id, warehouse_id, created_at DESC) [name: 'idx_stock_adjustments_tenant_warehouse', where: 'deleted_at IS NULL']
+    (tenant_id, reason_code, created_at DESC) [name: 'idx_stock_adjustments_tenant_reason', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Stock adjustment records with reason codes'
+}
+
+// ==================================
+// INVENTORY VALUATION
+// ==================================
+
+Table inventory_valuations {
+  valuation_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  product_id UUID [not null]
+  valuation_method VARCHAR(20) [not null, note: 'fifo/avco/standard']
+  current_unit_cost BIGINT [note: 'Current cost per unit']
+  total_quantity BIGINT [not null, default: 0]
+  total_value BIGINT [not null, default: 0]
+  standard_cost BIGINT [note: 'For standard costing method']
+  last_updated TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_by UUID
+
+  Indexes {
+    (tenant_id, product_id) [unique]
+    (valuation_method) [name: 'idx_valuations_method']
+    (tenant_id, product_id) [name: 'idx_valuations_tenant_product']
+  }
+
+  Note: 'Current inventory valuation per product'
+}
+
+Table inventory_valuation_layers {
+  layer_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  product_id UUID [not null]
+  quantity BIGINT [not null, note: 'Must be >= 0']
+  unit_cost BIGINT [not null, note: 'Must be >= 0']
+  total_value BIGINT [not null]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, product_id) [name: 'idx_valuation_layers_tenant_product']
+    (tenant_id, product_id, created_at) [name: 'idx_valuation_layers_tenant_product_created']
+  }
+
+  Note: 'FIFO valuation layers for cost tracking'
+}
+
+Table inventory_valuation_history {
+  history_id UUID [pk, default: `uuid_generate_v7()`]
+  valuation_id UUID [not null]
+  tenant_id UUID [not null]
+  product_id UUID [not null]
+  valuation_method VARCHAR(20) [not null]
+  unit_cost BIGINT
+  total_quantity BIGINT [not null]
+  total_value BIGINT [not null]
+  standard_cost BIGINT
+  changed_at TIMESTAMPTZ [not null, default: `NOW()`]
+  changed_by UUID
+  change_reason TEXT
+
+  Indexes {
+    (valuation_id, changed_at DESC) [name: 'idx_valuation_history_valuation_changed']
+    (tenant_id, product_id, changed_at DESC) [name: 'idx_valuation_history_tenant_product_changed']
+  }
+
+  Note: 'Historical valuation changes for audit trail'
+}
+
+Table inventory_valuation_settings {
+  id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  scope_type TEXT [not null, note: 'tenant/category/product']
+  scope_id UUID [note: 'NULL for tenant scope, category_id or product_id otherwise']
+  method TEXT [not null, note: 'fifo/avco/standard']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, scope_type) [unique, name: 'idx_valuation_settings_tenant_unique', where: 'scope_type = ''tenant'' AND deleted_at IS NULL']
+    (tenant_id, scope_type, scope_id) [unique, name: 'idx_valuation_settings_override_unique', where: 'scope_id IS NOT NULL AND deleted_at IS NULL']
+    (tenant_id, scope_id) [name: 'idx_valuation_settings_category', where: 'scope_type = ''category'' AND deleted_at IS NULL']
+    (tenant_id, scope_id) [name: 'idx_valuation_settings_product', where: 'scope_type = ''product'' AND deleted_at IS NULL']
+  }
+
+  Note: 'Valuation method settings at tenant/category/product level'
+}
+
+// ==================================
+// AUTHORIZATION AUDIT
+// ==================================
+
+Table authz_audit_logs {
+  audit_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  user_id UUID
+  session_id UUID
+  event_type VARCHAR(50) [not null, note: 'authorization/policy_change/role_assignment/security']
+  event_action VARCHAR(100) [not null]
+  resource VARCHAR(255)
+  action VARCHAR(50)
+  decision VARCHAR(10) [note: 'allow/deny']
+  policy_version BIGINT
+  target_entity_type VARCHAR(50)
+  target_entity_id VARCHAR(255)
+  old_value JSONB
+  new_value JSONB
+  ip_address TEXT
+  user_agent TEXT
+  request_id UUID
+  metadata JSONB [default: '{}']
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, created_at DESC) [name: 'idx_authz_audit_tenant_time']
+    (user_id, created_at DESC) [name: 'idx_authz_audit_user_time', where: 'user_id IS NOT NULL']
+    (tenant_id, event_type, created_at DESC) [name: 'idx_authz_audit_event_type']
+    (tenant_id, created_at DESC) [name: 'idx_authz_audit_decision_deny', where: 'decision = ''deny''']
+    (tenant_id, created_at DESC) [name: 'idx_authz_audit_security', where: 'event_type = ''security''']
+  }
+
+  Note: 'Authorization and security audit log'
+}
+
+Table tenant_authz_versions {
+  tenant_id UUID [pk, ref: > tenants.tenant_id]
+  policy_version BIGINT [not null, default: 1]
+  last_policy_change_at TIMESTAMPTZ [not null, default: `NOW()`]
+  last_policy_change_by UUID
+  last_policy_change_reason TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, policy_version) [name: 'idx_tenant_authz_versions_policy_version']
+  }
+
+  Note: 'Tenant-level authorization policy version tracking'
+}
+
+Table user_authz_versions {
+  user_id UUID [pk, ref: > users.user_id]
+  authz_version BIGINT [not null, default: 1]
+  last_authz_change_at TIMESTAMPTZ [not null, default: `NOW()`]
+  last_authz_change_by UUID
+  last_authz_change_reason TEXT
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (user_id, authz_version) [name: 'idx_user_authz_versions_authz_version']
+  }
+
+  Note: 'User-level authorization version tracking for cache invalidation'
+}
+
+// ==================================
+// DAILY STOCK SNAPSHOTS
+// ==================================
+
+Table daily_stock_snapshots {
+  snapshot_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  product_id UUID [not null]
+  snapshot_date DATE [not null]
+  opening_quantity BIGINT [not null, default: 0]
+  closing_quantity BIGINT [not null, default: 0]
+  total_movements BIGINT [not null, default: 0]
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, product_id, snapshot_date) [unique, name: 'idx_daily_stock_snapshots_unique_active', where: 'deleted_at IS NULL']
+    (tenant_id, snapshot_date DESC) [name: 'idx_daily_stock_snapshots_tenant_date']
+    (tenant_id, product_id) [name: 'idx_daily_stock_snapshots_tenant_product_active', where: 'deleted_at IS NULL']
+  }
+
+  Note: 'Daily stock level snapshots for reporting and analytics'
+}
+
+// ==================================
+// ADDITIONAL RELATIONSHIPS (New Tables)
+// ==================================
+
+Ref: quality_control_points.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: quality_control_points.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: quality_checks.(tenant_id, qc_point_id) > quality_control_points.(tenant_id, qc_point_id)
+Ref: quality_checks.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: quality_checks.(tenant_id, lot_serial_id) > lots_serial_numbers.(tenant_id, lot_serial_id)
+Ref: quality_check_lines.(tenant_id, qc_id) > quality_checks.(tenant_id, qc_id)
+Ref: quality_check_lines.uom_id > unit_of_measures.uom_id
+Ref: quality_alerts.(tenant_id, qc_id) > quality_checks.(tenant_id, qc_id)
+Ref: quality_alerts.(tenant_id, assigned_to) > users.(tenant_id, user_id)
+
+Ref: cycle_count_schedules.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: cycle_count_schedule_categories.(tenant_id, schedule_id) > cycle_count_schedules.(tenant_id, schedule_id)
+Ref: cycle_count_schedule_categories.(tenant_id, category_id) > product_categories.(tenant_id, category_id)
+Ref: cycle_count_schedule_locations.(tenant_id, schedule_id) > cycle_count_schedules.(tenant_id, schedule_id)
+Ref: cycle_count_schedule_locations.(tenant_id, location_id) > warehouse_locations.(tenant_id, location_id)
+
+Ref: putaway_rules.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: putaway_rules.(tenant_id, product_category_id) > product_categories.(tenant_id, category_id)
+Ref: putaway_rules.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: putaway_rules.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: picking_methods.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: picking_methods.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: removal_strategies.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: removal_strategies.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: removal_strategies.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: reorder_rules.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: reorder_rules.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+
+Ref: rma_requests.(tenant_id, rma_id) > rma_requests.(tenant_id, rma_id)
+Ref: rma_requests.original_delivery_id > delivery_orders.delivery_id
+Ref: rma_items.(tenant_id, rma_id) > rma_requests.(tenant_id, rma_id)
+Ref: rma_items.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: rma_items.variant_id > product_variants.variant_id
+
+Ref: scrap_documents.(tenant_id, scrap_location_id) > warehouses.(tenant_id, warehouse_id)
+Ref: scrap_lines.(tenant_id, scrap_id) > scrap_documents.(tenant_id, scrap_id)
+Ref: scrap_lines.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: scrap_lines.(tenant_id, source_location_id) > warehouses.(tenant_id, warehouse_id)
+Ref: scrap_lines.(tenant_id, lot_id) > lots_serial_numbers.(tenant_id, lot_serial_id)
+
+Ref: landed_cost_documents.(tenant_id, receipt_id) > goods_receipts.(tenant_id, receipt_id)
+Ref: landed_cost_lines.(tenant_id, document_id) > landed_cost_documents.(tenant_id, document_id)
+Ref: landed_cost_allocations.(tenant_id, document_id) > landed_cost_documents.(tenant_id, document_id)
+Ref: landed_cost_allocations.(tenant_id, receipt_item_id) > goods_receipt_items.(tenant_id, receipt_item_id)
+
+Ref: stock_reconciliations.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: stock_reconciliations.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: stock_reconciliations.(tenant_id, approved_by) > users.(tenant_id, user_id)
+Ref: stock_reconciliation_items.(tenant_id, reconciliation_id) > stock_reconciliations.(tenant_id, reconciliation_id)
+Ref: stock_reconciliation_items.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: stock_reconciliation_items.(tenant_id, warehouse_id) > warehouses.(tenant_id, warehouse_id)
+Ref: stock_reconciliation_items.(tenant_id, counted_by) > users.(tenant_id, user_id)
+Ref: stock_adjustments.(tenant_id, move_id) > stock_moves.(tenant_id, move_id)
+Ref: stock_adjustments.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: stock_adjustments.(tenant_id, approved_by) > users.(tenant_id, user_id)
+
+Ref: inventory_valuations.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: inventory_valuation_layers.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: inventory_valuation_history.valuation_id > inventory_valuations.valuation_id
+Ref: inventory_valuation_history.(tenant_id, product_id) > products.(tenant_id, product_id)
+
+Ref: daily_stock_snapshots.(tenant_id, product_id) > products.(tenant_id, product_id)
+
+// ==================================
+// PRICING TABLES
+// ==================================
+
+Table price_lists {
+  price_list_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+
+  // Basic info
+  name VARCHAR(255) [not null]
+  code VARCHAR(50) [not null]
+  description TEXT
+
+  // Currency
+  currency_code VARCHAR(3) [not null, default: 'VND']
+
+  // Type: 'sale' for selling, 'purchase' for buying
+  price_list_type VARCHAR(20) [not null, default: 'sale', note: 'sale/purchase']
+
+  // Computation method
+  based_on VARCHAR(20) [not null, default: 'fixed', note: 'fixed/base_price/other_pricelist']
+
+  // Parent price list (for cascading)
+  parent_price_list_id UUID [note: 'Reference to parent price list']
+
+  // Default markup/discount when based on parent
+  default_percentage DECIMAL(10,4) [default: 0]
+
+  // Validity period
+  valid_from TIMESTAMPTZ
+  valid_to TIMESTAMPTZ
+
+  // Priority (lower = higher priority)
+  priority INTEGER [not null, default: 100]
+
+  // Status
+  is_default BOOLEAN [not null, default: false]
+  is_active BOOLEAN [not null, default: true]
+
+  // Audit
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  created_by UUID
+  updated_by UUID
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, code) [unique, name: 'price_lists_code_unique', where: 'deleted_at IS NULL']
+    (tenant_id) [name: 'idx_price_lists_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, is_active, priority) [name: 'idx_price_lists_active', where: 'deleted_at IS NULL']
+    (tenant_id, valid_from, valid_to) [name: 'idx_price_lists_validity', where: 'deleted_at IS NULL']
+    (tenant_id, price_list_type, is_default) [name: 'idx_price_lists_default', where: 'deleted_at IS NULL AND is_default = true']
+  }
+
+  Note: 'Price lists for customer groups, currencies, and time-based pricing'
+}
+
+Table price_list_items {
+  item_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  price_list_id UUID [not null]
+
+  // What this price applies to (mutually exclusive)
+  apply_to VARCHAR(20) [not null, default: 'product', note: 'product/variant/category/all']
+  product_id UUID
+  variant_id UUID
+  category_id UUID
+
+  // Quantity range for tiered pricing
+  min_quantity BIGINT [not null, default: 1, note: 'Minimum quantity for this price tier']
+  max_quantity BIGINT [note: 'Maximum quantity, NULL for unlimited']
+
+  // Computation method
+  compute_method VARCHAR(20) [not null, default: 'fixed', note: 'fixed/percentage/formula/margin']
+
+  // Price values (based on compute_method)
+  fixed_price BIGINT [note: 'Fixed price in cents, for compute_method=fixed']
+  percentage DECIMAL(10,4) [note: 'Percentage markup/discount, negative for discount']
+  margin_percentage DECIMAL(10,4) [note: 'Target margin based on cost price']
+  formula TEXT [note: 'Advanced formula: e.g., base_price * 0.9 - 10000']
+
+  // Rounding
+  rounding_method VARCHAR(20) [default: 'none', note: 'none/round_up/round_down/round_nearest/round_to_99']
+  rounding_precision INTEGER [default: 0, note: 'Decimal places or rounding unit']
+
+  // Validity (can override parent price list)
+  valid_from TIMESTAMPTZ
+  valid_to TIMESTAMPTZ
+
+  // Audit
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, price_list_id) [name: 'idx_price_list_items_list']
+    (tenant_id, product_id) [name: 'idx_price_list_items_product', where: 'product_id IS NOT NULL']
+    (tenant_id, variant_id) [name: 'idx_price_list_items_variant', where: 'variant_id IS NOT NULL']
+    (tenant_id, category_id) [name: 'idx_price_list_items_category', where: 'category_id IS NOT NULL']
+    (tenant_id, price_list_id, min_quantity, max_quantity) [name: 'idx_price_list_items_qty']
+  }
+
+  Note: 'Individual price entries within a price list with quantity breaks'
+}
+
+Table customer_price_lists {
+  id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  customer_id UUID [not null, note: 'References future customers table']
+  price_list_id UUID [not null]
+
+  // Priority when customer has multiple price lists
+  priority INTEGER [not null, default: 0]
+
+  // Validity
+  valid_from TIMESTAMPTZ
+  valid_to TIMESTAMPTZ
+
+  // Audit
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  created_by UUID
+
+  Indexes {
+    (tenant_id, customer_id, price_list_id) [unique, name: 'customer_price_lists_unique']
+    (tenant_id, customer_id) [name: 'idx_customer_price_lists_customer']
+    (tenant_id, customer_id, valid_from, valid_to) [name: 'idx_customer_price_lists_validity']
+  }
+
+  Note: 'Assignment of price lists to specific customers'
+}
+
+Table pricing_rules {
+  rule_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+
+  // Basic info
+  name VARCHAR(255) [not null]
+  code VARCHAR(50)
+  description TEXT
+
+  // Rule type
+  rule_type VARCHAR(30) [not null, note: 'discount_percentage/discount_amount/fixed_price/free_item/buy_x_get_y/bundle_price']
+
+  // Conditions (flexible JSON structure)
+  conditions JSONB [not null, default: '{}', note: 'min_qty, min_amount, products, categories, customers, time_range, etc.']
+
+  // Discount values (based on rule_type)
+  discount_percentage DECIMAL(10,4) [note: 'e.g., 10.0000 for 10%']
+  discount_amount BIGINT [note: 'Fixed discount in cents']
+  fixed_price BIGINT [note: 'Override price in cents']
+
+  // For free item / buy X get Y rules
+  free_product_id UUID
+  free_variant_id UUID
+  free_quantity BIGINT [default: 1]
+  buy_quantity BIGINT [note: 'For buy_x_get_y: buy this many']
+  get_quantity BIGINT [note: 'For buy_x_get_y: get this many free']
+
+  // Limits
+  max_discount_amount BIGINT [note: 'Cap the maximum discount']
+  usage_limit INTEGER [note: 'Total uses allowed']
+  usage_count INTEGER [not null, default: 0]
+  per_customer_limit INTEGER [note: 'Max uses per customer']
+
+  // Validity
+  valid_from TIMESTAMPTZ
+  valid_to TIMESTAMPTZ
+
+  // Priority and combination
+  priority INTEGER [not null, default: 100, note: 'Lower = higher priority']
+  is_combinable BOOLEAN [not null, default: false]
+  exclusive_group VARCHAR(50) [note: 'Only one rule per group can apply']
+
+  // Application scope
+  apply_on VARCHAR(20) [not null, default: 'line', note: 'line = per line item, order = whole order']
+
+  // Status
+  is_active BOOLEAN [not null, default: true]
+
+  // Audit
+  created_at TIMESTAMPTZ [not null, default: `NOW()`]
+  updated_at TIMESTAMPTZ [not null, default: `NOW()`]
+  created_by UUID
+  updated_by UUID
+  deleted_at TIMESTAMPTZ
+
+  Indexes {
+    (tenant_id, code) [unique, name: 'pricing_rules_code_unique', where: 'code IS NOT NULL AND deleted_at IS NULL']
+    (tenant_id) [name: 'idx_pricing_rules_tenant', where: 'deleted_at IS NULL']
+    (tenant_id, is_active, priority) [name: 'idx_pricing_rules_active', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, valid_from, valid_to) [name: 'idx_pricing_rules_validity', where: 'deleted_at IS NULL AND is_active = true']
+    (tenant_id, rule_type) [name: 'idx_pricing_rules_type', where: 'deleted_at IS NULL AND is_active = true']
+  }
+
+  Note: 'Discount and promotion rules with flexible conditions'
+}
+
+Table pricing_rule_usage {
+  usage_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+  rule_id UUID [not null]
+  customer_id UUID
+  order_id UUID [note: 'References future orders table']
+
+  // Usage details
+  discount_amount BIGINT [not null, note: 'Actual discount applied']
+  used_at TIMESTAMPTZ [not null, default: `NOW()`]
+
+  Indexes {
+    (tenant_id, rule_id, order_id) [unique, name: 'pricing_rule_usage_order_unique']
+    (tenant_id, rule_id) [name: 'idx_pricing_rule_usage_rule']
+    (tenant_id, customer_id, rule_id) [name: 'idx_pricing_rule_usage_customer']
+  }
+
+  Note: 'Track usage of pricing rules for limits enforcement'
+}
+
+Table price_history {
+  history_id UUID [pk, default: `uuid_generate_v7()`]
+  tenant_id UUID [not null, ref: > tenants.tenant_id]
+
+  // What changed
+  entity_type VARCHAR(20) [not null, note: 'product/variant/price_list_item']
+  entity_id UUID [not null]
+
+  // Change details
+  field_name VARCHAR(50) [not null]
+  old_value TEXT
+  new_value TEXT
+
+  // Context
+  change_reason TEXT
+  changed_at TIMESTAMPTZ [not null, default: `NOW()`]
+  changed_by UUID
+
+  // Metadata
+  metadata JSONB [default: '{}']
+
+  Indexes {
+    (tenant_id, entity_type, entity_id, changed_at DESC) [name: 'idx_price_history_entity']
+    (tenant_id, changed_at DESC) [name: 'idx_price_history_time']
+  }
+
+  Note: 'Audit trail for all price changes'
+}
+
+// ==================================
+// PRICING RELATIONSHIPS
+// ==================================
+
+Ref: price_lists.(tenant_id, parent_price_list_id) > price_lists.(tenant_id, price_list_id)
+Ref: price_lists.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: price_lists.(tenant_id, updated_by) > users.(tenant_id, user_id)
+
+Ref: price_list_items.(tenant_id, price_list_id) > price_lists.(tenant_id, price_list_id)
+Ref: price_list_items.(tenant_id, product_id) > products.(tenant_id, product_id)
+Ref: price_list_items.(tenant_id, variant_id) > product_variants.(tenant_id, variant_id)
+Ref: price_list_items.(tenant_id, category_id) > product_categories.(tenant_id, category_id)
+
+Ref: customer_price_lists.(tenant_id, price_list_id) > price_lists.(tenant_id, price_list_id)
+Ref: customer_price_lists.(tenant_id, created_by) > users.(tenant_id, user_id)
+
+Ref: pricing_rules.(tenant_id, free_product_id) > products.(tenant_id, product_id)
+Ref: pricing_rules.(tenant_id, free_variant_id) > product_variants.(tenant_id, variant_id)
+Ref: pricing_rules.(tenant_id, created_by) > users.(tenant_id, user_id)
+Ref: pricing_rules.(tenant_id, updated_by) > users.(tenant_id, user_id)
+
+Ref: pricing_rule_usage.(tenant_id, rule_id) > pricing_rules.(tenant_id, rule_id)
+
+Ref: price_history.(tenant_id, changed_by) > users.(tenant_id, user_id)
+
+// ==================================
 // FUTURE TABLES (To be added)
 // ==================================
 
-// Table inventory_levels {
-//   tenant_id UUID [not null, ref: > tenants.tenant_id]
-//   product_id UUID [not null, ref: > products.product_id]
-//   warehouse_id UUID [not null, ref: > warehouses.warehouse_id]
-//   quantity INTEGER [not null, default: 0]
-//   reserved_quantity INTEGER [not null, default: 0]
-//   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
-//
-//   Indexes {
-//     (tenant_id, product_id, warehouse_id) [pk]
-//   }
-// }
+// Note: inventory_levels has been implemented above
 
 // Table orders {
 //   order_id UUID [pk]
@@ -723,3 +2069,49 @@ Ref: stock_takes.(tenant_id, assigned_to) > users.(tenant_id, user_id)
 //   updated_at TIMESTAMPTZ [not null, default: `NOW()`]
 //   deleted_at TIMESTAMPTZ
 // }
+
+// ==================================
+// IMPLEMENTED CHANGES - Module 4.5: Location Architecture Fix
+// ==================================
+//
+// Status: IMPLEMENTED (2026-01-28)
+// Tracking: PROJECT_TRACKING/V1_MVP/04_Inventory_Service/4.5_Location_Architecture_Fix/
+//
+// PROBLEM (RESOLVED):
+// 1. Two separate location tables existed: storage_locations and warehouse_locations
+// 2. inventory_levels.location_id referenced storage_locations but was ALWAYS NULL
+// 3. stock_moves referenced warehouse_locations
+// 4. stock_transfers only had warehouse_id, no zone/location granularity
+//
+// SOLUTION (APPLIED):
+//
+// 1. ✅ DROPPED storage_locations table (data migrated to warehouse_locations)
+//    - Migration: 20260128300002_unify_location_tables_migrate_data.sql
+//    - Drop: 20260128300003_unify_location_tables_drop_old.sql
+//
+// 2. ✅ ADDED columns to warehouse_locations:
+//    - Migration: 20260128300001_unify_location_tables_add_columns.sql
+//    - aisle, rack, level, position (hierarchical structure)
+//    - capacity, current_stock (stock tracking)
+//    - is_quarantine, is_picking_location (location flags)
+//    - length_cm, width_cm, height_cm, weight_limit_kg (dimensions)
+//    - created_by, updated_by (audit columns)
+//
+// 3. ✅ ADDED columns to stock_transfer_items:
+//    source_zone_id UUID [ref: > warehouse_zones.zone_id]
+//    source_location_id UUID [ref: > warehouse_locations.location_id]
+//    destination_zone_id UUID [ref: > warehouse_zones.zone_id]
+//    destination_location_id UUID [ref: > warehouse_locations.location_id]
+//
+// 4. ✅ UPDATED inventory_levels.location_id FK:
+//    - Changed reference from storage_locations to warehouse_locations
+//    - Now properly tracks stock at location level (not just warehouse)
+//
+// NEW RELATIONSHIPS ADDED:
+// ✅ Ref: stock_transfer_items.(tenant_id, source_zone_id) > warehouse_zones.(tenant_id, zone_id)
+// ✅ Ref: stock_transfer_items.(tenant_id, source_location_id) > warehouse_locations.(tenant_id, location_id)
+// ✅ Ref: stock_transfer_items.(tenant_id, destination_zone_id) > warehouse_zones.(tenant_id, zone_id)
+// ✅ Ref: stock_transfer_items.(tenant_id, destination_location_id) > warehouse_locations.(tenant_id, location_id)
+// ✅ Ref: inventory_levels.(tenant_id, location_id) > warehouse_locations.(tenant_id, location_id)
+//
+// ==================================
