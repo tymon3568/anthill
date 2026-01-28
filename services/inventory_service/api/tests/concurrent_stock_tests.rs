@@ -261,14 +261,14 @@ impl TestDatabase {
     ) -> Uuid {
         let location_id = Uuid::now_v7();
         sqlx::query(
-            "INSERT INTO storage_locations (location_id, tenant_id, warehouse_id, zone, location_code, location_type, is_active, created_by, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, 'standard', true, $6, NOW(), NOW())"
+            "INSERT INTO warehouse_locations (location_id, tenant_id, warehouse_id, location_code, location_type, aisle, is_active, created_by, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, 'bin', $5, true, $6, NOW(), NOW())"
         )
         .bind(location_id)
         .bind(tenant_id)
         .bind(warehouse_id)
-        .bind(zone_name)
         .bind(code)
+        .bind(zone_name)
         .bind(user_id)
         .execute(&self.pool)
         .await

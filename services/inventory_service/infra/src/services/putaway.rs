@@ -67,7 +67,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
         // Filter locations with capacity
         locations.retain(|loc| {
             if let Some(capacity) = loc.capacity {
-                loc.current_stock < capacity
+                loc.current_stock.unwrap_or(0) < capacity
             } else {
                 true // No capacity limit
             }
@@ -96,7 +96,9 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
         let suggestions = scored_locations
             .into_iter()
             .map(|(location, score)| {
-                let available_capacity = location.capacity.map(|cap| cap - location.current_stock);
+                let available_capacity = location
+                    .capacity
+                    .map(|cap| cap - location.current_stock.unwrap_or(0));
 
                 PutawaySuggestion {
                     location_id: location.location_id,
@@ -108,7 +110,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
                     level: location.level,
                     position: location.position,
                     available_capacity,
-                    current_stock: location.current_stock,
+                    current_stock: location.current_stock.unwrap_or(0),
                     score,
                     rule_applied: Some("Rule-based scoring".to_string()), // TODO: track which rule
                 }
@@ -214,7 +216,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> Putawa
             })?;
 
         let has_capacity = if let Some(capacity) = location.capacity {
-            location.current_stock + quantity <= capacity
+            location.current_stock.unwrap_or(0) + quantity <= capacity
         } else {
             true
         };
@@ -255,7 +257,8 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> PgPuta
             if capacity == 0 {
                 total_score -= 20; // Full location (zero capacity)
             } else {
-                let utilization_ratio = location.current_stock as f64 / capacity as f64;
+                let utilization_ratio =
+                    location.current_stock.unwrap_or(0) as f64 / capacity as f64;
                 if utilization_ratio > 0.9 {
                     total_score -= 20; // High penalty for near-full locations
                 } else if utilization_ratio > 0.7 {
@@ -391,7 +394,7 @@ impl<R: PutawayRepository + TransactionalPutawayRepository + Send + Sync> PgPuta
 
         // Check location capacity
         if let Some(capacity) = location.capacity {
-            if location.current_stock + request.quantity > capacity {
+            if location.current_stock.unwrap_or(0) + request.quantity > capacity {
                 return Ok(0); // Cannot fit
             }
         }

@@ -307,11 +307,52 @@ See details in `migrations/`. Main tables:
 - `tenants`: Tenant information
 - `users`: Users within each tenant
 - `products`: Products
-- `inventory_levels`: Inventory levels
+- `inventory_levels`: Inventory levels (with location-level tracking)
 - `orders`: Orders
 - `integrations`: Marketplace integrations
 - `payments`: Payment transactions
 - `casbin_rule`: RBAC policies
+
+### Warehouse Location Architecture
+
+The system uses a **unified location architecture** for tracking inventory at granular levels:
+
+```
+Warehouse → Zone → Location
+```
+
+**Key Components:**
+
+- **Warehouses** (`warehouses`): Physical warehouse facilities
+- **Zones** (`warehouse_zones`): Logical divisions within warehouses (storage, picking, receiving, shipping, etc.)
+- **Locations** (`warehouse_locations`): Specific storage positions (bins, shelves, racks) with:
+  - Physical attributes: aisle, rack, level, position
+  - Capacity tracking: capacity, current_stock
+  - Dimensions: length, width, height, weight_limit
+  - Flags: is_quarantine, is_picking_location
+
+**Stock Tracking:**
+
+- `inventory_levels` tracks stock at the location level (warehouse + location + product)
+- `stock_moves` records all inventory movements with source/destination locations
+- `stock_transfer_items` supports zone/location specification for transfers
+
+**Benefits:**
+
+- Location-level inventory accuracy
+- Support for zone-based picking strategies
+- Capacity and utilization tracking
+- Quarantine location management
+
+See [docs/location-architecture-migration.md](./docs/location-architecture-migration.md) for technical details.
+
+### Database ERD
+
+The complete database schema is documented in [docs/database-erd.dbml](./docs/database-erd.dbml). To visualize:
+
+1. Copy the content of `docs/database-erd.dbml`
+2. Paste into [dbdiagram.io](https://dbdiagram.io/d)
+3. View interactive diagram with relationships
 
 ## 🔐 Authentication & Authorization
 

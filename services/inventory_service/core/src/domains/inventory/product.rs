@@ -68,6 +68,9 @@ pub struct Product {
     #[validate(custom(function = "validate_product_type"))]
     pub product_type: String,
 
+    /// Category for product organization
+    pub category_id: Option<Uuid>,
+
     pub item_group_id: Option<Uuid>,
 
     /// Inventory tracking
@@ -117,6 +120,7 @@ impl Product {
             name,
             description: None,
             product_type,
+            category_id: None,
             item_group_id: None,
             track_inventory: true,
             tracking_method: ProductTrackingMethod::None,
@@ -190,6 +194,7 @@ mod openapi {
 
         /// Product classification
         pub product_type: String,
+        pub category_id: Option<Uuid>,
         pub item_group_id: Option<Uuid>,
 
         /// Inventory tracking
@@ -228,6 +233,7 @@ mod openapi {
                 name: product.name,
                 description: product.description,
                 product_type: product.product_type,
+                category_id: product.category_id,
                 item_group_id: product.item_group_id,
                 track_inventory: product.track_inventory,
                 tracking_method: product.tracking_method,

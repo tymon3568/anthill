@@ -95,6 +95,9 @@ impl ProductService for ProductServiceImpl {
         if let Some(description) = request.description {
             product.description = Some(description);
         }
+        if let Some(category_id) = request.category_id {
+            product.category_id = Some(category_id);
+        }
         if let Some(item_group_id) = request.item_group_id {
             product.item_group_id = Some(item_group_id);
         }
@@ -131,21 +134,70 @@ impl ProductService for ProductServiceImpl {
 
     async fn list_products(
         &self,
-        _tenant_id: Uuid,
+        tenant_id: Uuid,
         query: inventory_service_core::dto::product::ProductListQuery,
     ) -> Result<inventory_service_core::dto::product::ProductListResponse> {
-        // TODO: Implement with proper filtering and pagination
-        // For now, return empty response
+        use inventory_service_core::domains::inventory::dto::search_dto::ProductSearchRequest;
+        use inventory_service_core::dto::product::ProductResponse;
+
+        // Convert ProductListQuery to ProductSearchRequest
+        let search_request = ProductSearchRequest {
+            query: query.search.clone(),
+            category_ids: query.category_id.map(|id| vec![id]),
+            price_min: None,
+            price_max: None,
+            in_stock_only: None,
+            product_types: query.product_type.clone().map(|t| vec![t]),
+            active_only: query.is_active,
+            sellable_only: query.is_sellable,
+            sort_by: None,
+            sort_order: None,
+            page: Some(query.page as u32),
+            limit: Some(query.page_size as u32),
+        };
+
+        // Use the existing search_products method
+        let search_response = self
+            .repository
+            .search_products(tenant_id, search_request)
+            .await?;
+
+        // Convert ProductSearchResult to ProductResponse
+        let products: Vec<ProductResponse> = search_response
+            .products
+            .into_iter()
+            .map(|p| {
+                // Fetch full product details for each result
+                ProductResponse {
+                    product_id: p.product_id,
+                    tenant_id,
+                    sku: p.sku,
+                    name: p.name,
+                    description: p.description,
+                    product_type: p.product_type,
+                    category_id: p.category_id,
+                    item_group_id: None,
+                    track_inventory: p.track_inventory,
+                    tracking_method: inventory_service_core::domains::inventory::product::ProductTrackingMethod::None,
+                    default_uom_id: None,
+                    sale_price: p.sale_price,
+                    cost_price: p.cost_price,
+                    currency_code: p.currency_code,
+                    weight_grams: None,
+                    dimensions: None,
+                    attributes: None,
+                    is_active: p.is_active,
+                    is_sellable: p.is_sellable,
+                    is_purchaseable: true,
+                    created_at: p.created_at,
+                    updated_at: p.updated_at,
+                }
+            })
+            .collect();
+
         Ok(inventory_service_core::dto::product::ProductListResponse {
-            products: vec![],
-            pagination: inventory_service_core::dto::common::PaginationInfo {
-                page: query.page as u32,
-                page_size: query.page_size as u32,
-                total_items: 0,
-                total_pages: 0,
-                has_next: false,
-                has_prev: false,
-            },
+            products,
+            pagination: search_response.pagination,
         })
     }
 
@@ -170,6 +222,9 @@ impl ProductService for ProductServiceImpl {
         }
         if let Some(product_type) = request.product_type {
             product.product_type = product_type;
+        }
+        if let Some(category_id) = request.category_id {
+            product.category_id = Some(category_id);
         }
         if let Some(item_group_id) = request.item_group_id {
             product.item_group_id = Some(item_group_id);
@@ -266,5 +321,41 @@ impl ProductService for ProductServiceImpl {
         self.repository
             .record_search_analytics(tenant_id, query, result_count, user_id)
             .await
+    }
+
+    // ========================================================================
+    // Bulk Operations
+    // ========================================================================
+
+    async fn bulk_activate_products(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64> {
+        if product_ids.is_empty() {
+            return Err(shared_error::AppError::ValidationError(
+                "No product IDs provided".to_string(),
+            ));
+        }
+
+        self.repository.bulk_activate(tenant_id, product_ids).await
+    }
+
+    async fn bulk_deactivate_products(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64> {
+        if product_ids.is_empty() {
+            return Err(shared_error::AppError::ValidationError(
+                "No product IDs provided".to_string(),
+            ));
+        }
+
+        self.repository
+            .bulk_deactivate(tenant_id, product_ids)
+            .await
+    }
+
+    async fn bulk_delete_products(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64> {
+        if product_ids.is_empty() {
+            return Err(shared_error::AppError::ValidationError(
+                "No product IDs provided".to_string(),
+            ));
+        }
+
+        self.repository.bulk_delete(tenant_id, product_ids).await
     }
 }

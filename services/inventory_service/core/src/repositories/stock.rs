@@ -51,10 +51,12 @@ pub trait InventoryLevelRepository: Send + Sync {
     ) -> Result<Option<InventoryLevel>, AppError>;
 
     /// Update available quantity (increment/decrement)
+    /// Uses UPSERT pattern - creates inventory level if it doesn't exist
     async fn update_available_quantity(
         &self,
         tenant_id: Uuid,
         warehouse_id: Uuid,
+        location_id: Option<Uuid>,
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError>;

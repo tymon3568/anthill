@@ -115,6 +115,29 @@ impl StockMoveRepository for PgStockMoveRepository {
         stock_move: &CreateStockMoveRequest,
         tenant_id: Uuid,
     ) -> Result<StockMove, AppError> {
+        // First check if this idempotency key already exists
+        if let Some(existing) = sqlx::query_as!(
+            StockMove,
+            r#"
+            SELECT
+                move_id, tenant_id, product_id, source_location_id, destination_location_id,
+                move_type, quantity, unit_cost, total_cost, reference_type, reference_id,
+                lot_serial_id, idempotency_key, move_date, move_reason, batch_info, metadata, created_at
+            FROM stock_moves
+            WHERE tenant_id = $1 AND idempotency_key = $2
+            "#,
+            tenant_id,
+            stock_move.idempotency_key,
+        )
+        .fetch_optional(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?
+        {
+            // Idempotent: return existing stock_move
+            return Ok(existing);
+        }
+
+        // Create new stock_move
         let created_move = sqlx::query_as!(
             StockMove,
             r#"
@@ -313,26 +336,31 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         &self,
         tenant_id: Uuid,
         warehouse_id: Uuid,
+        location_id: Option<Uuid>,
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-        tx = self
-            .update_available_quantity_with_tx(
-                tx,
-                tenant_id,
-                warehouse_id,
-                product_id,
-                quantity_change,
-            )
-            .await?;
-        tx.commit()
-            .await
-            .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+        // Use upsert pattern: insert with quantity_change if not exists,
+        // or update existing record with the delta.
+        // The unique constraint is on (tenant_id, warehouse_id, location_id, product_id)
+        sqlx::query!(
+            r#"
+            INSERT INTO inventory_levels (tenant_id, warehouse_id, location_id, product_id, available_quantity, reserved_quantity)
+            VALUES ($1, $2, $3, $4, GREATEST($5::bigint, 0), 0)
+            ON CONFLICT (tenant_id, warehouse_id, location_id, product_id) WHERE deleted_at IS NULL
+            DO UPDATE SET
+                available_quantity = GREATEST(inventory_levels.available_quantity + $5::bigint, 0),
+                updated_at = NOW()
+            "#,
+            tenant_id,
+            warehouse_id,
+            location_id,
+            product_id,
+            quantity_change
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
         Ok(())
     }
 

@@ -38,16 +38,17 @@ use inventory_service_infra::repositories::{
     PgStockReconciliationItemRepository, PgStockReconciliationRepository,
     PgStockTakeLineRepository, PgStockTakeRepository, PgTransferItemRepository,
     PgTransferRepository, PickingMethodRepositoryImpl, ProductRepositoryImpl,
-    ReceiptRepositoryImpl, ValuationRepositoryImpl, ValuationSettingsRepositoryImpl,
-    WarehouseRepositoryImpl,
+    ProductVariantRepositoryImpl, ReceiptRepositoryImpl, ValuationRepositoryImpl,
+    ValuationSettingsRepositoryImpl, WarehouseRepositoryImpl,
 };
 
 // Inventory-service infra - Service implementations
 use inventory_service_infra::services::{
     CategoryServiceImpl, LandedCostServiceImpl, LotSerialServiceImpl, PgPutawayService,
     PgQualityControlPointService, PgReplenishmentService, PgRmaService, PgScrapService,
-    PgStockReconciliationService, PgStockTakeService, PgTransferService, PickingMethodServiceImpl,
-    ProductServiceImpl, ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
+    PgStockLevelsService, PgStockReconciliationService, PgStockTakeService, PgTransferService,
+    PickingMethodServiceImpl, ProductServiceImpl, ProductVariantServiceImpl, ReceiptServiceImpl,
+    RedisDistributedLockService, ValuationServiceImpl,
 };
 
 // Local handlers
@@ -58,6 +59,7 @@ use crate::handlers::health::health_check;
 use crate::handlers::landed_cost::create_landed_cost_routes;
 use crate::handlers::lot_serial::create_lot_serial_routes;
 use crate::handlers::picking::create_picking_routes;
+use crate::handlers::product_variants::create_variant_routes;
 use crate::handlers::products::create_product_routes;
 use crate::handlers::putaway::create_putaway_routes;
 use crate::handlers::quality::create_quality_routes;
@@ -68,6 +70,7 @@ use crate::handlers::reports::create_reports_routes;
 use crate::handlers::rma::create_rma_routes;
 use crate::handlers::scrap::create_scrap_routes;
 use crate::handlers::search::create_search_routes;
+use crate::handlers::stock_levels::create_stock_levels_routes;
 use crate::handlers::stock_take::create_stock_take_routes;
 use crate::handlers::transfer::create_transfer_routes;
 use crate::handlers::valuation::create_valuation_routes;
@@ -216,6 +219,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Product
     let product_repo = Arc::new(ProductRepositoryImpl::new(pool.clone()));
 
+    // Product Variant
+    let variant_repo = Arc::new(ProductVariantRepositoryImpl::new(pool.clone()));
+
     // Warehouse
     let warehouse_repo = Arc::new(WarehouseRepositoryImpl::new(pool.clone()));
 
@@ -286,6 +292,10 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Product Service
     let product_service = Arc::new(ProductServiceImpl::new(product_repo.clone()));
 
+    // Product Variant Service
+    let variant_service =
+        Arc::new(ProductVariantServiceImpl::new(variant_repo, product_repo.clone()));
+
     // Lot/Serial Service
     let lot_serial_service = Arc::new(LotSerialServiceImpl::new(
         lot_serial_repo,
@@ -309,6 +319,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         transfer_item_repo,
         stock_move_repo.clone(),
         inventory_level_repo.clone(),
+        warehouse_repo.clone(),
     ));
 
     // Stock Take Service
@@ -383,6 +394,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
     // Scrap Service
     let scrap_service = Arc::new(PgScrapService::new(pool_arc.clone()));
 
+    // Stock Levels Service
+    let stock_levels_service = Arc::new(PgStockLevelsService::new(pool_arc.clone()));
+
     // =========================================================================
     // Phase 4: Create AppState with All Services
     // =========================================================================
@@ -392,6 +406,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         lot_serial_service,
         picking_method_service,
         product_service,
+        variant_service,
         valuation_service,
         warehouse_repository: warehouse_repo,
         receipt_service,
@@ -404,6 +419,7 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         quality_service,
         putaway_service,
         scrap_service,
+        stock_levels_service,
         landed_cost_service,
         distributed_lock_service,
         enforcer: enforcer.clone(),
@@ -458,6 +474,8 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         .nest("/api/v1/inventory/categories", create_category_routes())
         // Product management
         .nest("/api/v1/inventory/products", create_product_routes())
+        // Product variants
+        .nest("/api/v1/inventory/variants", create_variant_routes())
         // Warehouse management
         .nest("/api/v1/inventory/warehouses", create_warehouse_routes())
         // Lot/Serial management
@@ -499,7 +517,9 @@ pub async fn create_router(pool: PgPool, config: &Config) -> Router {
         // Search
         .nest("/api/v1/inventory/search", create_search_routes())
         // Scrap management
-        .nest("/api/v1/inventory/scrap", create_scrap_routes());
+        .nest("/api/v1/inventory/scrap", create_scrap_routes())
+        // Stock levels
+        .nest("/api/v1/inventory/stock-levels", create_stock_levels_routes());
 
     // =========================================================================
     // Phase 7: Apply Middleware Layers

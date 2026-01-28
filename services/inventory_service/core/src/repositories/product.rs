@@ -185,4 +185,38 @@ pub trait ProductRepository: Send + Sync {
     /// # Returns
     /// Current inventory quantity
     async fn get_inventory_level(&self, tenant_id: Uuid, product_id: Uuid) -> Result<i64>;
+
+    // ========================================================================
+    // Bulk Operations
+    // ========================================================================
+
+    /// Bulk activate products
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `product_ids` - List of product IDs to activate
+    ///
+    /// # Returns
+    /// Number of products activated
+    async fn bulk_activate(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    /// Bulk deactivate products
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `product_ids` - List of product IDs to deactivate
+    ///
+    /// # Returns
+    /// Number of products deactivated
+    async fn bulk_deactivate(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    /// Bulk delete products (soft delete)
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `product_ids` - List of product IDs to delete
+    ///
+    /// # Returns
+    /// Number of products deleted
+    async fn bulk_delete(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
 }

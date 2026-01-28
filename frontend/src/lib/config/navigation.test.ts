@@ -185,7 +185,7 @@ describe('Navigation Configuration', () => {
 		const testSubItems: NavSubItem[] = [
 			{ title: 'Products', url: '/inventory/products' },
 			{ title: 'Categories', url: '/inventory/categories' },
-			{ title: 'Stock', url: '/inventory/stock' }
+			{ title: 'Stock', url: '/inventory/stock-levels' }
 		];
 
 		it('should return true when current path matches a sub-item', () => {

@@ -420,8 +420,54 @@ impl ProductRepository for ProductRepositoryImpl {
     // CRUD Operations (Future)
     // ========================================================================
 
-    async fn find_by_id(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Option<Product>> {
-        todo!("Implement find_by_id")
+    async fn find_by_id(&self, tenant_id: Uuid, product_id: Uuid) -> Result<Option<Product>> {
+        let row = sqlx::query!(
+            r#"
+            SELECT
+                product_id, tenant_id, sku, name, description,
+                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            FROM products
+            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            product_id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| Product {
+            product_id: row.product_id,
+            tenant_id: row.tenant_id,
+            sku: row.sku,
+            name: row.name,
+            description: row.description,
+            product_type: row.product_type,
+            category_id: row.category_id,
+            item_group_id: row.item_group_id,
+            track_inventory: row.track_inventory,
+            tracking_method: row
+                .tracking_method
+                .unwrap_or_else(|| "none".to_string())
+                .parse::<ProductTrackingMethod>()
+                .unwrap_or(ProductTrackingMethod::None),
+            default_uom_id: row.default_uom_id,
+            sale_price: row.sale_price,
+            cost_price: row.cost_price,
+            currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
+            weight_grams: row.weight_grams,
+            dimensions: row.dimensions,
+            attributes: row.attributes,
+            is_active: row.is_active,
+            is_sellable: row.is_sellable,
+            is_purchaseable: row.is_purchaseable,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            deleted_at: row.deleted_at,
+        }))
     }
 
     async fn find_by_ids(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<Vec<Product>> {
@@ -433,7 +479,7 @@ impl ProductRepository for ProductRepositoryImpl {
             r#"
             SELECT
                 product_id, tenant_id, sku, name, description,
-                product_type, item_group_id, track_inventory, tracking_method,
+                product_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
@@ -456,6 +502,7 @@ impl ProductRepository for ProductRepositoryImpl {
                 name: row.name,
                 description: row.description,
                 product_type: row.product_type,
+                category_id: row.category_id,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
                 tracking_method: row
@@ -482,8 +529,54 @@ impl ProductRepository for ProductRepositoryImpl {
         Ok(products)
     }
 
-    async fn find_by_sku(&self, _tenant_id: Uuid, _sku: &str) -> Result<Option<Product>> {
-        todo!("Implement find_by_sku")
+    async fn find_by_sku(&self, tenant_id: Uuid, sku: &str) -> Result<Option<Product>> {
+        let row = sqlx::query!(
+            r#"
+            SELECT
+                product_id, tenant_id, sku, name, description,
+                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            FROM products
+            WHERE tenant_id = $1 AND sku = $2 AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            sku
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| Product {
+            product_id: row.product_id,
+            tenant_id: row.tenant_id,
+            sku: row.sku,
+            name: row.name,
+            description: row.description,
+            product_type: row.product_type,
+            category_id: row.category_id,
+            item_group_id: row.item_group_id,
+            track_inventory: row.track_inventory,
+            tracking_method: row
+                .tracking_method
+                .unwrap_or_else(|| "none".to_string())
+                .parse::<ProductTrackingMethod>()
+                .unwrap_or(ProductTrackingMethod::None),
+            default_uom_id: row.default_uom_id,
+            sale_price: row.sale_price,
+            cost_price: row.cost_price,
+            currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
+            weight_grams: row.weight_grams,
+            dimensions: row.dimensions,
+            attributes: row.attributes,
+            is_active: row.is_active,
+            is_sellable: row.is_sellable,
+            is_purchaseable: row.is_purchaseable,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            deleted_at: row.deleted_at,
+        }))
     }
 
     async fn find_by_barcode(&self, tenant_id: Uuid, barcode: &str) -> Result<Option<Product>> {
@@ -492,7 +585,7 @@ impl ProductRepository for ProductRepositoryImpl {
             r#"
             SELECT
                 p.product_id, p.tenant_id, p.sku, p.name, p.description,
-                p.product_type, p.item_group_id, p.track_inventory, p.tracking_method,
+                p.product_type, p.category_id, p.item_group_id, p.track_inventory, p.tracking_method,
                 p.default_uom_id, p.sale_price, p.cost_price, p.currency_code,
                 p.weight_grams, p.dimensions, p.attributes,
                 p.is_active, p.is_sellable, p.is_purchaseable,
@@ -517,6 +610,7 @@ impl ProductRepository for ProductRepositoryImpl {
                 name: row.name,
                 description: row.description,
                 product_type: row.product_type,
+                category_id: row.category_id,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
                 tracking_method: row
@@ -547,7 +641,7 @@ impl ProductRepository for ProductRepositoryImpl {
             r#"
             SELECT
                 product_id, tenant_id, sku, name, description,
-                product_type, item_group_id, track_inventory, tracking_method,
+                product_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
@@ -570,6 +664,7 @@ impl ProductRepository for ProductRepositoryImpl {
                 name: row.name,
                 description: row.description,
                 product_type: row.product_type,
+                category_id: row.category_id,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
                 tracking_method: row
@@ -597,21 +692,199 @@ impl ProductRepository for ProductRepositoryImpl {
         Ok(None)
     }
 
-    async fn create(&self, _product: &Product) -> Result<Product> {
-        todo!("Implement create")
+    async fn create(&self, product: &Product) -> Result<Product> {
+        let tracking_method_str = product.tracking_method.to_string();
+
+        let row = sqlx::query!(
+            r#"
+            INSERT INTO products (
+                product_id, tenant_id, sku, name, description,
+                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at
+            ) VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10,
+                $11, $12, $13, $14,
+                $15, $16, $17,
+                $18, $19, $20,
+                $21, $22
+            )
+            RETURNING
+                product_id, tenant_id, sku, name, description,
+                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            "#,
+            product.product_id,
+            product.tenant_id,
+            product.sku,
+            product.name,
+            product.description,
+            product.product_type,
+            product.category_id,
+            product.item_group_id,
+            product.track_inventory,
+            tracking_method_str,
+            product.default_uom_id,
+            product.sale_price,
+            product.cost_price,
+            product.currency_code,
+            product.weight_grams,
+            product.dimensions,
+            product.attributes,
+            product.is_active,
+            product.is_sellable,
+            product.is_purchaseable,
+            product.created_at,
+            product.updated_at
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(Product {
+            product_id: row.product_id,
+            tenant_id: row.tenant_id,
+            sku: row.sku,
+            name: row.name,
+            description: row.description,
+            product_type: row.product_type,
+            category_id: row.category_id,
+            item_group_id: row.item_group_id,
+            track_inventory: row.track_inventory,
+            tracking_method: row
+                .tracking_method
+                .unwrap_or_else(|| "none".to_string())
+                .parse::<ProductTrackingMethod>()
+                .unwrap_or(ProductTrackingMethod::None),
+            default_uom_id: row.default_uom_id,
+            sale_price: row.sale_price,
+            cost_price: row.cost_price,
+            currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
+            weight_grams: row.weight_grams,
+            dimensions: row.dimensions,
+            attributes: row.attributes,
+            is_active: row.is_active,
+            is_sellable: row.is_sellable,
+            is_purchaseable: row.is_purchaseable,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            deleted_at: row.deleted_at,
+        })
     }
 
     async fn update(
         &self,
-        _tenant_id: Uuid,
-        _product_id: Uuid,
-        _product: &Product,
+        tenant_id: Uuid,
+        product_id: Uuid,
+        product: &Product,
     ) -> Result<Product> {
-        todo!("Implement update")
+        let tracking_method_str = product.tracking_method.to_string();
+
+        let row = sqlx::query!(
+            r#"
+            UPDATE products SET
+                name = $3,
+                description = $4,
+                product_type = $5,
+                category_id = $6,
+                item_group_id = $7,
+                track_inventory = $8,
+                tracking_method = $9,
+                default_uom_id = $10,
+                sale_price = $11,
+                cost_price = $12,
+                currency_code = $13,
+                weight_grams = $14,
+                dimensions = $15,
+                attributes = $16,
+                is_active = $17,
+                is_sellable = $18,
+                is_purchaseable = $19,
+                updated_at = $20
+            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            RETURNING
+                product_id, tenant_id, sku, name, description,
+                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            "#,
+            tenant_id,
+            product_id,
+            product.name,
+            product.description,
+            product.product_type,
+            product.category_id,
+            product.item_group_id,
+            product.track_inventory,
+            tracking_method_str,
+            product.default_uom_id,
+            product.sale_price,
+            product.cost_price,
+            product.currency_code,
+            product.weight_grams,
+            product.dimensions,
+            product.attributes,
+            product.is_active,
+            product.is_sellable,
+            product.is_purchaseable,
+            product.updated_at
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| shared_error::AppError::NotFound("Product not found".to_string()))?;
+
+        Ok(Product {
+            product_id: row.product_id,
+            tenant_id: row.tenant_id,
+            sku: row.sku,
+            name: row.name,
+            description: row.description,
+            product_type: row.product_type,
+            category_id: row.category_id,
+            item_group_id: row.item_group_id,
+            track_inventory: row.track_inventory,
+            tracking_method: row
+                .tracking_method
+                .unwrap_or_else(|| "none".to_string())
+                .parse::<ProductTrackingMethod>()
+                .unwrap_or(ProductTrackingMethod::None),
+            default_uom_id: row.default_uom_id,
+            sale_price: row.sale_price,
+            cost_price: row.cost_price,
+            currency_code: row.currency_code.unwrap_or_else(|| "VND".to_string()),
+            weight_grams: row.weight_grams,
+            dimensions: row.dimensions,
+            attributes: row.attributes,
+            is_active: row.is_active,
+            is_sellable: row.is_sellable,
+            is_purchaseable: row.is_purchaseable,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            deleted_at: row.deleted_at,
+        })
     }
 
-    async fn delete(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool> {
-        todo!("Implement delete")
+    async fn delete(&self, tenant_id: Uuid, product_id: Uuid) -> Result<bool> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE products
+            SET deleted_at = NOW(), updated_at = NOW()
+            WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            product_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 
     // ========================================================================
@@ -646,5 +919,69 @@ impl ProductRepository for ProductRepositoryImpl {
 
     async fn get_inventory_level(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<i64> {
         todo!("Implement inventory level query")
+    }
+
+    // ========================================================================
+    // Bulk Operations
+    // ========================================================================
+
+    async fn bulk_activate(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64> {
+        if product_ids.is_empty() {
+            return Ok(0);
+        }
+
+        let result = sqlx::query!(
+            r#"
+            UPDATE products
+            SET is_active = true, updated_at = NOW()
+            WHERE tenant_id = $1 AND product_id = ANY($2) AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            &product_ids
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() as i64)
+    }
+
+    async fn bulk_deactivate(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64> {
+        if product_ids.is_empty() {
+            return Ok(0);
+        }
+
+        let result = sqlx::query!(
+            r#"
+            UPDATE products
+            SET is_active = false, updated_at = NOW()
+            WHERE tenant_id = $1 AND product_id = ANY($2) AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            &product_ids
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() as i64)
+    }
+
+    async fn bulk_delete(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64> {
+        if product_ids.is_empty() {
+            return Ok(0);
+        }
+
+        let result = sqlx::query!(
+            r#"
+            UPDATE products
+            SET deleted_at = NOW(), updated_at = NOW()
+            WHERE tenant_id = $1 AND product_id = ANY($2) AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            &product_ids
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() as i64)
     }
 }

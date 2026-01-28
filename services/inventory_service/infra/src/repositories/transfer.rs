@@ -70,7 +70,7 @@ impl TransferRepository for PgTransferRepository {
                 shipping_method, notes, reason, created_by, updated_by,
                 total_quantity, total_value, currency_code
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+            VALUES ($1, $2, COALESCE(NULLIF($3, ''), generate_stock_transfer_number()), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
             RETURNING transfer_id, tenant_id, transfer_number, reference_number,
                       source_warehouse_id, destination_warehouse_id, status, transfer_type, priority,
                       transfer_date, expected_ship_date, actual_ship_date,
@@ -222,6 +222,137 @@ impl TransferRepository for PgTransferRepository {
         .transpose()
     }
 
+    async fn list(
+        &self,
+        tenant_id: Uuid,
+        source_warehouse_id: Option<Uuid>,
+        destination_warehouse_id: Option<Uuid>,
+        status: Option<TransferStatus>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<Transfer>, AppError> {
+        let status_str = status.map(|s| match s {
+            TransferStatus::Draft => "draft",
+            TransferStatus::Confirmed => "confirmed",
+            TransferStatus::PartiallyPicked => "partially_picked",
+            TransferStatus::Picked => "picked",
+            TransferStatus::PartiallyShipped => "partially_shipped",
+            TransferStatus::Shipped => "shipped",
+            TransferStatus::Received => "received",
+            TransferStatus::Cancelled => "cancelled",
+        });
+
+        let rows = sqlx::query!(
+            r#"
+            SELECT transfer_id, tenant_id, transfer_number, reference_number,
+                   source_warehouse_id, destination_warehouse_id, status, transfer_type, priority,
+                   transfer_date, expected_ship_date, actual_ship_date,
+                   expected_receive_date, actual_receive_date,
+                   shipping_method, carrier, tracking_number, shipping_cost,
+                   notes, reason, created_by, updated_by, approved_by, approved_at,
+                   total_quantity, total_value, currency_code,
+                   created_at, updated_at, deleted_at, deleted_by
+            FROM stock_transfers
+            WHERE tenant_id = $1
+              AND deleted_at IS NULL
+              AND ($2::UUID IS NULL OR source_warehouse_id = $2)
+              AND ($3::UUID IS NULL OR destination_warehouse_id = $3)
+              AND ($4::TEXT IS NULL OR status = $4)
+            ORDER BY created_at DESC
+            LIMIT $5
+            OFFSET $6
+            "#,
+            tenant_id,
+            source_warehouse_id,
+            destination_warehouse_id,
+            status_str,
+            limit.unwrap_or(50),
+            offset.unwrap_or(0)
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to list transfers: {}", e)))?;
+
+        let mut transfers = Vec::with_capacity(rows.len());
+        for r in rows {
+            transfers.push(Transfer {
+                transfer_id: r.transfer_id,
+                tenant_id: r.tenant_id,
+                transfer_number: r.transfer_number,
+                reference_number: r.reference_number,
+                source_warehouse_id: r.source_warehouse_id,
+                destination_warehouse_id: r.destination_warehouse_id,
+                status: Self::string_to_transfer_status(&r.status)?,
+                transfer_type: Self::string_to_transfer_type(&r.transfer_type)?,
+                priority: Self::string_to_transfer_priority(&r.priority)?,
+                transfer_date: r.transfer_date,
+                expected_ship_date: r.expected_ship_date,
+                actual_ship_date: r.actual_ship_date,
+                expected_receive_date: r.expected_receive_date,
+                actual_receive_date: r.actual_receive_date,
+                shipping_method: r.shipping_method,
+                carrier: r.carrier,
+                tracking_number: r.tracking_number,
+                shipping_cost: r.shipping_cost,
+                notes: r.notes,
+                reason: r.reason,
+                created_by: r.created_by,
+                updated_by: r.updated_by,
+                approved_by: r.approved_by,
+                approved_at: r.approved_at,
+                total_quantity: r.total_quantity.unwrap_or(0),
+                total_value: r.total_value.unwrap_or(0),
+                currency_code: r.currency_code.unwrap_or_else(|| "VND".to_string()),
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+                deleted_at: r.deleted_at,
+                deleted_by: r.deleted_by,
+            });
+        }
+
+        Ok(transfers)
+    }
+
+    async fn count(
+        &self,
+        tenant_id: Uuid,
+        source_warehouse_id: Option<Uuid>,
+        destination_warehouse_id: Option<Uuid>,
+        status: Option<TransferStatus>,
+    ) -> Result<i64, AppError> {
+        let status_str = status.map(|s| match s {
+            TransferStatus::Draft => "draft",
+            TransferStatus::Confirmed => "confirmed",
+            TransferStatus::PartiallyPicked => "partially_picked",
+            TransferStatus::Picked => "picked",
+            TransferStatus::PartiallyShipped => "partially_shipped",
+            TransferStatus::Shipped => "shipped",
+            TransferStatus::Received => "received",
+            TransferStatus::Cancelled => "cancelled",
+        });
+
+        let row = sqlx::query!(
+            r#"
+            SELECT COUNT(*) as "count!"
+            FROM stock_transfers
+            WHERE tenant_id = $1
+              AND deleted_at IS NULL
+              AND ($2::UUID IS NULL OR source_warehouse_id = $2)
+              AND ($3::UUID IS NULL OR destination_warehouse_id = $3)
+              AND ($4::TEXT IS NULL OR status = $4)
+            "#,
+            tenant_id,
+            source_warehouse_id,
+            destination_warehouse_id,
+            status_str
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to count transfers: {}", e)))?;
+
+        Ok(row.count)
+    }
+
     async fn update_status(
         &self,
         tenant_id: Uuid,
@@ -308,6 +439,33 @@ impl TransferRepository for PgTransferRepository {
         Ok(())
     }
 
+    async fn cancel_transfer(
+        &self,
+        tenant_id: Uuid,
+        transfer_id: Uuid,
+        cancelled_by: Uuid,
+        reason: Option<String>,
+    ) -> Result<(), AppError> {
+        sqlx::query!(
+            r#"
+            UPDATE stock_transfers
+            SET status = $1, reason = COALESCE($2, reason),
+                updated_by = $3, updated_at = NOW()
+            WHERE tenant_id = $4 AND transfer_id = $5 AND deleted_at IS NULL
+            "#,
+            "cancelled",
+            reason,
+            cancelled_by,
+            tenant_id,
+            transfer_id
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to cancel transfer: {}", e)))?;
+
+        Ok(())
+    }
+
     async fn delete(
         &self,
         tenant_id: Uuid,
@@ -361,7 +519,9 @@ impl TransferItemRepository for PgTransferItemRepository {
             r#"
             INSERT INTO stock_transfer_items (
                 transfer_item_id, tenant_id, transfer_id, product_id,
-                quantity, uom_id, unit_cost, line_total, line_number, notes
+                quantity, uom_id, unit_cost, line_total, line_number,
+                source_zone_id, source_location_id, destination_zone_id, destination_location_id,
+                notes
             )
             "#,
         );
@@ -376,6 +536,10 @@ impl TransferItemRepository for PgTransferItemRepository {
                 .push_bind(item.unit_cost)
                 .push_bind(item.line_total)
                 .push_bind(item.line_number)
+                .push_bind(item.source_zone_id)
+                .push_bind(item.source_location_id)
+                .push_bind(item.destination_zone_id)
+                .push_bind(item.destination_location_id)
                 .push_bind(&item.notes);
         });
 
@@ -383,8 +547,9 @@ impl TransferItemRepository for PgTransferItemRepository {
         query_builder.push(
             r#"
             RETURNING transfer_item_id, tenant_id, transfer_id, product_id,
-                      quantity, uom_id, unit_cost, line_total, line_number, notes,
-                      created_at, updated_at, updated_by, deleted_at, deleted_by
+                      quantity, uom_id, unit_cost, line_total, line_number,
+                      source_zone_id, source_location_id, destination_zone_id, destination_location_id,
+                      notes, created_at, updated_at, updated_by, deleted_at, deleted_by
             "#,
         );
 
@@ -403,8 +568,9 @@ impl TransferItemRepository for PgTransferItemRepository {
         let rows = sqlx::query!(
             r#"
             SELECT transfer_item_id, tenant_id, transfer_id, product_id,
-                   quantity, uom_id, unit_cost, line_total, line_number, notes,
-                   created_at, updated_at, updated_by, deleted_at, deleted_by
+                   quantity, uom_id, unit_cost, line_total, line_number,
+                   source_zone_id, source_location_id, destination_zone_id, destination_location_id,
+                   notes, created_at, updated_at, updated_by, deleted_at, deleted_by
             FROM stock_transfer_items
             WHERE tenant_id = $1 AND transfer_id = $2 AND deleted_at IS NULL
             ORDER BY line_number
@@ -428,6 +594,10 @@ impl TransferItemRepository for PgTransferItemRepository {
                 unit_cost: r.unit_cost,
                 line_total: r.line_total,
                 line_number: r.line_number,
+                source_zone_id: r.source_zone_id,
+                source_location_id: r.source_location_id,
+                destination_zone_id: r.destination_zone_id,
+                destination_location_id: r.destination_location_id,
                 notes: r.notes,
                 created_at: r.created_at,
                 updated_at: r.updated_at,
@@ -448,8 +618,9 @@ impl TransferItemRepository for PgTransferItemRepository {
         let row = sqlx::query!(
             r#"
             SELECT transfer_item_id, tenant_id, transfer_id, product_id,
-                   quantity, uom_id, unit_cost, line_total, line_number, notes,
-                   created_at, updated_at, updated_by, deleted_at, deleted_by
+                   quantity, uom_id, unit_cost, line_total, line_number,
+                   source_zone_id, source_location_id, destination_zone_id, destination_location_id,
+                   notes, created_at, updated_at, updated_by, deleted_at, deleted_by
             FROM stock_transfer_items
             WHERE tenant_id = $1 AND transfer_item_id = $2 AND deleted_at IS NULL
             "#,
@@ -470,6 +641,10 @@ impl TransferItemRepository for PgTransferItemRepository {
             unit_cost: r.unit_cost,
             line_total: r.line_total,
             line_number: r.line_number,
+            source_zone_id: r.source_zone_id,
+            source_location_id: r.source_location_id,
+            destination_zone_id: r.destination_zone_id,
+            destination_location_id: r.destination_location_id,
             notes: r.notes,
             created_at: r.created_at,
             updated_at: r.updated_at,

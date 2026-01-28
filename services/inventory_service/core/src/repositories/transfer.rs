@@ -21,6 +21,26 @@ pub trait TransferRepository: Send + Sync {
         transfer_id: Uuid,
     ) -> Result<Option<Transfer>, AppError>;
 
+    /// List transfers with filtering
+    async fn list(
+        &self,
+        tenant_id: Uuid,
+        source_warehouse_id: Option<Uuid>,
+        destination_warehouse_id: Option<Uuid>,
+        status: Option<TransferStatus>,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<Transfer>, AppError>;
+
+    /// Count transfers with filtering
+    async fn count(
+        &self,
+        tenant_id: Uuid,
+        source_warehouse_id: Option<Uuid>,
+        destination_warehouse_id: Option<Uuid>,
+        status: Option<TransferStatus>,
+    ) -> Result<i64, AppError>;
+
     /// Update transfer status
     async fn update_status(
         &self,
@@ -45,6 +65,15 @@ pub trait TransferRepository: Send + Sync {
         tenant_id: Uuid,
         transfer_id: Uuid,
         updated_by: Uuid,
+    ) -> Result<(), AppError>;
+
+    /// Cancel a transfer with reason
+    async fn cancel_transfer(
+        &self,
+        tenant_id: Uuid,
+        transfer_id: Uuid,
+        cancelled_by: Uuid,
+        reason: Option<String>,
     ) -> Result<(), AppError>;
 
     /// Delete transfer (soft delete)

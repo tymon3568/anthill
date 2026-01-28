@@ -1,7 +1,7 @@
 use axum::{
     extract::{Extension, Path},
     http::StatusCode,
-    routing::{get, post},
+    routing::{get, put},
     Json, Router,
 };
 
@@ -11,7 +11,8 @@ use validator::Validate;
 use crate::state::AppState;
 use inventory_service_core::domains::inventory::dto::warehouse_dto::{
     CreateWarehouseLocationRequest, CreateWarehouseRequest, CreateWarehouseZoneRequest,
-    WarehouseLocationResponse, WarehouseResponse, WarehouseTreeResponse, WarehouseZoneResponse,
+    UpdateWarehouseLocationRequest, UpdateWarehouseZoneRequest, WarehouseLocationResponse,
+    WarehouseResponse, WarehouseTreeResponse, WarehouseZoneResponse,
 };
 use inventory_service_core::domains::inventory::BaseEntity;
 
@@ -402,6 +403,315 @@ pub async fn create_location(
     Ok(Json(location.into()))
 }
 
+// ============================================================================
+// Zone CRUD Operations
+// ============================================================================
+
+/// Get all zones in a warehouse
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/warehouses/{warehouse_id}/zones",
+    tag = "warehouses",
+    operation_id = "get_warehouse_zones",
+    params(
+        ("warehouse_id" = Uuid, Path, description = "Warehouse ID")
+    ),
+    responses(
+        (status = 200, body = Vec<WarehouseZoneResponse>),
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_zones(
+    Extension(state): Extension<AppState>,
+    user: AuthUser,
+    RequirePermission { .. }: RequirePermission,
+    Path(warehouse_id): Path<Uuid>,
+) -> Result<Json<Vec<WarehouseZoneResponse>>, AppError> {
+    // Check if warehouse exists
+    let warehouse_exists = state
+        .warehouse_repository
+        .find_by_id(user.tenant_id, warehouse_id)
+        .await?
+        .is_some();
+    if !warehouse_exists {
+        return Err(AppError::NotFound("Warehouse not found".to_string()));
+    }
+
+    let zones = state
+        .warehouse_repository
+        .get_zones_by_warehouse(user.tenant_id, warehouse_id)
+        .await?;
+
+    let responses = zones.into_iter().map(WarehouseZoneResponse::from).collect();
+
+    Ok(Json(responses))
+}
+
+/// Update a zone in a warehouse
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/warehouses/{warehouse_id}/zones/{zone_id}",
+    tag = "warehouses",
+    operation_id = "update_warehouse_zone",
+    params(
+        ("warehouse_id" = Uuid, Path, description = "Warehouse ID"),
+        ("zone_id" = Uuid, Path, description = "Zone ID")
+    ),
+    request_body = UpdateWarehouseZoneRequest,
+    responses(
+        (status = 200, body = WarehouseZoneResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn update_zone(
+    Extension(state): Extension<AppState>,
+    user: AuthUser,
+    RequirePermission { .. }: RequirePermission,
+    Path((warehouse_id, zone_id)): Path<(Uuid, Uuid)>,
+    Json(request): Json<UpdateWarehouseZoneRequest>,
+) -> Result<Json<WarehouseZoneResponse>, AppError> {
+    // Validate request
+    request
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    // Check if warehouse exists
+    let warehouse_exists = state
+        .warehouse_repository
+        .find_by_id(user.tenant_id, warehouse_id)
+        .await?
+        .is_some();
+    if !warehouse_exists {
+        return Err(AppError::NotFound("Warehouse not found".to_string()));
+    }
+
+    let zone = state
+        .warehouse_repository
+        .update_zone(user.tenant_id, zone_id, request)
+        .await
+        .map_err(|_| AppError::NotFound("Zone not found".to_string()))?;
+
+    Ok(Json(zone.into()))
+}
+
+/// Delete a zone from a warehouse
+#[utoipa::path(
+    delete,
+    path = "/api/v1/inventory/warehouses/{warehouse_id}/zones/{zone_id}",
+    tag = "warehouses",
+    operation_id = "delete_warehouse_zone",
+    params(
+        ("warehouse_id" = Uuid, Path, description = "Warehouse ID"),
+        ("zone_id" = Uuid, Path, description = "Zone ID")
+    ),
+    responses(
+        (status = 204, description = "Zone deleted successfully"),
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn delete_zone(
+    Extension(state): Extension<AppState>,
+    user: AuthUser,
+    RequirePermission { .. }: RequirePermission,
+    Path((warehouse_id, zone_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, AppError> {
+    // Check if warehouse exists
+    let warehouse_exists = state
+        .warehouse_repository
+        .find_by_id(user.tenant_id, warehouse_id)
+        .await?
+        .is_some();
+    if !warehouse_exists {
+        return Err(AppError::NotFound("Warehouse not found".to_string()));
+    }
+
+    let deleted = state
+        .warehouse_repository
+        .delete_zone(user.tenant_id, zone_id)
+        .await?;
+
+    if deleted {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(AppError::NotFound("Zone not found".to_string()))
+    }
+}
+
+// ============================================================================
+// Location CRUD Operations
+// ============================================================================
+
+/// Get all locations in a warehouse
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/warehouses/{warehouse_id}/locations",
+    tag = "warehouses",
+    operation_id = "get_warehouse_locations",
+    params(
+        ("warehouse_id" = Uuid, Path, description = "Warehouse ID")
+    ),
+    responses(
+        (status = 200, body = Vec<WarehouseLocationResponse>),
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_locations(
+    Extension(state): Extension<AppState>,
+    user: AuthUser,
+    RequirePermission { .. }: RequirePermission,
+    Path(warehouse_id): Path<Uuid>,
+) -> Result<Json<Vec<WarehouseLocationResponse>>, AppError> {
+    // Check if warehouse exists
+    let warehouse_exists = state
+        .warehouse_repository
+        .find_by_id(user.tenant_id, warehouse_id)
+        .await?
+        .is_some();
+    if !warehouse_exists {
+        return Err(AppError::NotFound("Warehouse not found".to_string()));
+    }
+
+    let locations = state
+        .warehouse_repository
+        .get_locations_by_warehouse(user.tenant_id, warehouse_id)
+        .await?;
+
+    let responses = locations
+        .into_iter()
+        .map(WarehouseLocationResponse::from)
+        .collect();
+
+    Ok(Json(responses))
+}
+
+/// Update a location in a warehouse
+#[utoipa::path(
+    put,
+    path = "/api/v1/inventory/warehouses/{warehouse_id}/locations/{location_id}",
+    tag = "warehouses",
+    operation_id = "update_warehouse_location",
+    params(
+        ("warehouse_id" = Uuid, Path, description = "Warehouse ID"),
+        ("location_id" = Uuid, Path, description = "Location ID")
+    ),
+    request_body = UpdateWarehouseLocationRequest,
+    responses(
+        (status = 200, body = WarehouseLocationResponse),
+        (status = 400, body = ErrorResponse),
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn update_location(
+    Extension(state): Extension<AppState>,
+    user: AuthUser,
+    RequirePermission { .. }: RequirePermission,
+    Path((warehouse_id, location_id)): Path<(Uuid, Uuid)>,
+    Json(request): Json<UpdateWarehouseLocationRequest>,
+) -> Result<Json<WarehouseLocationResponse>, AppError> {
+    // Validate request
+    request
+        .validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    // Check if warehouse exists
+    let warehouse_exists = state
+        .warehouse_repository
+        .find_by_id(user.tenant_id, warehouse_id)
+        .await?
+        .is_some();
+    if !warehouse_exists {
+        return Err(AppError::NotFound("Warehouse not found".to_string()));
+    }
+
+    let location = state
+        .warehouse_repository
+        .update_location(user.tenant_id, location_id, request)
+        .await
+        .map_err(|_| AppError::NotFound("Location not found".to_string()))?;
+
+    Ok(Json(location.into()))
+}
+
+/// Delete a location from a warehouse
+#[utoipa::path(
+    delete,
+    path = "/api/v1/inventory/warehouses/{warehouse_id}/locations/{location_id}",
+    tag = "warehouses",
+    operation_id = "delete_warehouse_location",
+    params(
+        ("warehouse_id" = Uuid, Path, description = "Warehouse ID"),
+        ("location_id" = Uuid, Path, description = "Location ID")
+    ),
+    responses(
+        (status = 204, description = "Location deleted successfully"),
+        (status = 404, body = ErrorResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 403, body = ErrorResponse),
+        (status = 500, body = ErrorResponse)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn delete_location(
+    Extension(state): Extension<AppState>,
+    user: AuthUser,
+    RequirePermission { .. }: RequirePermission,
+    Path((warehouse_id, location_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, AppError> {
+    // Check if warehouse exists
+    let warehouse_exists = state
+        .warehouse_repository
+        .find_by_id(user.tenant_id, warehouse_id)
+        .await?
+        .is_some();
+    if !warehouse_exists {
+        return Err(AppError::NotFound("Warehouse not found".to_string()));
+    }
+
+    let deleted = state
+        .warehouse_repository
+        .delete_location(user.tenant_id, location_id)
+        .await?;
+
+    if deleted {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(AppError::NotFound("Location not found".to_string()))
+    }
+}
+
 /// Create warehouse routes
 pub fn create_warehouse_routes() -> Router {
     Router::new()
@@ -413,6 +723,11 @@ pub fn create_warehouse_routes() -> Router {
                 .put(update_warehouse)
                 .delete(delete_warehouse),
         )
-        .route("/{warehouse_id}/zones", post(create_zone))
-        .route("/{warehouse_id}/locations", post(create_location))
+        .route("/{warehouse_id}/zones", get(get_zones).post(create_zone))
+        .route("/{warehouse_id}/zones/{zone_id}", put(update_zone).delete(delete_zone))
+        .route("/{warehouse_id}/locations", get(get_locations).post(create_location))
+        .route(
+            "/{warehouse_id}/locations/{location_id}",
+            put(update_location).delete(delete_location),
+        )
 }

@@ -5,6 +5,7 @@ pub mod health;
 pub mod landed_cost;
 pub mod lot_serial;
 pub mod picking;
+pub mod product_variants;
 pub mod products;
 pub mod putaway;
 pub mod quality;
@@ -15,6 +16,7 @@ pub mod reports;
 pub mod rma;
 pub mod scrap;
 pub mod search;
+pub mod stock_levels;
 pub mod stock_take;
 pub mod transfer;
 pub mod valuation;
@@ -39,3 +41,4 @@ pub use scrap::{
     add_scrap_lines, cancel_scrap, create_scrap, create_scrap_routes, get_scrap, list_scraps,
     post_scrap,
 };
+pub use stock_levels::{create_stock_levels_routes, list_stock_levels};

@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::domains::inventory::dto::warehouse_dto::{
     CreateWarehouseLocationRequest, CreateWarehouseRequest, CreateWarehouseZoneRequest,
-    WarehouseTreeResponse,
+    UpdateWarehouseLocationRequest, UpdateWarehouseZoneRequest, WarehouseTreeResponse,
 };
 use crate::domains::inventory::warehouse::Warehouse;
 use crate::domains::inventory::warehouse_location::WarehouseLocation;
@@ -225,6 +225,86 @@ pub trait WarehouseRepository: Send + Sync {
         warehouse_id: Uuid,
         request: CreateWarehouseLocationRequest,
     ) -> Result<WarehouseLocation>;
+
+    /// Get zones for a specific warehouse
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `warehouse_id` - Warehouse ID
+    ///
+    /// # Returns
+    /// List of zones in the warehouse
+    async fn get_zones_by_warehouse(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+    ) -> Result<Vec<WarehouseZone>>;
+
+    /// Get locations for a specific warehouse
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `warehouse_id` - Warehouse ID
+    ///
+    /// # Returns
+    /// List of locations in the warehouse
+    async fn get_locations_by_warehouse(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+    ) -> Result<Vec<WarehouseLocation>>;
+
+    /// Update a zone
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `zone_id` - Zone ID to update
+    /// * `request` - Zone update data
+    ///
+    /// # Returns
+    /// Updated zone
+    async fn update_zone(
+        &self,
+        tenant_id: Uuid,
+        zone_id: Uuid,
+        request: UpdateWarehouseZoneRequest,
+    ) -> Result<WarehouseZone>;
+
+    /// Delete a zone (soft delete)
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `zone_id` - Zone ID to delete
+    ///
+    /// # Returns
+    /// Success status
+    async fn delete_zone(&self, tenant_id: Uuid, zone_id: Uuid) -> Result<bool>;
+
+    /// Update a location
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `location_id` - Location ID to update
+    /// * `request` - Location update data
+    ///
+    /// # Returns
+    /// Updated location
+    async fn update_location(
+        &self,
+        tenant_id: Uuid,
+        location_id: Uuid,
+        request: UpdateWarehouseLocationRequest,
+    ) -> Result<WarehouseLocation>;
+
+    /// Delete a location (soft delete)
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `location_id` - Location ID to delete
+    ///
+    /// # Returns
+    /// Success status
+    async fn delete_location(&self, tenant_id: Uuid, location_id: Uuid) -> Result<bool>;
 
     /// Check if warehouse hierarchy is valid (no cycles)
     ///

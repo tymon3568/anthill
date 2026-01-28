@@ -25,6 +25,7 @@ static COLOR_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^#[0-9A-Fa-f
 /// Request to create a new category
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryCreateRequest {
     /// Parent category ID (None for root categories)
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>, format = "uuid"))]
@@ -86,6 +87,7 @@ pub struct CategoryCreateRequest {
 /// Request to update an existing category
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryUpdateRequest {
     /// Parent category ID (None to make root category)
     #[cfg_attr(feature = "openapi", schema(value_type = Option<String>, format = "uuid"))]
@@ -144,6 +146,7 @@ pub struct CategoryUpdateRequest {
 /// Request to move multiple products to a category
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct MoveToCategoryRequest {
     /// Product IDs to move
     #[validate(length(min = 1, max = 1000))]
@@ -158,6 +161,7 @@ pub struct MoveToCategoryRequest {
 /// Query parameters for listing categories
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryListQuery {
     /// Filter by parent category (None for root categories only)
     pub parent_id: Option<Uuid>,
@@ -228,6 +232,7 @@ pub enum SortDirection {
 /// Category response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryResponse {
     pub category_id: Uuid,
     pub tenant_id: Uuid,
@@ -290,6 +295,7 @@ impl From<Category> for CategoryResponse {
 /// Paginated list of categories
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryListResponse {
     pub categories: Vec<CategoryResponse>,
     pub pagination: PaginationInfo,
@@ -298,6 +304,7 @@ pub struct CategoryListResponse {
 /// Category tree response (hierarchical structure)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryTreeResponse {
     pub category_id: Uuid,
     pub name: String,
@@ -327,6 +334,7 @@ impl From<CategoryNode> for CategoryTreeResponse {
 /// Category statistics response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct CategoryStatsResponse {
     pub category_id: Uuid,
     pub name: String,
@@ -341,6 +349,7 @@ pub struct CategoryStatsResponse {
 /// Bulk operation response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub struct BulkOperationResponse {
     pub success: bool,
     pub affected_count: u32,

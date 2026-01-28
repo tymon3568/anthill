@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::domains::inventory::transfer::{TransferPriority, TransferStatus, TransferType};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferRequest {
     pub tenant_id: Uuid,
@@ -21,16 +22,35 @@ pub struct CreateTransferRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferItemRequest {
     pub product_id: Uuid,
     pub quantity: i64,
+    #[serde(default)]
     pub uom_id: Option<Uuid>,
+    #[serde(default)]
     pub unit_cost: Option<i64>,
+    #[serde(default)]
+    pub line_number: Option<i32>,
+    /// Source zone within source warehouse (optional, for precise tracking)
+    #[serde(default)]
+    pub source_zone_id: Option<Uuid>,
+    /// Source location/bin within source warehouse (optional)
+    #[serde(default)]
+    pub source_location_id: Option<Uuid>,
+    /// Destination zone within destination warehouse (optional)
+    #[serde(default)]
+    pub destination_zone_id: Option<Uuid>,
+    /// Destination location/bin within destination warehouse (optional)
+    #[serde(default)]
+    pub destination_location_id: Option<Uuid>,
+    #[serde(default)]
     pub notes: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateTransferRequest {
     pub status: Option<TransferStatus>,
@@ -39,6 +59,7 @@ pub struct UpdateTransferRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct UpdateTransferItemRequest {
     pub item_id: Uuid,
@@ -47,6 +68,7 @@ pub struct UpdateTransferItemRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferResponse {
     pub transfer_id: Uuid,
@@ -77,6 +99,7 @@ pub struct TransferResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferItemResponse {
     pub transfer_item_id: Uuid,
@@ -88,6 +111,14 @@ pub struct TransferItemResponse {
     pub unit_cost: Option<i64>,
     pub line_total: i64,
     pub line_number: i32,
+    /// Source zone within source warehouse (optional)
+    pub source_zone_id: Option<Uuid>,
+    /// Source location/bin within source warehouse (optional)
+    pub source_location_id: Option<Uuid>,
+    /// Destination zone within destination warehouse (optional)
+    pub destination_zone_id: Option<Uuid>,
+    /// Destination location/bin within destination warehouse (optional)
+    pub destination_location_id: Option<Uuid>,
     pub notes: Option<String>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,

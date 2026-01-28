@@ -1,6 +1,11 @@
 import type { ApiResponse } from '$lib/types';
 import { getCurrentTenantSlug } from '$lib/tenant';
 
+// Generate a UUID v4 for idempotency keys
+function generateIdempotencyKey(): string {
+	return crypto.randomUUID();
+}
+
 // Helper function to convert snake_case to camelCase
 function snakeToCamel(str: string): string {
 	return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -198,30 +203,43 @@ class ApiClient {
 		data?: Record<string, unknown>,
 		options?: { headers?: Record<string, string> }
 	): Promise<ApiResponse<T>> {
-		// Transform camelCase keys to snake_case for backend
-		const transformedData = data ? transformKeysToSnakeCase(data) : undefined;
+		// Note: Backend expects camelCase keys in request body (serde rename_all = "camelCase")
+		// Do NOT transform to snake_case - send data as-is
+		// Add idempotency key for POST requests to prevent duplicate operations
+		const headers: Record<string, string> = {
+			...options?.headers,
+			'X-Idempotency-Key': generateIdempotencyKey()
+		};
 		return this.request<T>(endpoint, {
 			method: 'POST',
-			body: transformedData ? JSON.stringify(transformedData) : undefined,
-			headers: options?.headers
+			body: data ? JSON.stringify(data) : undefined,
+			headers
 		});
 	}
 
 	async put<T>(endpoint: string, data?: Record<string, unknown>): Promise<ApiResponse<T>> {
-		// Transform camelCase keys to snake_case for backend
-		const transformedData = data ? transformKeysToSnakeCase(data) : undefined;
+		// Note: Backend expects camelCase keys in request body (serde rename_all = "camelCase")
+		// Do NOT transform to snake_case - send data as-is
+		// Add idempotency key for PUT requests to prevent duplicate operations
 		return this.request<T>(endpoint, {
 			method: 'PUT',
-			body: transformedData ? JSON.stringify(transformedData) : undefined
+			body: data ? JSON.stringify(data) : undefined,
+			headers: {
+				'X-Idempotency-Key': generateIdempotencyKey()
+			}
 		});
 	}
 
 	async patch<T>(endpoint: string, data?: Record<string, unknown>): Promise<ApiResponse<T>> {
-		// Transform camelCase keys to snake_case for backend
-		const transformedData = data ? transformKeysToSnakeCase(data) : undefined;
+		// Note: Backend expects camelCase keys in request body (serde rename_all = "camelCase")
+		// Do NOT transform to snake_case - send data as-is
+		// Add idempotency key for PATCH requests to prevent duplicate operations
 		return this.request<T>(endpoint, {
 			method: 'PATCH',
-			body: transformedData ? JSON.stringify(transformedData) : undefined
+			body: data ? JSON.stringify(data) : undefined,
+			headers: {
+				'X-Idempotency-Key': generateIdempotencyKey()
+			}
 		});
 	}
 

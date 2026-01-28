@@ -124,7 +124,7 @@ impl ReportsService for PgReportsService {
                 FROM current_stock cs
                 LEFT JOIN products p ON cs.product_id = p.product_id AND p.tenant_id = $1
                 LEFT JOIN warehouses w ON cs.warehouse_id = w.warehouse_id AND w.tenant_id = $1
-                LEFT JOIN storage_locations sl ON cs.location_id = sl.location_id AND sl.tenant_id = $1
+                LEFT JOIN warehouse_locations sl ON cs.location_id = sl.location_id AND sl.tenant_id = $1
                 LEFT JOIN lots_serial_numbers ls ON cs.lot_id = ls.lot_serial_id AND ls.tenant_id = $1
                 LEFT JOIN last_inbound li ON cs.product_id = li.product_id AND cs.warehouse_id = li.warehouse_id
                 WHERE ($6::UUID IS NULL OR p.category_id = $6)
@@ -178,7 +178,7 @@ impl ReportsService for PgReportsService {
                 FROM current_stock cs
                 LEFT JOIN products p ON cs.product_id = p.product_id AND p.tenant_id = $1
                 LEFT JOIN warehouses w ON cs.warehouse_id = w.warehouse_id AND w.tenant_id = $1
-                LEFT JOIN storage_locations sl ON cs.location_id = sl.location_id AND sl.tenant_id = $1
+                LEFT JOIN warehouse_locations sl ON cs.location_id = sl.location_id AND sl.tenant_id = $1
                 LEFT JOIN lots_serial_numbers ls ON cs.lot_id = ls.lot_serial_id AND ls.tenant_id = $1
                 LEFT JOIN last_movement lm ON cs.product_id = lm.product_id AND cs.warehouse_id = lm.warehouse_id
                 WHERE ($6::UUID IS NULL OR p.category_id = $6)

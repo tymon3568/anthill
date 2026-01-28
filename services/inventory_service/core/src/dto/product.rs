@@ -44,6 +44,9 @@ pub struct ProductCreateRequest {
     #[validate(length(min = 1, max = 50))]
     pub product_type: String,
 
+    /// Optional category ID for product organization
+    pub category_id: Option<Uuid>,
+
     /// Optional item group ID
     pub item_group_id: Option<Uuid>,
 
@@ -104,6 +107,9 @@ pub struct ProductUpdateRequest {
     /// Product type
     #[validate(length(min = 1, max = 50))]
     pub product_type: Option<String>,
+
+    /// Category ID for product organization
+    pub category_id: Option<Uuid>,
 
     /// Item group ID
     pub item_group_id: Option<Uuid>,
@@ -167,6 +173,7 @@ pub struct ProductResponse {
 
     /// Product classification
     pub product_type: String,
+    pub category_id: Option<Uuid>,
     pub item_group_id: Option<Uuid>,
 
     /// Inventory tracking
@@ -205,6 +212,7 @@ impl From<Product> for ProductResponse {
             name: product.name,
             description: product.description,
             product_type: product.product_type,
+            category_id: product.category_id,
             item_group_id: product.item_group_id,
             track_inventory: product.track_inventory,
             tracking_method: product.tracking_method,
@@ -231,6 +239,9 @@ impl From<Product> for ProductResponse {
 pub struct ProductListQuery {
     /// Filter by product type
     pub product_type: Option<String>,
+
+    /// Filter by category ID
+    pub category_id: Option<Uuid>,
 
     /// Filter by active status
     pub is_active: Option<bool>,

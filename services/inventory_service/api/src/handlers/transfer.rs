@@ -1,15 +1,16 @@
 use axum::{
-    extract::{Extension, Path},
+    extract::{Extension, Path, Query},
     http::StatusCode,
     response::Json,
-    routing::post,
+    routing::{get, post},
     Router,
 };
 use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::transfer_dto::{
-    ConfirmTransferRequest, ConfirmTransferResponse, CreateTransferRequest, CreateTransferResponse,
-    ReceiveTransferRequest, ReceiveTransferResponse,
+    CancelTransferRequest, CancelTransferResponse, ConfirmTransferRequest, ConfirmTransferResponse,
+    CreateTransferRequest, CreateTransferResponse, ListTransfersParams, ListTransfersResponse,
+    ReceiveTransferRequest, ReceiveTransferResponse, TransferResponse,
 };
 
 use shared_auth::extractors::AuthUser;
@@ -20,9 +21,11 @@ use crate::state::AppState;
 /// Create the transfer routes
 pub fn create_transfer_routes() -> Router {
     Router::new()
-        .route("/", post(create_transfer))
+        .route("/", get(list_transfers).post(create_transfer))
+        .route("/{transfer_id}", get(get_transfer))
         .route("/{transfer_id}/confirm", post(confirm_transfer))
         .route("/{transfer_id}/receive", post(receive_transfer))
+        .route("/{transfer_id}/cancel", post(cancel_transfer))
 }
 
 /// POST /api/v1/inventory/transfers - Create a new stock transfer
@@ -243,6 +246,184 @@ pub async fn receive_transfer(
     let response = state
         .transfer_service
         .receive_transfer(auth_user.tenant_id, transfer_id, auth_user.user_id, request)
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// GET /api/v1/inventory/transfers - List stock transfers
+///
+/// Lists all stock transfers for the tenant with optional filtering.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Query Parameters
+/// * `source_warehouse_id` - Filter by source warehouse (optional)
+/// * `destination_warehouse_id` - Filter by destination warehouse (optional)
+/// * `status` - Filter by transfer status (optional)
+/// * `page` - Page number (default: 1)
+/// * `page_size` - Items per page (default: 20, max: 100)
+///
+/// # Returns
+/// * `200` - List of transfers with pagination info
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+///
+/// # Example Response
+/// ```json
+/// {
+///   "items": [...],
+///   "total": 50,
+///   "page": 1,
+///   "page_size": 20,
+///   "total_pages": 3
+/// }
+/// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/transfers",
+    tag = "transfers",
+    operation_id = "list_transfers",
+    params(
+        ("source_warehouse_id" = Option<Uuid>, Query, description = "Filter by source warehouse"),
+        ("destination_warehouse_id" = Option<Uuid>, Query, description = "Filter by destination warehouse"),
+        ("status" = Option<String>, Query, description = "Filter by status"),
+        ("page" = Option<i64>, Query, description = "Page number"),
+        ("page_size" = Option<i64>, Query, description = "Items per page")
+    ),
+    responses(
+        (status = 200, description = "List of transfers", body = ListTransfersResponse),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    )
+)]
+pub async fn list_transfers(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Query(params): Query<ListTransfersParams>,
+) -> Result<Json<ListTransfersResponse>, AppError> {
+    let response = state
+        .transfer_service
+        .list_transfers(auth_user.tenant_id, params)
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// GET /api/v1/inventory/transfers/{transfer_id} - Get a stock transfer
+///
+/// Retrieves details of a specific stock transfer including all items.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Path Parameters
+/// * `transfer_id` - UUID of the transfer
+///
+/// # Returns
+/// * `200` - Transfer details with items
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+/// * `404` - Transfer not found
+///
+/// # Example Response
+/// ```json
+/// {
+///   "transfer": {...},
+///   "items": [...]
+/// }
+/// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/transfers/{transfer_id}",
+    tag = "transfers",
+    operation_id = "get_transfer",
+    params(
+        ("transfer_id" = Uuid, Path, description = "Transfer ID")
+    ),
+    responses(
+        (status = 200, description = "Transfer details", body = TransferResponse),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Transfer not found")
+    )
+)]
+pub async fn get_transfer(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(transfer_id): Path<Uuid>,
+) -> Result<Json<TransferResponse>, AppError> {
+    let response = state
+        .transfer_service
+        .get_transfer(auth_user.tenant_id, transfer_id)
+        .await?;
+
+    Ok(Json(response))
+}
+
+/// POST /api/v1/inventory/transfers/{transfer_id}/cancel - Cancel a stock transfer
+///
+/// Cancels a transfer that is in draft or confirmed status.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Path Parameters
+/// * `transfer_id` - UUID of the transfer to cancel
+///
+/// # Request Body
+/// ```json
+/// {
+///   "reason": "No longer needed"
+/// }
+/// ```
+///
+/// # Returns
+/// * `200` - Transfer cancelled successfully
+/// * `400` - Invalid request or business rule violations
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+/// * `404` - Transfer not found
+///
+/// # Business Rules
+/// - Transfer must be in 'draft' or 'confirmed' status
+/// - Cannot cancel transfers that are picked, shipped, or received
+///
+/// # Example Response
+/// ```json
+/// {
+///   "transfer_id": "550e8400-e29b-41d4-a716-446655440004",
+///   "status": "cancelled",
+///   "cancelled_at": "2023-10-15T09:30:00Z"
+/// }
+/// ```
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/transfers/{transfer_id}/cancel",
+    tag = "transfers",
+    operation_id = "cancel_transfer",
+    params(
+        ("transfer_id" = Uuid, Path, description = "Transfer ID")
+    ),
+    request_body = CancelTransferRequest,
+    responses(
+        (status = 200, description = "Transfer cancelled successfully", body = CancelTransferResponse),
+        (status = 400, description = "Invalid request or business rule violation"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Transfer not found")
+    )
+)]
+pub async fn cancel_transfer(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(transfer_id): Path<Uuid>,
+    Json(request): Json<CancelTransferRequest>,
+) -> Result<Json<CancelTransferResponse>, AppError> {
+    let response = state
+        .transfer_service
+        .cancel_transfer(auth_user.tenant_id, transfer_id, auth_user.user_id, request)
         .await?;
 
     Ok(Json(response))

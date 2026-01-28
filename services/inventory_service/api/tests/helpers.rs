@@ -15,15 +15,15 @@ use inventory_service_infra::repositories::{
     PgStockMoveRepository, PgStockReconciliationItemRepository, PgStockReconciliationRepository,
     PgStockTakeLineRepository, PgStockTakeRepository, PgTransferItemRepository,
     PgTransferRepository, PickingMethodRepositoryImpl, ProductRepositoryImpl,
-    ReceiptRepositoryImpl, ValuationRepositoryImpl, ValuationSettingsRepositoryImpl,
-    WarehouseRepositoryImpl,
+    ProductVariantRepositoryImpl, ReceiptRepositoryImpl, ValuationRepositoryImpl,
+    ValuationSettingsRepositoryImpl, WarehouseRepositoryImpl,
 };
 use inventory_service_infra::services::{
     CategoryServiceImpl, LandedCostServiceImpl, LotSerialServiceImpl, PgCycleCountingService,
     PgPutawayService, PgQualityControlPointService, PgReplenishmentService, PgRmaService,
-    PgScrapService, PgStockReconciliationService, PgStockTakeService, PgTransferService,
-    PickingMethodServiceImpl, ReceiptServiceImpl, RedisDistributedLockService,
-    ValuationServiceImpl,
+    PgScrapService, PgStockLevelsService, PgStockReconciliationService, PgStockTakeService,
+    PgTransferService, PickingMethodServiceImpl, ProductVariantServiceImpl, ReceiptServiceImpl,
+    RedisDistributedLockService, ValuationServiceImpl,
 };
 use uuid::Uuid;
 
@@ -199,6 +199,7 @@ pub async fn create_test_app(pool: PgPool) -> Router {
             transfer_item_repo,
             stock_move_repo.clone(),
             Arc::new(PgInventoryLevelRepository::new(Arc::new(pool_ref.clone()))),
+            warehouse_repo.clone(),
         )),
         stock_take_service: Arc::new(PgStockTakeService::new(
             Arc::new(pool_ref.clone()),
@@ -222,6 +223,11 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         quality_service: Arc::new(PgQualityControlPointService::new(quality_repo)),
         putaway_service: Arc::new(PgPutawayService::new(putaway_repo, stock_move_for_putaway)),
         scrap_service: Arc::new(PgScrapService::new(Arc::new(pool_ref.clone()))),
+        stock_levels_service: Arc::new(PgStockLevelsService::new(Arc::new(pool_ref.clone()))),
+        variant_service: Arc::new(ProductVariantServiceImpl::new(
+            Arc::new(ProductVariantRepositoryImpl::new(pool_ref.clone())),
+            product_repo.clone(),
+        )),
         distributed_lock_service,
         enforcer: shared_auth::enforcer::create_enforcer(
             &std::env::var("DATABASE_URL")

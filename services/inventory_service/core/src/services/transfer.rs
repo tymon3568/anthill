@@ -6,14 +6,33 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::domains::inventory::dto::transfer_dto::{
-    ConfirmTransferRequest, ConfirmTransferResponse, CreateTransferRequest, CreateTransferResponse,
-    ReceiveTransferRequest, ReceiveTransferResponse,
+    CancelTransferRequest, CancelTransferResponse, ConfirmTransferRequest, ConfirmTransferResponse,
+    CreateTransferRequest, CreateTransferResponse, ListTransfersParams, ListTransfersResponse,
+    ReceiveTransferRequest, ReceiveTransferResponse, TransferResponse,
 };
 use shared_error::AppError;
 
 /// Service trait for stock transfer operations
 #[async_trait]
 pub trait TransferService: Send + Sync {
+    /// List transfers with pagination and filtering
+    ///
+    /// Returns a paginated list of transfers matching the provided filters.
+    async fn list_transfers(
+        &self,
+        tenant_id: Uuid,
+        params: ListTransfersParams,
+    ) -> Result<ListTransfersResponse, AppError>;
+
+    /// Get a single transfer by ID with its items
+    ///
+    /// Returns the full transfer details including all transfer items.
+    async fn get_transfer(
+        &self,
+        tenant_id: Uuid,
+        transfer_id: Uuid,
+    ) -> Result<TransferResponse, AppError>;
+
     /// Create a new stock transfer in draft status
     ///
     /// Creates a transfer with items, validates business rules, and initializes
@@ -49,4 +68,16 @@ pub trait TransferService: Send + Sync {
         user_id: Uuid,
         request: ReceiveTransferRequest,
     ) -> Result<ReceiveTransferResponse, AppError>;
+
+    /// Cancel a draft or confirmed transfer
+    ///
+    /// Updates transfer status to cancelled and records the reason.
+    /// Only draft or confirmed transfers can be cancelled.
+    async fn cancel_transfer(
+        &self,
+        tenant_id: Uuid,
+        transfer_id: Uuid,
+        user_id: Uuid,
+        request: CancelTransferRequest,
+    ) -> Result<CancelTransferResponse, AppError>;
 }
