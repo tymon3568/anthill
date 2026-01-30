@@ -2,6 +2,8 @@ pub mod dto;
 pub mod landed_cost;
 pub mod picking_method;
 pub mod product;
+pub mod product_image;
+pub mod product_variant;
 pub mod reconciliation;
 pub mod removal_strategy;
 pub mod stock_take;

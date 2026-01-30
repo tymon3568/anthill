@@ -57,6 +57,7 @@ mock! {
             &self,
             tenant_id: Uuid,
             warehouse_id: Uuid,
+            location_id: Option<Uuid>,
             product_id: Uuid,
             quantity_change: i64,
         ) -> Result<()>;
@@ -702,14 +703,14 @@ mod tests {
 
         mock_repo
             .expect_update_available_quantity()
-            .withf(move |t, w, p, q| {
-                *t == tenant_id && *w == warehouse_id && *p == product_id && *q == 50
+            .withf(move |t, w, l, p, q| {
+                *t == tenant_id && *w == warehouse_id && l.is_none() && *p == product_id && *q == 50
             })
             .times(1)
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _| Ok(()));
 
         let result = mock_repo
-            .update_available_quantity(tenant_id, warehouse_id, product_id, 50)
+            .update_available_quantity(tenant_id, warehouse_id, None, product_id, 50)
             .await;
         assert!(result.is_ok());
     }
@@ -723,12 +724,12 @@ mod tests {
 
         mock_repo
             .expect_update_available_quantity()
-            .withf(move |_, _, _, q| *q == -30)
+            .withf(move |_, _, _, _, q| *q == -30)
             .times(1)
-            .returning(|_, _, _, _| Ok(()));
+            .returning(|_, _, _, _, _| Ok(()));
 
         let result = mock_repo
-            .update_available_quantity(tenant_id, warehouse_id, product_id, -30)
+            .update_available_quantity(tenant_id, warehouse_id, None, product_id, -30)
             .await;
         assert!(result.is_ok());
     }

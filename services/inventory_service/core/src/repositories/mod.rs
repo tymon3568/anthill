@@ -26,6 +26,8 @@ pub mod delivery_order;
 pub mod landed_cost;
 pub mod lot_serial;
 pub mod product;
+pub mod product_image;
+pub mod product_variant;
 pub mod receipt;
 pub mod reconciliation;
 pub mod rma;
@@ -47,6 +49,8 @@ pub use landed_cost::{
 pub use lot_serial::LotSerialRepository;
 pub use picking_method::PickingMethodRepository;
 pub use product::ProductRepository;
+pub use product_image::ProductImageRepository;
+pub use product_variant::ProductVariantRepository;
 pub use putaway::{PutawayRepository, PutawayService};
 pub use quality::QualityControlPointRepository;
 pub use receipt::ReceiptRepository;

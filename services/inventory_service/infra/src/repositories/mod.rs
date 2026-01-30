@@ -9,6 +9,8 @@ pub mod landed_cost;
 pub mod lot_serial;
 pub mod picking_method;
 pub mod product;
+pub mod product_image;
+pub mod product_variant;
 pub mod putaway;
 pub mod quality;
 pub mod receipt;
@@ -35,6 +37,8 @@ pub use landed_cost::{
 pub use lot_serial::LotSerialRepositoryImpl;
 pub use picking_method::PickingMethodRepositoryImpl;
 pub use product::ProductRepositoryImpl;
+pub use product_image::ProductImageRepositoryImpl;
+pub use product_variant::ProductVariantRepositoryImpl;
 pub use putaway::PgPutawayRepository;
 pub use quality::PgQualityControlPointRepository;
 pub use receipt::ReceiptRepositoryImpl;

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Extension, FromRequestParts},
+    extract::{Extension, FromRequestParts, OriginalUri},
     http::{header, request::Parts, StatusCode},
 };
 use serde::{Deserialize, Serialize};
@@ -292,8 +292,13 @@ impl FromRequestParts<()> for RequirePermission {
             })?
             .clone();
 
-        // Get resource and action from request
-        let resource = parts.uri.path().to_string();
+        // Get resource from OriginalUri (preserves full path for nested routes)
+        // Falls back to parts.uri if OriginalUri is not available
+        let resource = parts
+            .extensions
+            .get::<OriginalUri>()
+            .map(|uri| uri.path().to_string())
+            .unwrap_or_else(|| parts.uri.path().to_string());
         let action = parts.method.as_str().to_string();
 
         // Check permission with Casbin

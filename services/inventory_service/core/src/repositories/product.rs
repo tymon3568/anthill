@@ -185,4 +185,71 @@ pub trait ProductRepository: Send + Sync {
     /// # Returns
     /// Current inventory quantity
     async fn get_inventory_level(&self, tenant_id: Uuid, product_id: Uuid) -> Result<i64>;
+
+    // ========================================================================
+    // Bulk Operations
+    // ========================================================================
+
+    /// Bulk activate products
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `product_ids` - List of product IDs to activate
+    ///
+    /// # Returns
+    /// Number of products activated
+    async fn bulk_activate(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    /// Bulk deactivate products
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `product_ids` - List of product IDs to deactivate
+    ///
+    /// # Returns
+    /// Number of products deactivated
+    async fn bulk_deactivate(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    /// Bulk delete products (soft delete)
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `product_ids` - List of product IDs to delete
+    ///
+    /// # Returns
+    /// Number of products deleted
+    async fn bulk_delete(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    // ========================================================================
+    // Import/Export Operations
+    // ========================================================================
+
+    /// Save a product (insert or update)
+    ///
+    /// # Arguments
+    /// * `product` - Product to save
+    ///
+    /// # Returns
+    /// Success status
+    async fn save(&self, product: &Product) -> Result<()>;
+
+    /// Find all products for export with optional filters
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `category_id` - Optional category filter
+    /// * `product_type` - Optional product type filter
+    /// * `is_active` - Optional active status filter
+    /// * `search` - Optional search term for SKU/name
+    ///
+    /// # Returns
+    /// List of products matching the filters
+    async fn find_all_for_export(
+        &self,
+        tenant_id: Uuid,
+        category_id: Option<Uuid>,
+        product_type: Option<&str>,
+        is_active: Option<bool>,
+        search: Option<&str>,
+    ) -> Result<Vec<Product>>;
 }

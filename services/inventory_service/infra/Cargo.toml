@@ -1,12 +1,20 @@
 [dependencies]
 # Async traits
 async-trait = {workspace = true}
+# AWS SDK for S3/RustFS storage
+aws-sdk-s3 = {workspace = true}
 # Redis connection pooling
 bb8 = "0.8"
 bb8-redis = "0.15"
 chrono = {workspace = true}
+# CSV parsing
+csv = "1.3"
+# Image processing
+image = {workspace = true}
 # Internal crates
 inventory_service_core = {workspace = true}
+# Metrics for storage operations
+metrics = "0.24"
 # BigDecimal casting
 num-traits = "0.2"
 # Redis for distributed locking
@@ -29,6 +37,10 @@ shared_events = {workspace = true}
 slug = "0.1"
 # Database
 sqlx = {workspace = true, features = ["postgres", "runtime-tokio-rustls", "macros", "bigdecimal"]}
+# Async runtime
+tokio = {workspace = true}
+# Retry with exponential backoff
+tokio-retry = "0.3"
 # Tracing
 tracing = "0.1"
 # Other

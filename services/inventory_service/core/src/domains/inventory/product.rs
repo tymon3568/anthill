@@ -22,6 +22,224 @@ pub enum ProductTrackingMethod {
     Serial,
 }
 
+/// Barcode type for product identification
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default, sqlx::Type)]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "text", rename_all = "snake_case")]
+pub enum BarcodeType {
+    /// EAN-13 (European Article Number)
+    #[default]
+    Ean13,
+    /// UPC-A (Universal Product Code)
+    UpcA,
+    /// ISBN (International Standard Book Number)
+    Isbn,
+    /// Custom barcode format
+    Custom,
+}
+
+impl std::fmt::Display for BarcodeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Ean13 => write!(f, "ean13"),
+            Self::UpcA => write!(f, "upc_a"),
+            Self::Isbn => write!(f, "isbn"),
+            Self::Custom => write!(f, "custom"),
+        }
+    }
+}
+
+impl std::str::FromStr for BarcodeType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ean13" => Ok(Self::Ean13),
+            "upc_a" => Ok(Self::UpcA),
+            "isbn" => Ok(Self::Isbn),
+            "custom" => Ok(Self::Custom),
+            _ => Err(format!("Invalid barcode type: {}", s)),
+        }
+    }
+}
+
+impl BarcodeType {
+    /// Validate a barcode string against this barcode type's format
+    ///
+    /// # Arguments
+    /// * `barcode` - The barcode string to validate
+    ///
+    /// # Returns
+    /// * `Ok(())` if the barcode is valid for this type
+    /// * `Err(String)` with a description of why the barcode is invalid
+    pub fn validate_barcode(&self, barcode: &str) -> Result<(), String> {
+        match self {
+            Self::Ean13 => Self::validate_ean13(barcode),
+            Self::UpcA => Self::validate_upc_a(barcode),
+            Self::Isbn => Self::validate_isbn(barcode),
+            Self::Custom => Ok(()), // Custom barcodes accept any format
+        }
+    }
+
+    /// Validate EAN-13 barcode format
+    /// EAN-13 must be exactly 13 digits with a valid check digit
+    fn validate_ean13(barcode: &str) -> Result<(), String> {
+        // Must be exactly 13 digits
+        if barcode.len() != 13 {
+            return Err(format!("EAN-13 must be exactly 13 digits, got {} digits", barcode.len()));
+        }
+
+        // Must be all digits
+        if !barcode.chars().all(|c| c.is_ascii_digit()) {
+            return Err("EAN-13 must contain only digits".to_string());
+        }
+
+        // Validate check digit
+        if !Self::validate_ean_check_digit(barcode) {
+            return Err("Invalid EAN-13 check digit".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Validate UPC-A barcode format
+    /// UPC-A must be exactly 12 digits with a valid check digit
+    fn validate_upc_a(barcode: &str) -> Result<(), String> {
+        // Must be exactly 12 digits
+        if barcode.len() != 12 {
+            return Err(format!("UPC-A must be exactly 12 digits, got {} digits", barcode.len()));
+        }
+
+        // Must be all digits
+        if !barcode.chars().all(|c| c.is_ascii_digit()) {
+            return Err("UPC-A must contain only digits".to_string());
+        }
+
+        // Validate check digit using the same algorithm as EAN
+        // (UPC-A is actually a subset of EAN-13 with leading 0)
+        if !Self::validate_upc_check_digit(barcode) {
+            return Err("Invalid UPC-A check digit".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Validate ISBN barcode format
+    /// Accepts both ISBN-10 and ISBN-13 formats
+    fn validate_isbn(barcode: &str) -> Result<(), String> {
+        // Remove any hyphens or spaces
+        let cleaned: String = barcode
+            .chars()
+            .filter(|c| !c.is_whitespace() && *c != '-')
+            .collect();
+
+        match cleaned.len() {
+            10 => Self::validate_isbn10(&cleaned),
+            13 => Self::validate_isbn13(&cleaned),
+            _ => Err(format!(
+                "ISBN must be 10 or 13 characters (excluding hyphens), got {}",
+                cleaned.len()
+            )),
+        }
+    }
+
+    /// Validate ISBN-10 check digit
+    fn validate_isbn10(isbn: &str) -> Result<(), String> {
+        let chars: Vec<char> = isbn.chars().collect();
+
+        // First 9 must be digits, last can be digit or X
+        for (i, c) in chars.iter().enumerate() {
+            if i < 9 {
+                if !c.is_ascii_digit() {
+                    return Err("ISBN-10 first 9 characters must be digits".to_string());
+                }
+            } else if !c.is_ascii_digit() && *c != 'X' && *c != 'x' {
+                return Err("ISBN-10 check digit must be a digit or X".to_string());
+            }
+        }
+
+        // Calculate check digit
+        let mut sum = 0u32;
+        for (i, c) in chars.iter().enumerate() {
+            let value = if *c == 'X' || *c == 'x' {
+                10
+            } else {
+                c.to_digit(10).unwrap()
+            };
+            sum += value * (10 - i as u32);
+        }
+
+        if sum % 11 != 0 {
+            return Err("Invalid ISBN-10 check digit".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Validate ISBN-13 check digit (same as EAN-13)
+    fn validate_isbn13(isbn: &str) -> Result<(), String> {
+        // ISBN-13 must start with 978 or 979
+        if !isbn.starts_with("978") && !isbn.starts_with("979") {
+            return Err("ISBN-13 must start with 978 or 979".to_string());
+        }
+
+        // Must be all digits
+        if !isbn.chars().all(|c| c.is_ascii_digit()) {
+            return Err("ISBN-13 must contain only digits".to_string());
+        }
+
+        // Validate check digit (same algorithm as EAN-13)
+        if !Self::validate_ean_check_digit(isbn) {
+            return Err("Invalid ISBN-13 check digit".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Validate EAN/ISBN-13 check digit
+    /// Uses the standard modulo 10 algorithm with weights 1 and 3
+    fn validate_ean_check_digit(barcode: &str) -> bool {
+        let digits: Vec<u32> = barcode.chars().filter_map(|c| c.to_digit(10)).collect();
+
+        if digits.len() != 13 {
+            return false;
+        }
+
+        let mut sum = 0;
+        for (i, digit) in digits.iter().enumerate() {
+            if i % 2 == 0 {
+                sum += digit;
+            } else {
+                sum += digit * 3;
+            }
+        }
+
+        sum % 10 == 0
+    }
+
+    /// Validate UPC-A check digit
+    /// Uses the standard modulo 10 algorithm with weights 3 and 1
+    fn validate_upc_check_digit(barcode: &str) -> bool {
+        let digits: Vec<u32> = barcode.chars().filter_map(|c| c.to_digit(10)).collect();
+
+        if digits.len() != 12 {
+            return false;
+        }
+
+        let mut sum = 0;
+        for (i, digit) in digits.iter().enumerate() {
+            if i % 2 == 0 {
+                sum += digit * 3;
+            } else {
+                sum += digit;
+            }
+        }
+
+        sum % 10 == 0
+    }
+}
+
 impl std::fmt::Display for ProductTrackingMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -67,6 +285,16 @@ pub struct Product {
     /// Product classification
     #[validate(custom(function = "validate_product_type"))]
     pub product_type: String,
+
+    /// Barcode for product identification (EAN-13, UPC-A, ISBN, or custom)
+    #[validate(length(max = 50))]
+    pub barcode: Option<String>,
+
+    /// Type of barcode (ean13, upc_a, isbn, custom)
+    pub barcode_type: Option<BarcodeType>,
+
+    /// Category for product organization
+    pub category_id: Option<Uuid>,
 
     pub item_group_id: Option<Uuid>,
 
@@ -117,6 +345,9 @@ impl Product {
             name,
             description: None,
             product_type,
+            barcode: None,
+            barcode_type: None,
+            category_id: None,
             item_group_id: None,
             track_inventory: true,
             tracking_method: ProductTrackingMethod::None,
@@ -190,6 +421,14 @@ mod openapi {
 
         /// Product classification
         pub product_type: String,
+
+        /// Barcode for product identification
+        pub barcode: Option<String>,
+
+        /// Type of barcode
+        pub barcode_type: Option<BarcodeType>,
+
+        pub category_id: Option<Uuid>,
         pub item_group_id: Option<Uuid>,
 
         /// Inventory tracking
@@ -228,6 +467,9 @@ mod openapi {
                 name: product.name,
                 description: product.description,
                 product_type: product.product_type,
+                barcode: product.barcode,
+                barcode_type: product.barcode_type,
+                category_id: product.category_id,
                 item_group_id: product.item_group_id,
                 track_inventory: product.track_inventory,
                 tracking_method: product.tracking_method,

@@ -13,6 +13,8 @@ use inventory_service_core::dto::stock_take::{
 };
 use inventory_service_core::models::CreateStockMoveRequest;
 
+use inventory_service_core::repositories::product::ProductRepository;
+use inventory_service_core::repositories::stock::InventoryLevelRepository;
 use inventory_service_core::repositories::stock_take::{
     StockTakeLineCountUpdate, StockTakeLineRepository, StockTakeRepository,
 };
@@ -26,6 +28,7 @@ pub struct PgStockTakeService {
     stock_take_line_repo: Arc<crate::repositories::stock_take::PgStockTakeLineRepository>,
     stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
     inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
+    product_repo: Arc<dyn ProductRepository>,
 }
 
 impl PgStockTakeService {
@@ -36,6 +39,7 @@ impl PgStockTakeService {
         stock_take_line_repo: Arc<crate::repositories::stock_take::PgStockTakeLineRepository>,
         stock_move_repo: Arc<crate::repositories::stock::PgStockMoveRepository>,
         inventory_repo: Arc<crate::repositories::stock::PgInventoryLevelRepository>,
+        product_repo: Arc<dyn ProductRepository>,
     ) -> Self {
         Self {
             pool,
@@ -43,6 +47,7 @@ impl PgStockTakeService {
             stock_take_line_repo,
             stock_move_repo,
             inventory_repo,
+            product_repo,
         }
     }
 }
@@ -55,6 +60,19 @@ impl StockTakeService for PgStockTakeService {
         user_id: Uuid,
         request: CreateStockTakeRequest,
     ) -> Result<CreateStockTakeResponse, AppError> {
+        // P1: Warehouse-level locking - check for active stock take in this warehouse
+        if let Some(active_stock_take) = self
+            .stock_take_repo
+            .has_active_stock_take(tenant_id, request.warehouse_id)
+            .await?
+        {
+            return Err(AppError::ValidationError(format!(
+                "Cannot create stock take: warehouse already has an active stock take '{}' in progress. \
+                Please complete or cancel it before starting a new one.",
+                active_stock_take.stock_take_number
+            )));
+        }
+
         // TODO: Replace with sequence-based generator in production to prevent collisions under concurrent load
         let stock_take_number = format!("ST-{}", Utc::now().format("%Y%m%d-%H%M%S"));
 
@@ -209,6 +227,74 @@ impl StockTakeService for PgStockTakeService {
             ));
         }
 
+        // P1: Product existence validation - ensure all products still exist
+        let product_ids: Vec<Uuid> = lines.iter().map(|l| l.product_id).collect();
+        let existing_products = self
+            .product_repo
+            .find_by_ids(tenant_id, &product_ids)
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to validate products: {}", e)))?;
+
+        let existing_product_ids: std::collections::HashSet<Uuid> =
+            existing_products.iter().map(|p| p.product_id).collect();
+
+        let missing_products: Vec<Uuid> = product_ids
+            .iter()
+            .filter(|id| !existing_product_ids.contains(id))
+            .cloned()
+            .collect();
+
+        if !missing_products.is_empty() {
+            return Err(AppError::ValidationError(format!(
+                "Cannot finalize stock take: {} product(s) no longer exist. Missing IDs: {}",
+                missing_products.len(),
+                missing_products
+                    .iter()
+                    .map(|id| id.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )));
+        }
+
+        // P0: Inventory floor check - validate no negative stock will result
+        // Get current inventory levels for all products in this stock take
+        let current_inventory = self
+            .inventory_repo
+            .find_by_products(tenant_id, stock_take.warehouse_id, &product_ids)
+            .await?;
+
+        // Check each line that would result in a negative adjustment
+        let mut insufficient_stock_errors: Vec<String> = Vec::new();
+        for line in &lines {
+            let actual_quantity = line.actual_quantity.unwrap();
+            let difference = actual_quantity - line.expected_quantity;
+
+            // Only check negative adjustments (reducing stock)
+            if difference < 0 {
+                let current_available = current_inventory
+                    .get(&line.product_id)
+                    .map(|il| il.available_quantity)
+                    .unwrap_or(0);
+
+                // Check if applying this adjustment would result in negative stock
+                let projected_quantity = current_available + difference;
+                if projected_quantity < 0 {
+                    insufficient_stock_errors.push(format!(
+                        "Product {} would have negative stock: current={}, adjustment={}, projected={}",
+                        line.product_id, current_available, difference, projected_quantity
+                    ));
+                }
+            }
+        }
+
+        if !insufficient_stock_errors.is_empty() {
+            return Err(AppError::ValidationError(format!(
+                "Cannot finalize stock take: insufficient stock for {} product(s). Details: {}",
+                insufficient_stock_errors.len(),
+                insufficient_stock_errors.join("; ")
+            )));
+        }
+
         // Prepare adjustment data BEFORE transaction starts (to avoid borrow checker issues)
         let mut stock_moves_to_create = Vec::new();
         let mut inventory_updates: Vec<(Uuid, Uuid, Uuid, i64)> = Vec::new();
@@ -220,14 +306,16 @@ impl StockTakeService for PgStockTakeService {
 
             if difference != 0 {
                 // Prepare stock move for adjustment
+                // For stock take adjustments, both source and destination are NULL
+                // This represents a warehouse-level inventory correction (not a location transfer)
                 let stock_move = CreateStockMoveRequest {
                     product_id: line.product_id,
-                    source_location_id: Some(stock_take.warehouse_id),
-                    destination_location_id: Some(stock_take.warehouse_id), // Same warehouse for adjustment
+                    source_location_id: None,
+                    destination_location_id: None,
                     move_type: "adjustment".to_string(),
                     quantity: difference,
                     unit_cost: None,
-                    reference_type: "stock_take".to_string(),
+                    reference_type: "adjustment".to_string(),
                     reference_id: stock_take_id,
                     idempotency_key: format!("st-{}-line-{}", stock_take_id, line.line_id),
                     move_reason: Some(format!(

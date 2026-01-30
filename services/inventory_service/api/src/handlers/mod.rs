@@ -1,3 +1,4 @@
+pub mod adjustment;
 pub mod category;
 pub mod cycle_count;
 pub mod delivery;
@@ -5,6 +6,9 @@ pub mod health;
 pub mod landed_cost;
 pub mod lot_serial;
 pub mod picking;
+pub mod product_images;
+pub mod product_import;
+pub mod product_variants;
 pub mod products;
 pub mod putaway;
 pub mod quality;
@@ -15,12 +19,17 @@ pub mod reports;
 pub mod rma;
 pub mod scrap;
 pub mod search;
+pub mod stock_levels;
 pub mod stock_take;
 pub mod transfer;
 pub mod valuation;
 pub mod warehouses;
 
 // Re-export handlers for OpenAPI
+pub use adjustment::{
+    add_adjustment_lines, cancel_adjustment, create_adjustment, create_adjustment_routes,
+    get_adjustment, get_adjustment_summary, list_adjustments, post_adjustment,
+};
 pub use cycle_count::{
     cancel_session, close_session, create_cycle_count, create_cycle_count_routes, generate_lines,
     get_cycle_count, list_cycle_counts, reconcile, skip_lines, submit_counts,
@@ -39,3 +48,4 @@ pub use scrap::{
     add_scrap_lines, cancel_scrap, create_scrap, create_scrap_routes, get_scrap, list_scraps,
     post_scrap,
 };
+pub use stock_levels::{create_stock_levels_routes, list_stock_levels};

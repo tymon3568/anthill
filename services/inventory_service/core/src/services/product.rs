@@ -160,6 +160,19 @@ pub trait ProductService: Send + Sync {
     /// - `NotFound` if product doesn't exist
     async fn get_product_by_sku(&self, tenant_id: Uuid, sku: &str) -> Result<Product>;
 
+    /// Get product by barcode
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `barcode` - Product barcode (EAN, UPC, custom, etc.)
+    ///
+    /// # Returns
+    /// Product if found
+    ///
+    /// # Errors
+    /// - `NotFound` if product doesn't exist
+    async fn get_product_by_barcode(&self, tenant_id: Uuid, barcode: &str) -> Result<Product>;
+
     // ========================================================================
     // Analytics and Statistics (Future)
     // ========================================================================
@@ -195,4 +208,47 @@ pub trait ProductService: Send + Sync {
         result_count: u32,
         user_id: Option<Uuid>,
     ) -> Result<()>;
+
+    // ========================================================================
+    // Bulk Operations
+    // ========================================================================
+
+    /// Bulk activate products
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_ids` - List of product IDs to activate
+    ///
+    /// # Returns
+    /// Number of products activated
+    ///
+    /// # Errors
+    /// - `ValidationError` if no product IDs provided
+    async fn bulk_activate_products(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    /// Bulk deactivate products
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_ids` - List of product IDs to deactivate
+    ///
+    /// # Returns
+    /// Number of products deactivated
+    ///
+    /// # Errors
+    /// - `ValidationError` if no product IDs provided
+    async fn bulk_deactivate_products(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    /// Bulk delete products (soft delete)
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `product_ids` - List of product IDs to delete
+    ///
+    /// # Returns
+    /// Number of products deleted
+    ///
+    /// # Errors
+    /// - `ValidationError` if no product IDs provided
+    async fn bulk_delete_products(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
 }

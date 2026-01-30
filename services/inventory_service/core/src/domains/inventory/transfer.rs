@@ -131,14 +131,22 @@ pub struct TransferItem {
     pub product_id: Uuid,
     /// Quantity to transfer
     pub quantity: i64,
-    /// Unit of measure
-    pub uom_id: Uuid,
+    /// Unit of measure (optional - can be None if product has no default UoM)
+    pub uom_id: Option<Uuid>,
     /// Unit cost in cents
     pub unit_cost: Option<i64>,
     /// Calculated line total
     pub line_total: i64,
     /// Line number for ordering
     pub line_number: i32,
+    /// Source zone within source warehouse (optional, for precise tracking)
+    pub source_zone_id: Option<Uuid>,
+    /// Source location/bin within source warehouse (optional)
+    pub source_location_id: Option<Uuid>,
+    /// Destination zone within destination warehouse (optional)
+    pub destination_zone_id: Option<Uuid>,
+    /// Destination location/bin within destination warehouse (optional)
+    pub destination_location_id: Option<Uuid>,
     /// Additional notes
     pub notes: Option<String>,
     /// User who updated

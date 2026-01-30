@@ -1,132 +1,111 @@
-# Task Template
+# Task Template (folder-tasks format)
 
-**Task ID:** V1_MVP/[Phase]/[Module]/task_[XX.YY.ZZ]_[description].md
+> **Reference:** [folder-tasks](https://github.com/tymon3568/folder-tasks)
+> **Context7 ID:** `/tymon3568/folder-tasks`
+
+---
+
+## Quick Template (Copy & Paste)
+
+```markdown
+# Task: {Task Name}
+
+**Task ID:** `V1_MVP/{Phase}/{Module}/{Sub-Module}/task_{NN.NN.NN.NN}_{description}.md`
 **Version:** V1_MVP
-**Phase:** [Phase Number and Name]
-**Module:** [Module Number and Name]
-**Priority:** [High/Medium/Low]
+**Phase:** {NN_Phase_Name}
+**Module:** {N.NN_Module_Name}
+**Sub-Module:** {N.NN.N_Sub_Module_Name}
+**Priority:** High
 **Status:** Todo
-**Assignee:** 
+**Assignee:**
 **Created Date:** YYYY-MM-DD
 **Last Updated:** YYYY-MM-DD
+**Dependencies:**
+- `V1_MVP/{path}/task_{XX.XX.XX.XX}_{name}.md`
+- None
 
-## Detailed Description:
-[Clear, concise description of what needs to be accomplished in this task. Include context, background, and why this task is important.]
+## 1. Detailed Description
 
-[If applicable, mention which components/services are affected, what patterns to follow, or what standards to adhere to.]
+{Clear, concise description of what needs to be accomplished:
+- Purpose and context
+- What problem this solves
+- How it fits into the larger module/sub-module}
 
-## Specific Sub-tasks:
-- [ ] 1. [First actionable sub-task]
-    - [ ] 1.1. [Optional nested sub-task if needed]
-    - [ ] 1.2. [Optional nested sub-task if needed]
-- [ ] 2. [Second actionable sub-task]
-- [ ] 3. [Third actionable sub-task]
-- [ ] 4. [Fourth actionable sub-task]
-- [ ] 5. [Additional sub-tasks as needed]
+## 2. Implementation Steps (Specific Sub-tasks)
 
-## Acceptance Criteria:
-- [ ] [Specific, measurable criterion 1]
-- [ ] [Specific, measurable criterion 2]
-- [ ] [Specific, measurable criterion 3]
-- [ ] [Code compiles without errors: `cargo check --workspace`]
-- [ ] [Tests pass if applicable: `cargo test`]
-- [ ] [Documentation updated if applicable]
-- [ ] [Git commits reference this task ID]
+- [ ] 1. {First actionable sub-task}
+    - [ ] 1.1. {Optional nested sub-task}
+- [ ] 2. {Second actionable sub-task}
+- [ ] 3. {Third actionable sub-task}
+- [ ] 4. {Write tests}
+- [ ] 5. {Additional sub-tasks as needed}
 
-## Dependencies:
-*   Task: `task_[XX.YY.ZZ]_description.md` (Status: [check actual status])
-*   Task: `task_[XX.YY.ZZ]_description.md` (Status: [check actual status])
-*   [List all tasks that must be completed before this one can start]
-*   [If no dependencies, write "None"]
+## 3. Completion Criteria
 
-## Related Documents:
-*   `[path/to/architecture/doc.md]`
-*   `[path/to/relevant/code/file.rs]`
-*   `[link to API spec or database schema]`
-*   `[external documentation URL]`
+- [ ] {Specific, measurable criterion 1}
+- [ ] {Specific, measurable criterion 2}
+- [ ] Code compiles without errors
+- [ ] Tests pass (unit/integration as applicable)
+- [ ] Documentation updated if applicable
+- [ ] Git commits reference this task ID
 
-## Notes / Discussion:
----
-*   [Area for questions, clarifications, or important decisions made during planning]
-*   [Design considerations or alternative approaches considered]
-*   [Any risks or concerns identified]
+## Related Documents
+
+- Mini PRD: `./README.md`
+- Database ERD: `docs/database-erd.dbml`
+- API Spec: `shared/openapi/{service}.yaml`
+- {Additional references}
+
+## Notes / Discussion
+
+{Area for questions, clarifications, or important decisions}
 
 ## AI Agent Log:
----
-*   YYYY-MM-DD HH:MM: [First action or planning note]
-    - [Detail about initial assessment or planning]
-    - [Any dependencies verified or concerns noted]
 
----
-
-## Template Usage Instructions
-
-### When Creating a New Task:
-
-1. **Copy this template** to the appropriate location:
-   ```
-   PROJECT_TRACKING/V1_MVP/[Phase]/[Module]/task_XX.YY.ZZ_description.md
-   ```
-
-2. **Fill in the header fields**:
-   - Task ID: Follow pattern `task_XX.YY.ZZ_short_description.md`
-   - Version: Usually `V1_MVP` for current development
-   - Phase: e.g., `03_User_Service`
-   - Module: e.g., `3.2_Casbin_Authorization`
-   - Priority: Assess based on project needs
-   - Status: Always start with `Todo`
-   - Assignee: Leave empty initially
-   - Dates: Use current date for Created Date
-
-3. **Write clear description**:
-   - Explain WHAT needs to be done
-   - Explain WHY it's important
-   - Provide necessary context
-
-4. **Break down into sub-tasks**:
-   - Make each sub-task actionable and clear
-   - Estimate if sub-tasks can be completed in 1-4 hours each
-   - Order sub-tasks logically
-   - Use nested sub-tasks for complex items
-
-5. **Define acceptance criteria**:
-   - Make criteria specific and measurable
-   - Include technical requirements (compilation, tests, etc.)
-   - Include quality requirements (documentation, code review, etc.)
-
-6. **List dependencies accurately**:
-   - Check status of each dependency
-   - Verify dependencies are logical and necessary
-   - Consider both code and knowledge dependencies
-
-7. **Add related documents**:
-   - Link to architecture docs
-   - Link to related code files
-   - Link to API specs or schemas
-   - Add external references if needed
-
-### Task Numbering Convention:
+* YYYY-MM-DD HH:MM: {Agent} - {Action description}
+    - {Details about what was done}
+    - {Dependencies verified or concerns noted}
 
 ```
-Format: task_[Phase].[Module].[Sequential]_description.md
+
+---
+
+## Task ID Convention (4-Level)
+
+```
+Format: task_{Phase}.{Module}.{SubModule}.{Sequential}_{description}.md
 
 Examples:
-- task_03.02.01_create_casbin_model.md
-- task_03.02.10_integration_tests.md
-- task_04.01.05_implement_product_repository.md
+- task_08.10.01.01_product_list_page.md      # Phase 08, Module 10, SubModule 01, Task 01
+- task_08.10.01.02_product_form.md           # Phase 08, Module 10, SubModule 01, Task 02
+- task_04.02.00.05_warehouse_api.md          # No sub-module: use 00
 ```
 
-**Phase**: 2-digit number (01-12)
-**Module**: 2-digit number within phase (01-99)
-**Sequential**: 2-digit task number (01-99)
+| Level | Format | Example |
+|-------|--------|---------|
+| Phase | `{NN}` | `08` (Frontend) |
+| Module | `{NN}` | `10` (Inventory_UI) |
+| Sub-Module | `{NN}` | `01` (Product_Management), `00` if none |
+| Task | `{NN}` | `01`, `02`, ... |
 
-### Priority Guidelines:
+---
 
-- **High**: Blocking other work, critical path, security issues
-- **Medium**: Important but not blocking, normal feature work
-- **Low**: Nice to have, refactoring, documentation improvements
+## Valid Status Values (STRICT)
 
-### Status Progression:
+| Status | Meaning |
+|--------|---------|
+| `Todo` | Ready to be claimed |
+| `InProgress_By_[AgentName]` | Claimed and actively being worked |
+| `Blocked_By_[Reason]` | Cannot proceed; must include reason |
+| `NeedsReview` | Work complete; awaiting review |
+| `Done` | Reviewed and approved |
+| `Cancelled` | Intentionally stopped (with reason) |
+
+❌ **Invalid (NEVER use):** `InProgress`, `In Progress`, `Completed`, `Pending`, `Waiting`, `Review`, `Done_By_AI`
+
+---
+
+## Status Progression
 
 ```
 Todo → InProgress_By_[Agent] → NeedsReview → Done
@@ -134,62 +113,151 @@ Todo → InProgress_By_[Agent] → NeedsReview → Done
     Blocked_By_[Reason]
 ```
 
-### Example Sub-tasks (Reference):
+---
 
-**For API Implementation**:
-- [ ] 1. Define request/response DTOs in core/dto/
-- [ ] 2. Create service trait in core/domain/
-- [ ] 3. Implement service in infra/
-- [ ] 4. Create handler in api/handlers/
-- [ ] 5. Add route in api/main.rs
-- [ ] 6. Add OpenAPI annotations
-- [ ] 7. Write integration tests
-- [ ] 8. Update API documentation
+## Priority Guidelines
 
-**For Database Work**:
-- [ ] 1. Create migration file with SQL
-- [ ] 2. Update database ERD documentation
-- [ ] 3. Update domain models in core/
-- [ ] 4. Update repository traits in core/
-- [ ] 5. Implement repository in infra/
-- [ ] 6. Add indexes for performance
-- [ ] 7. Test migration up/down
-- [ ] 8. Verify schema with cargo check
+| Priority | When to use |
+|----------|-------------|
+| **High** | Blocking other work, critical path, security issues |
+| **Medium** | Important but not blocking, normal feature work |
+| **Low** | Nice to have, refactoring, documentation improvements |
 
-**For Testing**:
-- [ ] 1. Set up test fixtures and helpers
-- [ ] 2. Write positive test cases
-- [ ] 3. Write negative test cases
-- [ ] 4. Write edge case tests
-- [ ] 5. Add integration tests
-- [ ] 6. Verify all tests pass
-- [ ] 7. Check code coverage
-- [ ] 8. Update test documentation
+---
 
-### Example Acceptance Criteria (Reference):
+## AI Agent Workflow
 
-**For Features**:
-- [ ] Feature works as specified in requirements
-- [ ] All edge cases handled appropriately
-- [ ] Error messages are clear and helpful
-- [ ] Code follows project conventions
-- [ ] No compiler warnings
-- [ ] Tests achieve >80% coverage
-- [ ] Documentation updated
-- [ ] Reviewed by at least one other person
+1. **Find Task**: Search for `Status: Todo` tasks
+2. **Check Dependencies**: Verify all dependencies are `Done`
+3. **Claim Task**: Update status to `InProgress_By_[YourAgentName]`
+4. **Work Sub-tasks**: Mark checkboxes `[x]` as completed
+5. **Log Progress**: Add entries to `AI Agent Log:`
+6. **Quality Gates**: Run typecheck/lint/tests before completion
+7. **Complete**: Set status to `NeedsReview`
 
-**For Bug Fixes**:
-- [ ] Root cause identified and documented
-- [ ] Fix resolves the issue completely
-- [ ] Regression test added
-- [ ] No new issues introduced
-- [ ] Related areas tested
-- [ ] Fix documented in commit message
+---
 
-**For Refactoring**:
-- [ ] Behavior unchanged (verified by tests)
-- [ ] Code is more readable/maintainable
-- [ ] Performance not degraded
-- [ ] All existing tests still pass
-- [ ] New tests added if needed
-- [ ] Documentation reflects changes
+## AI Agent Log Format
+
+```markdown
+## AI Agent Log:
+
+* 2026-01-27 10:00: Backend_Agent_01 - Task claimed
+    - Verified dependencies: task_08.10.00.01 is Done ✓
+    - Starting work on sub-task 1
+
+* 2026-01-27 12:30: Backend_Agent_01 - Sub-tasks 1-3 completed
+    - Files created: ProductList.svelte, products.test.ts
+    - Encountered: Type mismatch in API response
+    - Resolution: Updated ProductDto interface
+
+* 2026-01-27 14:00: Backend_Agent_01 - All work completed
+    - Quality gates: typecheck ✓, lint ✓, tests ✓ (8 tests, 250ms)
+    - Status changed to NeedsReview
+
+* 2026-01-27 15:00: Reviewer_Agent - Reviewed and approved
+    - Status changed to Done
+```
+
+---
+
+## Directory Structure
+
+**Simple Module (no sub-modules):**
+```
+PROJECT_TRACKING/V1_MVP/{Phase}/{Module}/
+├── README.md                    # Module PRD
+├── task_{NN.NN.00.01}_*.md     # Task 1 (use 00 for sub-module)
+├── task_{NN.NN.00.02}_*.md     # Task 2
+└── ...
+```
+
+**Complex Module (with sub-modules):**
+```
+PROJECT_TRACKING/V1_MVP/{Phase}/
+├── {N.NN}_{Module_Name}/
+│   ├── README.md                           # Module overview & sub-module index
+│   │
+│   ├── {N.NN.1}_{Sub_Module_1}/
+│   │   ├── README.md                       # Sub-Module Mini PRD
+│   │   ├── task_{NN.NN.01.01}_*.md
+│   │   └── task_{NN.NN.01.02}_*.md
+│   │
+│   └── {N.NN.2}_{Sub_Module_2}/
+│       ├── README.md
+│       └── task_{NN.NN.02.01}_*.md
+```
+
+---
+
+## Example: Complete Task File
+
+```markdown
+# Task: Product List Page
+
+**Task ID:** `V1_MVP/08_Frontend/8.10_Inventory_UI/8.10.1_Product_Management/task_08.10.01.01_product_list_page.md`
+**Version:** V1_MVP
+**Phase:** 08_Frontend
+**Module:** 8.10_Inventory_UI
+**Sub-Module:** 8.10.1_Product_Management
+**Priority:** High
+**Status:** Todo
+**Assignee:**
+**Created Date:** 2026-01-27
+**Last Updated:** 2026-01-27
+**Dependencies:**
+- `V1_MVP/04_Inventory_Service/task_04.01.00.01_product_api.md`
+
+## 1. Detailed Description
+
+Create the product list page that displays all products with pagination, search, and filtering capabilities. This is the main entry point for product management in the Inventory UI module.
+
+## 2. Implementation Steps (Specific Sub-tasks)
+
+- [ ] 1. Create TypeScript types for Product
+- [ ] 2. Implement API client for products endpoint
+- [ ] 3. Create Svelte store with pagination state
+- [ ] 4. Build ProductList component with data table
+- [ ] 5. Add search and filter functionality
+- [ ] 6. Implement loading and error states
+- [ ] 7. Write unit tests for store and components
+- [ ] 8. Write E2E tests for list page
+
+## 3. Completion Criteria
+
+- [ ] Product list displays with correct data
+- [ ] Pagination works (10, 25, 50 per page)
+- [ ] Search filters products by name/SKU
+- [ ] Loading spinner shows during API calls
+- [ ] Error messages display on API failure
+- [ ] All tests pass
+
+## Related Documents
+
+- Mini PRD: `./README.md`
+- Database ERD: `docs/database-erd.dbml` (products table)
+- API Spec: `shared/openapi/inventory.yaml`
+- UI Architecture: `docs/ui-architecture-proposal.md`
+
+## Notes / Discussion
+
+- Use existing DataTable component from UI library
+- Follow pagination pattern from Users module
+
+## AI Agent Log:
+
+* 2026-01-27 09:00: Waiting for assignment
+
+```
+
+---
+
+## Quick Reference
+
+| What | Where |
+|------|-------|
+| Full workflow | `docs/module-implementation-workflow.md` |
+| Sub-module template | `docs/module-implementation-workflow.md` Section 2.5 |
+| folder-tasks docs | Context7: `/tymon3568/folder-tasks` |
+| Task helper script | `scripts/task-helper.sh` |
+| Tasks overview | `PROJECT_TRACKING/TASKS_OVERVIEW.md` |

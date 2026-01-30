@@ -50,11 +50,22 @@ pub trait InventoryLevelRepository: Send + Sync {
         product_id: Uuid,
     ) -> Result<Option<InventoryLevel>, AppError>;
 
+    /// Find inventory levels for multiple products in a warehouse
+    /// Returns a map of product_id -> InventoryLevel for easy lookup
+    async fn find_by_products(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_ids: &[Uuid],
+    ) -> Result<std::collections::HashMap<Uuid, InventoryLevel>, AppError>;
+
     /// Update available quantity (increment/decrement)
+    /// Uses UPSERT pattern - creates inventory level if it doesn't exist
     async fn update_available_quantity(
         &self,
         tenant_id: Uuid,
         warehouse_id: Uuid,
+        location_id: Option<Uuid>,
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<(), AppError>;

@@ -675,21 +675,27 @@ pub struct ReceiveRmaResponse {
     pub stock_moves_created: usize,
 }
 
+/// Unified storage location within warehouse zones.
+/// This struct represents locations from the `warehouse_locations` table
+/// (unified from the legacy `storage_locations` table).
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct StorageLocation {
     pub location_id: Uuid,
     pub tenant_id: Uuid,
     pub warehouse_id: Uuid,
+    /// Optional reference to warehouse_zones table
+    pub zone_id: Option<Uuid>,
     pub location_code: String,
     pub location_type: String,
+    /// Zone code (legacy field from storage_locations, now derived from zone_id)
     pub zone: Option<String>,
     pub aisle: Option<String>,
     pub rack: Option<String>,
     pub level: Option<i32>,
     pub position: Option<i32>,
     pub capacity: Option<i64>,
-    pub current_stock: i64,
+    pub current_stock: Option<i64>,
     pub is_active: bool,
     pub is_quarantine: bool,
     pub is_picking_location: bool,
@@ -697,7 +703,7 @@ pub struct StorageLocation {
     pub width_cm: Option<i32>,
     pub height_cm: Option<i32>,
     pub weight_limit_kg: Option<i32>,
-    pub created_by: Uuid,
+    pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

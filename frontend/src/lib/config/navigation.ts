@@ -42,8 +42,11 @@ export const mainNavigation: NavItem[] = [
 		items: [
 			{ title: 'Products', url: '/inventory/products' },
 			{ title: 'Categories', url: '/inventory/categories' },
-			{ title: 'Stock Levels', url: '/inventory/stock' },
+			{ title: 'Variants', url: '/inventory/variants' },
+			{ title: 'Stock Levels', url: '/inventory/stock-levels' },
+			{ title: 'Transfers', url: '/inventory/transfers' },
 			{ title: 'Adjustments', url: '/inventory/adjustments' },
+			{ title: 'Stock Takes', url: '/inventory/stock-takes' },
 			{ title: 'Warehouses', url: '/inventory/warehouses' }
 		]
 	},

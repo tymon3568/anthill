@@ -439,7 +439,7 @@ impl RemovalStrategyRepository for RemovalStrategyRepositoryImpl {
             NULL::UUID as lot_serial_id,
             min_expiry.min_expiry as expiry_date,
             lm.move_date as last_receipt_date
-        FROM storage_locations wl
+        FROM warehouse_locations wl
         LEFT JOIN inventory_levels il ON il.warehouse_id = wl.warehouse_id
             AND il.tenant_id = wl.tenant_id
             AND il.product_id = $3

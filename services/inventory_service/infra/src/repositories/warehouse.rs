@@ -8,7 +8,8 @@ use uuid::Uuid;
 
 use inventory_service_core::domains::inventory::dto::warehouse_dto::{
     CreateWarehouseLocationRequest, CreateWarehouseRequest, CreateWarehouseZoneRequest,
-    WarehouseTreeNode, WarehouseTreeResponse, WarehouseZoneWithLocations,
+    UpdateWarehouseLocationRequest, UpdateWarehouseZoneRequest, WarehouseTreeNode,
+    WarehouseTreeResponse, WarehouseZoneWithLocations,
 };
 use inventory_service_core::domains::inventory::warehouse::Warehouse;
 use inventory_service_core::domains::inventory::warehouse_location::WarehouseLocation;
@@ -16,6 +17,7 @@ use inventory_service_core::domains::inventory::warehouse_zone::WarehouseZone;
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
 use inventory_service_core::Result;
 use serde_json;
+use shared_error::AppError;
 
 /// PostgreSQL implementation of WarehouseRepository
 pub struct WarehouseRepositoryImpl {
@@ -533,6 +535,248 @@ impl WarehouseRepository for WarehouseRepositoryImpl {
     .await?;
 
         Ok(location)
+    }
+
+    // ========================================================================
+    // Zone CRUD Operations
+    // ========================================================================
+
+    async fn get_zones_by_warehouse(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+    ) -> Result<Vec<WarehouseZone>> {
+        let zones = sqlx::query_as!(
+            WarehouseZone,
+            r#"
+            SELECT
+                zone_id,
+                tenant_id,
+                warehouse_id,
+                zone_code,
+                zone_name,
+                description,
+                zone_type,
+                zone_attributes,
+                capacity_info,
+                is_active,
+                created_at,
+                updated_at,
+                deleted_at
+            FROM warehouse_zones
+            WHERE tenant_id = $1
+              AND warehouse_id = $2
+              AND deleted_at IS NULL
+            ORDER BY zone_code ASC
+            "#,
+            tenant_id,
+            warehouse_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(zones)
+    }
+
+    async fn update_zone(
+        &self,
+        tenant_id: Uuid,
+        zone_id: Uuid,
+        request: UpdateWarehouseZoneRequest,
+    ) -> Result<WarehouseZone> {
+        let zone = sqlx::query_as!(
+            WarehouseZone,
+            r#"
+            UPDATE warehouse_zones
+            SET zone_code = $3,
+                zone_name = $4,
+                description = $5,
+                zone_type = $6,
+                zone_attributes = $7,
+                capacity_info = $8,
+                is_active = COALESCE($9, is_active),
+                updated_at = NOW()
+            WHERE tenant_id = $1
+              AND zone_id = $2
+              AND deleted_at IS NULL
+            RETURNING
+                zone_id,
+                tenant_id,
+                warehouse_id,
+                zone_code,
+                zone_name,
+                description,
+                zone_type,
+                zone_attributes,
+                capacity_info,
+                is_active,
+                created_at,
+                updated_at,
+                deleted_at
+            "#,
+            tenant_id,
+            zone_id,
+            request.zone_code,
+            request.zone_name,
+            request.description,
+            request.zone_type,
+            request.zone_attributes,
+            request.capacity_info,
+            request.is_active
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| {
+            AppError::NotFound("Zone not found or does not belong to this tenant".to_string())
+        })?;
+
+        Ok(zone)
+    }
+
+    async fn delete_zone(&self, tenant_id: Uuid, zone_id: Uuid) -> Result<bool> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE warehouse_zones
+            SET deleted_at = NOW(),
+                updated_at = NOW()
+            WHERE tenant_id = $1
+              AND zone_id = $2
+              AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            zone_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    // ========================================================================
+    // Location CRUD Operations
+    // ========================================================================
+
+    async fn get_locations_by_warehouse(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+    ) -> Result<Vec<WarehouseLocation>> {
+        let locations = sqlx::query_as!(
+            WarehouseLocation,
+            r#"
+            SELECT
+                l.location_id,
+                l.tenant_id,
+                l.warehouse_id,
+                l.zone_id,
+                l.location_code,
+                l.location_name,
+                l.description,
+                l.location_type,
+                l.coordinates,
+                l.dimensions,
+                l.capacity_info,
+                l.location_attributes,
+                l.is_active,
+                l.created_at,
+                l.updated_at,
+                l.deleted_at
+            FROM warehouse_locations l
+            WHERE l.tenant_id = $1
+              AND l.warehouse_id = $2
+              AND l.deleted_at IS NULL
+            ORDER BY l.location_code ASC
+            "#,
+            tenant_id,
+            warehouse_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(locations)
+    }
+
+    async fn update_location(
+        &self,
+        tenant_id: Uuid,
+        location_id: Uuid,
+        request: UpdateWarehouseLocationRequest,
+    ) -> Result<WarehouseLocation> {
+        let location = sqlx::query_as!(
+            WarehouseLocation,
+            r#"
+            UPDATE warehouse_locations
+            SET zone_id = COALESCE($3, zone_id),
+                location_code = $4,
+                location_name = $5,
+                description = $6,
+                location_type = $7,
+                coordinates = $8,
+                dimensions = $9,
+                capacity_info = $10,
+                location_attributes = $11,
+                is_active = COALESCE($12, is_active),
+                updated_at = NOW()
+            WHERE tenant_id = $1
+              AND location_id = $2
+              AND deleted_at IS NULL
+            RETURNING
+                location_id,
+                tenant_id,
+                warehouse_id,
+                zone_id,
+                location_code,
+                location_name,
+                description,
+                location_type,
+                coordinates,
+                dimensions,
+                capacity_info,
+                location_attributes,
+                is_active,
+                created_at,
+                updated_at,
+                deleted_at
+            "#,
+            tenant_id,
+            location_id,
+            request.zone_id,
+            request.location_code,
+            request.location_name,
+            request.description,
+            request.location_type,
+            request.coordinates,
+            request.dimensions,
+            request.capacity_info,
+            request.location_attributes,
+            request.is_active
+        )
+        .fetch_optional(&self.pool)
+        .await?
+        .ok_or_else(|| {
+            AppError::NotFound("Location not found or does not belong to this tenant".to_string())
+        })?;
+
+        Ok(location)
+    }
+
+    async fn delete_location(&self, tenant_id: Uuid, location_id: Uuid) -> Result<bool> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE warehouse_locations
+            SET deleted_at = NOW(),
+                updated_at = NOW()
+            WHERE tenant_id = $1
+              AND location_id = $2
+              AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            location_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
     }
 
     // ========================================================================

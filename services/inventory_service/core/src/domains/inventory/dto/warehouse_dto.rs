@@ -69,6 +69,37 @@ pub struct CreateWarehouseZoneRequest {
     pub capacity_info: Option<serde_json::Value>,
 }
 
+/// Request DTO for updating a warehouse zone
+#[derive(Debug, Clone, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateWarehouseZoneRequest {
+    /// Zone code (unique per warehouse)
+    #[validate(length(min = 1, max = 50))]
+    pub zone_code: String,
+
+    /// Zone name
+    #[validate(length(min = 1, max = 255))]
+    pub zone_name: String,
+
+    /// Optional description
+    #[validate(length(max = 1000))]
+    pub description: Option<String>,
+
+    /// Zone type
+    #[validate(custom(function = "validate_zone_type"))]
+    pub zone_type: String,
+
+    /// Zone attributes
+    pub zone_attributes: Option<serde_json::Value>,
+
+    /// Capacity information
+    pub capacity_info: Option<serde_json::Value>,
+
+    /// Active status
+    pub is_active: Option<bool>,
+}
+
 /// Request DTO for creating a warehouse location
 #[derive(Debug, Clone, Deserialize, Validate)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -104,6 +135,46 @@ pub struct CreateWarehouseLocationRequest {
 
     /// Location attributes
     pub location_attributes: Option<serde_json::Value>,
+}
+
+/// Request DTO for updating a warehouse location
+#[derive(Debug, Clone, Deserialize, Validate)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateWarehouseLocationRequest {
+    /// Zone ID (optional - location can exist without zone)
+    pub zone_id: Option<Uuid>,
+
+    /// Location code (unique per warehouse)
+    #[validate(length(min = 1, max = 100))]
+    pub location_code: String,
+
+    /// Optional location name
+    #[validate(length(max = 255))]
+    pub location_name: Option<String>,
+
+    /// Optional description
+    #[validate(length(max = 1000))]
+    pub description: Option<String>,
+
+    /// Location type
+    #[validate(custom(function = "validate_location_type"))]
+    pub location_type: String,
+
+    /// Physical coordinates
+    pub coordinates: Option<serde_json::Value>,
+
+    /// Dimensions
+    pub dimensions: Option<serde_json::Value>,
+
+    /// Capacity information
+    pub capacity_info: Option<serde_json::Value>,
+
+    /// Location attributes
+    pub location_attributes: Option<serde_json::Value>,
+
+    /// Active status
+    pub is_active: Option<bool>,
 }
 
 /// Warehouse response DTO

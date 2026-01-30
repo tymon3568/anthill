@@ -13,6 +13,7 @@ use crate::domains::inventory::transfer::{
 
 /// Request to create a new transfer
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferRequest {
     /// Optional external reference number
@@ -43,24 +44,38 @@ pub struct CreateTransferRequest {
 
 /// Request to create a transfer item
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferItemRequest {
     /// Product ID
     pub product_id: Uuid,
     /// Quantity to transfer
     pub quantity: i64,
-    /// Unit of measure ID
-    pub uom_id: Uuid,
+    /// Unit of measure ID (optional - will use product's default UoM if not provided)
+    pub uom_id: Option<Uuid>,
     /// Unit cost in cents (optional)
     pub unit_cost: Option<i64>,
     /// Line number for ordering
     pub line_number: i32,
+    /// Source zone within source warehouse (optional, for precise tracking)
+    #[serde(default)]
+    pub source_zone_id: Option<Uuid>,
+    /// Source location/bin within source warehouse (optional)
+    #[serde(default)]
+    pub source_location_id: Option<Uuid>,
+    /// Destination zone within destination warehouse (optional)
+    #[serde(default)]
+    pub destination_zone_id: Option<Uuid>,
+    /// Destination location/bin within destination warehouse (optional)
+    #[serde(default)]
+    pub destination_location_id: Option<Uuid>,
     /// Additional notes
     pub notes: Option<String>,
 }
 
 /// Response for transfer creation
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct CreateTransferResponse {
     /// Created transfer ID
@@ -75,6 +90,7 @@ pub struct CreateTransferResponse {
 
 /// Request to confirm a transfer
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ConfirmTransferRequest {
     /// Optional notes for confirmation
@@ -83,6 +99,7 @@ pub struct ConfirmTransferRequest {
 
 /// Response for transfer confirmation
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ConfirmTransferResponse {
     /// Transfer ID
@@ -95,6 +112,7 @@ pub struct ConfirmTransferResponse {
 
 /// Request to receive a transfer
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiveTransferRequest {
     /// Optional notes for receipt
@@ -103,6 +121,7 @@ pub struct ReceiveTransferRequest {
 
 /// Response for transfer receipt
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct ReceiveTransferResponse {
     /// Transfer ID
@@ -117,6 +136,7 @@ pub struct ReceiveTransferResponse {
 
 /// Full transfer response with items
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferResponse {
     /// Transfer details
@@ -128,6 +148,7 @@ pub struct TransferResponse {
 
 /// Transfer summary for listings
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct TransferSummary {
     /// Transfer ID
@@ -148,4 +169,60 @@ pub struct TransferSummary {
     pub currency_code: String,
     /// Created at
     pub created_at: String, // ISO 8601
+}
+
+/// Parameters for listing transfers
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct ListTransfersParams {
+    /// Filter by source warehouse
+    pub source_warehouse_id: Option<Uuid>,
+    /// Filter by destination warehouse
+    pub destination_warehouse_id: Option<Uuid>,
+    /// Filter by status
+    pub status: Option<TransferStatus>,
+    /// Page number (1-based)
+    pub page: Option<i64>,
+    /// Page size (default 20)
+    pub page_size: Option<i64>,
+}
+
+/// Paginated list response for transfers
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct ListTransfersResponse {
+    /// List of transfers
+    pub items: Vec<Transfer>,
+    /// Total count matching the filter
+    pub total: i64,
+    /// Current page (1-based)
+    pub page: i64,
+    /// Page size
+    pub page_size: i64,
+    /// Total pages
+    pub total_pages: i64,
+}
+
+/// Request to cancel a transfer
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct CancelTransferRequest {
+    /// Reason for cancellation
+    pub reason: Option<String>,
+}
+
+/// Response for transfer cancellation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub struct CancelTransferResponse {
+    /// Transfer ID
+    pub transfer_id: Uuid,
+    /// Updated status
+    pub status: TransferStatus,
+    /// Cancellation timestamp
+    pub cancelled_at: String, // ISO 8601
 }

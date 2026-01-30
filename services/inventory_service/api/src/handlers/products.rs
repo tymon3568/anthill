@@ -6,29 +6,42 @@ use axum::{
     extract::{Extension, Path, Query},
     http::StatusCode,
     response::Json,
-    routing::get,
+    routing::{get, post},
     Router,
 };
 
+use serde::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
 
 // Import DTOs for requests/responses
+use inventory_service_core::dto::category::BulkOperationResponse;
 use inventory_service_core::dto::product::{
     ProductCreateRequest, ProductListQuery, ProductListResponse, ProductResponse,
     ProductUpdateRequest,
 };
 
-use shared_auth::extractors::AuthUser;
+use shared_auth::extractors::{AuthUser, RequireAdmin};
 use shared_error::AppError;
 
 use crate::state::AppState;
+
+/// Request body for bulk operations
+#[derive(Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkProductIds {
+    pub product_ids: Vec<Uuid>,
+}
 
 /// Create the product routes
 pub fn create_product_routes() -> Router {
     Router::new()
         .route("/", get(list_products).post(create_product))
+        .route("/by-barcode/{barcode}", get(get_product_by_barcode))
         .route("/{product_id}", get(get_product).put(update_product).delete(delete_product))
+        .route("/bulk/activate", post(bulk_activate_products))
+        .route("/bulk/deactivate", post(bulk_deactivate_products))
+        .route("/bulk/delete", post(bulk_delete_products))
 }
 
 /// POST /api/v1/inventory/products - Create a new product
@@ -218,6 +231,57 @@ pub async fn get_product(
     Ok(Json(ProductResponse::from(product)))
 }
 
+/// GET /api/v1/inventory/products/by-barcode/{barcode} - Get product by barcode
+///
+/// Retrieves a single product by its barcode (EAN, UPC, custom, etc.) within the tenant.
+/// This is useful for barcode scanner integration.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Path Parameters
+/// * `barcode` - Barcode of the product to retrieve
+///
+/// # Returns
+/// * `200` - Product details
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+/// * `404` - Product not found
+///
+/// # Example
+/// ```
+/// GET /api/v1/inventory/products/by-barcode/1234567890123
+/// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/products/by-barcode/{barcode}",
+    tag = "products",
+    operation_id = "get_product_by_barcode",
+    params(
+        ("barcode" = String, Path, description = "Barcode of the product to retrieve")
+    ),
+    responses(
+        (status = 200, description = "Product details", body = ProductResponse),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Product not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_product_by_barcode(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(barcode): Path<String>,
+) -> Result<Json<ProductResponse>, AppError> {
+    let product = state
+        .product_service
+        .get_product_by_barcode(auth_user.tenant_id, &barcode)
+        .await?;
+    Ok(Json(ProductResponse::from(product)))
+}
+
 /// PUT /api/v1/inventory/products/{product_id} - Update product
 ///
 /// Updates an existing product with the provided fields. Only specified fields
@@ -340,4 +404,152 @@ pub async fn delete_product(
         .delete_product(auth_user.tenant_id, product_id)
         .await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+// ============================================================================
+// Bulk Operations
+// ============================================================================
+
+/// POST /api/v1/inventory/products/bulk/activate - Bulk activate products
+///
+/// Activates multiple products at once by setting is_active to true.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Parameters
+/// * `request` - List of product IDs to activate
+///
+/// # Returns
+/// * `200` - Operation result with affected count
+/// * `400` - Invalid product IDs
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/products/bulk/activate",
+    tag = "products",
+    operation_id = "bulk_activate_products",
+    request_body = BulkProductIds,
+    responses(
+        (status = 200, description = "Operation result with affected count", body = BulkOperationResponse),
+        (status = 400, description = "Invalid product IDs"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn bulk_activate_products(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Json(request): Json<BulkProductIds>,
+) -> Result<Json<BulkOperationResponse>, AppError> {
+    let affected_count = state
+        .product_service
+        .bulk_activate_products(auth_user.tenant_id, &request.product_ids)
+        .await?;
+
+    Ok(Json(BulkOperationResponse {
+        success: true,
+        affected_count: affected_count as u32,
+        message: format!("{} products activated successfully", affected_count),
+    }))
+}
+
+/// POST /api/v1/inventory/products/bulk/deactivate - Bulk deactivate products
+///
+/// Deactivates multiple products at once by setting is_active to false.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Parameters
+/// * `request` - List of product IDs to deactivate
+///
+/// # Returns
+/// * `200` - Operation result with affected count
+/// * `400` - Invalid product IDs
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/products/bulk/deactivate",
+    tag = "products",
+    operation_id = "bulk_deactivate_products",
+    request_body = BulkProductIds,
+    responses(
+        (status = 200, description = "Operation result with affected count", body = BulkOperationResponse),
+        (status = 400, description = "Invalid product IDs"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn bulk_deactivate_products(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Json(request): Json<BulkProductIds>,
+) -> Result<Json<BulkOperationResponse>, AppError> {
+    let affected_count = state
+        .product_service
+        .bulk_deactivate_products(auth_user.tenant_id, &request.product_ids)
+        .await?;
+
+    Ok(Json(BulkOperationResponse {
+        success: true,
+        affected_count: affected_count as u32,
+        message: format!("{} products deactivated successfully", affected_count),
+    }))
+}
+
+/// POST /api/v1/inventory/products/bulk/delete - Bulk delete products
+///
+/// Soft deletes multiple products at once. Only admins can perform this operation.
+///
+/// # Authentication
+/// Requires admin privileges
+///
+/// # Parameters
+/// * `request` - List of product IDs to delete
+///
+/// # Returns
+/// * `200` - Operation result with affected count
+/// * `400` - Invalid product IDs
+/// * `401` - Authentication required
+/// * `403` - Admin privileges required
+#[utoipa::path(
+    post,
+    path = "/api/v1/inventory/products/bulk/delete",
+    tag = "products",
+    operation_id = "bulk_delete_products",
+    request_body = BulkProductIds,
+    responses(
+        (status = 200, description = "Operation result with affected count", body = BulkOperationResponse),
+        (status = 400, description = "Invalid product IDs or products cannot be deleted"),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Admin privileges required")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn bulk_delete_products(
+    RequireAdmin(auth_user): RequireAdmin,
+    Extension(state): Extension<AppState>,
+    Json(request): Json<BulkProductIds>,
+) -> Result<Json<BulkOperationResponse>, AppError> {
+    let affected_count = state
+        .product_service
+        .bulk_delete_products(auth_user.tenant_id, &request.product_ids)
+        .await?;
+
+    Ok(Json(BulkOperationResponse {
+        success: true,
+        affected_count: affected_count as u32,
+        message: format!("{} products deleted successfully", affected_count),
+    }))
 }

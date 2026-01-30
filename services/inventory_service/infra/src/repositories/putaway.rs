@@ -78,9 +78,13 @@ impl PutawayRepository for PgPutawayRepository {
                 location_id,
                 tenant_id,
                 warehouse_id,
+                zone_id,
                 location_code,
                 location_type,
-                zone,
+                COALESCE(
+                    (SELECT wz.zone_code FROM warehouse_zones wz WHERE wz.zone_id = warehouse_locations.zone_id),
+                    aisle
+                ) AS zone,
                 aisle,
                 rack,
                 level,
@@ -99,7 +103,7 @@ impl PutawayRepository for PgPutawayRepository {
                 created_at,
                 updated_at,
                 deleted_at
-            FROM storage_locations
+            FROM warehouse_locations
             WHERE tenant_id = $1 AND warehouse_id = $2 AND is_active = true AND deleted_at IS NULL
             "#,
         )
@@ -113,9 +117,13 @@ impl PutawayRepository for PgPutawayRepository {
                     location_id,
                     tenant_id,
                     warehouse_id,
+                    zone_id,
                     location_code,
                     location_type,
-                    zone,
+                    COALESCE(
+                        (SELECT wz.zone_code FROM warehouse_zones wz WHERE wz.zone_id = warehouse_locations.zone_id),
+                        aisle
+                    ) AS zone,
                     aisle,
                     rack,
                     level,
@@ -134,7 +142,7 @@ impl PutawayRepository for PgPutawayRepository {
                     created_at,
                     updated_at,
                     deleted_at
-                FROM storage_locations
+                FROM warehouse_locations
                 WHERE tenant_id = $1 AND warehouse_id = $2 AND location_type = $3
                   AND is_active = true AND deleted_at IS NULL
                 "#,
@@ -162,9 +170,13 @@ impl PutawayRepository for PgPutawayRepository {
                 location_id,
                 tenant_id,
                 warehouse_id,
+                zone_id,
                 location_code,
                 location_type,
-                zone,
+                COALESCE(
+                    (SELECT wz.zone_code FROM warehouse_zones wz WHERE wz.zone_id = warehouse_locations.zone_id),
+                    aisle
+                ) AS zone,
                 aisle,
                 rack,
                 level,
@@ -183,7 +195,7 @@ impl PutawayRepository for PgPutawayRepository {
                 created_at,
                 updated_at,
                 deleted_at
-            FROM storage_locations
+            FROM warehouse_locations
             WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL
             "#,
         )
@@ -204,7 +216,7 @@ impl PutawayRepository for PgPutawayRepository {
     ) -> Result<(), AppError> {
         let result = sqlx::query!(
             r#"
-            UPDATE storage_locations
+            UPDATE warehouse_locations
             SET current_stock = $3, updated_at = NOW()
             WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL
             "#,
@@ -410,16 +422,20 @@ impl PutawayRepository for PgPutawayRepository {
     ) -> Result<StorageLocation, AppError> {
         let created_location = sqlx::query_as::<_, StorageLocation>(
             r#"
-            INSERT INTO storage_locations (
-                location_id, tenant_id, warehouse_id, location_code, location_type,
-                zone, aisle, rack, level, position, capacity, current_stock,
+            INSERT INTO warehouse_locations (
+                location_id, tenant_id, warehouse_id, zone_id, location_code, location_type,
+                aisle, rack, level, position, capacity, current_stock,
                 is_active, is_quarantine, is_picking_location, length_cm,
                 width_cm, height_cm, weight_limit_kg, created_by, updated_by
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
             RETURNING
-                location_id, tenant_id, warehouse_id, location_code, location_type,
-                zone, aisle, rack, level, position, capacity, current_stock,
+                location_id, tenant_id, warehouse_id, zone_id, location_code, location_type,
+                COALESCE(
+                    (SELECT wz.zone_code FROM warehouse_zones wz WHERE wz.zone_id = warehouse_locations.zone_id),
+                    aisle
+                ) AS zone,
+                aisle, rack, level, position, capacity, current_stock,
                 is_active, is_quarantine, is_picking_location, length_cm,
                 width_cm, height_cm, weight_limit_kg, created_by, updated_by,
                 created_at, updated_at, deleted_at
@@ -428,9 +444,9 @@ impl PutawayRepository for PgPutawayRepository {
         .bind(location.location_id)
         .bind(location.tenant_id)
         .bind(location.warehouse_id)
+        .bind(location.zone_id)
         .bind(&location.location_code)
         .bind(&location.location_type)
-        .bind(&location.zone)
         .bind(&location.aisle)
         .bind(&location.rack)
         .bind(location.level)
@@ -456,11 +472,11 @@ impl PutawayRepository for PgPutawayRepository {
     async fn update_location(&self, location: &StorageLocation) -> Result<(), AppError> {
         let result = sqlx::query!(
             r#"
-            UPDATE storage_locations
+            UPDATE warehouse_locations
             SET
                 location_code = $3,
                 location_type = $4,
-                zone = $5,
+                zone_id = $5,
                 aisle = $6,
                 rack = $7,
                 level = $8,
@@ -482,7 +498,7 @@ impl PutawayRepository for PgPutawayRepository {
             location.location_id,
             location.location_code,
             location.location_type,
-            location.zone,
+            location.zone_id,
             location.aisle,
             location.rack,
             location.level,
@@ -517,7 +533,7 @@ impl PutawayRepository for PgPutawayRepository {
     async fn delete_location(&self, tenant_id: &Uuid, location_id: &Uuid) -> Result<(), AppError> {
         let result = sqlx::query!(
             r#"
-            UPDATE storage_locations
+            UPDATE warehouse_locations
             SET deleted_at = NOW()
             WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL
             "#,
@@ -554,9 +570,13 @@ impl PutawayRepository for PgPutawayRepository {
                     location_id,
                     tenant_id,
                     warehouse_id,
+                    zone_id,
                     location_code,
                     location_type,
-                    zone,
+                    COALESCE(
+                        (SELECT wz.zone_code FROM warehouse_zones wz WHERE wz.zone_id = warehouse_locations.zone_id),
+                        aisle
+                    ) AS zone,
                     aisle,
                     rack,
                     level,
@@ -575,7 +595,7 @@ impl PutawayRepository for PgPutawayRepository {
                     created_at,
                     updated_at,
                     deleted_at
-                FROM storage_locations
+                FROM warehouse_locations
                 WHERE tenant_id = $1 AND warehouse_id = $2 AND deleted_at IS NULL
                 ORDER BY location_code ASC
                 LIMIT $3 OFFSET $4
@@ -594,9 +614,13 @@ impl PutawayRepository for PgPutawayRepository {
                     location_id,
                     tenant_id,
                     warehouse_id,
+                    zone_id,
                     location_code,
                     location_type,
-                    zone,
+                    COALESCE(
+                        (SELECT wz.zone_code FROM warehouse_zones wz WHERE wz.zone_id = warehouse_locations.zone_id),
+                        aisle
+                    ) AS zone,
                     aisle,
                     rack,
                     level,
@@ -615,7 +639,7 @@ impl PutawayRepository for PgPutawayRepository {
                     created_at,
                     updated_at,
                     deleted_at
-                FROM storage_locations
+                FROM warehouse_locations
                 WHERE tenant_id = $1 AND deleted_at IS NULL
                 ORDER BY warehouse_id ASC, location_code ASC
                 LIMIT $2 OFFSET $3
@@ -656,7 +680,7 @@ impl TransactionalPutawayRepository for PgPutawayRepository {
         let row = sqlx::query!(
             r#"
             SELECT current_stock, capacity
-            FROM storage_locations
+            FROM warehouse_locations
             WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL
             FOR UPDATE
             "#,
@@ -682,7 +706,7 @@ impl TransactionalPutawayRepository for PgPutawayRepository {
 
         let result = sqlx::query!(
             r#"
-            UPDATE storage_locations
+            UPDATE warehouse_locations
             SET current_stock = $3, updated_at = NOW()
             WHERE tenant_id = $1 AND location_id = $2 AND deleted_at IS NULL
             "#,
