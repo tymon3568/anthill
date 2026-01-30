@@ -57,12 +57,29 @@ pub enum StockTakeStatus {
 
 impl fmt::Display for StockTakeStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StockTakeStatus::Draft => write!(f, "draft"),
-            StockTakeStatus::Scheduled => write!(f, "scheduled"),
-            StockTakeStatus::InProgress => write!(f, "in_progress"),
-            StockTakeStatus::Completed => write!(f, "completed"),
-            StockTakeStatus::Cancelled => write!(f, "cancelled"),
+        // Display matches DB values (snake_case) for consistency
+        let s = match self {
+            StockTakeStatus::Draft => "draft",
+            StockTakeStatus::Scheduled => "scheduled",
+            StockTakeStatus::InProgress => "in_progress",
+            StockTakeStatus::Completed => "completed",
+            StockTakeStatus::Cancelled => "cancelled",
+        };
+        f.write_str(s)
+    }
+}
+
+impl std::str::FromStr for StockTakeStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "draft" => Ok(StockTakeStatus::Draft),
+            "scheduled" => Ok(StockTakeStatus::Scheduled),
+            "in_progress" => Ok(StockTakeStatus::InProgress),
+            "completed" => Ok(StockTakeStatus::Completed),
+            "cancelled" => Ok(StockTakeStatus::Cancelled),
+            _ => Err(format!("Unknown stock take status: {}", s)),
         }
     }
 }

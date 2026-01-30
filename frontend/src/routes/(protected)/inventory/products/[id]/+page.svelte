@@ -19,6 +19,7 @@
 	import { variantsApi } from '$lib/api/products';
 	import type { ProductResponse, CategoryResponse } from '$lib/types/inventory';
 	import type { ProductVariant } from '$lib/types/products';
+	import ProductImageGallery from '$lib/components/inventory/ProductImageGallery.svelte';
 
 	// Get product ID from URL
 	const productId = $derived($page.params.id ?? '');
@@ -378,6 +379,7 @@
 		<Tabs.Root bind:value={activeTab} class="w-full">
 			<Tabs.List>
 				<Tabs.Trigger value="details">Details</Tabs.Trigger>
+				<Tabs.Trigger value="images">Images</Tabs.Trigger>
 				<Tabs.Trigger value="pricing">Pricing</Tabs.Trigger>
 				<Tabs.Trigger value="inventory">Inventory</Tabs.Trigger>
 				<Tabs.Trigger value="variants">
@@ -483,6 +485,11 @@
 				<div class="text-sm text-muted-foreground">
 					Created: {formatDate(product.createdAt)} • Updated: {formatDate(product.updatedAt)}
 				</div>
+			</Tabs.Content>
+
+			<!-- Images Tab -->
+			<Tabs.Content value="images" class="mt-6">
+				<ProductImageGallery {productId} />
 			</Tabs.Content>
 
 			<!-- Pricing Tab -->

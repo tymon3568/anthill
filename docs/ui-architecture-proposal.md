@@ -1,9 +1,10 @@
 # UI Architecture Proposal for Anthill Platform
 
-> **Document Version:** 1.0  
+> **Document Version:** 1.1  
 > **Created:** 2026-01-26  
+> **Updated:** 2026-01-30  
 > **Status:** Proposal  
-> **References:** Odoo 17/18, SAP Fiori, ERPNext, NetSuite, Zoho Inventory
+> **References:** Odoo 17/18, SAP Fiori, ERPNext, NetSuite, Zoho Inventory, Akeneo PIM, Salsify
 
 ---
 
@@ -16,6 +17,7 @@
 5. [Route Architecture](#5-route-architecture)
 6. [Page Templates](#6-page-templates)
 7. [Implementation Roadmap](#7-implementation-roadmap)
+8. [Products Module - Feature Gap Analysis](#8-products-module---feature-gap-analysis)
 
 ---
 
@@ -873,6 +875,376 @@ frontend/src/routes/
 | Settings expansion (API keys, notifications) | P2 | 2 days |
 | Admin audit log | P2 | 1 day |
 | End-to-end testing | P0 | 2 days |
+
+---
+
+## 8. Products Module - Feature Gap Analysis
+
+> **Research Date:** 2026-01-30  
+> **Sources:** Odoo 17/18, NetSuite, ERPNext, Akeneo PIM, Salsify, user surveys 2024-2025
+
+### 8.1 Current Implementation Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Product CRUD | ✅ Complete | Create, Read, Update, Soft Delete |
+| SKU uniqueness per tenant | ✅ Complete | Enforced at DB level |
+| Product Types | ✅ Complete | goods/service/consumable |
+| Categories (hierarchical) | ✅ Complete | Tree structure |
+| Product Variants | ✅ Complete | Key-value attributes, price delta |
+| Pricing | ✅ Complete | Sale price, cost price, profit margin |
+| Multi-currency | ✅ Complete | VND/USD support |
+| Physical attributes | ✅ Complete | Weight, dimensions |
+| Tracking methods | ✅ Complete | none/lot/serial |
+| Status flags | ✅ Complete | active, sellable, purchasable |
+| Soft delete | ✅ Complete | Mark as deleted |
+| Bulk operations | ✅ Complete | Activate/deactivate/delete |
+| Search & Filter | ✅ Complete | Full-text search |
+| Pagination & Sorting | ✅ Complete | Configurable |
+| Default UOM | ✅ Complete | Per product |
+
+### 8.2 Missing Features - Priority Analysis
+
+#### 🔴 CRITICAL (85%+ user demand)
+
+| Feature | Description | User Demand | Effort | ERP Reference |
+|---------|-------------|-------------|--------|---------------|
+| **Product Images/Media** | Upload, manage multiple images per product with drag-drop reordering, primary image selection | **92%** | Medium | Odoo, Shopify, NetSuite |
+| **Import/Export CSV** | Bulk import/export products from CSV/Excel with field mapping | **89%** | Medium | All ERPs |
+| **Barcode/GTIN Field** | Dedicated barcode field (EAN-13, UPC, ISBN, custom) | **85%** | Low | Odoo, ERPNext |
+| **Product Bundles/Kits** | Combine multiple products into sellable combo/kit | **82%** | High | Odoo (BoM), NetSuite |
+| **UOM Conversions** | Unit conversion rules (1 box = 12 pcs, 1 kg = 1000 g) | **80%** | Medium | Odoo, SAP |
+
+#### 🟠 HIGH PRIORITY (60-80% user demand)
+
+| Feature | Description | User Demand | Effort |
+|---------|-------------|-------------|--------|
+| **SEO Fields** | Meta title, meta description, URL slug for ecommerce | **78%** | Low |
+| **Custom/Dynamic Attributes** | User-defined fields per category (e.g., RAM for electronics) | **75%** | High |
+| **Product Templates** | Create products from predefined templates | **72%** | Medium |
+| **Related Products** | Cross-sell, upsell, accessories linking | **70%** | Medium |
+| **Product Tags** | Flexible tagging for filtering/search | **68%** | Low |
+| **Supplier Info** | Preferred vendors, vendor SKU, lead time, MOQ | **65%** | Medium |
+| **Brand/Manufacturer** | Dedicated brand field with brand management | **63%** | Low |
+| **Product History/Audit** | View change log (who changed what, when) | **62%** | Medium |
+
+#### 🟡 MEDIUM PRIORITY (40-60% user demand)
+
+| Feature | Description | User Demand | Effort |
+|---------|-------------|-------------|--------|
+| **Multi-language** | Product name/description in multiple languages | **58%** | High |
+| **Product Documents** | Attach PDFs, datasheets, manuals | **55%** | Medium |
+| **Variant Matrix** | Create variants via matrix (size × color) | **52%** | Medium |
+| **Product Lifecycle** | Status workflow: Draft → Active → Discontinued → Archived | **50%** | Low |
+| **Minimum Order Qty (MOQ)** | Minimum quantity for purchase/sale | **48%** | Low |
+| **Lead Time** | Default delivery/production time | **45%** | Low |
+| **Country of Origin** | Product origin for customs/compliance | **42%** | Low |
+| **HS Code** | Harmonized System code for import/export | **40%** | Low |
+
+#### 🟢 NICE-TO-HAVE (20-40% user demand)
+
+| Feature | Description | User Demand |
+|---------|-------------|-------------|
+| AI Product Description | Auto-generate descriptions using AI | 35% |
+| Product Comparison | Side-by-side product comparison | 32% |
+| 3D/AR Preview | 3D product visualization | 28% |
+| Product Reviews Integration | Sync reviews from ecommerce channels | 25% |
+| Sustainability/ESG Data | Carbon footprint, eco-labels | 22% |
+| Product Configurator | Build-to-order configuration | 20% |
+
+### 8.3 Competitor Comparison Matrix
+
+| Feature | Anthill | Odoo | NetSuite | ERPNext | Akeneo |
+|---------|---------|------|----------|---------|--------|
+| **Core CRUD** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Variants** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Categories** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Pricing** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Physical Attrs** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Images/Media** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Import/Export** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Barcode** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Bundles/Kits** | ❌ | ✅ | ✅ | ✅ | ❌ |
+| **UOM Conversion** | ❌ | ✅ | ✅ | ✅ | ❌ |
+| **SEO Fields** | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Custom Attrs** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Related Products** | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Supplier Info** | ❌ | ✅ | ✅ | ✅ | ❌ |
+| **Brand** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **Multi-language** | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Documents** | ❌ | ✅ | ✅ | ✅ | ✅ |
+| **History/Audit** | ❌ | ✅ | ✅ | ✅ | ✅ |
+
+### 8.4 Proposed Products UI Structure
+
+```
+├── 📦 INVENTORY
+│   ├── Products
+│   │   ├── Product List
+│   │   │   ├── Grid/List View Toggle                    🆕
+│   │   │   ├── Quick Filters (by tag, brand, status)   🆕
+│   │   │   └── Bulk Import/Export                       🆕
+│   │   │
+│   │   ├── Product Detail (Tabbed Interface)
+│   │   │   ├── Basic Info Tab
+│   │   │   │   ├── **Images Gallery**                   🆕 (drag-drop, reorder, primary)
+│   │   │   │   ├── **Barcode/GTIN**                     🆕
+│   │   │   │   ├── **Brand/Manufacturer**               🆕
+│   │   │   │   └── **Tags**                             🆕
+│   │   │   │
+│   │   │   ├── Pricing Tab (existing)
+│   │   │   │
+│   │   │   ├── Inventory Tab
+│   │   │   │   └── **Supplier Info**                    🆕 (vendors, vendor SKU)
+│   │   │   │
+│   │   │   ├── Variants Tab
+│   │   │   │   └── **Variant Matrix Creator**           🆕
+│   │   │   │
+│   │   │   ├── **SEO Tab**                              🆕
+│   │   │   │   ├── Meta Title
+│   │   │   │   ├── Meta Description
+│   │   │   │   └── URL Slug
+│   │   │   │
+│   │   │   ├── **Related Tab**                          🆕
+│   │   │   │   ├── Cross-sell Products
+│   │   │   │   ├── Upsell Products
+│   │   │   │   └── Accessories
+│   │   │   │
+│   │   │   ├── **Documents Tab**                        🆕
+│   │   │   │   └── Attachments (PDF, specs)
+│   │   │   │
+│   │   │   └── **History Tab**                          🆕
+│   │   │       └── Audit Log
+│   │   │
+│   │   ├── **Bundles/Kits**                             🆕
+│   │   │   ├── Bundle List
+│   │   │   ├── Create Bundle (add components)
+│   │   │   └── Bundle Detail
+│   │   │
+│   │   ├── **Import/Export**                            🆕
+│   │   │   ├── Import Products (CSV/Excel)
+│   │   │   ├── Export Products
+│   │   │   └── Import Templates
+│   │   │
+│   │   ├── **Brands**                                   🆕
+│   │   │   └── Brand Management (CRUD)
+│   │   │
+│   │   ├── **Attributes**                               🆕
+│   │   │   ├── Attribute Groups
+│   │   │   └── Attribute Values
+│   │   │
+│   │   └── **UOM Management**                           🆕
+│   │       ├── Units of Measure
+│   │       └── UOM Conversions
+│   │
+│   ├── Categories (existing)
+│   └── ... (other inventory sections)
+```
+
+### 8.5 Products Implementation Roadmap
+
+#### Sprint 1 (Week 1-2): Critical Features
+
+| Task | Priority | Effort | Dependencies |
+|------|----------|--------|--------------|
+| Product Images/Media management | P0 | 4 days | File storage service |
+| Barcode field (frontend + backend) | P0 | 1 day | None |
+| Import/Export CSV functionality | P0 | 3 days | None |
+| Image gallery component (drag-drop) | P0 | 2 days | Images feature |
+
+#### Sprint 2 (Week 3-4): High Priority Features
+
+| Task | Priority | Effort | Dependencies |
+|------|----------|--------|--------------|
+| Product Bundles/Kits module | P1 | 5 days | None |
+| UOM Conversions management | P1 | 3 days | None |
+| SEO fields (meta, slug) | P1 | 1 day | None |
+| Product Tags system | P1 | 2 days | None |
+
+#### Sprint 3 (Week 5-6): Enhancement Features
+
+| Task | Priority | Effort | Dependencies |
+|------|----------|--------|--------------|
+| Brand management | P2 | 2 days | None |
+| Related Products (cross-sell/upsell) | P2 | 3 days | None |
+| Supplier Info per product | P2 | 2 days | Purchase module |
+| Product History/Audit viewer | P2 | 2 days | Audit log service |
+
+#### Sprint 4 (Week 7-8): Advanced Features
+
+| Task | Priority | Effort | Dependencies |
+|------|----------|--------|--------------|
+| Custom/Dynamic Attributes | P2 | 5 days | Attribute schema |
+| Variant Matrix creator | P2 | 3 days | Variants feature |
+| Product Documents/Attachments | P3 | 2 days | File storage |
+| Product Templates | P3 | 3 days | None |
+
+### 8.6 Database Schema Additions
+
+```sql
+-- Product Images
+CREATE TABLE product_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    product_id UUID NOT NULL REFERENCES products(id),
+    tenant_id UUID NOT NULL,
+    url TEXT NOT NULL,
+    alt_text TEXT,
+    position INTEGER DEFAULT 0,
+    is_primary BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(product_id, position)
+);
+
+-- Product Barcodes
+ALTER TABLE products ADD COLUMN barcode VARCHAR(50);
+ALTER TABLE products ADD COLUMN barcode_type VARCHAR(20); -- EAN13, UPC, ISBN, CUSTOM
+
+-- Product SEO
+ALTER TABLE products ADD COLUMN meta_title VARCHAR(70);
+ALTER TABLE products ADD COLUMN meta_description VARCHAR(160);
+ALTER TABLE products ADD COLUMN url_slug VARCHAR(255);
+
+-- Product Tags
+CREATE TABLE tags (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    tenant_id UUID NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    color VARCHAR(7), -- Hex color
+    UNIQUE(tenant_id, name)
+);
+
+CREATE TABLE product_tags (
+    product_id UUID REFERENCES products(id),
+    tag_id UUID REFERENCES tags(id),
+    PRIMARY KEY(product_id, tag_id)
+);
+
+-- Brands
+CREATE TABLE brands (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    tenant_id UUID NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    logo_url TEXT,
+    website TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE products ADD COLUMN brand_id UUID REFERENCES brands(id);
+
+-- Product Bundles
+CREATE TABLE product_bundles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    tenant_id UUID NOT NULL,
+    bundle_product_id UUID NOT NULL REFERENCES products(id),
+    component_product_id UUID NOT NULL REFERENCES products(id),
+    quantity DECIMAL(10,3) NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- UOM Conversions
+CREATE TABLE uom_conversions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    tenant_id UUID NOT NULL,
+    from_uom_id UUID NOT NULL REFERENCES uom(id),
+    to_uom_id UUID NOT NULL REFERENCES uom(id),
+    factor DECIMAL(15,6) NOT NULL, -- 1 from_uom = factor * to_uom
+    product_id UUID REFERENCES products(id), -- NULL = global
+    UNIQUE(tenant_id, from_uom_id, to_uom_id, product_id)
+);
+
+-- Related Products
+CREATE TABLE related_products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    product_id UUID NOT NULL REFERENCES products(id),
+    related_product_id UUID NOT NULL REFERENCES products(id),
+    relation_type VARCHAR(20) NOT NULL, -- cross_sell, upsell, accessory
+    position INTEGER DEFAULT 0,
+    UNIQUE(product_id, related_product_id, relation_type)
+);
+
+-- Product Suppliers
+CREATE TABLE product_suppliers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    product_id UUID NOT NULL REFERENCES products(id),
+    supplier_id UUID NOT NULL, -- REFERENCES suppliers(id)
+    vendor_sku VARCHAR(50),
+    vendor_name VARCHAR(200),
+    purchase_price BIGINT,
+    currency VARCHAR(3) DEFAULT 'VND',
+    lead_time_days INTEGER,
+    min_order_qty DECIMAL(10,3),
+    is_preferred BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Product Documents
+CREATE TABLE product_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v7(),
+    product_id UUID NOT NULL REFERENCES products(id),
+    tenant_id UUID NOT NULL,
+    name VARCHAR(200) NOT NULL,
+    file_url TEXT NOT NULL,
+    file_type VARCHAR(50),
+    file_size INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 8.7 API Endpoints (New)
+
+```
+# Product Images
+POST   /api/v1/products/{id}/images          Upload image
+GET    /api/v1/products/{id}/images          List images
+PUT    /api/v1/products/{id}/images/reorder  Reorder images
+DELETE /api/v1/products/{id}/images/{imgId}  Delete image
+
+# Import/Export
+POST   /api/v1/products/import               Import from CSV
+GET    /api/v1/products/export               Export to CSV
+GET    /api/v1/products/import/template      Download template
+
+# Bundles
+GET    /api/v1/bundles                       List bundles
+POST   /api/v1/bundles                       Create bundle
+GET    /api/v1/bundles/{id}                  Get bundle
+PUT    /api/v1/bundles/{id}                  Update bundle
+DELETE /api/v1/bundles/{id}                  Delete bundle
+
+# Brands
+GET    /api/v1/brands                        List brands
+POST   /api/v1/brands                        Create brand
+PUT    /api/v1/brands/{id}                   Update brand
+DELETE /api/v1/brands/{id}                   Delete brand
+
+# Tags
+GET    /api/v1/tags                          List tags
+POST   /api/v1/tags                          Create tag
+DELETE /api/v1/tags/{id}                     Delete tag
+POST   /api/v1/products/{id}/tags            Add tags to product
+
+# UOM Conversions
+GET    /api/v1/uom-conversions               List conversions
+POST   /api/v1/uom-conversions               Create conversion
+DELETE /api/v1/uom-conversions/{id}          Delete conversion
+
+# Related Products
+GET    /api/v1/products/{id}/related         Get related products
+POST   /api/v1/products/{id}/related         Add related product
+DELETE /api/v1/products/{id}/related/{relId} Remove relation
+
+# Product Suppliers
+GET    /api/v1/products/{id}/suppliers       List suppliers
+POST   /api/v1/products/{id}/suppliers       Add supplier
+PUT    /api/v1/products/{id}/suppliers/{sid} Update supplier
+DELETE /api/v1/products/{id}/suppliers/{sid} Remove supplier
+
+# Documents
+POST   /api/v1/products/{id}/documents       Upload document
+GET    /api/v1/products/{id}/documents       List documents
+DELETE /api/v1/products/{id}/documents/{did} Delete document
+```
 
 ---
 

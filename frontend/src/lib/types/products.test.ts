@@ -572,6 +572,8 @@ describe('Form data types', () => {
 				name: 'Form Product',
 				description: 'Form description',
 				productType: 'goods',
+				barcode: '',
+				barcodeType: '',
 				categoryId: '',
 				trackInventory: true,
 				trackingMethod: 'none',

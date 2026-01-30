@@ -37,6 +37,7 @@ pub struct BulkProductIds {
 pub fn create_product_routes() -> Router {
     Router::new()
         .route("/", get(list_products).post(create_product))
+        .route("/by-barcode/{barcode}", get(get_product_by_barcode))
         .route("/{product_id}", get(get_product).put(update_product).delete(delete_product))
         .route("/bulk/activate", post(bulk_activate_products))
         .route("/bulk/deactivate", post(bulk_deactivate_products))
@@ -226,6 +227,57 @@ pub async fn get_product(
     let product = state
         .product_service
         .get_product(auth_user.tenant_id, product_id)
+        .await?;
+    Ok(Json(ProductResponse::from(product)))
+}
+
+/// GET /api/v1/inventory/products/by-barcode/{barcode} - Get product by barcode
+///
+/// Retrieves a single product by its barcode (EAN, UPC, custom, etc.) within the tenant.
+/// This is useful for barcode scanner integration.
+///
+/// # Authentication
+/// Requires authenticated user with appropriate tenant access
+///
+/// # Path Parameters
+/// * `barcode` - Barcode of the product to retrieve
+///
+/// # Returns
+/// * `200` - Product details
+/// * `401` - Authentication required
+/// * `403` - Insufficient permissions
+/// * `404` - Product not found
+///
+/// # Example
+/// ```
+/// GET /api/v1/inventory/products/by-barcode/1234567890123
+/// ```
+#[utoipa::path(
+    get,
+    path = "/api/v1/inventory/products/by-barcode/{barcode}",
+    tag = "products",
+    operation_id = "get_product_by_barcode",
+    params(
+        ("barcode" = String, Path, description = "Barcode of the product to retrieve")
+    ),
+    responses(
+        (status = 200, description = "Product details", body = ProductResponse),
+        (status = 401, description = "Authentication required"),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 404, description = "Product not found")
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
+pub async fn get_product_by_barcode(
+    auth_user: AuthUser,
+    Extension(state): Extension<AppState>,
+    Path(barcode): Path<String>,
+) -> Result<Json<ProductResponse>, AppError> {
+    let product = state
+        .product_service
+        .get_product_by_barcode(auth_user.tenant_id, &barcode)
         .await?;
     Ok(Json(ProductResponse::from(product)))
 }

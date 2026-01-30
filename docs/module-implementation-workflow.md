@@ -21,6 +21,67 @@ This document defines the standardized workflow for implementing new modules in 
 
 ---
 
+## Knowledge Tree Structure
+
+> **IMPORTANT**: Before starting any module implementation, AI agents MUST read the relevant knowledge files.
+
+### Knowledge File Hierarchy
+
+```
+/anthill-windsurf
+│
+├── docs/
+│   ├── COMMON_PATTERNS.md          # Patterns applying to ALL modules
+│   ├── INTEGRATION_BUGS.md         # Cross-module bugs (API, Casbin, etc.)
+│   ├── SECURITY_CHECKLIST.md       # Mandatory security tests
+│   └── module-implementation-workflow.md
+│
+├── PROJECT_TRACKING/V1_MVP/
+│   ├── 04_Inventory_Service/
+│   │   ├── README.md               # Module overview
+│   │   ├── BUGS_FIXED.md           # Inventory-specific bugs ONLY
+│   │   └── 4.x_SubModule/
+│   │
+│   ├── 08_Frontend/
+│   │   ├── README.md
+│   │   ├── BUGS_FIXED.md           # Frontend-specific bugs ONLY
+│   │   └── 8.x_SubModule/
+│   │
+│   └── 01_User_Service/
+│       ├── README.md
+│       ├── BUGS_FIXED.md           # User service-specific bugs ONLY
+│       └── ...
+```
+
+### Mandatory Reading Before Implementation
+
+AI agents MUST read these files IN ORDER before implementing any module:
+
+1. **`docs/COMMON_PATTERNS.md`** - Avoid common coding mistakes
+2. **`docs/INTEGRATION_BUGS.md`** - Avoid cross-module integration issues
+3. **`docs/SECURITY_CHECKLIST.md`** - Security requirements for all modules
+4. **`PROJECT_TRACKING/{module}/BUGS_FIXED.md`** - Module-specific issues to avoid
+
+### Bug Classification Rules
+
+When encountering or fixing a bug, categorize it correctly:
+
+| Bug Type | Where to Log | Examples |
+|----------|--------------|----------|
+| **Common Pattern** | `docs/COMMON_PATTERNS.md` | camelCase/snake_case, null checks, Svelte each keys |
+| **Integration Bug** | `docs/INTEGRATION_BUGS.md` | Casbin 403, token refresh, API format mismatch |
+| **Security Issue** | `docs/SECURITY_CHECKLIST.md` | New security test cases |
+| **Module-Specific** | `PROJECT_TRACKING/{module}/BUGS_FIXED.md` | Logic errors, UI issues specific to one module |
+
+### After Fixing Any Bug
+
+AI Agent MUST:
+1. Categorize the bug using the table above
+2. Log to the appropriate file with: **Symptom → Root Cause → Fix → Lessons Learned**
+3. Update any related checklists
+
+---
+
 ## Phase 1: Research & Context Gathering
 
 ### 1.1 Read Core Documentation
@@ -797,6 +858,47 @@ cd services/inventory_service/api && PORT=8001 cargo run
 cd frontend && bun run dev
 ```
 
+#### Required Headers for API Testing (CRITICAL)
+
+> ⚠️ **AI Agent MUST read this before testing API endpoints**
+
+All API requests require specific headers. Missing headers cause confusing errors like "Empty reply from server".
+
+| Header | Required For | Value | Notes |
+|--------|--------------|-------|-------|
+| `Authorization` | All authenticated | `Bearer <access_token>` | Get from login response |
+| `X-Tenant-ID` | All requests | `<tenant_uuid>` | From user's tenant |
+| `Content-Type` | POST/PUT/PATCH | `application/json` | For JSON bodies |
+| `X-Idempotency-Key` | POST/PUT/PATCH | `<random_uuid>` | **MANDATORY** for mutating ops |
+
+**Complete curl example for testing POST:**
+```bash
+# Get token first
+TOKEN=$(curl -s http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -H "X-Tenant-ID: $TENANT_ID" \
+  -d '{"email":"admin@example.com","password":"password"}' \
+  | jq -r '.data.access_token')
+
+# Test POST with ALL required headers
+curl -X POST http://localhost:8001/api/v1/inventory/products \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Tenant-ID: $TENANT_ID" \
+  -H "Content-Type: application/json" \
+  -H "X-Idempotency-Key: $(uuidgen)" \
+  -d '{"sku":"TEST-001","name":"Test Product","unit_of_measure":"pcs"}'
+```
+
+**Common Mistakes:**
+| Error | Likely Cause | Fix |
+|-------|--------------|-----|
+| `Empty reply from server` | Missing X-Idempotency-Key | Add the header |
+| `403 Forbidden` | Missing Casbin policy or wrong tenant | Check IB-1 |
+| `401 Unauthorized` | Expired token or wrong header | Refresh token |
+| `400 Bad Request` | Missing required field | Check API spec |
+
+**Reference:** `docs/INTEGRATION_BUGS.md` IB-6
+
 #### Backend Code Change Checklist
 
 > ⚠️ **CRITICAL**: After making backend code changes, you MUST:
@@ -1343,6 +1445,147 @@ mod tests {
     }
 }
 ```
+
+#### 3.3.5 Status Enum Convention (MANDATORY for ERP)
+
+When implementing status enums for ERP documents (transfers, stock-takes, adjustments, etc.), follow `snake_case` convention consistently across all layers for simplicity and AI-friendliness:
+
+| Layer | Format | Example | Responsibility |
+|-------|--------|---------|----------------|
+| **Database** | `snake_case` (PostgreSQL ENUM) | `'draft'`, `'in_progress'` | Type-safe, indexed |
+| **Rust Enum** | `PascalCase` variants + `serde(rename_all)` | `StockTakeStatus::InProgress` | Type safety |
+| **API Response** | `snake_case` | `"draft"`, `"in_progress"` | REST API standard |
+| **TypeScript** | `snake_case` string literals | `'draft' \| 'in_progress'` | Direct API mapping |
+
+**Why snake_case everywhere?**
+- ✅ **Consistency**: DB → API → Frontend use same values, zero transformation
+- ✅ **Industry standard**: Used by Odoo, ERPNext, GitHub API, Stripe API
+- ✅ **AI-friendly**: Self-documenting, easy to read and generate code
+- ✅ **Debug-friendly**: Logs and SQL queries are human-readable
+
+**Implementation Pattern:**
+
+```rust
+// core/src/dto/adjustment.rs
+use serde::{Deserialize, Serialize};
+use std::fmt;
+use std::str::FromStr;
+
+/// Adjustment status enumeration
+/// - serde rename_all converts to snake_case for API and DB
+/// - sqlx::Type with rename_all for PostgreSQL ENUM
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "openapi", derive(ToSchema))]
+pub enum AdjustmentStatus {
+    #[default]
+    Draft,
+    Posted,
+    Cancelled,
+}
+
+// Display trait outputs snake_case (for DB writes and logging)
+impl fmt::Display for AdjustmentStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Draft => write!(f, "draft"),
+            Self::Posted => write!(f, "posted"),
+            Self::Cancelled => write!(f, "cancelled"),
+        }
+    }
+}
+
+// FromStr trait parses snake_case (for DB reads)
+impl FromStr for AdjustmentStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "draft" => Ok(Self::Draft),
+            "posted" => Ok(Self::Posted),
+            "cancelled" => Ok(Self::Cancelled),
+            _ => Err(format!("Unknown status: {}", s)),
+        }
+    }
+}
+
+// State machine: validate transitions
+impl AdjustmentStatus {
+    pub fn can_transition_to(&self, new_status: AdjustmentStatus) -> bool {
+        match (self, new_status) {
+            (AdjustmentStatus::Draft, AdjustmentStatus::Posted) => true,
+            (AdjustmentStatus::Draft, AdjustmentStatus::Cancelled) => true,
+            _ => false,
+        }
+    }
+}
+```
+
+**Database Migration (PostgreSQL ENUM):**
+
+```sql
+-- migrations/YYYYMMDD_create_adjustments.sql
+
+-- Create enum type with snake_case values
+CREATE TYPE adjustment_status AS ENUM ('draft', 'posted', 'cancelled');
+
+CREATE TABLE adjustments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    status adjustment_status NOT NULL DEFAULT 'draft',
+    -- ...
+);
+
+-- Index for filtering by status
+CREATE INDEX idx_adjustments_status ON adjustments(tenant_id, status);
+```
+
+**Repository Usage:**
+
+```rust
+// infra/src/repositories/adjustment.rs
+
+// ✅ CORRECT - Use to_string() for writes (outputs snake_case)
+sqlx::query!(
+    "INSERT INTO adjustments (..., status) VALUES (..., $1::adjustment_status)",
+    adjustment.status.to_string(),  // "draft"
+)
+
+// ✅ CORRECT - Use FromStr for reads
+let status = AdjustmentStatus::from_str(&row.status)
+    .map_err(|e| AppError::DataCorruption(e))?;
+
+// ✅ CORRECT - Direct query with snake_case
+sqlx::query!(
+    "SELECT * FROM adjustments WHERE status = 'draft'"
+)
+```
+
+**TypeScript Types:**
+
+```typescript
+// frontend/src/lib/types/inventory.ts
+
+// String literal type matching API/DB values exactly
+export type AdjustmentStatus = 'draft' | 'posted' | 'cancelled';
+
+// No enum mapping needed - use directly
+interface Adjustment {
+  id: string;
+  status: AdjustmentStatus;
+}
+
+// Usage - zero transformation
+if (adjustment.status === 'draft') {
+  // ...
+}
+```
+
+**Benefits:**
+- ✅ **Zero transformation**: Same value from DB to UI
+- ✅ **Type-safe**: PostgreSQL ENUM + Rust enum + TypeScript literals
+- ✅ **Queryable**: `SELECT * FROM adjustments WHERE status = 'draft'`
+- ✅ **Debuggable**: Logs show `status: "in_progress"` not `status: 2`
 
 ### 3.4 Frontend Coding Standards
 
@@ -3399,8 +3642,134 @@ proxy: {
 - Document which features have API support vs static data
 - Review related pages when fixing bugs
 
+### D.10 API Client Field Naming Mismatch (camelCase vs snake_case)
+
+**Symptom**: POST/PUT requests return 422 Unprocessable Entity. GET responses have undefined values.
+
+**Root Cause**: 
+- Frontend sends camelCase fields but backend expects snake_case
+- Response transform functions access snake_case but `apiClient` already converted to camelCase
+
+**Example**:
+```typescript
+// Backend expects: { product_id: "...", warehouse_id: "..." }
+// Frontend sends: { productId: "...", warehouseId: "..." }
+// Result: 422 Unprocessable Entity
+
+// apiClient returns: { adjustmentId: "...", warehouseId: "..." }
+// Transform accesses: adj.adjustment_id, adj.warehouse_id
+// Result: undefined values
+```
+
+**Solution**:
+1. **For requests**: Transform camelCase to snake_case before sending
+```typescript
+function transformRequestToSnakeCase(data: CreateRequest) {
+  return {
+    product_id: data.productId,
+    warehouse_id: data.warehouseId,
+    // ...
+  };
+}
+```
+
+2. **For responses**: Access camelCase fields (since apiClient auto-transforms)
+```typescript
+// CORRECT - apiClient already converted snake_case to camelCase
+function transformFromBackend(item: Record<string, unknown>) {
+  return {
+    adjustmentId: item.adjustmentId as string,  // NOT item.adjustment_id
+    warehouseId: item.warehouseId as string,    // NOT item.warehouse_id
+  };
+}
+```
+
+**Prevention**:
+- Understand `apiClient` behavior: check if it auto-transforms responses
+- Test full CRUD cycle: create → verify in list → edit → verify → delete
+- Use network tab to compare sent request body vs expected format
+
+**Reference**: See `docs/BUGS_FIXED.md` Bug #7
+
+### D.11 Undefined Values Causing Runtime Crashes
+
+**Symptom**: Console error `Cannot read properties of undefined (reading 'slice')` or similar.
+
+**Root Cause**: Calling string/array methods on undefined values without null checks.
+
+**Example**:
+```typescript
+// Crashes if warehouseId is undefined
+function getWarehouseName(warehouseId: string): string {
+  return warehouse?.name || warehouseId.slice(0, 8); // CRASH!
+}
+```
+
+**Solution**:
+```typescript
+function getWarehouseName(warehouseId: string | undefined | null): string {
+  if (!warehouseId) return '-';
+  return warehouse?.name || warehouseId.slice(0, 8);
+}
+```
+
+**Prevention**:
+- Always add null checks before calling methods on values from API
+- Use TypeScript union types `| undefined | null` for optional values
+- Provide meaningful fallback displays instead of crashing
+
+**Reference**: See `docs/BUGS_FIXED.md` Bug #8
+
+### D.12 Svelte Each Block Duplicate Key Error
+
+**Symptom**: Console shows `each_key_duplicate` error. Table/list renders incorrectly.
+
+**Root Cause**: Using empty or undefined values as keys in `{#each}` blocks.
+
+**Example**:
+```svelte
+<!-- Bug: multiple items with empty adjustmentId cause duplicate key '' -->
+{#each items as item (item.id)}
+```
+
+**Solution**:
+```svelte
+<!-- Use fallback key with index for items without valid ID -->
+{#each items as item, index (item.id || `temp-${index}`)}
+```
+
+**Prevention**:
+- Always use fallback key pattern: `(item.id || \`temp-${index}\`)`
+- After creating items, reload from API to get real IDs instead of adding incomplete items to state
+- Verify each block keys are unique, especially after CRUD operations
+
+**Reference**: See `docs/BUGS_FIXED.md` Bug #9
+
+### D.13 Security Testing Gaps
+
+**Symptom**: Security vulnerabilities discovered in production or penetration testing.
+
+**Root Cause**: Not testing security attack vectors during development.
+
+**Mandatory Security Tests**:
+1. **SQL Injection**: Test text inputs with `'; DROP TABLE users; --`
+2. **XSS Attack**: Test with `<script>alert('XSS')</script>`
+3. **Boundary Values**: Test with 0, negative numbers, very large numbers
+4. **Invalid UUIDs**: Test with malformed or non-existent IDs
+
+**Expected Behavior**:
+- SQL injection payloads should be stored as literal text, not executed
+- XSS scripts should be escaped/rendered as text, not executed
+- Boundary values should be validated or handled gracefully
+- Invalid IDs should return "Not Found" errors
+
+**Prevention**:
+- Include security test cases in every module's test plan
+- Use Chrome DevTools to verify payloads are properly escaped
+- Check database directly to verify SQL injection wasn't executed
+
 ---
 
-**Document Version:** 1.1
-**Last Updated:** 2026-01-27
+**Document Version:** 1.3
+**Last Updated:** 2026-01-29
 **Author:** Claude (AI Agent)

@@ -30,6 +30,14 @@ pub trait StockTakeRepository: Send + Sync {
         stock_take_id: Uuid,
     ) -> Result<Option<StockTake>, AppError>;
 
+    /// Check if warehouse has an active stock take (InProgress status)
+    /// Used for warehouse-level locking during stock take
+    async fn has_active_stock_take(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+    ) -> Result<Option<StockTake>, AppError>;
+
     /// Update stock take status
     async fn update_status(
         &self,

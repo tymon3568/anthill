@@ -30,6 +30,8 @@
 	let name = $state('');
 	let description = $state('');
 	let productType = $state<'goods' | 'service' | 'consumable'>('goods');
+	let barcode = $state('');
+	let barcodeType = $state<'ean13' | 'upc_a' | 'isbn' | 'custom' | ''>('');
 	let categoryId = $state('');
 	let trackInventory = $state(true);
 	let trackingMethod = $state<'none' | 'lot' | 'serial'>('none');
@@ -102,6 +104,14 @@
 			errors.costPrice = 'Cost price cannot be negative';
 		}
 
+		if (barcode && barcode.length > 50) {
+			errors.barcode = 'Barcode must be 50 characters or less';
+		}
+
+		if (barcode && !barcodeType) {
+			errors.barcodeType = 'Please select a barcode type';
+		}
+
 		return Object.keys(errors).length === 0;
 	}
 
@@ -119,6 +129,8 @@
 				name: name.trim(),
 				description: description.trim() || undefined,
 				productType,
+				barcode: barcode.trim() || undefined,
+				barcodeType: barcodeType || undefined,
 				categoryId: categoryId || undefined,
 				trackInventory,
 				trackingMethod,
@@ -275,6 +287,53 @@
 							</option>
 						{/each}
 					</select>
+				</div>
+
+				<div class="grid grid-cols-2 gap-4">
+					<div class="space-y-2">
+						<Label for="barcode">Barcode</Label>
+						<Input
+							id="barcode"
+							bind:value={barcode}
+							placeholder="e.g., 5901234123457"
+							class={errors.barcode ? 'border-destructive' : ''}
+						/>
+						{#if errors.barcode}
+							<p class="text-sm text-destructive">{errors.barcode}</p>
+						{/if}
+					</div>
+					<div class="space-y-2">
+						<Label for="barcodeType">Barcode Type</Label>
+						<select
+							id="barcodeType"
+							bind:value={barcodeType}
+							class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm {errors.barcodeType
+								? 'border-destructive'
+								: ''}"
+						>
+							<option value="">Select type...</option>
+							<option value="ean13">EAN-13</option>
+							<option value="upc_a">UPC-A</option>
+							<option value="isbn">ISBN</option>
+							<option value="custom">Custom</option>
+						</select>
+						{#if errors.barcodeType}
+							<p class="text-sm text-destructive">{errors.barcodeType}</p>
+						{/if}
+						<p class="text-xs text-muted-foreground">
+							{#if barcodeType === 'ean13'}
+								European Article Number (13 digits)
+							{:else if barcodeType === 'upc_a'}
+								Universal Product Code (12 digits)
+							{:else if barcodeType === 'isbn'}
+								International Standard Book Number
+							{:else if barcodeType === 'custom'}
+								Custom barcode format
+							{:else}
+								Select a barcode type for scanning
+							{/if}
+						</p>
+					</div>
 				</div>
 			</CardContent>
 		</Card>

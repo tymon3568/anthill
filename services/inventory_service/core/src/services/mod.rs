@@ -3,6 +3,7 @@
 //! This module contains trait definitions for business logic operations.
 //! No implementations here - pure interfaces.
 
+pub mod adjustment;
 pub mod cache;
 pub mod category;
 pub mod cycle_count;
@@ -14,6 +15,8 @@ pub mod lot_serial;
 
 pub mod picking_method;
 pub mod product;
+pub mod product_image;
+pub mod product_import;
 pub mod product_variant;
 pub mod quality;
 pub mod receipt;
@@ -39,6 +42,8 @@ pub use cache::{CacheService, InventoryCache, ProductCache};
 pub use inventory::InventoryService;
 pub use lot_serial::LotSerialService;
 pub use product::ProductService;
+pub use product_image::ProductImageService;
+pub use product_import::ProductImportService;
 pub use product_variant::ProductVariantService;
 pub use receipt::ReceiptService;
 pub use reconciliation::StockReconciliationService;
@@ -50,6 +55,7 @@ pub use transfer::TransferService;
 pub use valuation::ValuationService;
 
 // New services for MVP P1 features
+pub use adjustment::AdjustmentService;
 pub use cycle_count::CycleCountingService;
 pub use reports::ReportsService;
 pub use scrap::ScrapService;

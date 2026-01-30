@@ -10,16 +10,16 @@ import type {
 	CreateTransferRequest,
 	PaginationInfo
 } from '$lib/types/inventory';
+import type {
+	StockTake,
+	StockTakeLine,
+	StockTakeStatus,
+	CreateStockTakeRequest,
+	CountStockTakeRequest,
+	StockTakeAdjustment
+} from '$lib/types/stock-take';
 import { transferApi } from '$lib/api/inventory/transfers';
-import {
-	stockTakeApi,
-	type StockTakeResponse,
-	type StockTakeLineResponse,
-	type StockTakeStatus,
-	type CreateStockTakeRequest,
-	type CountStockTakeRequest,
-	type StockAdjustmentResponse
-} from '$lib/api/inventory/stock-take';
+import { stockTakeApi } from '$lib/api/inventory/stock-take';
 
 // =============================================================================
 // Transfer Types (for Store)
@@ -319,10 +319,10 @@ export const transferStore = {
 // =============================================================================
 
 interface StockTakeState {
-	items: StockTakeResponse[];
-	selected: StockTakeResponse | null;
-	lines: StockTakeLineResponse[];
-	adjustments: StockAdjustmentResponse[];
+	items: StockTake[];
+	selected: StockTake | null;
+	lines: StockTakeLine[];
+	adjustments: StockTakeAdjustment[];
 	pagination: { page: number; limit: number; total: number; totalPages: number } | null;
 	isLoading: boolean;
 	error: string | null;
@@ -363,7 +363,7 @@ export const stockTakeStore = {
 	/**
 	 * Get a single stock take by ID with lines
 	 */
-	async get(stockTakeId: string): Promise<StockTakeResponse | null> {
+	async get(stockTakeId: string): Promise<StockTake | null> {
 		stockTakeState.isLoading = true;
 		stockTakeState.error = null;
 
@@ -384,7 +384,7 @@ export const stockTakeStore = {
 	/**
 	 * Create a new stock take session
 	 */
-	async create(data: CreateStockTakeRequest): Promise<StockTakeResponse | null> {
+	async create(data: CreateStockTakeRequest): Promise<StockTake | null> {
 		stockTakeState.isLoading = true;
 		stockTakeState.error = null;
 
@@ -460,7 +460,7 @@ export const stockTakeStore = {
 	/**
 	 * Select a stock take
 	 */
-	select(stockTake: StockTakeResponse | null): void {
+	select(stockTake: StockTake | null): void {
 		stockTakeState.selected = stockTake;
 	},
 

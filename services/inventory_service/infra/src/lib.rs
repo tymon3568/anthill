@@ -10,6 +10,7 @@
 
 pub mod repositories;
 pub mod services;
+pub mod storage;
 
 /// Helper type for infra-internal transaction operations
 pub type InfraTx<'a> = &'a mut sqlx::Transaction<'a, sqlx::Postgres>;

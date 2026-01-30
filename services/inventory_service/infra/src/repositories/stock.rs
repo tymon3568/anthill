@@ -263,9 +263,9 @@ impl PgInventoryLevelRepository {
         Self { pool }
     }
 
-    /// Internal helper: Update available quantity within a transaction
+    /// Internal helper: Upsert available quantity within a transaction
     /// This is used by services for transactional orchestration
-    /// Note: Assumes the transaction already holds the necessary locks
+    /// Uses upsert pattern: insert if not exists, or update existing record
     pub async fn update_available_quantity_with_tx<'a>(
         &self,
         mut tx: sqlx::Transaction<'a, sqlx::Postgres>,
@@ -274,15 +274,17 @@ impl PgInventoryLevelRepository {
         product_id: Uuid,
         quantity_change: i64,
     ) -> Result<sqlx::Transaction<'a, sqlx::Postgres>, AppError> {
-        // Note: In transactional context, the caller should have already acquired
-        // the necessary locks (e.g., SELECT ... FOR UPDATE) before calling this method
-
-        let result = sqlx::query!(
+        // Use upsert pattern: insert with quantity_change if not exists,
+        // or update existing record with the delta.
+        // Note: location_id is NULL for warehouse-level inventory tracking
+        sqlx::query!(
             r#"
-            UPDATE inventory_levels
-            SET available_quantity = available_quantity + $4,
+            INSERT INTO inventory_levels (tenant_id, warehouse_id, location_id, product_id, available_quantity, reserved_quantity)
+            VALUES ($1, $2, NULL, $3, GREATEST($4::bigint, 0), 0)
+            ON CONFLICT (tenant_id, warehouse_id, location_id, product_id) WHERE deleted_at IS NULL
+            DO UPDATE SET
+                available_quantity = GREATEST(inventory_levels.available_quantity + $4::bigint, 0),
                 updated_at = NOW()
-            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = $3 AND deleted_at IS NULL
             "#,
             tenant_id,
             warehouse_id,
@@ -292,13 +294,6 @@ impl PgInventoryLevelRepository {
         .execute(tx.deref_mut())
         .await
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
-
-        if result.rows_affected() == 0 {
-            return Err(AppError::NotFound(format!(
-                "Inventory level not found for product {} in warehouse {}",
-                product_id, warehouse_id
-            )));
-        }
 
         Ok(tx)
     }
@@ -330,6 +325,41 @@ impl InventoryLevelRepository for PgInventoryLevelRepository {
         .map_err(|e| AppError::DatabaseError(e.to_string()))?;
 
         Ok(inventory_level)
+    }
+
+    async fn find_by_products(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+        product_ids: &[Uuid],
+    ) -> Result<std::collections::HashMap<Uuid, InventoryLevel>, AppError> {
+        if product_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        let inventory_levels = sqlx::query_as!(
+            InventoryLevel,
+            r#"
+            SELECT
+                inventory_id, tenant_id, warehouse_id, product_id, available_quantity, reserved_quantity,
+                created_at, updated_at, deleted_at
+            FROM inventory_levels
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND product_id = ANY($3) AND deleted_at IS NULL
+            "#,
+            tenant_id,
+            warehouse_id,
+            product_ids
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(e.to_string()))?;
+
+        let map = inventory_levels
+            .into_iter()
+            .map(|il| (il.product_id, il))
+            .collect();
+
+        Ok(map)
     }
 
     async fn update_available_quantity(

@@ -10,7 +10,9 @@ use inventory_service_core::domains::inventory::dto::search_dto::{
     AppliedFilters, ProductSearchRequest, ProductSearchResponse, ProductSortBy,
     SearchSuggestionsRequest, SearchSuggestionsResponse, SortOrder,
 };
-use inventory_service_core::domains::inventory::product::{Product, ProductTrackingMethod};
+use inventory_service_core::domains::inventory::product::{
+    BarcodeType, Product, ProductTrackingMethod,
+};
 use inventory_service_core::repositories::product::ProductRepository;
 use inventory_service_core::Result;
 
@@ -134,11 +136,21 @@ impl ProductRepository for ProductRepositoryImpl {
         }
 
         // Add status filters
-        if request.active_only.unwrap_or(true) {
-            query_builder.push(" AND p.is_active = true");
+        // active_only: Some(true) = show only active, Some(false) = show only inactive, None = show all
+        if let Some(active) = request.active_only {
+            if active {
+                query_builder.push(" AND p.is_active = true");
+            } else {
+                query_builder.push(" AND p.is_active = false");
+            }
         }
-        if request.sellable_only.unwrap_or(true) {
-            query_builder.push(" AND p.is_sellable = true");
+        // sellable_only: Some(true) = show only sellable, Some(false) = show only non-sellable, None = show all
+        if let Some(sellable) = request.sellable_only {
+            if sellable {
+                query_builder.push(" AND p.is_sellable = true");
+            } else {
+                query_builder.push(" AND p.is_sellable = false");
+            }
         }
 
         // Add in-stock filter
@@ -266,11 +278,20 @@ impl ProductRepository for ProductRepositoryImpl {
             }
         }
 
-        if request.active_only.unwrap_or(true) {
-            count_builder.push(" AND p.is_active = true");
+        // Add status filters (must match main query logic)
+        if let Some(active) = request.active_only {
+            if active {
+                count_builder.push(" AND p.is_active = true");
+            } else {
+                count_builder.push(" AND p.is_active = false");
+            }
         }
-        if request.sellable_only.unwrap_or(true) {
-            count_builder.push(" AND p.is_sellable = true");
+        if let Some(sellable) = request.sellable_only {
+            if sellable {
+                count_builder.push(" AND p.is_sellable = true");
+            } else {
+                count_builder.push(" AND p.is_sellable = false");
+            }
         }
 
         // Add in-stock filter (must match main query logic)
@@ -425,7 +446,7 @@ impl ProductRepository for ProductRepositoryImpl {
             r#"
             SELECT
                 product_id, tenant_id, sku, name, description,
-                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
@@ -446,6 +467,8 @@ impl ProductRepository for ProductRepositoryImpl {
             name: row.name,
             description: row.description,
             product_type: row.product_type,
+            barcode: row.barcode,
+            barcode_type: row.barcode_type.and_then(|s| s.parse::<BarcodeType>().ok()),
             category_id: row.category_id,
             item_group_id: row.item_group_id,
             track_inventory: row.track_inventory,
@@ -479,7 +502,7 @@ impl ProductRepository for ProductRepositoryImpl {
             r#"
             SELECT
                 product_id, tenant_id, sku, name, description,
-                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
@@ -502,6 +525,8 @@ impl ProductRepository for ProductRepositoryImpl {
                 name: row.name,
                 description: row.description,
                 product_type: row.product_type,
+                barcode: row.barcode,
+                barcode_type: row.barcode_type.and_then(|s| s.parse::<BarcodeType>().ok()),
                 category_id: row.category_id,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
@@ -534,7 +559,7 @@ impl ProductRepository for ProductRepositoryImpl {
             r#"
             SELECT
                 product_id, tenant_id, sku, name, description,
-                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
@@ -555,6 +580,8 @@ impl ProductRepository for ProductRepositoryImpl {
             name: row.name,
             description: row.description,
             product_type: row.product_type,
+            barcode: row.barcode,
+            barcode_type: row.barcode_type.and_then(|s| s.parse::<BarcodeType>().ok()),
             category_id: row.category_id,
             item_group_id: row.item_group_id,
             track_inventory: row.track_inventory,
@@ -580,20 +607,18 @@ impl ProductRepository for ProductRepositoryImpl {
     }
 
     async fn find_by_barcode(&self, tenant_id: Uuid, barcode: &str) -> Result<Option<Product>> {
-        // First, try to find in product_variants table
+        // First, try to find in products.barcode column (new dedicated field)
         let row = sqlx::query!(
             r#"
             SELECT
-                p.product_id, p.tenant_id, p.sku, p.name, p.description,
-                p.product_type, p.category_id, p.item_group_id, p.track_inventory, p.tracking_method,
-                p.default_uom_id, p.sale_price, p.cost_price, p.currency_code,
-                p.weight_grams, p.dimensions, p.attributes,
-                p.is_active, p.is_sellable, p.is_purchaseable,
-                p.created_at, p.updated_at, p.deleted_at
-            FROM product_variants pv
-            JOIN products p ON pv.parent_product_id = p.product_id
-            WHERE pv.tenant_id = $1 AND pv.barcode = $2 AND pv.deleted_at IS NULL
-              AND p.deleted_at IS NULL
+                product_id, tenant_id, sku, name, description,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            FROM products
+            WHERE tenant_id = $1 AND barcode = $2 AND deleted_at IS NULL
             LIMIT 1
             "#,
             tenant_id,
@@ -610,6 +635,8 @@ impl ProductRepository for ProductRepositoryImpl {
                 name: row.name,
                 description: row.description,
                 product_type: row.product_type,
+                barcode: row.barcode,
+                barcode_type: row.barcode_type.and_then(|s| s.parse::<BarcodeType>().ok()),
                 category_id: row.category_id,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
@@ -635,19 +662,20 @@ impl ProductRepository for ProductRepositoryImpl {
             return Ok(Some(product));
         }
 
-        // If not found in variants, try to find in products.attributes JSONB field
-        // Assume barcode is stored as {"barcode": "value"} in attributes
+        // Second, try to find in product_variants table
         let row = sqlx::query!(
             r#"
             SELECT
-                product_id, tenant_id, sku, name, description,
-                product_type, category_id, item_group_id, track_inventory, tracking_method,
-                default_uom_id, sale_price, cost_price, currency_code,
-                weight_grams, dimensions, attributes,
-                is_active, is_sellable, is_purchaseable,
-                created_at, updated_at, deleted_at
-            FROM products
-            WHERE tenant_id = $1 AND attributes->>'barcode' = $2 AND deleted_at IS NULL
+                p.product_id, p.tenant_id, p.sku, p.name, p.description,
+                p.product_type, p.barcode, p.barcode_type, p.category_id, p.item_group_id, p.track_inventory, p.tracking_method,
+                p.default_uom_id, p.sale_price, p.cost_price, p.currency_code,
+                p.weight_grams, p.dimensions, p.attributes,
+                p.is_active, p.is_sellable, p.is_purchaseable,
+                p.created_at, p.updated_at, p.deleted_at
+            FROM product_variants pv
+            JOIN products p ON pv.parent_product_id = p.product_id
+            WHERE pv.tenant_id = $1 AND pv.barcode = $2 AND pv.deleted_at IS NULL
+              AND p.deleted_at IS NULL
             LIMIT 1
             "#,
             tenant_id,
@@ -664,6 +692,8 @@ impl ProductRepository for ProductRepositoryImpl {
                 name: row.name,
                 description: row.description,
                 product_type: row.product_type,
+                barcode: row.barcode,
+                barcode_type: row.barcode_type.and_then(|s| s.parse::<BarcodeType>().ok()),
                 category_id: row.category_id,
                 item_group_id: row.item_group_id,
                 track_inventory: row.track_inventory,
@@ -694,27 +724,28 @@ impl ProductRepository for ProductRepositoryImpl {
 
     async fn create(&self, product: &Product) -> Result<Product> {
         let tracking_method_str = product.tracking_method.to_string();
+        let barcode_type_str = product.barcode_type.as_ref().map(|bt| bt.to_string());
 
         let row = sqlx::query!(
             r#"
             INSERT INTO products (
                 product_id, tenant_id, sku, name, description,
-                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
                 created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5,
-                $6, $7, $8, $9, $10,
-                $11, $12, $13, $14,
-                $15, $16, $17,
-                $18, $19, $20,
-                $21, $22
+                $6, $7, $8, $9, $10, $11, $12,
+                $13, $14, $15, $16,
+                $17, $18, $19,
+                $20, $21, $22,
+                $23, $24
             )
             RETURNING
                 product_id, tenant_id, sku, name, description,
-                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
@@ -726,6 +757,8 @@ impl ProductRepository for ProductRepositoryImpl {
             product.name,
             product.description,
             product.product_type,
+            product.barcode,
+            barcode_type_str,
             product.category_id,
             product.item_group_id,
             product.track_inventory,
@@ -753,6 +786,8 @@ impl ProductRepository for ProductRepositoryImpl {
             name: row.name,
             description: row.description,
             product_type: row.product_type,
+            barcode: row.barcode,
+            barcode_type: row.barcode_type.and_then(|s| s.parse::<BarcodeType>().ok()),
             category_id: row.category_id,
             item_group_id: row.item_group_id,
             track_inventory: row.track_inventory,
@@ -784,6 +819,7 @@ impl ProductRepository for ProductRepositoryImpl {
         product: &Product,
     ) -> Result<Product> {
         let tracking_method_str = product.tracking_method.to_string();
+        let barcode_type_str = product.barcode_type.as_ref().map(|bt| bt.to_string());
 
         let row = sqlx::query!(
             r#"
@@ -791,25 +827,27 @@ impl ProductRepository for ProductRepositoryImpl {
                 name = $3,
                 description = $4,
                 product_type = $5,
-                category_id = $6,
-                item_group_id = $7,
-                track_inventory = $8,
-                tracking_method = $9,
-                default_uom_id = $10,
-                sale_price = $11,
-                cost_price = $12,
-                currency_code = $13,
-                weight_grams = $14,
-                dimensions = $15,
-                attributes = $16,
-                is_active = $17,
-                is_sellable = $18,
-                is_purchaseable = $19,
-                updated_at = $20
+                barcode = $6,
+                barcode_type = $7,
+                category_id = $8,
+                item_group_id = $9,
+                track_inventory = $10,
+                tracking_method = $11,
+                default_uom_id = $12,
+                sale_price = $13,
+                cost_price = $14,
+                currency_code = $15,
+                weight_grams = $16,
+                dimensions = $17,
+                attributes = $18,
+                is_active = $19,
+                is_sellable = $20,
+                is_purchaseable = $21,
+                updated_at = $22
             WHERE tenant_id = $1 AND product_id = $2 AND deleted_at IS NULL
             RETURNING
                 product_id, tenant_id, sku, name, description,
-                product_type, category_id, item_group_id, track_inventory, tracking_method,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
                 default_uom_id, sale_price, cost_price, currency_code,
                 weight_grams, dimensions, attributes,
                 is_active, is_sellable, is_purchaseable,
@@ -820,6 +858,8 @@ impl ProductRepository for ProductRepositoryImpl {
             product.name,
             product.description,
             product.product_type,
+            product.barcode,
+            barcode_type_str,
             product.category_id,
             product.item_group_id,
             product.track_inventory,
@@ -847,6 +887,8 @@ impl ProductRepository for ProductRepositoryImpl {
             name: row.name,
             description: row.description,
             product_type: row.product_type,
+            barcode: row.barcode,
+            barcode_type: row.barcode_type.and_then(|s| s.parse::<BarcodeType>().ok()),
             category_id: row.category_id,
             item_group_id: row.item_group_id,
             track_inventory: row.track_inventory,
@@ -983,5 +1025,177 @@ impl ProductRepository for ProductRepositoryImpl {
         .await?;
 
         Ok(result.rows_affected() as i64)
+    }
+
+    // ========================================================================
+    // Import/Export Operations
+    // ========================================================================
+
+    async fn save(&self, product: &Product) -> Result<()> {
+        let tracking_method_str = product.tracking_method.to_string();
+        let barcode_type_str = product.barcode_type.as_ref().map(|bt| bt.to_string());
+
+        sqlx::query!(
+            r#"
+            INSERT INTO products (
+                product_id, tenant_id, sku, name, description,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at
+            ) VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10, $11, $12,
+                $13, $14, $15, $16,
+                $17, $18, $19,
+                $20, $21, $22,
+                $23, $24
+            )
+            ON CONFLICT (tenant_id, sku) DO UPDATE SET
+                name = EXCLUDED.name,
+                description = EXCLUDED.description,
+                product_type = EXCLUDED.product_type,
+                barcode = EXCLUDED.barcode,
+                barcode_type = EXCLUDED.barcode_type,
+                category_id = EXCLUDED.category_id,
+                item_group_id = EXCLUDED.item_group_id,
+                track_inventory = EXCLUDED.track_inventory,
+                tracking_method = EXCLUDED.tracking_method,
+                default_uom_id = EXCLUDED.default_uom_id,
+                sale_price = EXCLUDED.sale_price,
+                cost_price = EXCLUDED.cost_price,
+                currency_code = EXCLUDED.currency_code,
+                weight_grams = EXCLUDED.weight_grams,
+                dimensions = EXCLUDED.dimensions,
+                attributes = EXCLUDED.attributes,
+                is_active = EXCLUDED.is_active,
+                is_sellable = EXCLUDED.is_sellable,
+                is_purchaseable = EXCLUDED.is_purchaseable,
+                updated_at = EXCLUDED.updated_at
+            "#,
+            product.product_id,
+            product.tenant_id,
+            product.sku,
+            product.name,
+            product.description,
+            product.product_type,
+            product.barcode,
+            barcode_type_str,
+            product.category_id,
+            product.item_group_id,
+            product.track_inventory,
+            tracking_method_str,
+            product.default_uom_id,
+            product.sale_price,
+            product.cost_price,
+            product.currency_code,
+            product.weight_grams,
+            product.dimensions,
+            product.attributes,
+            product.is_active,
+            product.is_sellable,
+            product.is_purchaseable,
+            product.created_at,
+            product.updated_at
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn find_all_for_export(
+        &self,
+        tenant_id: Uuid,
+        category_id: Option<Uuid>,
+        product_type: Option<&str>,
+        is_active: Option<bool>,
+        search: Option<&str>,
+    ) -> Result<Vec<Product>> {
+        let mut query_builder = QueryBuilder::new(
+            r#"
+            SELECT
+                product_id, tenant_id, sku, name, description,
+                product_type, barcode, barcode_type, category_id, item_group_id, track_inventory, tracking_method,
+                default_uom_id, sale_price, cost_price, currency_code,
+                weight_grams, dimensions, attributes,
+                is_active, is_sellable, is_purchaseable,
+                created_at, updated_at, deleted_at
+            FROM products
+            WHERE tenant_id =
+            "#,
+        );
+        query_builder.push_bind(tenant_id);
+        query_builder.push(" AND deleted_at IS NULL");
+
+        if let Some(cat_id) = category_id {
+            query_builder.push(" AND category_id = ");
+            query_builder.push_bind(cat_id);
+        }
+
+        if let Some(ptype) = product_type {
+            query_builder.push(" AND product_type = ");
+            query_builder.push_bind(ptype);
+        }
+
+        if let Some(active) = is_active {
+            query_builder.push(" AND is_active = ");
+            query_builder.push_bind(active);
+        }
+
+        if let Some(s) = search {
+            let pattern = format!("%{}%", s);
+            query_builder.push(" AND (sku ILIKE ");
+            query_builder.push_bind(pattern.clone());
+            query_builder.push(" OR name ILIKE ");
+            query_builder.push_bind(pattern);
+            query_builder.push(")");
+        }
+
+        query_builder.push(" ORDER BY sku ASC");
+
+        let rows = query_builder.build().fetch_all(&self.pool).await?;
+
+        let products = rows
+            .into_iter()
+            .map(|row| Product {
+                product_id: row.get("product_id"),
+                tenant_id: row.get("tenant_id"),
+                sku: row.get("sku"),
+                name: row.get("name"),
+                description: row.get("description"),
+                product_type: row.get("product_type"),
+                barcode: row.get("barcode"),
+                barcode_type: row
+                    .get::<Option<String>, _>("barcode_type")
+                    .and_then(|s| s.parse::<BarcodeType>().ok()),
+                category_id: row.get("category_id"),
+                item_group_id: row.get("item_group_id"),
+                track_inventory: row.get("track_inventory"),
+                tracking_method: row
+                    .get::<Option<String>, _>("tracking_method")
+                    .unwrap_or_else(|| "none".to_string())
+                    .parse::<ProductTrackingMethod>()
+                    .unwrap_or(ProductTrackingMethod::None),
+                default_uom_id: row.get("default_uom_id"),
+                sale_price: row.get("sale_price"),
+                cost_price: row.get("cost_price"),
+                currency_code: row
+                    .get::<Option<String>, _>("currency_code")
+                    .unwrap_or_else(|| "VND".to_string()),
+                weight_grams: row.get("weight_grams"),
+                dimensions: row.get("dimensions"),
+                attributes: row.get("attributes"),
+                is_active: row.get("is_active"),
+                is_sellable: row.get("is_sellable"),
+                is_purchaseable: row.get("is_purchaseable"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+                deleted_at: row.get("deleted_at"),
+            })
+            .collect();
+
+        Ok(products)
     }
 }

@@ -219,4 +219,37 @@ pub trait ProductRepository: Send + Sync {
     /// # Returns
     /// Number of products deleted
     async fn bulk_delete(&self, tenant_id: Uuid, product_ids: &[Uuid]) -> Result<i64>;
+
+    // ========================================================================
+    // Import/Export Operations
+    // ========================================================================
+
+    /// Save a product (insert or update)
+    ///
+    /// # Arguments
+    /// * `product` - Product to save
+    ///
+    /// # Returns
+    /// Success status
+    async fn save(&self, product: &Product) -> Result<()>;
+
+    /// Find all products for export with optional filters
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier for isolation
+    /// * `category_id` - Optional category filter
+    /// * `product_type` - Optional product type filter
+    /// * `is_active` - Optional active status filter
+    /// * `search` - Optional search term for SKU/name
+    ///
+    /// # Returns
+    /// List of products matching the filters
+    async fn find_all_for_export(
+        &self,
+        tenant_id: Uuid,
+        category_id: Option<Uuid>,
+        product_type: Option<&str>,
+        is_active: Option<bool>,
+        search: Option<&str>,
+    ) -> Result<Vec<Product>>;
 }

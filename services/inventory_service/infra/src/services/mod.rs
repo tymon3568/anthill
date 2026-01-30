@@ -10,9 +10,12 @@ pub mod distributed_lock;
 pub mod inventory;
 pub mod lot_serial;
 
+pub mod adjustment;
 pub mod landed_cost;
 pub mod picking_method;
 pub mod product;
+pub mod product_image;
+pub mod product_import;
 pub mod product_variant;
 pub mod putaway;
 pub mod quality;
@@ -51,6 +54,8 @@ pub use inventory::InventoryServiceImpl;
 pub use landed_cost::LandedCostServiceImpl;
 pub use lot_serial::LotSerialServiceImpl;
 pub use product::ProductServiceImpl;
+pub use product_image::ProductImageServiceImpl;
+pub use product_import::ProductImportServiceImpl;
 pub use product_variant::ProductVariantServiceImpl;
 pub use putaway::PgPutawayService;
 pub use quality::PgQualityControlPointService;
@@ -64,6 +69,7 @@ pub use transfer::PgTransferService;
 pub use valuation::ValuationServiceImpl;
 
 // New services for MVP P1 features
+pub use adjustment::PgAdjustmentService;
 pub use cycle_count::PgCycleCountingService;
 pub use reports::PgReportsService;
 pub use scrap::PgScrapService;

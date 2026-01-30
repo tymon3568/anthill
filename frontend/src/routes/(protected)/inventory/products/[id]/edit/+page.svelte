@@ -17,8 +17,10 @@
 		ProductResponse,
 		ProductUpdateRequest,
 		ProductTrackingMethod,
-		CategoryResponse
+		CategoryResponse,
+		BarcodeType
 	} from '$lib/types/inventory';
+	import ProductImageGallery from '$lib/components/inventory/ProductImageGallery.svelte';
 
 	// Get product ID from URL
 	const productId = $derived($page.params.id ?? '');
@@ -67,6 +69,8 @@
 			name: product.name,
 			description: product.description || '',
 			productType: product.productType,
+			barcode: product.barcode || '',
+			barcodeType: product.barcodeType || '',
 			categoryId: product.categoryId || '',
 			trackInventory: product.trackInventory,
 			trackingMethod: product.trackingMethod,
@@ -90,6 +94,8 @@
 		name: string;
 		description: string;
 		productType: string;
+		barcode: string;
+		barcodeType: BarcodeType | '';
 		categoryId: string;
 		trackInventory: boolean;
 		trackingMethod: ProductTrackingMethod;
@@ -106,6 +112,8 @@
 		name: '',
 		description: '',
 		productType: 'goods',
+		barcode: '',
+		barcodeType: '',
 		categoryId: '',
 		trackInventory: true,
 		trackingMethod: 'none',
@@ -173,6 +181,8 @@
 				name: formData.name.trim(),
 				description: formData.description.trim() || null,
 				productType: formData.productType,
+				barcode: formData.barcode.trim() || null,
+				barcodeType: formData.barcodeType || null,
 				categoryId: formData.categoryId || null,
 				trackInventory: formData.trackInventory,
 				trackingMethod: formData.trackingMethod,
@@ -340,8 +350,45 @@
 							{/each}
 						</select>
 					</div>
+
+					<div class="grid grid-cols-2 gap-4">
+						<div class="space-y-2">
+							<Label for="barcode">Barcode</Label>
+							<Input id="barcode" bind:value={formData.barcode} placeholder="e.g., 5901234123457" />
+						</div>
+						<div class="space-y-2">
+							<Label for="barcodeType">Barcode Type</Label>
+							<select
+								id="barcodeType"
+								bind:value={formData.barcodeType}
+								class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+							>
+								<option value="">Select type...</option>
+								<option value="ean13">EAN-13</option>
+								<option value="upc_a">UPC-A</option>
+								<option value="isbn">ISBN</option>
+								<option value="custom">Custom</option>
+							</select>
+							<p class="text-xs text-muted-foreground">
+								{#if formData.barcodeType === 'ean13'}
+									European Article Number (13 digits)
+								{:else if formData.barcodeType === 'upc_a'}
+									Universal Product Code (12 digits)
+								{:else if formData.barcodeType === 'isbn'}
+									International Standard Book Number
+								{:else if formData.barcodeType === 'custom'}
+									Custom barcode format
+								{:else}
+									Select a barcode type for scanning
+								{/if}
+							</p>
+						</div>
+					</div>
 				</CardContent>
 			</Card>
+
+			<!-- Product Images -->
+			<ProductImageGallery {productId} />
 
 			<!-- Pricing -->
 			<Card>

@@ -23,6 +23,9 @@ This module covers the comprehensive frontend implementation for the Inventory S
 | 08.10.13 | Scrap Management UI | Low | Todo | 08.10.08 |
 | 08.10.14 | Inventory Valuation UI | Medium | Todo | 08.10.03 |
 | 08.10.15 | Replenishment UI | Medium | Todo | 08.10.01 |
+| 08.10.16 | Variants Management UI | High | Todo | 08.10.10 |
+| 08.10.17 | Stock Levels UI | High | Todo | 08.10.02 |
+| 08.10.18 | Stock Adjustments UI | High | Todo | 08.10.02, 08.10.10 |
 
 ## Implementation Status (2026-01-27)
 
@@ -86,6 +89,7 @@ The following features have complete API clients but no UI routes yet:
 | Stock Transfers | transfers.ts | High |
 | Goods Receipts (GRN) | receipts.ts | High |
 | Stock Reconciliation | reconciliation.ts | High |
+| Stock Adjustments | adjustments.ts (to create) | High |
 | Lot/Serial Tracking | lot-serials.ts | Medium |
 | Reports | reports.ts | Medium |
 | Replenishment | replenishment.ts | Medium |
@@ -139,6 +143,9 @@ The following features have complete API clients but no UI routes yet:
 ├── /stock-takes           # Stock Take List (08.10.06)
 │   └── /[id]              # Stock Take Detail
 │       └── /count         # Counting Interface
+├── /adjustments           # Adjustments List (08.10.18)
+│   ├── /new               # Create Adjustment
+│   └── /[id]              # Adjustment Detail
 ├── /lots                  # Lot/Serial List (08.10.07)
 │   └── /[id]              # Lot Detail
 ├── /quality               # Quality Dashboard (08.10.08)

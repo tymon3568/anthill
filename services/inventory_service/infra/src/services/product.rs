@@ -121,6 +121,18 @@ impl ProductService for ProductServiceImpl {
         product.is_sellable = request.is_sellable.unwrap_or(true);
         product.is_purchaseable = request.is_purchaseable.unwrap_or(true);
 
+        // Apply barcode fields with validation
+        if let Some(ref barcode) = request.barcode {
+            // If barcode_type is provided, validate the barcode format
+            if let Some(ref barcode_type) = request.barcode_type {
+                barcode_type
+                    .validate_barcode(barcode)
+                    .map_err(|e| shared_error::AppError::ValidationError(e))?;
+            }
+            product.barcode = Some(barcode.clone());
+            product.barcode_type = request.barcode_type;
+        }
+
         // Save to repository
         self.repository.create(&product).await
     }
@@ -180,6 +192,8 @@ impl ProductService for ProductServiceImpl {
                     track_inventory: p.track_inventory,
                     tracking_method: inventory_service_core::domains::inventory::product::ProductTrackingMethod::None,
                     default_uom_id: None,
+                    barcode: None,
+                    barcode_type: None,
                     sale_price: p.sale_price,
                     cost_price: p.cost_price,
                     currency_code: p.currency_code,
@@ -266,6 +280,33 @@ impl ProductService for ProductServiceImpl {
             product.is_purchaseable = is_purchaseable;
         }
 
+        // Apply barcode fields with validation
+        if let Some(ref barcode) = request.barcode {
+            // Determine the barcode type to use for validation:
+            // 1. Use the new barcode_type from request if provided
+            // 2. Fall back to the existing product's barcode_type
+            let barcode_type_to_validate = request
+                .barcode_type
+                .as_ref()
+                .or(product.barcode_type.as_ref());
+
+            if let Some(barcode_type) = barcode_type_to_validate {
+                barcode_type
+                    .validate_barcode(barcode)
+                    .map_err(|e| shared_error::AppError::ValidationError(e))?;
+            }
+            product.barcode = Some(barcode.clone());
+        }
+        if let Some(barcode_type) = request.barcode_type {
+            // If barcode_type is being updated and product has a barcode, validate
+            if let Some(ref barcode) = product.barcode {
+                barcode_type
+                    .validate_barcode(barcode)
+                    .map_err(|e| shared_error::AppError::ValidationError(e))?;
+            }
+            product.barcode_type = Some(barcode_type);
+        }
+
         product.touch();
 
         // Save to repository
@@ -291,6 +332,13 @@ impl ProductService for ProductServiceImpl {
     async fn get_product_by_sku(&self, tenant_id: Uuid, sku: &str) -> Result<Product> {
         self.repository
             .find_by_sku(tenant_id, sku)
+            .await?
+            .ok_or_else(|| shared_error::AppError::NotFound("Product not found".to_string()))
+    }
+
+    async fn get_product_by_barcode(&self, tenant_id: Uuid, barcode: &str) -> Result<Product> {
+        self.repository
+            .find_by_barcode(tenant_id, barcode)
             .await?
             .ok_or_else(|| shared_error::AppError::NotFound("Product not found".to_string()))
     }

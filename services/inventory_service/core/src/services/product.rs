@@ -160,6 +160,19 @@ pub trait ProductService: Send + Sync {
     /// - `NotFound` if product doesn't exist
     async fn get_product_by_sku(&self, tenant_id: Uuid, sku: &str) -> Result<Product>;
 
+    /// Get product by barcode
+    ///
+    /// # Arguments
+    /// * `tenant_id` - Tenant identifier
+    /// * `barcode` - Product barcode (EAN, UPC, custom, etc.)
+    ///
+    /// # Returns
+    /// Product if found
+    ///
+    /// # Errors
+    /// - `NotFound` if product doesn't exist
+    async fn get_product_by_barcode(&self, tenant_id: Uuid, barcode: &str) -> Result<Product>;
+
     // ========================================================================
     // Analytics and Statistics (Future)
     // ========================================================================

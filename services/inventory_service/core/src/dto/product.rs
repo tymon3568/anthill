@@ -9,7 +9,7 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::domains::inventory::product::{Product, ProductTrackingMethod};
+use crate::domains::inventory::product::{BarcodeType, Product, ProductTrackingMethod};
 use crate::dto::common::PaginationInfo;
 
 /// Sort direction enum for product list queries
@@ -43,6 +43,13 @@ pub struct ProductCreateRequest {
     /// Product type (goods, service, consumable)
     #[validate(length(min = 1, max = 50))]
     pub product_type: String,
+
+    /// Barcode for product identification
+    #[validate(length(max = 50))]
+    pub barcode: Option<String>,
+
+    /// Type of barcode (ean13, upc_a, isbn, custom)
+    pub barcode_type: Option<BarcodeType>,
 
     /// Optional category ID for product organization
     pub category_id: Option<Uuid>,
@@ -107,6 +114,13 @@ pub struct ProductUpdateRequest {
     /// Product type
     #[validate(length(min = 1, max = 50))]
     pub product_type: Option<String>,
+
+    /// Barcode for product identification
+    #[validate(length(max = 50))]
+    pub barcode: Option<String>,
+
+    /// Type of barcode (ean13, upc_a, isbn, custom)
+    pub barcode_type: Option<BarcodeType>,
 
     /// Category ID for product organization
     pub category_id: Option<Uuid>,
@@ -173,6 +187,13 @@ pub struct ProductResponse {
 
     /// Product classification
     pub product_type: String,
+
+    /// Barcode for product identification
+    pub barcode: Option<String>,
+
+    /// Type of barcode
+    pub barcode_type: Option<BarcodeType>,
+
     pub category_id: Option<Uuid>,
     pub item_group_id: Option<Uuid>,
 
@@ -212,6 +233,8 @@ impl From<Product> for ProductResponse {
             name: product.name,
             description: product.description,
             product_type: product.product_type,
+            barcode: product.barcode,
+            barcode_type: product.barcode_type,
             category_id: product.category_id,
             item_group_id: product.item_group_id,
             track_inventory: product.track_inventory,

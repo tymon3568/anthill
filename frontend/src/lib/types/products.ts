@@ -11,6 +11,7 @@
 export type ProductType = 'goods' | 'service' | 'consumable';
 export type TrackingMethod = 'none' | 'lot' | 'serial';
 export type ProductStatus = 'active' | 'inactive' | 'archived';
+export type BarcodeType = 'ean13' | 'upc_a' | 'isbn' | 'custom';
 
 /**
  * Product entity matching database schema
@@ -22,6 +23,8 @@ export interface Product {
 	name: string;
 	description?: string;
 	productType: ProductType;
+	barcode?: string;
+	barcodeType?: BarcodeType;
 	categoryId?: string;
 	itemGroupId?: string;
 	trackInventory: boolean;
@@ -137,6 +140,8 @@ export interface CreateProductRequest {
 	name: string;
 	description?: string;
 	productType: ProductType;
+	barcode?: string;
+	barcodeType?: BarcodeType;
 	categoryId?: string;
 	trackInventory?: boolean;
 	trackingMethod?: TrackingMethod;
@@ -177,6 +182,8 @@ export interface ProductFormData {
 	name: string;
 	description: string;
 	productType: ProductType;
+	barcode: string;
+	barcodeType: BarcodeType | '';
 	categoryId: string;
 	trackInventory: boolean;
 	trackingMethod: TrackingMethod;

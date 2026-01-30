@@ -5,8 +5,10 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { productApi } from '$lib/api/inventory/products';
 	import { categoryApi } from '$lib/api/inventory/categories';
+	import ProductImportExportModal from '$lib/components/inventory/ProductImportExportModal.svelte';
 	import type { ProductResponse, ProductListParams, CategoryResponse } from '$lib/types/inventory';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { FileSpreadsheet } from 'lucide-svelte';
 
 	// State
 	let searchQuery = $state('');
@@ -28,6 +30,9 @@
 	let totalItems = $state(0);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
+
+	// Import/Export modal state
+	let showImportExportModal = $state(false);
 
 	// Category lookup map for efficient name retrieval
 	const categoryMap = $derived(new Map(categories.map((c) => [c.categoryId, c])));
@@ -220,7 +225,13 @@
 			<h1 class="text-2xl font-bold">Products</h1>
 			<p class="text-muted-foreground">Manage your product catalog</p>
 		</div>
-		<Button href="/inventory/products/new">Add Product</Button>
+		<div class="flex gap-2">
+			<Button variant="outline" onclick={() => (showImportExportModal = true)}>
+				<FileSpreadsheet class="mr-2 h-4 w-4" />
+				Import/Export
+			</Button>
+			<Button href="/inventory/products/new">Add Product</Button>
+		</div>
 	</div>
 
 	<!-- Filters -->
@@ -516,3 +527,10 @@
 		</CardContent>
 	</Card>
 </div>
+
+<!-- Import/Export Modal -->
+<ProductImportExportModal
+	bind:open={showImportExportModal}
+	onClose={() => (showImportExportModal = false)}
+	onImportComplete={() => fetchProducts()}
+/>

@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use inventory_service_core::repositories::putaway::PutawayService;
 use inventory_service_core::repositories::warehouse::WarehouseRepository;
+use inventory_service_core::services::adjustment::AdjustmentService;
 use inventory_service_core::services::category::CategoryService;
 use inventory_service_core::services::cycle_count::CycleCountingService;
 use inventory_service_core::services::delivery::DeliveryService;
@@ -14,6 +15,8 @@ use inventory_service_core::services::landed_cost::LandedCostService;
 use inventory_service_core::services::lot_serial::LotSerialService;
 use inventory_service_core::services::picking_method::PickingMethodService;
 use inventory_service_core::services::product::ProductService;
+use inventory_service_core::services::product_image::ProductImageService;
+use inventory_service_core::services::product_import::ProductImportService;
 use inventory_service_core::services::product_variant::ProductVariantService;
 use inventory_service_core::services::quality::QualityControlPointService;
 use inventory_service_core::services::receipt::ReceiptService;
@@ -38,6 +41,8 @@ pub struct AppState {
     pub lot_serial_service: Arc<dyn LotSerialService>,
     pub picking_method_service: Arc<dyn PickingMethodService>,
     pub product_service: Arc<dyn ProductService>,
+    pub product_image_service: Arc<dyn ProductImageService>,
+    pub product_import_service: Arc<dyn ProductImportService>,
     pub variant_service: Arc<dyn ProductVariantService>,
     pub valuation_service: Arc<dyn ValuationService>,
     pub warehouse_repository: Arc<dyn WarehouseRepository>,
@@ -51,6 +56,7 @@ pub struct AppState {
     pub quality_service: Arc<dyn QualityControlPointService>,
     pub putaway_service: Arc<dyn PutawayService>,
     pub scrap_service: Arc<dyn ScrapService>,
+    pub adjustment_service: Arc<dyn AdjustmentService>,
     pub stock_levels_service: Arc<dyn StockLevelsService>,
     pub landed_cost_service: Arc<dyn LandedCostService>,
     pub distributed_lock_service: Arc<dyn DistributedLockService>,
@@ -67,6 +73,8 @@ impl Clone for AppState {
             lot_serial_service: self.lot_serial_service.clone(),
             picking_method_service: Arc::clone(&self.picking_method_service),
             product_service: self.product_service.clone(),
+            product_image_service: self.product_image_service.clone(),
+            product_import_service: self.product_import_service.clone(),
             variant_service: self.variant_service.clone(),
             valuation_service: self.valuation_service.clone(),
             warehouse_repository: self.warehouse_repository.clone(),
@@ -80,6 +88,7 @@ impl Clone for AppState {
             quality_service: self.quality_service.clone(),
             putaway_service: self.putaway_service.clone(),
             scrap_service: self.scrap_service.clone(),
+            adjustment_service: self.adjustment_service.clone(),
             stock_levels_service: self.stock_levels_service.clone(),
             landed_cost_service: self.landed_cost_service.clone(),
             distributed_lock_service: self.distributed_lock_service.clone(),

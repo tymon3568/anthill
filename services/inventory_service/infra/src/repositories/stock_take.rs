@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use std::ops::DerefMut;
+use std::str::FromStr;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -26,18 +27,6 @@ impl PgStockTakeRepository {
         Self { pool }
     }
 
-    /// Convert database string to StockTakeStatus enum
-    fn string_to_stock_take_status(s: &str) -> Result<StockTakeStatus, AppError> {
-        match s {
-            "draft" => Ok(StockTakeStatus::Draft),
-            "scheduled" => Ok(StockTakeStatus::Scheduled),
-            "in_progress" => Ok(StockTakeStatus::InProgress),
-            "completed" => Ok(StockTakeStatus::Completed),
-            "cancelled" => Ok(StockTakeStatus::Cancelled),
-            _ => Err(AppError::DataCorruption(format!("Unknown stock take status: {}", s))),
-        }
-    }
-
     /// Internal helper: Finalize stock take within transaction
     /// This is used by services for transactional orchestration
     pub async fn finalize_with_tx<'a>(
@@ -54,7 +43,7 @@ impl PgStockTakeRepository {
             SET status = $1, completed_at = $2, assigned_to = $3, updated_at = NOW()
             WHERE tenant_id = $4 AND stock_take_id = $5 AND deleted_at IS NULL
             "#,
-            "completed",
+            StockTakeStatus::Completed.to_string(),
             completed_at,
             updated_by,
             tenant_id,
@@ -86,13 +75,7 @@ impl StockTakeRepository for PgStockTakeRepository {
             tenant_id,
             stock_take.stock_take_number,
             stock_take.warehouse_id,
-            match stock_take.status {
-                StockTakeStatus::Draft => "draft",
-                StockTakeStatus::Scheduled => "scheduled",
-                StockTakeStatus::InProgress => "in_progress",
-                StockTakeStatus::Completed => "completed",
-                StockTakeStatus::Cancelled => "cancelled",
-            },
+            stock_take.status.to_string(),
             stock_take.started_at,
             stock_take.created_by,
             stock_take.updated_by,
@@ -107,7 +90,8 @@ impl StockTakeRepository for PgStockTakeRepository {
             tenant_id: row.tenant_id,
             stock_take_number: row.stock_take_number,
             warehouse_id: row.warehouse_id,
-            status: Self::string_to_stock_take_status(&row.status)?,
+            status: StockTakeStatus::from_str(&row.status)
+                .map_err(|e| AppError::DataCorruption(e))?,
             started_at: row.started_at,
             completed_at: row.completed_at,
             created_by: row.created_by,
@@ -146,7 +130,53 @@ impl StockTakeRepository for PgStockTakeRepository {
                 tenant_id: r.tenant_id,
                 stock_take_number: r.stock_take_number,
                 warehouse_id: r.warehouse_id,
-                status: Self::string_to_stock_take_status(&r.status)?,
+                status: StockTakeStatus::from_str(&r.status)
+                    .map_err(|e| AppError::DataCorruption(e))?,
+                started_at: r.started_at,
+                completed_at: r.completed_at,
+                created_by: r.created_by,
+                updated_by: r.updated_by,
+                notes: r.notes,
+                created_at: r.created_at,
+                updated_at: r.updated_at,
+                deleted_at: r.deleted_at,
+                deleted_by: r.deleted_by,
+            })
+        })
+        .transpose()
+    }
+
+    async fn has_active_stock_take(
+        &self,
+        tenant_id: Uuid,
+        warehouse_id: Uuid,
+    ) -> Result<Option<StockTake>, AppError> {
+        // Find any stock take in InProgress status for this warehouse
+        let row = sqlx::query!(
+            r#"
+            SELECT stock_take_id, tenant_id, stock_take_number, warehouse_id, status,
+                   started_at, completed_at, created_by as created_by, assigned_to as updated_by, notes,
+                   created_at, updated_at, deleted_at, deleted_by
+            FROM stock_takes
+            WHERE tenant_id = $1 AND warehouse_id = $2 AND status = $3 AND deleted_at IS NULL
+            LIMIT 1
+            "#,
+            tenant_id,
+            warehouse_id,
+            StockTakeStatus::InProgress.to_string()
+        )
+        .fetch_optional(&*self.pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to check active stock take: {}", e)))?;
+
+        row.map(|r| -> Result<StockTake, AppError> {
+            Ok(StockTake {
+                stock_take_id: r.stock_take_id,
+                tenant_id: r.tenant_id,
+                stock_take_number: r.stock_take_number,
+                warehouse_id: r.warehouse_id,
+                status: StockTakeStatus::from_str(&r.status)
+                    .map_err(|e| AppError::DataCorruption(e))?,
                 started_at: r.started_at,
                 completed_at: r.completed_at,
                 created_by: r.created_by,
@@ -174,13 +204,7 @@ impl StockTakeRepository for PgStockTakeRepository {
             SET status = $1, assigned_to = $2, updated_at = NOW()
             WHERE tenant_id = $3 AND stock_take_id = $4 AND deleted_at IS NULL
             "#,
-            match status {
-                StockTakeStatus::Draft => "draft",
-                StockTakeStatus::Scheduled => "scheduled",
-                StockTakeStatus::InProgress => "in_progress",
-                StockTakeStatus::Completed => "completed",
-                StockTakeStatus::Cancelled => "cancelled",
-            },
+            status.to_string(),
             updated_by,
             tenant_id,
             stock_take_id
@@ -207,7 +231,7 @@ impl StockTakeRepository for PgStockTakeRepository {
             SET status = $1, completed_at = $2, assigned_to = $3, updated_at = NOW()
             WHERE tenant_id = $4 AND stock_take_id = $5 AND deleted_at IS NULL
             "#,
-            "completed",
+            StockTakeStatus::Completed.to_string(),
             completed_at,
             updated_by,
             tenant_id,
@@ -282,7 +306,8 @@ impl StockTakeRepository for PgStockTakeRepository {
                     tenant_id: r.tenant_id,
                     stock_take_number: r.stock_take_number,
                     warehouse_id: r.warehouse_id,
-                    status: Self::string_to_stock_take_status(&r.status)?,
+                    status: StockTakeStatus::from_str(&r.status)
+                        .map_err(|e| AppError::DataCorruption(e))?,
                     started_at: r.started_at,
                     completed_at: r.completed_at,
                     created_by: r.created_by,
@@ -572,8 +597,11 @@ impl StockTakeLineRepository for PgStockTakeLineRepository {
         for count in counts {
             separated.push("(");
             separated.push_bind_unseparated(count.line_id);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(count.actual_quantity);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(count.counted_by);
+            separated.push_unseparated(", ");
             separated.push_bind_unseparated(&count.notes);
             separated.push_unseparated(")");
         }

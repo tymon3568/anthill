@@ -2,11 +2,14 @@
 //!
 //! This module contains all request and response structures for the API.
 
+pub mod adjustment;
 pub mod category;
 pub mod common;
 pub mod cycle_count;
 pub mod delivery;
 pub mod product;
+pub mod product_image;
+pub mod product_import;
 pub mod product_variant;
 pub mod receipt;
 pub mod reconciliation;
@@ -29,6 +32,13 @@ pub use common::PaginationInfo;
 pub use product::{
     ProductCreateRequest, ProductListQuery, ProductListResponse, ProductResponse,
     ProductUpdateRequest,
+};
+pub use product_image::{
+    DeleteImageResponse, ProductImageResponse, ProductImagesListResponse, ReorderImagesRequest,
+    UpdateProductImageRequest, UploadImageResponse,
+};
+pub use product_import::{
+    ExportProductsQuery, ImportResult, ImportRowError, ImportValidationResult, ProductCsvRow,
 };
 pub use product_variant::{
     BulkVariantIds, BulkVariantOperationResponse, VariantCreateRequest, VariantListQuery,
@@ -89,4 +99,12 @@ pub use scrap::{
 // Stock Levels DTOs
 pub use stock_levels::{
     StockLevelListQuery, StockLevelListResponse, StockLevelResponse, StockLevelSummary, StockStatus,
+};
+
+// Stock Adjustment DTOs
+pub use adjustment::{
+    AddAdjustmentLinesRequest, AdjustmentDocument, AdjustmentDocumentResponse,
+    AdjustmentDocumentWithLinesResponse, AdjustmentLine, AdjustmentLineInput, AdjustmentListQuery,
+    AdjustmentListResponse, AdjustmentReasonCode, AdjustmentStatus, AdjustmentSummary,
+    AdjustmentType, CreateAdjustmentRequest, PostAdjustmentRequest,
 };

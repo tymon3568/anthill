@@ -246,6 +246,81 @@ class ApiClient {
 	async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
 		return this.request<T>(endpoint, { method: 'DELETE' });
 	}
+
+	/**
+	 * Upload a file using FormData (for multipart/form-data)
+	 * Note: Content-Type is NOT set manually - browser will set it with boundary
+	 */
+	async upload<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+		const url = `${this.baseURL}${endpoint}`;
+
+		// Build headers with tenant context (but NOT Content-Type - browser handles it)
+		const headers: Record<string, string> = {
+			'X-Idempotency-Key': generateIdempotencyKey()
+		};
+
+		// Add X-Tenant-ID header if tenant context is available
+		const tenantSlug = this.tenantSlug ?? getCurrentTenantSlug();
+		if (tenantSlug) {
+			headers['X-Tenant-ID'] = tenantSlug;
+		}
+
+		try {
+			const response = await fetch(url, {
+				method: 'POST',
+				headers,
+				body: formData,
+				credentials: 'include'
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({
+					message: 'Upload failed',
+					error: 'Upload failed'
+				}));
+
+				if (response.status === 401) {
+					if (typeof window !== 'undefined') {
+						window.location.href = '/login?error=session_expired';
+					}
+					return {
+						success: false,
+						error: 'Session expired'
+					};
+				}
+
+				return {
+					success: false,
+					error: errorData.error || errorData.message || `HTTP ${response.status}`
+				};
+			}
+
+			// Handle 204 No Content or empty responses
+			if (response.status === 204 || response.headers.get('content-length') === '0') {
+				return { success: true };
+			}
+
+			// Parse JSON only if content-type indicates JSON
+			const contentType = response.headers.get('content-type') ?? '';
+			let data: T;
+			if (contentType.includes('application/json')) {
+				const rawData = await response.json();
+				data = transformKeysToCamelCase<T>(rawData);
+			} else {
+				data = (await response.text()) as unknown as T;
+			}
+
+			return {
+				success: true,
+				data
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error'
+			};
+		}
+	}
 }
 
 // Export singleton instance

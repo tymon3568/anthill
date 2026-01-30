@@ -13,6 +13,8 @@ export type CategorySortField = 'name' | 'display_order' | 'created_at' | 'updat
 
 export type ProductTrackingMethod = 'none' | 'lot' | 'serial';
 
+export type BarcodeType = 'ean13' | 'upc_a' | 'isbn' | 'custom';
+
 export type LotSerialTrackingType = 'lot' | 'serial';
 
 export type LotSerialStatus = 'active' | 'expired' | 'quarantined' | 'disposed' | 'reserved';
@@ -182,6 +184,8 @@ export interface ProductResponse {
 	name: string;
 	description?: string | null;
 	productType: string;
+	barcode?: string | null;
+	barcodeType?: BarcodeType | null;
 	categoryId?: string | null;
 	trackInventory: boolean;
 	trackingMethod: ProductTrackingMethod;
@@ -205,6 +209,8 @@ export interface ProductCreateRequest {
 	name: string;
 	description?: string | null;
 	productType: string;
+	barcode?: string | null;
+	barcodeType?: BarcodeType | null;
 	categoryId?: string | null;
 	trackInventory?: boolean | null;
 	trackingMethod?: ProductTrackingMethod | null;
@@ -225,6 +231,8 @@ export interface ProductUpdateRequest {
 	name?: string | null;
 	description?: string | null;
 	productType?: string | null;
+	barcode?: string | null;
+	barcodeType?: BarcodeType | null;
 	categoryId?: string | null;
 	trackInventory?: boolean | null;
 	trackingMethod?: ProductTrackingMethod | null;
@@ -777,11 +785,117 @@ export interface ScanBarcodeResponse {
 
 export interface StockAdjustment {
 	adjustmentId: string;
+	tenantId: string;
+	moveId: string;
+	productId: string;
+	warehouseId: string;
+	reasonCode: string;
+	quantity: number;
+	notes: string | null;
+	approvedBy: string;
+	createdAt: string;
+	updatedAt: string;
+	// Enriched data from joins
+	product?: {
+		productId: string;
+		sku: string;
+		name: string;
+	};
+	warehouse?: {
+		warehouseId: string;
+		warehouseCode: string;
+		warehouseName: string;
+	};
+	stockMove?: {
+		moveId: string;
+		quantity: number;
+		moveType: string;
+		moveDate: string;
+		unitCost: number | null;
+	};
+	approvedByUser?: {
+		userId: string;
+		fullName: string;
+	};
+}
+
+// Legacy alias for backward compatibility (used in FinalizeReconciliationResponse)
+export interface StockAdjustmentLegacy {
+	adjustmentId: string;
 	productId: string;
 	warehouseId: string;
 	quantity: number;
 	reason: string;
 	adjustedAt: string;
+}
+
+export type AdjustmentReasonCode =
+	| 'COUNT_ERROR'
+	| 'STOCK_TAKE_VARIANCE'
+	| 'DAMAGE'
+	| 'EXPIRED'
+	| 'SCRAP'
+	| 'THEFT'
+	| 'LOST'
+	| 'FOUND'
+	| 'SAMPLE'
+	| 'PROMOTION'
+	| 'INTERNAL_USE'
+	| 'RETURN_TO_STOCK'
+	| 'WRITE_OFF'
+	| 'CORRECTION';
+
+export type AdjustmentDirection = 'increase' | 'decrease' | 'both';
+export type AdjustmentCategory = 'inventory_count' | 'quality' | 'loss' | 'other';
+
+export interface ReasonCodeOption {
+	code: AdjustmentReasonCode;
+	label: string;
+	direction: AdjustmentDirection;
+	category: AdjustmentCategory;
+	requiresApproval: boolean;
+}
+
+export interface CreateAdjustmentItem {
+	productId: string;
+	quantity: number; // Positive = increase, Negative = decrease
+	reasonCode: AdjustmentReasonCode;
+	locationId?: string | null;
+	lotSerialId?: string | null;
+	notes?: string | null;
+}
+
+export interface CreateAdjustmentRequest {
+	warehouseId: string;
+	items: CreateAdjustmentItem[];
+	notes?: string | null;
+}
+
+export interface CreateAdjustmentResponse {
+	adjustments: StockAdjustment[];
+	stockMovesCreated: number;
+}
+
+export interface AdjustmentListParams extends PaginationParams {
+	warehouseId?: string | null;
+	productId?: string | null;
+	reasonCode?: AdjustmentReasonCode | null;
+	dateFrom?: string | null;
+	dateTo?: string | null;
+	search?: string | null;
+}
+
+export interface AdjustmentListResponse {
+	adjustments: StockAdjustment[];
+	pagination: PaginationInfo;
+}
+
+export interface AdjustmentSummary {
+	totalAdjustments: number;
+	totalIncreases: number;
+	totalDecreases: number;
+	netChange: number;
+	byReasonCode: Record<string, number>;
 }
 
 // =============================================================================

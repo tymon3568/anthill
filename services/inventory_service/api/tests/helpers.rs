@@ -19,11 +19,11 @@ use inventory_service_infra::repositories::{
     ValuationSettingsRepositoryImpl, WarehouseRepositoryImpl,
 };
 use inventory_service_infra::services::{
-    CategoryServiceImpl, LandedCostServiceImpl, LotSerialServiceImpl, PgCycleCountingService,
-    PgPutawayService, PgQualityControlPointService, PgReplenishmentService, PgRmaService,
-    PgScrapService, PgStockLevelsService, PgStockReconciliationService, PgStockTakeService,
-    PgTransferService, PickingMethodServiceImpl, ProductVariantServiceImpl, ReceiptServiceImpl,
-    RedisDistributedLockService, ValuationServiceImpl,
+    CategoryServiceImpl, LandedCostServiceImpl, LotSerialServiceImpl, PgAdjustmentService,
+    PgCycleCountingService, PgPutawayService, PgQualityControlPointService, PgReplenishmentService,
+    PgRmaService, PgScrapService, PgStockLevelsService, PgStockReconciliationService,
+    PgStockTakeService, PgTransferService, PickingMethodServiceImpl, ProductVariantServiceImpl,
+    ReceiptServiceImpl, RedisDistributedLockService, ValuationServiceImpl,
 };
 use uuid::Uuid;
 
@@ -34,6 +34,141 @@ use inventory_service_api::state::AppState;
 use shared_auth::AuthUser;
 use shared_config::Config;
 use shared_db::init_pool;
+
+use async_trait::async_trait;
+use inventory_service_core::domains::inventory::product_image::ProductImage;
+use inventory_service_core::dto::product_image::{
+    DeleteImageResponse, ProductImagesListResponse, ReorderImagesRequest,
+    UpdateProductImageRequest, UploadImageResponse,
+};
+use inventory_service_core::dto::product_import::{
+    ExportProductsQuery, ImportResult, ImportValidationResult,
+};
+use inventory_service_core::services::product_image::ProductImageService;
+use inventory_service_core::services::product_import::ProductImportService;
+use shared_error::AppError;
+
+/// Stub implementation of ProductImageService for testing
+pub struct StubProductImageService;
+
+#[async_trait]
+impl ProductImageService for StubProductImageService {
+    async fn upload_image(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _file_data: Vec<u8>,
+        _file_name: &str,
+        _content_type: &str,
+    ) -> inventory_service_core::Result<UploadImageResponse> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImageService is not available in tests".to_string(),
+        ))
+    }
+
+    async fn list_images(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+    ) -> inventory_service_core::Result<ProductImagesListResponse> {
+        Ok(ProductImagesListResponse {
+            images: vec![],
+            total: 0,
+        })
+    }
+
+    async fn get_image(
+        &self,
+        _tenant_id: Uuid,
+        _image_id: Uuid,
+    ) -> inventory_service_core::Result<Option<ProductImage>> {
+        Ok(None)
+    }
+
+    async fn update_image(
+        &self,
+        _tenant_id: Uuid,
+        _image_id: Uuid,
+        _request: UpdateProductImageRequest,
+    ) -> inventory_service_core::Result<ProductImage> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImageService is not available in tests".to_string(),
+        ))
+    }
+
+    async fn delete_image(
+        &self,
+        _tenant_id: Uuid,
+        _image_id: Uuid,
+    ) -> inventory_service_core::Result<DeleteImageResponse> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImageService is not available in tests".to_string(),
+        ))
+    }
+
+    async fn reorder_images(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _request: ReorderImagesRequest,
+    ) -> inventory_service_core::Result<()> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImageService is not available in tests".to_string(),
+        ))
+    }
+
+    async fn set_primary_image(
+        &self,
+        _tenant_id: Uuid,
+        _product_id: Uuid,
+        _image_id: Uuid,
+    ) -> inventory_service_core::Result<()> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImageService is not available in tests".to_string(),
+        ))
+    }
+}
+
+/// Stub implementation of ProductImportService for testing
+pub struct StubProductImportService;
+
+#[async_trait]
+impl ProductImportService for StubProductImportService {
+    async fn validate_csv(
+        &self,
+        _tenant_id: Uuid,
+        _data: &[u8],
+    ) -> Result<ImportValidationResult, AppError> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImportService is not available in tests".to_string(),
+        ))
+    }
+
+    async fn import_csv(
+        &self,
+        _tenant_id: Uuid,
+        _data: &[u8],
+        _upsert: bool,
+    ) -> Result<ImportResult, AppError> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImportService is not available in tests".to_string(),
+        ))
+    }
+
+    async fn export_csv(
+        &self,
+        _tenant_id: Uuid,
+        _query: ExportProductsQuery,
+    ) -> Result<Vec<u8>, AppError> {
+        Err(AppError::ServiceUnavailable(
+            "ProductImportService is not available in tests".to_string(),
+        ))
+    }
+
+    fn get_template(&self) -> Vec<u8> {
+        b"sku,name,description,product_type\n".to_vec()
+    }
+}
 
 /// Setup test database with migrations
 pub async fn setup_test_database() -> PgPool {
@@ -207,6 +342,7 @@ pub async fn create_test_app(pool: PgPool) -> Router {
             stock_take_line_repo,
             stock_move_repo.clone(),
             Arc::new(PgInventoryLevelRepository::new(Arc::new(pool_ref.clone()))),
+            product_repo.clone(),
         )),
         reconciliation_service,
         rma_service: Arc::new(PgRmaService::new(rma_repo, rma_item_repo, stock_move_repo_trait)),
@@ -224,6 +360,9 @@ pub async fn create_test_app(pool: PgPool) -> Router {
         putaway_service: Arc::new(PgPutawayService::new(putaway_repo, stock_move_for_putaway)),
         scrap_service: Arc::new(PgScrapService::new(Arc::new(pool_ref.clone()))),
         stock_levels_service: Arc::new(PgStockLevelsService::new(Arc::new(pool_ref.clone()))),
+        adjustment_service: Arc::new(PgAdjustmentService::new(Arc::new(pool_ref.clone()))),
+        product_image_service: Arc::new(StubProductImageService),
+        product_import_service: Arc::new(StubProductImportService),
         variant_service: Arc::new(ProductVariantServiceImpl::new(
             Arc::new(ProductVariantRepositoryImpl::new(pool_ref.clone())),
             product_repo.clone(),
